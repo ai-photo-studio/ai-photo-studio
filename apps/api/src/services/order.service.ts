@@ -90,7 +90,8 @@ export class OrderService {
         width: img.width,
         height: img.height,
         fileSizeBytes: img.fileSizeBytes,
-        kind: "ORIGINAL"
+        kind: "ORIGINAL",
+        expiresAt: new Date(Date.now() + 24 * 3600_000)
       }))
     });
 

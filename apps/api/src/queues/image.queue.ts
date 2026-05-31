@@ -1,0 +1,51 @@
+import { Queue } from "bullmq";
+import type { AppConfig } from "../config/env";
+import { logger } from "../utils/logger";
+
+type JobType = "order-processing" | "image-processing" | "delivery" | "cleanup";
+
+type JobPayload = {
+  orderId?: string;
+  imageId?: string;
+};
+
+export class ImageQueueService {
+  private queue: Queue | null = null;
+  private readonly dryRun: boolean;
+
+  constructor(private readonly config: AppConfig) {
+    this.dryRun = config.queueDryRun;
+    if (!this.dryRun) {
+      this.queue = new Queue("image-processing", {
+        connection: { url: config.REDIS_URL } as any
+      });
+    } else {
+      logger.warn("Image queue running in dry-run mode (Redis disabled)");
+    }
+  }
+
+  private async enqueue(name: JobType, data: JobPayload) {
+    if (!this.queue) {
+      logger.info("Queue dry-run enqueue", { name, ...data });
+      return { dryRun: true };
+    }
+    await this.queue.add(name, data, { attempts: 3, backoff: { type: "exponential", delay: 1000 } });
+    return { dryRun: false };
+  }
+
+  enqueueOrderProcessing(orderId: string) {
+    return this.enqueue("order-processing", { orderId });
+  }
+
+  enqueueImageProcessing(imageId: string) {
+    return this.enqueue("image-processing", { imageId });
+  }
+
+  enqueueDelivery(orderId: string) {
+    return this.enqueue("delivery", { orderId });
+  }
+
+  enqueueCleanup() {
+    return this.enqueue("cleanup", {});
+  }
+}

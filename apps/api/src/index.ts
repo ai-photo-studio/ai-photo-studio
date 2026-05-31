@@ -6,6 +6,8 @@ import { createPaymentRouter } from "./routes/payment.routes";
 import { createWhatsAppRouter } from "./routes/whatsapp.routes";
 import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
+import { startImageWorker } from "./workers/image.worker";
+import { runCleanupOnce } from "./workers/cleanup.worker";
 
 const bootstrap = () => {
   const config = loadConfig();
@@ -31,6 +33,11 @@ const bootstrap = () => {
   app.use("/api", createWhatsAppRouter(config));
   app.use("/api", createOrderRouter(config));
   app.use("/api", createPaymentRouter(config));
+
+  startImageWorker(config);
+  setInterval(() => {
+    runCleanupOnce(config).catch((error) => logger.error("Cleanup tick failed", { error: toErrorMessage(error) }));
+  }, 60 * 60 * 1000);
 
   app.listen(config.PORT, () => {
     logger.info("API server started", {

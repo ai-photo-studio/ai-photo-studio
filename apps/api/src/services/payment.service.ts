@@ -2,6 +2,7 @@ import { prisma } from "../db/prisma";
 import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import { ImageQueueService } from "../queues/image.queue";
 
 export type CheckoutOrderInput = {
   id: string;
@@ -63,9 +64,11 @@ class MockPaymentProvider implements PaymentProvider {
 
 export class PaymentService {
   private readonly provider: PaymentProvider;
+  private readonly imageQueue: ImageQueueService;
 
   constructor(private readonly config: AppConfig) {
     this.provider = new MockPaymentProvider(config);
+    this.imageQueue = new ImageQueueService(config);
   }
 
   async createCheckout(order: CheckoutOrderInput) {
@@ -134,7 +137,10 @@ export class PaymentService {
       })
     ]);
 
-    return { success: true, updated: true, orderNo: verified.orderNo };
+    await this.imageQueue.enqueueOrderProcessing(order.id);
+    await this.imageQueue.enqueueDelivery(order.id);
+
+    return { success: true, updated: true, orderNo: verified.orderNo, enqueued: true };
   }
 
   async getOrderPaymentStatus(orderNo: string) {
