@@ -11,8 +11,5 @@ export const createOrderRouter = (config: AppConfig): Router => {
   router.post("/orders/:orderNo/images", controller.addOrderImages);
   router.post("/orders/:orderNo/checkout", controller.createOrderCheckout);
 
-  router.get("/admin/orders", controller.listAdminOrders);
-  router.get("/admin/orders/:id", controller.getAdminOrderById);
-
   return router;
 };

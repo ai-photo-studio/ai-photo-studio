@@ -1,8 +1,20 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AdminLayout } from "./components/AdminLayout";
+import { AdminDashboard } from "./pages/AdminDashboard";
+import { AdminFailedJobs } from "./pages/AdminFailedJobs";
+import { AdminOrderDetail } from "./pages/AdminOrderDetail";
+import { AdminOrders } from "./pages/AdminOrders";
+
 export function App() {
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: 24 }}>
-      <h1>AI Product Photo Studio</h1>
-      <p>Admin dashboard shell is prepared for MVP implementation steps.</p>
-    </main>
+    <Routes>
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="orders/:id" element={<AdminOrderDetail />} />
+        <Route path="failed-jobs" element={<AdminFailedJobs />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+    </Routes>
   );
 }

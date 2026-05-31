@@ -16,8 +16,8 @@ export const runCleanupOnce = async (config: AppConfig) => {
 
   let deleted = 0;
   for (const file of expired) {
+    if (!file.storageKey) continue;
     await storage.deleteFile(file.storageKey);
-    await prisma.orderImage.delete({ where: { id: file.id } });
     deleted += 1;
   }
 

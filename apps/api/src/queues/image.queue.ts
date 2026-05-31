@@ -2,7 +2,7 @@ import { Queue } from "bullmq";
 import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
 
-type JobType = "order-processing" | "image-processing" | "delivery" | "cleanup";
+export type JobType = "order-processing" | "image-processing" | "delivery" | "cleanup";
 
 type JobPayload = {
   orderId?: string;
@@ -47,5 +47,9 @@ export class ImageQueueService {
 
   enqueueCleanup() {
     return this.enqueue("cleanup", {});
+  }
+
+  async close() {
+    if (this.queue) await this.queue.close();
   }
 }

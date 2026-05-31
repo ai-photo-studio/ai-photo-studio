@@ -122,4 +122,18 @@ export class OrderService {
     if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
     return order;
   }
+
+  async markOrderCompleted(orderId: string) {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { orderStatus: "COMPLETED" }
+    });
+  }
+
+  async markOrderFailed(orderId: string, reason: string) {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { orderStatus: "FAILED", notes: reason.slice(0, 1000) }
+    });
+  }
 }

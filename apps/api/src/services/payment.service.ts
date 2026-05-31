@@ -3,6 +3,7 @@ import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { ImageQueueService } from "../queues/image.queue";
+import { DeliveryService } from "./delivery.service";
 
 export type CheckoutOrderInput = {
   id: string;
@@ -65,10 +66,12 @@ class MockPaymentProvider implements PaymentProvider {
 export class PaymentService {
   private readonly provider: PaymentProvider;
   private readonly imageQueue: ImageQueueService;
+  private readonly delivery: DeliveryService;
 
   constructor(private readonly config: AppConfig) {
     this.provider = new MockPaymentProvider(config);
     this.imageQueue = new ImageQueueService(config);
+    this.delivery = new DeliveryService(config);
   }
 
   async createCheckout(order: CheckoutOrderInput) {
@@ -138,7 +141,14 @@ export class PaymentService {
     ]);
 
     await this.imageQueue.enqueueOrderProcessing(order.id);
-    await this.imageQueue.enqueueDelivery(order.id);
+    const fullOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: { customer: true }
+    });
+    if (fullOrder) {
+      await this.delivery.sendPaymentConfirmed(fullOrder.customer.whatsappNumber, fullOrder.orderNo);
+      await this.delivery.sendProcessingStarted(fullOrder.customer.whatsappNumber, fullOrder.orderNo);
+    }
 
     return { success: true, updated: true, orderNo: verified.orderNo, enqueued: true };
   }

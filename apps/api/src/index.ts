@@ -4,6 +4,7 @@ import { loadConfig } from "./config/env";
 import { createOrderRouter } from "./routes/order.routes";
 import { createPaymentRouter } from "./routes/payment.routes";
 import { createWhatsAppRouter } from "./routes/whatsapp.routes";
+import { createAdminRouter } from "./routes/admin.routes";
 import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
 import { startImageWorker } from "./workers/image.worker";
@@ -33,6 +34,7 @@ const bootstrap = () => {
   app.use("/api", createWhatsAppRouter(config));
   app.use("/api", createOrderRouter(config));
   app.use("/api", createPaymentRouter(config));
+  app.use("/api", createAdminRouter(config));
 
   startImageWorker(config);
   setInterval(() => {
