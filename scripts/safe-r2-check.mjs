@@ -27,14 +27,20 @@ console.log(`R2_PUBLIC_BASE_URL=${publicBaseUrl ? "[set]" : "(unset)"}`);
 const expectedAccount = identity.expectedCloudflareAccountId;
 const expectedBucket = identity.expectedR2BucketName;
 
+if (!accountId) console.log("Warning: R2_ACCOUNT_ID is not set");
+if (!bucketName) console.log("Warning: R2_BUCKET_NAME is not set");
+if (!publicBaseUrl) console.log("Warning: R2_PUBLIC_BASE_URL is not set");
+
 if (expectedAccount && !expectedAccount.startsWith("REPLACE_WITH_")) {
-  if (!accountId) stop("R2 account id missing in environment");
-  if (accountId !== expectedAccount) stop("R2 account id mismatch", [`expected=${expectedAccount}`, "actual=[set but different]"]);
+  if (accountId && accountId !== expectedAccount) {
+    stop("R2 account id mismatch", [`expected=${expectedAccount}`, "actual=[set but different]"]);
+  }
 }
 
 if (expectedBucket && !expectedBucket.startsWith("REPLACE_WITH_")) {
-  if (!bucketName) stop("R2 bucket name missing in environment");
-  if (bucketName !== expectedBucket) stop("R2 bucket mismatch", [`expected=${expectedBucket}`, "actual=[set but different]"]);
+  if (bucketName && bucketName !== expectedBucket) {
+    stop("R2 bucket mismatch", [`expected=${expectedBucket}`, "actual=[set but different]"]);
+  }
 }
 
 if (

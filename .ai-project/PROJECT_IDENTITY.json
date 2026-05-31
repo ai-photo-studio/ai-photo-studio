@@ -6,8 +6,8 @@
   "expectedRepoName": "ai-photo-studio-whatsapp",
   "expectedRailwayProjectId": "ad62f340-fcfd-4989-b5bb-18753b28d8c8",
   "expectedRailwayProjectName": "AI Photo Studio WhatsApp",
-  "expectedRailwayEnvironment": "REPLACE_WITH_RAILWAY_ENVIRONMENT",
+  "expectedRailwayEnvironment": "production",
   "expectedRailwayService": "REPLACE_WITH_RAILWAY_SERVICE",
-  "expectedCloudflareAccountId": "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID",
-  "expectedR2BucketName": "REPLACE_WITH_R2_BUCKET_NAME"
+  "expectedCloudflareAccountId": "85f6a6181b4653c2a45e69cb7ce8a474",
+  "expectedR2BucketName": "ai-photo-studio-whatsapp-r2"
 }

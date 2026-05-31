@@ -60,11 +60,11 @@ for (const [label, expected] of checks) {
   }
 }
 
-if (typeof expectedEnv === "string" && expectedEnv.startsWith("REPLACE_WITH_")) {
-  console.log("Warning: Railway environment placeholder is not configured yet");
-}
 if (typeof expectedService === "string" && expectedService.startsWith("REPLACE_WITH_")) {
   console.log("Warning: Railway service placeholder is not configured yet");
+}
+if (/service:\s*none/i.test(status)) {
+  console.log("Warning: Railway service is currently None in linked context");
 }
 
 console.log("Railway scope check passed");
