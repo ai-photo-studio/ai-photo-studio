@@ -4,7 +4,12 @@
     "projectName": "AI Photo Studio WhatsApp",
     "environment": "production",
     "environmentId": "13228f5e-8af5-4f5e-b57e-b1dfccd567ec",
-    "service": "REPLACE_WITH_RAILWAY_SERVICE"
+    "service": "api",
+    "requiredServices": [
+      "api",
+      "postgres",
+      "redis"
+    ]
   },
   "cloudflare": {
     "accountId": "85f6a6181b4653c2a45e69cb7ce8a474",
