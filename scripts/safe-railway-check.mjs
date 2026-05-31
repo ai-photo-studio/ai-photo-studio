@@ -27,8 +27,13 @@ let status = "";
 try {
   status = run("railway.cmd status");
 } catch (error) {
+  const message = String(error);
+  if (/unauthorized|login/i.test(message)) {
+    console.log("Railway CLI is installed but not authenticated. Run: railway login");
+    process.exit(0);
+  }
   console.log("Railway CLI available but status unavailable");
-  console.log(String(error));
+  console.log(message);
   process.exit(0);
 }
 
@@ -53,6 +58,13 @@ for (const [label, expected] of checks) {
   if (!status.toLowerCase().includes(expected.toLowerCase())) {
     stop("Railway target mismatch", [`expected ${label}=${expected}`, "actual=not found in railway status output"]);
   }
+}
+
+if (typeof expectedEnv === "string" && expectedEnv.startsWith("REPLACE_WITH_")) {
+  console.log("Warning: Railway environment placeholder is not configured yet");
+}
+if (typeof expectedService === "string" && expectedService.startsWith("REPLACE_WITH_")) {
+  console.log("Warning: Railway service placeholder is not configured yet");
 }
 
 console.log("Railway scope check passed");

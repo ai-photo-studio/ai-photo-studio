@@ -22,7 +22,8 @@ const blocked = [];
 
 const isBlocked = (f) => {
   const normalized = f.replace(/\\/g, "/").toLowerCase();
-  if (normalized === ".env" || normalized.startsWith(".env.")) return true;
+  if (normalized === ".env") return true;
+  if (normalized.startsWith(".env.") && normalized !== ".env.project.example" && normalized !== ".env.example") return true;
   if (normalized.endsWith(".pem") || normalized.endsWith(".key")) return true;
   if (normalized.includes("secret") || normalized.includes("credential")) return true;
   if (normalized === "readme.md" || normalized.startsWith("docs/")) return true;

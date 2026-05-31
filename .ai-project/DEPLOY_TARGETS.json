@@ -1,7 +1,7 @@
 {
   "railway": {
-    "projectId": "REPLACE_WITH_RAILWAY_PROJECT_ID",
-    "projectName": "REPLACE_WITH_RAILWAY_PROJECT_NAME",
+    "projectId": "ad62f340-fcfd-4989-b5bb-18753b28d8c8",
+    "projectName": "AI Photo Studio WhatsApp",
     "environment": "REPLACE_WITH_RAILWAY_ENVIRONMENT",
     "service": "REPLACE_WITH_RAILWAY_SERVICE"
   },
