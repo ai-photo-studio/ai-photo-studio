@@ -1,0 +1,14 @@
+{
+  "name": "ai-product-photo-studio-whatsapp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Monorepo for WhatsApp-first AI Product Photo Studio MVP",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web"
+  }
+}

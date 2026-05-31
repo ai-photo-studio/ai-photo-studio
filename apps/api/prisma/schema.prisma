@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  NEW
+  PAYMENT_PENDING
+  PAID
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ImageKind {
+  ORIGINAL
+  PREVIEW
+  FINAL
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  whatsappNumber String   @unique
+  name           String?
+  locale         String?  @default("en-PK")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders Order[]
+}
+
+model Order {
+  id            String       @id @default(cuid())
+  orderNo       String       @unique
+  customerId    String
+  packageId     String
+  orderStatus   OrderStatus  @default(NEW)
+  paymentStatus PaymentStatus @default(PENDING)
+  currency      String       @default("PKR")
+  subtotal      Decimal      @db.Decimal(10, 2)
+  total         Decimal      @db.Decimal(10, 2)
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  customer Customer     @relation(fields: [customerId], references: [id])
+  package  Package      @relation(fields: [packageId], references: [id])
+  images   OrderImage[]
+  payments Payment[]
+  aiJobs   AiJob[]
+
+  @@index([customerId, createdAt])
+  @@index([orderStatus, paymentStatus])
+}
+
+model OrderImage {
+  id            String    @id @default(cuid())
+  orderId       String
+  kind          ImageKind @default(ORIGINAL)
+  storageKey    String
+  mimeType      String?
+  width         Int?
+  height        Int?
+  fileSizeBytes Int?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, kind])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String
+  provider        String
+  providerRef     String?
+  checkoutUrl     String?
+  status          PaymentStatus @default(PENDING)
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("PKR")
+  rawPayload      Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@index([provider, providerRef])
+}
+
+model Package {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  currency      String   @default("PKR")
+  active        Boolean  @default(true)
+  maxImages     Int?
+  includesJson  Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders       Order[]
+  sampleAssets SampleAsset[]
+}
+
+model SampleAsset {
+  id          String   @id @default(cuid())
+  packageId   String?
+  title       String
+  type        String
+  storageKey  String
+  publicUrl   String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  package Package? @relation(fields: [packageId], references: [id])
+
+  @@index([packageId, active])
+}
+
+model AiJob {
+  id             String    @id @default(cuid())
+  orderId        String
+  orderImageId   String?
+  provider       String
+  operation      String
+  status         JobStatus @default(QUEUED)
+  attempts       Int       @default(0)
+  errorMessage   String?
+  inputKey       String?
+  outputKey      String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, status])
+}
+
+model WebhookEvent {
+  id               String   @id @default(cuid())
+  source           String
+  providerEventId  String
+  eventType        String
+  payload          Json
+  processed        Boolean  @default(false)
+  processedAt      DateTime?
+  createdAt        DateTime @default(now())
+
+  @@unique([source, providerEventId])
+  @@index([source, eventType, createdAt])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorType   String
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorType, createdAt])
+}
