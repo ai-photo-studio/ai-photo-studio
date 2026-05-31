@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import { loadConfig } from "./config/env";
+import { createOrderRouter } from "./routes/order.routes";
+import { createPaymentRouter } from "./routes/payment.routes";
 import { createWhatsAppRouter } from "./routes/whatsapp.routes";
 import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
@@ -27,6 +29,8 @@ const bootstrap = () => {
   });
 
   app.use("/api", createWhatsAppRouter(config));
+  app.use("/api", createOrderRouter(config));
+  app.use("/api", createPaymentRouter(config));
 
   app.listen(config.PORT, () => {
     logger.info("API server started", {

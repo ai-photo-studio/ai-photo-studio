@@ -1,4 +1,5 @@
 const WELCOME_WORDS = new Set(["hi", "hello", "start", "aoa", "assalamualaikum"]);
+const PACKAGE_WORDS = new Set(["free preview", "basic pack", "seller ready pack", "premium launch pack"]);
 
 export const shouldSendWelcomeMenu = (text?: string): boolean => {
   if (!text) return false;
@@ -16,4 +17,11 @@ export const getServiceMenuText = (): string => {
     "4) Short Video",
     "5) Bulk Seller Package"
   ].join("\n");
+};
+
+export const extractSelectedPackage = (text?: string): string | null => {
+  if (!text) return null;
+  const normalized = text.trim().toLowerCase();
+  if (!PACKAGE_WORDS.has(normalized)) return null;
+  return normalized;
 };

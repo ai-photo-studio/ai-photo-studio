@@ -1,12 +1,14 @@
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
-import { shouldSendWelcomeMenu, getServiceMenuText } from "../services/conversation.service";
+import { extractSelectedPackage, getServiceMenuText, shouldSendWelcomeMenu } from "../services/conversation.service";
+import { OrderService } from "../services/order.service";
 import { WhatsAppService } from "../services/whatsapp.service";
 import { logger } from "../utils/logger";
 import { parseWhatsAppWebhook } from "../utils/whatsappParser";
 
 export class WhatsAppController {
   private readonly service: WhatsAppService;
+  private readonly orderService = new OrderService();
 
   constructor(private readonly config: AppConfig) {
     this.service = new WhatsAppService(config);
@@ -43,6 +45,26 @@ export class WhatsAppController {
     for (const msg of parsed) {
       if (msg.type === "text" && shouldSendWelcomeMenu(msg.text)) {
         await this.service.sendTextMessage(msg.from, getServiceMenuText());
+        continue;
+      }
+
+      if (msg.type === "text") {
+        const selectedPackage = extractSelectedPackage(msg.text);
+        if (selectedPackage) {
+          try {
+            const order = await this.orderService.createOrder({
+              whatsappNumber: msg.from,
+              packageSlug: selectedPackage,
+              serviceType: "Product Photo Editing"
+            });
+            await this.service.sendTextMessage(
+              msg.from,
+              `Order created: ${order.orderNo}\nPackage: ${order.package.name}\nAmount: ${order.amount} ${order.currency}\nPlease upload your images.`
+            );
+          } catch (error) {
+            logger.warn("Package selected but order creation failed", { from: msg.from, selectedPackage });
+          }
+        }
       }
     }
   };
