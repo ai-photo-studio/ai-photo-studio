@@ -14,6 +14,7 @@
     "push:safe": "node scripts/safe-git-push.mjs",
     "railway:check": "node scripts/safe-railway-check.mjs",
     "r2:check": "node scripts/safe-r2-check.mjs",
-    "deploy:ready": "node scripts/safe-deploy-readiness.mjs"
+    "deploy:ready": "node scripts/safe-deploy-readiness.mjs",
+    "railway:env:template": "node scripts/print-railway-env-template.mjs"
   }
 }
