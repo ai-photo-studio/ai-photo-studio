@@ -1,12 +1,17 @@
 *.md
 docs/
 **/*.md
+!PROJECT_SAFETY_LOCK.md
 !.ai-project/PUSH_GUARD.md
 !.ai-project/SAFE_COMMANDS.md
 .env
 .env.*
 !.env.example
 !.env.project.example
+*.env
+secrets/
+tokens/
+.project-secrets/
 node_modules/
 dist/
 build/
