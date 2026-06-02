@@ -102,16 +102,7 @@ if (expectedService && serviceName && serviceName.toLowerCase() !== expectedServ
 }
 
 const isPresent = (key) => Object.prototype.hasOwnProperty.call(vars, key) && String(vars[key] ?? "").length > 0;
-const referenceState = (key, serviceNamePart) => {
-  if (!isPresent(key)) return "MISSING";
-  const value = String(vars[key] ?? "");
-  return value.includes(`\${{${serviceNamePart}.`) ? "PRESENT_REFERENCE_OK" : "PRESENT_REFERENCE_NEEDS_REVIEW";
-};
-
 console.log(`Railway variables check passed for project=${expectedProjectName}, environment=${expectedEnvironment}, service=${expectedService}`);
 for (const key of REQUIRED_VARS) {
   console.log(`${key}=${isPresent(key) ? "PRESENT" : "MISSING"}`);
 }
-
-console.log(`DATABASE_URL_REFERENCE=${referenceState("DATABASE_URL", "Postgres")}`);
-console.log(`REDIS_URL_REFERENCE=${referenceState("REDIS_URL", "Redis")}`);
