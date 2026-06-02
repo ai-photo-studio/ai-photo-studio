@@ -3,6 +3,7 @@ import { AppError } from "../utils/errors";
 import { ImageQueueService } from "../queues/image.queue";
 import type { AppConfig } from "../config/env";
 import { DeliveryService } from "./delivery.service";
+import { PaymentService } from "./payment.service";
 
 type ListOrdersParams = {
   status?: string;
@@ -15,10 +16,12 @@ type ListOrdersParams = {
 export class AdminService {
   private readonly queue: ImageQueueService;
   private readonly delivery: DeliveryService;
+  private readonly payment: PaymentService;
 
   constructor(config: AppConfig) {
     this.queue = new ImageQueueService(config);
     this.delivery = new DeliveryService(config);
+    this.payment = new PaymentService(config);
   }
 
   async getDashboard() {
@@ -155,6 +158,26 @@ export class AdminService {
     });
 
     return { orderId: id, enqueued };
+  }
+
+  async approveManualPayment(id: string) {
+    const result = await this.payment.approveManualPayment(id);
+
+    await prisma.auditLog.create({
+      data: {
+        actorType: "admin",
+        action: "approve_manual_payment",
+        entityType: "order",
+        entityId: id,
+        meta: {
+          orderNo: result.orderNo,
+          paymentId: result.paymentId,
+          enqueued: result.enqueued
+        }
+      }
+    });
+
+    return result;
   }
 
   async sendAgain(id: string) {

@@ -61,6 +61,15 @@ export class AdminController {
     }
   };
 
+  approveManualPayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.approveManualPayment(req.params.id);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   sendAgain = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.sendAgain(req.params.id);

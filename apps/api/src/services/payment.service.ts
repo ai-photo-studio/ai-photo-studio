@@ -155,6 +155,71 @@ export class PaymentService {
     return { success: true, updated: true, orderNo: verified.orderNo, enqueued: true };
   }
 
+  async approveManualPayment(orderId: string) {
+    if (this.config.PAYMENT_GATEWAY_NAME !== "manual") {
+      throw new AppError("Manual payment approval is only available when PAYMENT_GATEWAY_NAME=manual", 400, "MANUAL_PAYMENT_DISABLED");
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        payments: { orderBy: { createdAt: "desc" }, take: 1 },
+        images: true
+      }
+    });
+
+    if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+    if (order.paymentStatus === "PAID") throw new AppError("Order is already paid", 400, "ORDER_ALREADY_PAID");
+    if (order.orderStatus === "CANCELLED") throw new AppError("Cancelled orders cannot be approved", 400, "ORDER_CANCELLED");
+    if (order.orderStatus === "COMPLETED") throw new AppError("Completed orders cannot be approved", 400, "ORDER_COMPLETED");
+    if (order.orderStatus === "FAILED") throw new AppError("Failed orders cannot be approved", 400, "ORDER_FAILED");
+    if (order.paymentStatus !== "PENDING" || order.orderStatus !== "PAYMENT_PENDING") {
+      throw new AppError("Order is not waiting for manual payment approval", 400, "ORDER_NOT_PENDING");
+    }
+
+    const latestPayment = order.payments[0];
+    if (!latestPayment) throw new AppError("Payment record not found", 404, "PAYMENT_NOT_FOUND");
+
+    const manualPayload = {
+      source: "manual-approval",
+      orderId: order.id,
+      orderNo: order.orderNo,
+      approvedAt: new Date().toISOString()
+    };
+
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: latestPayment.id },
+        data: { status: "PAID", paidAt: new Date(), rawPayload: manualPayload as object }
+      }),
+      prisma.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "PAID", orderStatus: "PROCESSING" }
+      })
+    ]);
+
+    const refreshedOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: { customer: true }
+    });
+
+    await this.imageQueue.enqueueOrderProcessing(order.id);
+
+    if (refreshedOrder) {
+      await this.delivery.sendPaymentConfirmed(refreshedOrder.customer.whatsappNumber, refreshedOrder.orderNo);
+      await this.delivery.sendProcessingStarted(refreshedOrder.customer.whatsappNumber, refreshedOrder.orderNo);
+    }
+
+    return {
+      success: true,
+      updated: true,
+      orderNo: order.orderNo,
+      enqueued: true,
+      paymentId: latestPayment.id
+    };
+  }
+
   async getOrderPaymentStatus(orderNo: string) {
     const order = await prisma.order.findUnique({
       where: { orderNo },
