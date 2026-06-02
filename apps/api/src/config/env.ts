@@ -7,6 +7,7 @@ const envSchema = z
     DATABASE_URL: z.string().min(1),
     REDIS_URL: z.string().min(1),
     STORAGE_PROVIDER: z.enum(["r2", "mock"]).default("r2"),
+    BACKGROUND_API_URL: z.string().optional().default(""),
     WHATSAPP_VERIFY_TOKEN: z.string().min(1),
     WHATSAPP_ACCESS_TOKEN: z.string().optional().default(""),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(""),

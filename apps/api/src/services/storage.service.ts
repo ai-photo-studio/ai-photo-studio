@@ -24,12 +24,18 @@ export type UploadFileResult = {
   expiresAt: Date;
 };
 
+export type DownloadFileResult = {
+  body: Buffer;
+  contentType?: string;
+};
+
 export interface StorageProvider {
   uploadFile(params: UploadFileInput): Promise<UploadFileResult>;
   getSignedUrl(key: string): Promise<string>;
   deleteFile(key: string): Promise<void>;
   deleteExpiredFiles(): Promise<{ deleted: number }>;
   getPublicUrl(key: string): string;
+  downloadFile(key: string): Promise<DownloadFileResult>;
 }
 
 const retentionByPrefix: Record<UploadFileInput["keyPrefix"], number> = {
@@ -65,6 +71,24 @@ const toStorageError = (action: string, error: unknown) => {
   return new AppError(`R2 storage ${action} failed`, 502, "STORAGE_R2_ERROR");
 };
 
+const bodyToBuffer = async (body: unknown): Promise<Buffer> => {
+  if (!body) return Buffer.alloc(0);
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof Uint8Array) return Buffer.from(body);
+  if (typeof (body as any).arrayBuffer === "function") {
+    const arrayBuffer = await (body as any).arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+  if (typeof (body as any)[Symbol.asyncIterator] === "function") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of body as AsyncIterable<unknown>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as any));
+    }
+    return Buffer.concat(chunks);
+  }
+  return Buffer.from(String(body));
+};
+
 class MockStorageProvider implements StorageProvider {
   constructor(private readonly config: AppConfig) {}
 
@@ -87,6 +111,10 @@ class MockStorageProvider implements StorageProvider {
   async deleteExpiredFiles(): Promise<{ deleted: number }> {
     logger.info("Mock storage cleanup executed");
     return { deleted: 0 };
+  }
+
+  async downloadFile(_key: string): Promise<DownloadFileResult> {
+    throw new AppError("Mock storage download is not supported", 501, "STORAGE_DOWNLOAD_UNSUPPORTED");
   }
 
   getPublicUrl(key: string): string {
@@ -157,6 +185,23 @@ class R2StorageProvider implements StorageProvider {
     return { deleted: 0 };
   }
 
+  async downloadFile(key: string): Promise<DownloadFileResult> {
+    try {
+      const output = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.config.R2_BUCKET_NAME,
+          Key: key
+        })
+      );
+      return {
+        body: await bodyToBuffer(output.Body),
+        contentType: output.ContentType ?? undefined
+      };
+    } catch (error) {
+      throw toStorageError("download", error);
+    }
+  }
+
   getPublicUrl(key: string): string {
     return buildPublicUrl(this.config.R2_PUBLIC_BASE_URL, key);
   }
@@ -187,5 +232,9 @@ export class StorageService implements StorageProvider {
 
   getPublicUrl(key: string): string {
     return this.provider.getPublicUrl(key);
+  }
+
+  downloadFile(key: string): Promise<DownloadFileResult> {
+    return this.provider.downloadFile(key);
   }
 }

@@ -6,6 +6,7 @@ import { AiProviderService } from "../services/ai-provider.service";
 import { DeliveryService } from "../services/delivery.service";
 import { OrderService } from "../services/order.service";
 import { StorageService } from "../services/storage.service";
+import { WhatsAppImageFlowService } from "../services/whatsapp-image.service";
 import { TemplateService } from "../services/template.service";
 import { WatermarkService } from "../services/watermark.service";
 import { logger } from "../utils/logger";
@@ -25,6 +26,7 @@ export const startImageWorker = (config: AppConfig) => {
   const delivery = new DeliveryService(config);
   const orders = new OrderService();
   const storage = new StorageService(config);
+  const whatsappImageFlow = new WhatsAppImageFlowService(config);
 
   const finalizeOrderIfReady = async (orderId: string) => {
     const order = await prisma.order.findUnique({
@@ -73,6 +75,11 @@ export const startImageWorker = (config: AppConfig) => {
           order.orderNo,
           outputs.map((x) => x.storageKey)
         );
+        return;
+      }
+
+      if (job.name === "whatsapp-image-processing" && imageId) {
+        await whatsappImageFlow.processQueuedImage(imageId);
         return;
       }
 

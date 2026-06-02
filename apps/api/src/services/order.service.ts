@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma";
 import { AppError } from "../utils/errors";
 import { CustomerService } from "./customer.service";
+import { normalizeWhatsAppNumber } from "./customer.service";
 import { PackageService } from "./package.service";
 
 type CreateOrderInput = {
@@ -15,6 +16,7 @@ type AddOrderImageInput = {
   width?: number;
   height?: number;
   fileSizeBytes?: number;
+  kind?: "ORIGINAL" | "PREVIEW" | "FINAL";
 };
 
 const toOrderNo = (): string => {
@@ -90,7 +92,7 @@ export class OrderService {
         width: img.width,
         height: img.height,
         fileSizeBytes: img.fileSizeBytes,
-        kind: "ORIGINAL",
+        kind: img.kind || "ORIGINAL",
         expiresAt: new Date(Date.now() + 24 * 3600_000)
       }))
     });
@@ -104,6 +106,37 @@ export class OrderService {
       paymentStatus: refreshed?.paymentStatus ?? order.paymentStatus,
       orderStatus: refreshed?.orderStatus ?? order.orderStatus
     };
+  }
+
+  async addImage(orderId: string, image: AddOrderImageInput) {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+
+    return prisma.orderImage.create({
+      data: {
+        orderId,
+        storageKey: image.storageKey,
+        mimeType: image.mimeType,
+        width: image.width,
+        height: image.height,
+        fileSizeBytes: image.fileSizeBytes,
+        kind: image.kind || "ORIGINAL",
+        expiresAt: new Date(Date.now() + (image.kind === "FINAL" ? 72 : 24) * 3600_000)
+      }
+    });
+  }
+
+  async findLatestPaidOrderByWhatsAppNumber(whatsappNumber: string) {
+    const normalized = normalizeWhatsAppNumber(whatsappNumber);
+    return prisma.order.findFirst({
+      where: {
+        customer: { is: { whatsappNumber: normalized } },
+        paymentStatus: "PAID",
+        orderStatus: { in: ["PAID", "PROCESSING"] }
+      },
+      include: { customer: true, package: true, images: true, aiJobs: true },
+      orderBy: { createdAt: "desc" }
+    });
   }
 
   async listOrders() {

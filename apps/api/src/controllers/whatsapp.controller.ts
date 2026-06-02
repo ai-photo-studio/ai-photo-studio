@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { extractSelectedPackage, getServiceMenuText, shouldSendWelcomeMenu } from "../services/conversation.service";
 import { OrderService } from "../services/order.service";
+import { WhatsAppImageFlowService } from "../services/whatsapp-image.service";
 import { WhatsAppService } from "../services/whatsapp.service";
 import { logger } from "../utils/logger";
 import { parseWhatsAppWebhook } from "../utils/whatsappParser";
@@ -9,9 +10,11 @@ import { parseWhatsAppWebhook } from "../utils/whatsappParser";
 export class WhatsAppController {
   private readonly service: WhatsAppService;
   private readonly orderService = new OrderService();
+  private readonly imageFlow: WhatsAppImageFlowService;
 
   constructor(private readonly config: AppConfig) {
     this.service = new WhatsAppService(config);
+    this.imageFlow = new WhatsAppImageFlowService(config);
   }
 
   verifyWebhook = (req: Request, res: Response): void => {
@@ -64,6 +67,22 @@ export class WhatsAppController {
           } catch (error) {
             logger.warn("Package selected but order creation failed", { from: msg.from, selectedPackage });
           }
+        }
+      }
+
+      if (msg.type === "image" && msg.imageId) {
+        try {
+          const result = await this.imageFlow.handleIncomingImage(msg.from, msg.imageId);
+          logger.info("WhatsApp image workflow handled", {
+            from: msg.from,
+            accepted: result.accepted,
+            orderNo: "orderNo" in result ? result.orderNo : undefined
+          });
+        } catch (error) {
+          logger.warn("WhatsApp image workflow failed", {
+            from: msg.from,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
     }
