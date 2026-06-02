@@ -5,6 +5,7 @@ import { ImageQueueService } from "../queues/image.queue";
 import { AiProviderService } from "../services/ai-provider.service";
 import { DeliveryService } from "../services/delivery.service";
 import { OrderService } from "../services/order.service";
+import { StorageService } from "../services/storage.service";
 import { TemplateService } from "../services/template.service";
 import { WatermarkService } from "../services/watermark.service";
 import { logger } from "../utils/logger";
@@ -23,6 +24,7 @@ export const startImageWorker = (config: AppConfig) => {
   const queue = new ImageQueueService(config);
   const delivery = new DeliveryService(config);
   const orders = new OrderService();
+  const storage = new StorageService(config);
 
   const finalizeOrderIfReady = async (orderId: string) => {
     const order = await prisma.order.findUnique({
@@ -107,18 +109,26 @@ export const startImageWorker = (config: AppConfig) => {
             outputKey = await watermark.applyWatermark(result.previewKey || outputKey);
           }
 
+          const uploaded = await storage.uploadFile({
+            keyPrefix: "finals",
+            fileName: `${outputKey}.txt`,
+            contentType: "text/plain; charset=utf-8",
+            body: Buffer.from(outputKey, "utf8")
+          });
+          const storedOutputKey = uploaded.key;
+
           await prisma.$transaction([
             prisma.orderImage.create({
               data: {
                 orderId: image.orderId,
                 kind: result.previewKey ? "PREVIEW" : "FINAL",
-                storageKey: outputKey,
+                storageKey: storedOutputKey,
                 expiresAt: new Date(Date.now() + (result.previewKey ? 7 * 24 * 3600_000 : 72 * 3600_000))
               }
             }),
             prisma.aiJob.update({
               where: { id: aiJob.id },
-              data: { status: "COMPLETED", outputKey, completedAt: new Date() }
+              data: { status: "COMPLETED", outputKey: storedOutputKey, completedAt: new Date() }
             })
           ]);
         } catch (error) {
