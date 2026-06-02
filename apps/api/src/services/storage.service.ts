@@ -54,7 +54,8 @@ class MockStorageProvider implements StorageProvider {
   }
 
   getPublicUrl(key: string): string {
-    return `${this.config.R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${key}`;
+    const baseUrl = this.config.R2_PUBLIC_BASE_URL || `http://localhost:${this.config.PORT}`;
+    return `${baseUrl.replace(/\/$/, "")}/${key}`;
   }
 }
 

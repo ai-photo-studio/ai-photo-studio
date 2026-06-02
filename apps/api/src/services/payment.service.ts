@@ -33,7 +33,9 @@ class MockPaymentProvider implements PaymentProvider {
   constructor(private readonly config: AppConfig) {}
 
   async createCheckout(order: CheckoutOrderInput): Promise<CheckoutResult> {
-    const gatewayRef = `MOCK-${order.orderNo}-${Date.now()}`;
+    const gatewayName = this.config.PAYMENT_GATEWAY_NAME.toLowerCase();
+    const refPrefix = gatewayName === "manual" ? "MANUAL" : "MOCK";
+    const gatewayRef = `${refPrefix}-${order.orderNo}-${Date.now()}`;
     const base = this.config.PAYMENT_GATEWAY_BASE_URL || "http://localhost:4000";
     const checkoutUrl = `${base.replace(/\/$/, "")}/checkout?orderNo=${encodeURIComponent(order.orderNo)}&ref=${encodeURIComponent(gatewayRef)}`;
     return { checkoutUrl, gatewayRef };

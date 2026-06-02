@@ -1,28 +1,6 @@
 import fs from "node:fs";
 import { execSync } from "node:child_process";
 
-const REQUIRED_VARS = [
-  "NODE_ENV",
-  "PORT",
-  "DATABASE_URL",
-  "REDIS_URL",
-  "WHATSAPP_VERIFY_TOKEN",
-  "WHATSAPP_ACCESS_TOKEN",
-  "WHATSAPP_PHONE_NUMBER_ID",
-  "PAYMENT_GATEWAY_NAME",
-  "PAYMENT_GATEWAY_BASE_URL",
-  "PAYMENT_GATEWAY_SECRET",
-  "STORAGE_PROVIDER",
-  "R2_ACCOUNT_ID",
-  "R2_ACCESS_KEY_ID",
-  "R2_SECRET_ACCESS_KEY",
-  "R2_BUCKET_NAME",
-  "R2_PUBLIC_BASE_URL",
-  "AI_PROVIDER_NAME",
-  "AI_PROVIDER_API_KEY",
-  "ADMIN_JWT_SECRET"
-];
-
 const run = (cmd) => execSync(cmd, { encoding: "utf8" }).trim();
 const stop = (message, lines = []) => {
   console.error("STOP: RAILWAY VARS CHECK BLOCKED");
@@ -84,6 +62,9 @@ const projectId = String(vars.RAILWAY_PROJECT_ID || "");
 const projectName = String(vars.RAILWAY_PROJECT_NAME || "");
 const environmentName = String(vars.RAILWAY_ENVIRONMENT_NAME || vars.RAILWAY_ENVIRONMENT || "");
 const serviceName = String(vars.RAILWAY_SERVICE_NAME || "");
+const paymentGatewayName = String(vars.PAYMENT_GATEWAY_NAME || "").toLowerCase();
+const storageProvider = String(vars.STORAGE_PROVIDER || "").toLowerCase();
+const aiProviderName = String(vars.AI_PROVIDER_NAME || "").toLowerCase();
 
 if (expectedProjectId && projectId && projectId.toLowerCase() !== expectedProjectId.toLowerCase()) {
   stop("Railway project mismatch", [`expected projectId=${expectedProjectId}`, `actual projectId=${projectId}`]);
@@ -102,7 +83,41 @@ if (expectedService && serviceName && serviceName.toLowerCase() !== expectedServ
 }
 
 const isPresent = (key) => Object.prototype.hasOwnProperty.call(vars, key) && String(vars[key] ?? "").length > 0;
+const report = (key, required = true) => {
+  const present = isPresent(key);
+  console.log(`${key}=${present ? "PRESENT" : required ? "MISSING" : "SKIPPED"}`);
+  return present;
+};
+
 console.log(`Railway variables check passed for project=${expectedProjectName}, environment=${expectedEnvironment}, service=${expectedService}`);
-for (const key of REQUIRED_VARS) {
-  console.log(`${key}=${isPresent(key) ? "PRESENT" : "MISSING"}`);
+
+const alwaysRequired = ["NODE_ENV", "DATABASE_URL", "REDIS_URL", "WHATSAPP_VERIFY_TOKEN", "PAYMENT_GATEWAY_NAME", "STORAGE_PROVIDER", "AI_PROVIDER_NAME", "ADMIN_JWT_SECRET"];
+for (const key of alwaysRequired) report(key, true);
+
+if (paymentGatewayName !== "manual") {
+  report("PAYMENT_GATEWAY_BASE_URL", true);
+  report("PAYMENT_GATEWAY_SECRET", true);
+} else {
+  report("PAYMENT_GATEWAY_BASE_URL", false);
+  report("PAYMENT_GATEWAY_SECRET", false);
+}
+
+if (storageProvider !== "mock") {
+  report("R2_ACCOUNT_ID", true);
+  report("R2_ACCESS_KEY_ID", true);
+  report("R2_SECRET_ACCESS_KEY", true);
+  report("R2_BUCKET_NAME", true);
+  report("R2_PUBLIC_BASE_URL", true);
+} else {
+  report("R2_ACCOUNT_ID", false);
+  report("R2_ACCESS_KEY_ID", false);
+  report("R2_SECRET_ACCESS_KEY", false);
+  report("R2_BUCKET_NAME", false);
+  report("R2_PUBLIC_BASE_URL", false);
+}
+
+if (aiProviderName !== "mock") {
+  report("AI_PROVIDER_API_KEY", true);
+} else {
+  report("AI_PROVIDER_API_KEY", false);
 }
