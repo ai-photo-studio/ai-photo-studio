@@ -1,7 +1,8 @@
 import fs from "node:fs";
+import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 
-const run = (command, args = []) => execFileSync(command, args, { encoding: "utf8" }).trim();
+const run = (command, args = []) => execFileSync(command, args, { encoding: "utf8", shell: true }).trim();
 const stop = (message, lines = []) => {
   console.error("STOP: WRANGLER R2 CHECK BLOCKED");
   console.error(message);
@@ -12,6 +13,7 @@ const stop = (message, lines = []) => {
 const tryCommand = (command, args = []) => {
   const result = spawnSync(command, args, {
     encoding: "utf8",
+    shell: true,
     windowsHide: true
   });
 
@@ -29,19 +31,31 @@ const identity = JSON.parse(fs.readFileSync(".ai-project/PROJECT_IDENTITY.json",
 const expectedAccount = identity.expectedCloudflareAccountId;
 const expectedBucket = identity.expectedR2BucketName;
 
-let wranglerCommand = "";
-if (tryCommand("wrangler.cmd", ["--version"]).ok) {
-  wranglerCommand = "wrangler.cmd";
-} else if (tryCommand("wrangler", ["--version"]).ok) {
-  wranglerCommand = "wrangler";
-} else {
+const wranglerCandidates = [
+  [path.resolve("node_modules/.bin/wrangler.cmd"), []],
+  [path.resolve("node_modules/.bin/wrangler"), []],
+  ["wrangler.cmd", []],
+  ["wrangler", []],
+  ["npx.cmd", ["wrangler"]],
+  ["npx", ["wrangler"]]
+];
+
+let wranglerRunner = null;
+for (const [command, prefixArgs] of wranglerCandidates) {
+  if (tryCommand(command, [...prefixArgs, "--version"]).ok) {
+    wranglerRunner = { command, prefixArgs };
+    break;
+  }
+}
+
+if (!wranglerRunner) {
   console.log("Wrangler not installed.");
   process.exit(0);
 }
 
 let version = "";
 try {
-  version = run(wranglerCommand, ["--version"]);
+  version = run(wranglerRunner.command, [...wranglerRunner.prefixArgs, "--version"]);
 } catch (error) {
   stop("Unable to read Wrangler version", [String(error)]);
 }
@@ -50,7 +64,7 @@ console.log(`Wrangler available: ${version}`);
 
 let whoami = "";
 try {
-  whoami = run(wranglerCommand, ["whoami"]);
+  whoami = run(wranglerRunner.command, [...wranglerRunner.prefixArgs, "whoami"]);
 } catch (error) {
   const message = String(error);
   if (/not logged in|authentication|login/i.test(message)) {
@@ -68,24 +82,18 @@ if (whoami) {
 
 let rawBuckets = "";
 try {
-  rawBuckets = run(wranglerCommand, ["r2", "bucket", "list", "--json"]);
+  rawBuckets = run(wranglerRunner.command, [...wranglerRunner.prefixArgs, "r2", "bucket", "list"]);
 } catch (error) {
   stop("Unable to list R2 buckets safely", [String(error)]);
 }
 
-let buckets = [];
-try {
-  buckets = JSON.parse(rawBuckets);
-} catch (error) {
-  stop("Wrangler R2 bucket output was not valid JSON", [String(error)]);
-}
-
-if (!Array.isArray(buckets)) {
-  stop("Wrangler R2 bucket output was not an array");
-}
-
-const bucketNames = buckets
-  .map((bucket) => String(bucket?.name || ""))
+const bucketNames = rawBuckets
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .map((line) => {
+    const match = line.match(/^name:\s*(.+)$/i);
+    return match ? match[1].trim() : "";
+  })
   .filter(Boolean);
 
 const expectedPresent = bucketNames.includes(expectedBucket);

@@ -18,5 +18,8 @@
     "wrangler:r2:check": "node scripts/safe-wrangler-r2-check.mjs",
     "deploy:ready": "node scripts/safe-deploy-readiness.mjs",
     "railway:env:template": "node scripts/print-railway-env-template.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.96.0"
   }
 }
