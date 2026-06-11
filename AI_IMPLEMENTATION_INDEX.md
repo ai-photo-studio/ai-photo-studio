@@ -25,6 +25,7 @@ Deployment readiness snapshot:
 - Phase E AI provider integration routes processed images through a configurable provider abstraction.
 - Phase F commercial readiness now adds wallets, payments, packages, and subscriptions.
 - Phase G customer commercial UI adds wallet, payments, and subscription pages plus admin commercial screens and a production readiness dashboard.
+- Phase H adds deployment validation hooks, explicit monitoring endpoints, launch readiness documentation, and a production delivery payload adapter.
 - Prisma schema includes the `User` model, optional `Order.userId` relation, `OrderItem`, `ProcessingJob`, and `OrderStatusHistory`.
 - Orders store original and processed file metadata, URLs, and retention timestamps.
 - Auth endpoints are present: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.
@@ -37,15 +38,18 @@ Deployment readiness snapshot:
 - Processing worker now calls the configured AI provider abstraction, uploads the processed result, and persists delivery URLs on the order.
 - Cloudflare R2 upload abstraction exposes `uploadOriginal()`, `uploadProcessed()`, and `generateDownloadUrl()`.
 - Admin monitoring includes paginated `/admin/orders`, `/admin/jobs`, `/admin/payments`, `/admin/wallets`, `/admin/subscriptions`, `/admin/stats`, and detailed `/admin/orders/:id`.
+- Monitoring endpoints now include `/api/monitoring/health`, `/api/monitoring/queue`, and `/api/monitoring/worker`.
 - Customer commercial APIs now expose `/api/me/wallet`, `/api/me/payments`, and `/api/me/subscription` for the authenticated web client.
 - Prisma migration `20260611000003_phase_f_wallet_payments` exists in `apps/api/prisma/migrations`.
 - `npm run prisma:validate -w apps/api` passes and `npm run build` passes for both API and web workspaces.
 - The web app has a Cloudflare Pages SPA fallback via `apps/web/public/_redirects` and a Pages config at `apps/web/wrangler.toml`.
 - The production readiness checklist is documented in `docs/11-ENVIRONMENT-CHECKLIST.md`.
+- Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
 - WhatsApp customer flow, admin auth, manual payment flow, and R2 flow remain in place.
 - Customer dashboard shell remains deferred, but customer wallet, payment, and subscription pages are now live in the web app alongside checkout request and proof tracking.
 - The admin commercial dashboard is available for operations, including payment approvals, wallet ledgers, subscription usage, and package visibility.
+- Final delivery notifications now use a formal payload builder and respect `DELIVERY_MODE=LOG_ONLY|WHATSAPP` with a log-only default.
 
 ## Phase A + B + C + D + E + F + G Summary
 - Web user model fields: `email`, `passwordHash`, `name`, optional `customerId`

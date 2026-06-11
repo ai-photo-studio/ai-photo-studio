@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-12 - Phase H Deployment Validation and Launch Readiness Added
+- Added explicit monitoring endpoints for health, queue health, and worker health.
+- Added a formal production delivery payload builder with `LOG_ONLY` default and `WHATSAPP` feature-flag mode.
+- Added launch readiness and load-testing documentation for 100, 1,000, and 5,000 image/day tiers.
+- Added deployment validation notes for GitHub push, Railway, and Cloudflare readiness checks.
+
 ## 2026-06-11 - Phase G Customer and Admin Commercial UI Added
 - Added customer wallet, payments, and subscription pages backed by the authenticated API.
 - Added admin payments, wallets, subscriptions, packages, and dashboard screens with pagination support.

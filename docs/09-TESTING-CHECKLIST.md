@@ -32,6 +32,9 @@
 - [ ] `GET /health` returns success.
 - [ ] `GET /api/health` returns success message payload.
 - [ ] `GET /api/version` returns build/version metadata.
+- [ ] `GET /api/monitoring/health` returns environment and uptime metadata.
+- [ ] `GET /api/monitoring/queue` returns queue health or dry-run status.
+- [ ] `GET /api/monitoring/worker` returns worker health status.
 - [ ] WhatsApp verification endpoint responds correctly.
 - [ ] WhatsApp webhook intake stores event records.
 - [ ] WhatsApp image webhook intake detects image messages, downloads media, validates mime/size, stores originals in R2, and enqueues the processing job.
@@ -71,6 +74,7 @@
 - [ ] Customer subscription page shows plan usage and monthly reset information.
 - [ ] Admin commercial pages support pagination for payments, wallets, subscriptions, and packages.
 - [ ] Admin dashboard displays queue depth, active workers, failed jobs, processing duration, payment approvals, and wallet usage.
+- [ ] Launch readiness checklist documents GitHub, Railway, Cloudflare, WhatsApp, R2, AI provider, monitoring, and backups.
 # R2 Verification
 - Confirmed `STORAGE_PROVIDER=r2` is set on Railway production/api.
 - Build and deploy readiness pass.

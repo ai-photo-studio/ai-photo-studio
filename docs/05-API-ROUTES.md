@@ -7,6 +7,12 @@
   - API health check for deployed service.
 - `GET /api/version`
   - API version and environment metadata.
+- `GET /api/monitoring/health`
+  - Production readiness health check with environment and uptime details.
+- `GET /api/monitoring/queue`
+  - Queue health snapshot including BullMQ counts or dry-run status.
+- `GET /api/monitoring/worker`
+  - Worker health snapshot including run state and last activity.
 
 ## WhatsApp
 - `GET /webhooks/whatsapp`

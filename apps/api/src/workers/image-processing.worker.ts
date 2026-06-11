@@ -10,6 +10,7 @@ import { ImageProcessingService } from "../services/image-processing.service";
 import { resolveVehicleWorkflowMode } from "../services/vehicle-workflow.service";
 import { WalletService } from "../services/wallet.service";
 import { SubscriptionService } from "../services/subscription.service";
+import { recordWorkerCompleted, recordWorkerFailure, recordWorkerStarted, setWorkerHealthState } from "../services/worker-health.service";
 import { logger } from "../utils/logger";
 
 const PRODUCT_RETENTION_DAYS = 30;
@@ -22,6 +23,14 @@ const toProcessedFileName = (fileName: string, jobId?: string) => {
 export const startImageProcessingWorker = (config: AppConfig) => {
   if (config.queueDryRun) {
     logger.warn("Phase E image worker skipped in dry-run queue mode");
+    setWorkerHealthState({
+      running: false,
+      startedAt: null,
+      lastCompletedAt: null,
+      lastFailedAt: null,
+      lastError: "queue dry-run mode",
+      processedCount: 0
+    });
     return null;
   }
 
@@ -33,6 +42,7 @@ export const startImageProcessingWorker = (config: AppConfig) => {
   const deadLetterQueue = new PhaseCImageProcessingQueue(config);
   const walletService = new WalletService();
   const subscriptionService = new SubscriptionService();
+  recordWorkerStarted();
 
   const worker = new Worker<PhaseCImageProcessingPayload>(
     "image-processing",
@@ -278,12 +288,15 @@ export const startImageProcessingWorker = (config: AppConfig) => {
           providerName: processed.providerName
         });
 
+        recordWorkerCompleted();
+
         return {
           orderId: order.id,
           processedStorageKey: processedUpload.key,
           processedUrl: processedDownloadUrl
         };
       } catch (error) {
+        recordWorkerFailure(error instanceof Error ? error.message : String(error));
         if (walletReservation) {
           await walletService.releaseReservedCredits({
             walletId: walletReservation.walletId,

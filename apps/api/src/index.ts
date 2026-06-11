@@ -8,6 +8,7 @@ import { createWhatsAppRouter } from "./routes/whatsapp.routes";
 import { createAdminRouter } from "./routes/admin.routes";
 import { createAuthRouter } from "./routes/auth.routes";
 import { createPackageRouter } from "./routes/package.routes";
+import { createMonitoringRouter } from "./routes/monitoring.routes";
 import { createCorsMiddleware } from "./middleware/cors.middleware";
 import { rateLimit } from "./middleware/rate-limit.middleware";
 import { logger } from "./utils/logger";
@@ -46,6 +47,7 @@ const bootstrap = () => {
   app.use("/api", createAdminRouter(config));
   app.use("/api", createAuthRouter(config));
   app.use("/api", createPackageRouter(config));
+  app.use("/api", createMonitoringRouter(config));
 
   startImageProcessingWorker(config);
   setInterval(() => {

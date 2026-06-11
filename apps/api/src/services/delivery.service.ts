@@ -3,6 +3,15 @@ import { logger } from "../utils/logger";
 import { WhatsAppService } from "./whatsapp.service";
 import { StorageService } from "./storage.service";
 
+export type CompletedDeliveryPayload = {
+  to: string;
+  orderNo: string;
+  resultUrl: string;
+  providerName?: string;
+  text: string;
+  mode: "LOG_ONLY" | "WHATSAPP";
+};
+
 export class DeliveryService {
   private readonly whatsapp: WhatsAppService;
   private readonly storage: StorageService;
@@ -14,25 +23,38 @@ export class DeliveryService {
     this.storage = new StorageService(config);
   }
 
+  buildCompletedNotificationPayload(input: {
+    to: string;
+    orderNo: string;
+    resultUrl: string;
+    providerName?: string;
+  }): CompletedDeliveryPayload {
+    return {
+      ...input,
+      text: `Order ${input.orderNo} completed. Download: ${input.resultUrl}`,
+      mode: this.config.deliveryMode
+    };
+  }
+
   async sendCompletedNotification(input: {
     to: string;
     orderNo: string;
     resultUrl: string;
     providerName?: string;
   }) {
+    const payload = this.buildCompletedNotificationPayload(input);
+
     if (this.config.deliveryMode === "WHATSAPP") {
-      return this.whatsapp.sendTextMessage(
-        input.to,
-        `Order ${input.orderNo} completed. Download: ${input.resultUrl}`
-      );
+      return this.whatsapp.sendTextMessage(payload.to, payload.text);
     }
 
     logger.info("Completed notification (log only)", {
-      mode: "LOG_ONLY",
-      to: input.to,
-      orderNo: input.orderNo,
-      resultUrl: input.resultUrl,
-      providerName: input.providerName
+      mode: payload.mode,
+      to: payload.to,
+      orderNo: payload.orderNo,
+      resultUrl: payload.resultUrl,
+      providerName: payload.providerName,
+      text: payload.text
     });
 
     return { dryRun: true, sent: false };
