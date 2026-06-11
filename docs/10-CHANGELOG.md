@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-11 - Phase E AI Provider Integration Added
+- Added provider abstraction and factory support for `mock`, `photoroom`, and `fal`.
+- Added product and vehicle workflow routing for the configured AI provider.
+- Added configurable outbound completion delivery mode with a log-only default.
+- Added admin stats for processing duration, provider failures, and queue failures.
+
 ## 2026-06-11 - Phase D WhatsApp Media Intake and Processing Foundation Added
 - Added WhatsApp media metadata retrieval, mime and size validation, original R2 storage, and queue submission for uploaded images.
 - Added a BullMQ worker that copies originals into placeholder processed outputs and persists delivery links on the order.

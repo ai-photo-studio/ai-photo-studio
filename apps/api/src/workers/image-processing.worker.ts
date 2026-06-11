@@ -5,9 +5,12 @@ import { NotificationService } from "../services/notification.service";
 import { OrderService } from "../services/order.service";
 import { PhaseCImageProcessingQueue, type PhaseCImageProcessingPayload } from "../queues/phase-c-image-processing.queue";
 import { StorageService } from "../services/storage.service";
+import { DeliveryService } from "../services/delivery.service";
+import { ImageProcessingService } from "../services/image-processing.service";
+import { resolveVehicleWorkflowMode } from "../services/vehicle-workflow.service";
 import { logger } from "../utils/logger";
 
-const PROCESSING_RETENTION_DAYS = 30;
+const PRODUCT_RETENTION_DAYS = 30;
 
 const toProcessedFileName = (fileName: string, jobId?: string) => {
   const safe = fileName.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -16,13 +19,15 @@ const toProcessedFileName = (fileName: string, jobId?: string) => {
 
 export const startImageProcessingWorker = (config: AppConfig) => {
   if (config.queueDryRun) {
-    logger.warn("Phase D image worker skipped in dry-run queue mode");
+    logger.warn("Phase E image worker skipped in dry-run queue mode");
     return null;
   }
 
   const storage = new StorageService(config);
   const orders = new OrderService();
   const notifications = new NotificationService();
+  const delivery = new DeliveryService(config);
+  const imageProcessing = new ImageProcessingService(config);
   const deadLetterQueue = new PhaseCImageProcessingQueue(config);
 
   const worker = new Worker<PhaseCImageProcessingPayload>(
@@ -47,6 +52,18 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         throw new Error(`Order ${processingJob.orderId} not found`);
       }
 
+      const workflowType = (payload.workflowType || processingJob.workflowType || "PRODUCT") as "PRODUCT" | "VEHICLE";
+      const workflowMode =
+        (payload.workflowMode || processingJob.workflowMode || "PRODUCT_STUDIO") as
+          | "WHITE_BACKGROUND"
+          | "SOLID_COLOR_BACKGROUND"
+          | "SHADOW_ENHANCEMENT"
+          | "PRODUCT_STUDIO"
+          | "SHOWROOM"
+          | "PREMIUM_ROAD"
+          | "DARK_STUDIO"
+          | "PLATE_BLUR";
+
       await prisma.processingJob.update({
         where: { id: processingJob.id },
         data: {
@@ -54,7 +71,11 @@ export const startImageProcessingWorker = (config: AppConfig) => {
           attempts: job.attemptsMade + 1,
           startedAt: processingJob.startedAt ?? new Date(),
           errorMessage: null,
-          deadLetterReason: null
+          deadLetterReason: null,
+          failureStage: null,
+          providerName: payload.providerName || processingJob.providerName || config.aiProvider,
+          workflowType,
+          workflowMode
         }
       });
 
@@ -64,6 +85,9 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         meta: {
           queueJobId: job.id,
           attempt: job.attemptsMade + 1,
+          providerName: payload.providerName || processingJob.providerName || config.aiProvider,
+          workflowType,
+          workflowMode,
           originalStorageKey: payload.originalStorageKey
         }
       });
@@ -72,7 +96,10 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         orderId: order.id,
         orderNo: order.orderNo,
         queueJobId: job.id,
-        attempt: job.attemptsMade + 1
+        attempt: job.attemptsMade + 1,
+        providerName: payload.providerName || processingJob.providerName || config.aiProvider,
+        workflowType,
+        workflowMode
       });
 
       if (!payload.originalStorageKey) {
@@ -82,14 +109,30 @@ export const startImageProcessingWorker = (config: AppConfig) => {
       const original = await storage.downloadFile(payload.originalStorageKey);
       const originalImage = order.images.find((image) => image.storageKey === payload.originalStorageKey) ?? order.images[0];
       const originalFileName = originalImage?.storageKey.split("/").pop() || `${order.orderNo}.jpg`;
-      const processedBuffer = Buffer.from(original.body);
+      const processInput = {
+        buffer: original.body,
+        contentType: original.contentType || originalImage?.mimeType || "image/jpeg",
+        fileName: originalFileName,
+        orderId: order.id,
+        orderNo: order.orderNo,
+        mediaId: payload.mediaId
+      };
+
+      const processed =
+        workflowType === "VEHICLE"
+          ? await imageProcessing.processVehicleImage(processInput, resolveVehicleWorkflowMode(String(workflowMode)))
+          : await imageProcessing.processProductImage(
+              processInput,
+              workflowMode as "WHITE_BACKGROUND" | "SOLID_COLOR_BACKGROUND" | "SHADOW_ENHANCEMENT" | "PRODUCT_STUDIO"
+            );
+
       const processedUpload = await storage.uploadProcessed({
-        fileName: toProcessedFileName(originalFileName, String(job.id)),
-        body: processedBuffer,
-        contentType: original.contentType || originalImage?.mimeType || "image/jpeg"
+        fileName: toProcessedFileName(processed.fileName, String(job.id)),
+        body: processed.buffer,
+        contentType: processed.contentType
       });
       const processedDownloadUrl = await storage.generateDownloadUrl(processedUpload.key);
-      const processedExpiresAt = new Date(Date.now() + PROCESSING_RETENTION_DAYS * 24 * 3600_000);
+      const processedExpiresAt = new Date(Date.now() + PRODUCT_RETENTION_DAYS * 24 * 3600_000);
 
       await prisma.$transaction([
         prisma.orderImage.create({
@@ -97,8 +140,8 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             orderId: order.id,
             kind: "FINAL",
             storageKey: processedUpload.key,
-            mimeType: original.contentType || originalImage?.mimeType || "image/jpeg",
-            fileSizeBytes: processedBuffer.length,
+            mimeType: processed.contentType,
+            fileSizeBytes: processed.buffer.length,
             expiresAt: processedExpiresAt
           }
         }),
@@ -116,7 +159,11 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             status: "COMPLETED",
             completedAt: new Date(),
             errorMessage: null,
-            deadLetterReason: null
+            deadLetterReason: null,
+            failureStage: null,
+            providerName: processed.providerName,
+            workflowType: processed.workflowType,
+            workflowMode: processed.workflowMode
           }
         })
       ]);
@@ -126,6 +173,10 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         source: "worker.image-processing",
         meta: {
           queueJobId: job.id,
+          providerName: processed.providerName,
+          providerRequestId: processed.providerRequestId,
+          workflowType: processed.workflowType,
+          workflowMode: processed.workflowMode,
           processedStorageKey: processedUpload.key,
           processedUrl: processedDownloadUrl,
           processedExpiresAt: processedExpiresAt.toISOString()
@@ -135,8 +186,17 @@ export const startImageProcessingWorker = (config: AppConfig) => {
       notifications.log("WHATSAPP_COMPLETED", {
         orderId: order.id,
         orderNo: order.orderNo,
+        providerName: processed.providerName,
+        providerRequestId: processed.providerRequestId,
         processedStorageKey: processedUpload.key,
         processedUrl: processedDownloadUrl
+      });
+
+      await delivery.sendCompletedNotification({
+        to: order.customer.whatsappNumber,
+        orderNo: order.orderNo,
+        resultUrl: processedDownloadUrl,
+        providerName: processed.providerName
       });
 
       return {
@@ -160,7 +220,7 @@ export const startImageProcessingWorker = (config: AppConfig) => {
     });
 
     if (!processingJob) {
-      logger.error("Phase D worker failed without processing record", {
+      logger.error("Phase E worker failed without processing record", {
         jobId: job.id,
         error: error.message
       });
@@ -170,6 +230,8 @@ export const startImageProcessingWorker = (config: AppConfig) => {
     const maxAttempts = Number(job.opts.attempts ?? processingJob.maxAttempts ?? 5);
     const currentAttempt = job.attemptsMade + 1;
     const isFinalAttempt = currentAttempt >= maxAttempts;
+    const providerName = payload.providerName || processingJob.providerName || config.aiProvider;
+    const failureStage = job.stacktrace?.some((line) => line.toLowerCase().includes("provider")) ? "provider" : "queue";
 
     await prisma.processingJob.update({
       where: { id: processingJob.id },
@@ -178,7 +240,9 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         status: isFinalAttempt ? "FAILED" : "RETRYING",
         errorMessage: error.message,
         failedAt: isFinalAttempt ? new Date() : processingJob.failedAt,
-        deadLetterReason: isFinalAttempt ? error.message : null
+        deadLetterReason: isFinalAttempt ? error.message : null,
+        failureStage,
+        providerName
       }
     });
 
@@ -190,7 +254,9 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         reason: error.message,
         meta: {
           queueJobId: job.id,
-          attempts: currentAttempt
+          attempts: currentAttempt,
+          failureStage,
+          providerName
         }
       });
 
@@ -198,15 +264,19 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         orderId: processingJob.orderId,
         orderNo: processingJob.order.orderNo,
         queueJobId: job.id,
+        failureStage,
+        providerName,
         error: error.message
       });
       return;
     }
 
-    logger.warn("Phase D worker job will retry", {
+    logger.warn("Phase E worker job will retry", {
       jobId: job.id,
       attempt: currentAttempt,
       maxAttempts,
+      failureStage,
+      providerName,
       error: error.message
     });
   });

@@ -23,6 +23,10 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - `JWT_SECRET`: secret key for web user JWT tokens
   - `ALLOWED_ORIGINS`: comma-separated CORS origins (for example `https://mystudio.pages.dev,http://localhost:5173`)
   - Phase D media intake limits are code-based and currently enforce supported `jpg`, `jpeg`, `png`, and `webp` uploads
+  - `AI_PROVIDER`: selects `mock`, `photoroom`, or `fal`
+  - `PHOTOROOM_API_KEY`: required when `AI_PROVIDER=photoroom`
+  - `FAL_API_KEY`: required when `AI_PROVIDER=fal`
+  - `DELIVERY_MODE`: `LOG_ONLY` or `WHATSAPP`
 - Background remover service:
   - local Python runtime with FastAPI, uvicorn, rembg, and pillow
   - test-only local mode for smoke testing the Phase 1 endpoints
@@ -37,6 +41,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Phase B adds the public website, but the API deployment target remains Railway.
 - Phase C adds the order pipeline tables, queue scaffolding, webhook intake foundation, and admin monitoring APIs without moving processing to Cloudflare Workers.
 - Phase D extends the webhook into full media ingestion, placeholder processing, and retention cleanup while keeping the API on Railway.
+- Phase E adds provider selection, product and vehicle processing modes, and log-only completion notifications.
 - The Phase 1 background remover service is currently local-only and is not part of the Railway deployment yet.
 - Phase 2 WhatsApp image intake uses the existing queue and storage flow plus a `POST /product-white` background-remover call.
 - Cloudflare Pages should publish the `apps/web/dist` output with the SPA fallback in `apps/web/public/_redirects`.
@@ -52,6 +57,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - `/api/admin/orders`
   - `/api/admin/orders/:id`
   - `/api/admin/jobs`
+  - `/api/admin/stats`
   - `/api/admin/orders/:id/approve-manual-payment` when `PAYMENT_GATEWAY_NAME=manual`
 - Auth API smoke tests:
   - `POST /api/auth/register` - creates a new user
@@ -70,6 +76,10 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - worker processing copies the original into a placeholder processed file
   - processed delivery URL and retention timestamps are persisted on the order
   - cleanup job deletes expired original and processed files
+- Phase E smoke checks:
+  - startup validates `AI_PROVIDER` and its matching API key
+  - worker routes product and vehicle jobs through the provider abstraction
+  - admin stats expose processing duration, provider failures, and queue failures
 
 ## Production Manual Approval Note
 - Manual payment approval is now available via the admin-only route `POST /api/admin/orders/:id/approve-manual-payment`.

@@ -1,14 +1,41 @@
 import type { AppConfig } from "../config/env";
+import { logger } from "../utils/logger";
 import { WhatsAppService } from "./whatsapp.service";
 import { StorageService } from "./storage.service";
 
 export class DeliveryService {
   private readonly whatsapp: WhatsAppService;
   private readonly storage: StorageService;
+  private readonly config: AppConfig;
 
   constructor(config: AppConfig) {
+    this.config = config;
     this.whatsapp = new WhatsAppService(config);
     this.storage = new StorageService(config);
+  }
+
+  async sendCompletedNotification(input: {
+    to: string;
+    orderNo: string;
+    resultUrl: string;
+    providerName?: string;
+  }) {
+    if (this.config.deliveryMode === "WHATSAPP") {
+      return this.whatsapp.sendTextMessage(
+        input.to,
+        `Order ${input.orderNo} completed. Download: ${input.resultUrl}`
+      );
+    }
+
+    logger.info("Completed notification (log only)", {
+      mode: "LOG_ONLY",
+      to: input.to,
+      orderNo: input.orderNo,
+      resultUrl: input.resultUrl,
+      providerName: input.providerName
+    });
+
+    return { dryRun: true, sent: false };
   }
 
   async sendOrderReceived(to: string, orderNo: string) {

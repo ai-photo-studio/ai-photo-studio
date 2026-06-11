@@ -80,6 +80,19 @@
   - checkout flow
   - payment gateway UI
 
+## AI Provider Integration (Phase E)
+- In scope:
+  - provider abstraction for Photoroom and Fal.ai
+  - product image workflows for white background, solid color, shadow enhancement, and product studio
+  - vehicle workflows for showroom, premium road, dark studio, and plate blur
+  - outbound completion notification feature flag with log-only default mode
+  - provider and queue failure tracking in admin stats
+- Still out of scope:
+  - live outbound WhatsApp completion delivery
+  - customer dashboard
+  - checkout flow
+  - payment gateway UI
+
 ## MVP Success Criteria
 - A first-time customer can place and pay for an order entirely via WhatsApp.
 - Paid order enters queue and outputs are generated through provider abstraction.

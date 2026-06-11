@@ -7,6 +7,7 @@ import { StorageService } from "./storage.service";
 import { WhatsAppService } from "./whatsapp.service";
 import { NotificationService } from "./notification.service";
 import { OrderService } from "./order.service";
+import { resolveProductWorkflowMode } from "./product-workflow.service";
 import type { AppConfig } from "../config/env";
 
 type IncomingImagePayload = {
@@ -42,7 +43,16 @@ const buildPlaceholderMeta = (payload: IncomingImagePayload, fileSizeBytes: numb
   fileSizeBytes
 });
 
+const resolveWorkflowType = (packageCode: string): "PRODUCT" | "VEHICLE" => {
+  const normalized = packageCode.trim().toUpperCase();
+  if (normalized.includes("VEHICLE") || normalized.includes("CAR") || normalized.includes("BIKE")) {
+    return "VEHICLE";
+  }
+  return "PRODUCT";
+};
+
 export class PhaseCOrderPipelineService {
+  private readonly config: AppConfig;
   private readonly customerService = new CustomerService();
   private readonly packageService = new PackageService();
   private readonly queue: PhaseCImageProcessingQueue;
@@ -52,6 +62,7 @@ export class PhaseCOrderPipelineService {
   private readonly notifications = new NotificationService();
 
   constructor(config: AppConfig) {
+    this.config = config;
     this.queue = new PhaseCImageProcessingQueue(config);
     this.storage = new StorageService(config);
     this.whatsapp = new WhatsAppService(config);
@@ -80,6 +91,8 @@ export class PhaseCOrderPipelineService {
 
     const customer = await this.customerService.findOrCreateByWhatsAppNumber(normalizedSender);
     const orderNo = toOrderNo();
+    const workflowType = resolveWorkflowType(pkg.code);
+    const workflowMode = workflowType === "VEHICLE" ? "SHOWROOM" : resolveProductWorkflowMode(pkg.code);
 
     const order = await prisma.order.create({
       data: {
@@ -208,6 +221,9 @@ export class PhaseCOrderPipelineService {
           senderNumber: normalizedSender,
           messageId: payload.messageId,
           mediaId: payload.mediaId,
+          providerName: this.config.aiProvider,
+          workflowType,
+          workflowMode,
           originalStorageKey: originalUpload.key,
           originalUrl: originalUpload.url,
           originalExpiresAt: originalUpload.expiresAt.toISOString(),
@@ -228,7 +244,10 @@ export class PhaseCOrderPipelineService {
         senderNumber: normalizedSender,
         messageId: payload.messageId,
         mediaId: payload.mediaId,
-        originalStorageKey: originalUpload.key
+        originalStorageKey: originalUpload.key,
+        providerName: this.config.aiProvider,
+        workflowType,
+        workflowMode
       });
 
       processingJob = await prisma.processingJob.create({
@@ -237,6 +256,9 @@ export class PhaseCOrderPipelineService {
           orderItemId: orderItem.id,
           queueName: "image-processing",
           jobName: "process-whatsapp-image",
+          providerName: this.config.aiProvider,
+          workflowType,
+          workflowMode,
           status: "QUEUED",
           attempts: 0,
           maxAttempts: 5,
@@ -245,7 +267,10 @@ export class PhaseCOrderPipelineService {
             senderNumber: normalizedSender,
             messageId: payload.messageId,
             mediaId: payload.mediaId,
-            originalStorageKey: originalUpload.key
+            originalStorageKey: originalUpload.key,
+            providerName: this.config.aiProvider,
+            workflowType,
+            workflowMode
           }
         }
       });
@@ -253,7 +278,13 @@ export class PhaseCOrderPipelineService {
       await this.orders.updateOrderStatus(order.id, {
         toStatus: "QUEUED",
         source: "whatsapp.webhook",
-        meta: { queueJobId: queueResult.queueJobId, originalImageId: originalImage.id }
+        meta: {
+          queueJobId: queueResult.queueJobId,
+          originalImageId: originalImage.id,
+          providerName: this.config.aiProvider,
+          workflowType,
+          workflowMode
+        }
       });
 
     } catch (error) {

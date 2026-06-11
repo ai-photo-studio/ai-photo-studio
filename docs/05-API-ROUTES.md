@@ -42,6 +42,7 @@
 - `GET /admin/orders/:id`
   - Returns the order, files, jobs, and status history.
 - `GET /admin/dashboard`
+- `GET /admin/stats`
 - `GET /admin/failed-jobs`
 - `GET /admin/jobs`
 - `POST /admin/orders/:id/retry`

@@ -14,21 +14,38 @@ const envSchema = z
     PAYMENT_GATEWAY_NAME: z.string().min(1),
     PAYMENT_GATEWAY_BASE_URL: z.string().optional().default(""),
     PAYMENT_GATEWAY_SECRET: z.string().optional().default(""),
+    AI_PROVIDER: z.string().optional().default(""),
+    AI_PROVIDER_NAME: z.string().optional().default(""),
+    PHOTOROOM_API_KEY: z.string().optional().default(""),
+    FAL_API_KEY: z.string().optional().default(""),
     R2_ACCOUNT_ID: z.string().optional().default(""),
     R2_ACCESS_KEY_ID: z.string().optional().default(""),
     R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
     R2_BUCKET_NAME: z.string().optional().default(""),
     R2_PUBLIC_BASE_URL: z.string().optional().default(""),
-    AI_PROVIDER_NAME: z.string().min(1),
     AI_PROVIDER_API_KEY: z.string().optional().default(""),
     ADMIN_JWT_SECRET: z.string().min(1),
     JWT_SECRET: z.string().min(1),
+    DELIVERY_MODE: z.enum(["LOG_ONLY", "WHATSAPP"]).default("LOG_ONLY"),
     ALLOWED_ORIGINS: z.string().optional().default("")
   })
   .superRefine((cfg, ctx) => {
     const isManualPayment = cfg.PAYMENT_GATEWAY_NAME === "manual";
     const isMockStorage = cfg.STORAGE_PROVIDER === "mock";
-    const isMockAi = cfg.AI_PROVIDER_NAME === "mock";
+    const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
+    const providerKey = selectedAiProvider === "photoroom"
+      ? cfg.PHOTOROOM_API_KEY || cfg.AI_PROVIDER_API_KEY
+      : selectedAiProvider === "fal"
+        ? cfg.FAL_API_KEY || cfg.AI_PROVIDER_API_KEY
+        : "";
+
+    if (!["mock", "photoroom", "fal"].includes(selectedAiProvider)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AI_PROVIDER"],
+        message: "AI_PROVIDER must be one of mock, photoroom, or fal"
+      });
+    }
 
     if (!isManualPayment) {
       if (!cfg.PAYMENT_GATEWAY_BASE_URL) {
@@ -90,19 +107,21 @@ const envSchema = z
       }
     }
 
-    if (!isMockAi && !cfg.AI_PROVIDER_API_KEY) {
+    if (selectedAiProvider !== "mock" && !providerKey) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["AI_PROVIDER_API_KEY"],
-        message: "AI_PROVIDER_API_KEY is required unless AI_PROVIDER_NAME=mock"
+        path: selectedAiProvider === "photoroom" ? ["PHOTOROOM_API_KEY"] : ["FAL_API_KEY"],
+        message: `${selectedAiProvider === "photoroom" ? "PHOTOROOM_API_KEY" : "FAL_API_KEY"} is required when AI_PROVIDER=${selectedAiProvider}`
       });
     }
   });
 
 export type AppConfig = z.infer<typeof envSchema> & {
+  aiProvider: "mock" | "photoroom" | "fal";
   whatsappDryRun: boolean;
   storageDryRun: boolean;
   queueDryRun: boolean;
+  deliveryMode: "LOG_ONLY" | "WHATSAPP";
 };
 
 const toSafePreview = (key: string, value: string | number | boolean) => {
@@ -118,8 +137,13 @@ export const loadConfig = (): AppConfig => {
   }
 
   const cfg = parsed.data;
+  const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
   return {
     ...cfg,
+    aiProvider: (["mock", "photoroom", "fal"].includes(selectedAiProvider) ? selectedAiProvider : "mock") as
+      | "mock"
+      | "photoroom"
+      | "fal",
     whatsappDryRun: !cfg.WHATSAPP_ACCESS_TOKEN || !cfg.WHATSAPP_PHONE_NUMBER_ID || cfg.WHATSAPP_ACCESS_TOKEN === "replace_me",
     storageDryRun:
       cfg.STORAGE_PROVIDER === "mock" ||
@@ -128,7 +152,8 @@ export const loadConfig = (): AppConfig => {
       !cfg.R2_SECRET_ACCESS_KEY ||
       !cfg.R2_BUCKET_NAME ||
       cfg.R2_ACCESS_KEY_ID === "replace_me",
-    queueDryRun: !cfg.REDIS_URL || cfg.REDIS_URL.includes("replace_me")
+    queueDryRun: !cfg.REDIS_URL || cfg.REDIS_URL.includes("replace_me"),
+    deliveryMode: cfg.DELIVERY_MODE
   };
 };
 

@@ -1,6 +1,7 @@
 import { Queue } from "bullmq";
 import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
+import type { AIProviderName, WorkflowMode, WorkflowType } from "../providers/provider.interface";
 
 export type PhaseCImageProcessingPayload = {
   orderId: string;
@@ -9,6 +10,9 @@ export type PhaseCImageProcessingPayload = {
   messageId: string;
   mediaId: string;
   originalStorageKey?: string;
+  providerName?: AIProviderName;
+  workflowType?: WorkflowType;
+  workflowMode?: WorkflowMode;
   deadLetterReason?: string;
 };
 

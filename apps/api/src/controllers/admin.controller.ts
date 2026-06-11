@@ -19,6 +19,15 @@ export class AdminController {
     }
   };
 
+  stats = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.getStats();
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   orders = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.listOrders({

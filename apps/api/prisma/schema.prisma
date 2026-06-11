@@ -133,12 +133,16 @@ model ProcessingJob {
   orderItemId     String?
   queueName       String
   jobName         String
+  providerName    String?
+  workflowType    String?
+  workflowMode    String?
   status          JobStatus @default(QUEUED)
   attempts        Int       @default(0)
   maxAttempts     Int       @default(5)
   queueJobId      String?   @unique
   errorMessage    String?
   deadLetterReason String?
+  failureStage    String?
   payload         Json?
   startedAt       DateTime?
   completedAt     DateTime?

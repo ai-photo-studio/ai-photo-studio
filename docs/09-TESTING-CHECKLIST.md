@@ -26,6 +26,7 @@
 - [ ] Manual payment first boot supported with `PAYMENT_GATEWAY_NAME=manual`
 - [ ] Mock storage first boot supported with `STORAGE_PROVIDER=mock`
 - [ ] Admin manual approval route works in production: `POST /api/admin/orders/:id/approve-manual-payment`
+- [ ] `AI_PROVIDER` validation fails fast when provider keys are missing for `photoroom` or `fal`
 
 ## API Functional Checks
 - [ ] `GET /health` returns success.
@@ -49,6 +50,8 @@
 - [ ] Delivery URL is generated and stored on the order record.
 - [ ] Cleanup worker deletes expired originals after 72 hours and processed files after 30 days.
 - [ ] Phase D WhatsApp media worker uploads processed output, logs notification events, and marks the order complete or failed.
+- [ ] Phase E worker routes product and vehicle jobs through the provider abstraction.
+- [ ] `GET /api/admin/stats` returns processing duration and failure metrics.
 
 ## Admin Web Checks
 - [ ] Dashboard loads summary KPIs.

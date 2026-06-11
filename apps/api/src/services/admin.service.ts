@@ -67,6 +67,85 @@ export class AdminService {
     };
   }
 
+  async getStats() {
+    const [
+      totalJobs,
+      queuedJobs,
+      runningJobs,
+      completedJobs,
+      failedJobs,
+      retryingJobs,
+      deadLetterJobs,
+      providerFailures,
+      queueFailures,
+      providerBreakdown,
+      completedDurationJobs
+    ] = await Promise.all([
+      prisma.processingJob.count(),
+      prisma.processingJob.count({ where: { status: "QUEUED" } }),
+      prisma.processingJob.count({ where: { status: "RUNNING" } }),
+      prisma.processingJob.count({ where: { status: "COMPLETED" } }),
+      prisma.processingJob.count({ where: { status: "FAILED" } }),
+      prisma.processingJob.count({ where: { status: "RETRYING" } }),
+      prisma.processingJob.count({ where: { status: "DEAD_LETTER" } }),
+      prisma.processingJob.count({ where: { failureStage: "provider" } }),
+      prisma.processingJob.count({ where: { OR: [{ failureStage: "queue" }, { status: "DEAD_LETTER" }] } }),
+      prisma.processingJob.groupBy({
+        by: ["providerName"],
+        _count: { _all: true }
+      }),
+      prisma.processingJob.findMany({
+        where: {
+          status: "COMPLETED",
+          startedAt: { not: null },
+          completedAt: { not: null }
+        },
+        select: {
+          startedAt: true,
+          completedAt: true,
+          providerName: true,
+          workflowType: true,
+          workflowMode: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      })
+    ]);
+
+    const completedDurations = completedDurationJobs
+      .filter((job) => job.startedAt && job.completedAt)
+      .map((job) => (job.completedAt!.getTime() - job.startedAt!.getTime()));
+
+    const averageProcessingDurationMs =
+      completedDurations.length > 0
+        ? Math.round(completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length)
+        : 0;
+
+    return {
+      totals: {
+        totalJobs,
+        queuedJobs,
+        runningJobs,
+        completedJobs,
+        failedJobs,
+        retryingJobs,
+        deadLetterJobs
+      },
+      failureTracking: {
+        providerFailures,
+        queueFailures
+      },
+      performance: {
+        averageProcessingDurationMs,
+        completedJobsMeasured: completedDurations.length
+      },
+      providerBreakdown: providerBreakdown.map((row) => ({
+        providerName: row.providerName || "unknown",
+        count: row._count._all
+      }))
+    };
+  }
+
   async listOrders(params: ListOrdersParams) {
     const page = Math.max(1, params.page || 1);
     const limit = Math.min(100, Math.max(1, params.limit || 20));

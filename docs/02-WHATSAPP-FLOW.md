@@ -15,7 +15,7 @@
 7. Bot requests image uploads and minimum quantity.
 8. Customer uploads images.
 9. Webhook downloads the media, validates it, stores the original in R2, and queues processing.
-10. Worker creates the placeholder processed image and stores the delivery link on the order.
+10. Worker calls the configured AI provider, uploads the processed file, and stores the delivery link on the order.
 11. System sends log-only notification events for received, processing, completed, or failed states.
 12. Bot sends preview/final delivery link(s) once outbound delivery messaging is enabled.
 

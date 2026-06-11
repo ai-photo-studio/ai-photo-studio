@@ -8,16 +8,16 @@ Run date: 2026-06-11
 - R2 bucket expectation remains `ai-photo-studio-whatsapp-r2`.
 
 ## Summary
-- Phase D WhatsApp media intake and processing foundation was implemented.
+- Phase E AI provider integration was implemented across the worker pipeline and admin monitoring.
 - Build, API typecheck, and Prisma validation all passed after the updates.
 - The finalized website UI was left unchanged.
 
 ## What Changed
-- Added WhatsApp media metadata retrieval, mime validation, size validation, and original R2 upload handling.
-- Added placeholder processing worker behavior that copies originals to processed outputs and stores delivery links on orders.
-- Added order status history storage and admin order detail expansion for files, jobs, and status history.
-- Added log-only notification events for received, processing, completed, and failed media events.
-- Added retention cleanup for original and processed media plus refreshed deployment/testing documentation.
+- Added provider abstraction and provider factory support for `mock`, `photoroom`, and `fal`.
+- Added product and vehicle workflow routing.
+- Added provider-configured worker execution, delivery-mode feature flagging, and completion notification logging.
+- Added admin stats for processing duration, provider failures, and queue failures.
+- Refreshed project documentation to match the Phase E provider stack.
 
 ## Validation
 - `npm run build`: passed
