@@ -46,12 +46,27 @@ model Customer {
   updatedAt      DateTime @updatedAt
 
   orders Order[]
+  user   User?   @relation("CustomerUser")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  customerId   String?  @unique
+  customer     Customer? @relation("CustomerUser", fields: [customerId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders Order[] @relation("UserOrders")
 }
 
 model Order {
   id            String       @id @default(cuid())
   orderNo       String       @unique
   customerId    String
+  userId        String?
   packageId     String
   orderStatus   OrderStatus  @default(NEW)
   paymentStatus PaymentStatus @default(PENDING)
@@ -63,6 +78,7 @@ model Order {
   updatedAt     DateTime     @updatedAt
 
   customer Customer     @relation(fields: [customerId], references: [id])
+  user     User?        @relation("UserOrders", fields: [userId], references: [id])
   package  Package      @relation(fields: [packageId], references: [id])
   images   OrderImage[]
   payments Payment[]
@@ -70,6 +86,7 @@ model Order {
 
   @@index([customerId, createdAt])
   @@index([orderStatus, paymentStatus])
+  @@index([userId, createdAt])
 }
 
 model OrderImage {

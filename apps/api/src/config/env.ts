@@ -21,7 +21,9 @@ const envSchema = z
     R2_PUBLIC_BASE_URL: z.string().optional().default(""),
     AI_PROVIDER_NAME: z.string().min(1),
     AI_PROVIDER_API_KEY: z.string().optional().default(""),
-    ADMIN_JWT_SECRET: z.string().min(1)
+    ADMIN_JWT_SECRET: z.string().min(1),
+    JWT_SECRET: z.string().min(1),
+    ALLOWED_ORIGINS: z.string().optional().default("")
   })
   .superRefine((cfg, ctx) => {
     const isManualPayment = cfg.PAYMENT_GATEWAY_NAME === "manual";
