@@ -6,6 +6,10 @@
 - Added launch readiness and load-testing documentation for 100, 1,000, and 5,000 image/day tiers.
 - Added deployment validation notes for GitHub push, Railway, and Cloudflare readiness checks.
 
+## 2026-06-12 - Phase I Railway Route Parity Fix Added
+- Added a safe route registry endpoint at `GET /api/version/routes` that lists mounted API paths without secrets or environment values.
+- Added explicit top-level route registrations for `GET /api/packages`, `GET /api/auth/me`, and the monitoring endpoints to harden production route parity.
+
 ## 2026-06-11 - Phase G Customer and Admin Commercial UI Added
 - Added customer wallet, payments, and subscription pages backed by the authenticated API.
 - Added admin payments, wallets, subscriptions, packages, and dashboard screens with pagination support.

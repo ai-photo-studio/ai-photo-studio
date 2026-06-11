@@ -29,6 +29,7 @@ Deployment readiness snapshot:
 - Prisma schema includes the `User` model, optional `Order.userId` relation, `OrderItem`, `ProcessingJob`, and `OrderStatusHistory`.
 - Orders store original and processed file metadata, URLs, and retention timestamps.
 - Auth endpoints are present: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.
+- Route registry endpoint is present: `GET /api/version/routes` returns the mounted API paths without secrets.
 - JWT auth middleware, CORS origin allow-list, and in-memory rate limiting are wired into the API bootstrap.
 - Public package listing is available at `GET /api/packages`.
 - Payment endpoints now include checkout creation, manual proof upload, webhook receipt, and order payment status checks.

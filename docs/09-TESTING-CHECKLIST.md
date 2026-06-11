@@ -32,6 +32,7 @@
 - [ ] `GET /health` returns success.
 - [ ] `GET /api/health` returns success message payload.
 - [ ] `GET /api/version` returns build/version metadata.
+- [ ] `GET /api/version/routes` returns mounted route names and paths without secrets.
 - [ ] `GET /api/monitoring/health` returns environment and uptime metadata.
 - [ ] `GET /api/monitoring/queue` returns queue health or dry-run status.
 - [ ] `GET /api/monitoring/worker` returns worker health status.

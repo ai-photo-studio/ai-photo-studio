@@ -7,6 +7,8 @@
   - API health check for deployed service.
 - `GET /api/version`
   - API version and environment metadata.
+- `GET /api/version/routes`
+  - Safe route registry listing mounted API paths without secrets or env values.
 - `GET /api/monitoring/health`
   - Production readiness health check with environment and uptime details.
 - `GET /api/monitoring/queue`
@@ -50,6 +52,8 @@
   - Paginated current-user payment history and pending payment count.
 - `GET /me/subscription`
   - Paginated current-user subscription history and usage summary.
+- `GET /api/auth/me`
+  - Returns the current user when authenticated and `401` when unauthenticated.
 
 ## Admin (MVP-only ops views)
 - `GET /admin/orders`

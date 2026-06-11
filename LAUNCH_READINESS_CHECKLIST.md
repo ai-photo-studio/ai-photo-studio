@@ -20,6 +20,7 @@
   - [ ] `WHATSAPP_PHONE_NUMBER_ID`
 - [ ] Health endpoints respond successfully
   - [ ] `/api/health`
+  - [ ] `/api/version/routes`
   - [ ] `/api/monitoring/health`
   - [ ] `/api/monitoring/queue`
   - [ ] `/api/monitoring/worker`
@@ -52,6 +53,7 @@
 - [ ] Queue health endpoint returns expected counts or dry-run state
 - [ ] Worker health endpoint shows running state
 - [ ] Admin dashboard metrics render correctly
+- [ ] Route registry endpoint reports the mounted production API paths
 
 ## Backups
 - [ ] Database backup and restore plan documented

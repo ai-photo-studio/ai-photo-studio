@@ -47,6 +47,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Phase F adds wallets, payment abstraction, subscriptions, and manual payment approval without moving the API away from Railway.
 - Phase G adds customer wallet/payment/subscription screens, admin commercial screens, a production readiness checklist, and the `DELIVERY_MODE` release switch.
 - Phase H adds deployment validation, health endpoints, and a formal launch checklist plus load-test plan.
+- Phase I hardens route parity by exposing a safe route registry at `GET /api/version/routes` plus explicit top-level mounts for the affected production routes.
 - Customer-facing commercial APIs are thin wrappers over the existing authenticated backend data so the Vite app can stay on Cloudflare Pages.
 - The Phase 1 background remover service is currently local-only and is not part of the Railway deployment yet.
 - Phase 2 WhatsApp image intake uses the existing queue and storage flow plus a `POST /product-white` background-remover call.
