@@ -12,4 +12,11 @@ export class PackageService {
       }
     });
   }
+
+  async findDefaultActive() {
+    return prisma.package.findFirst({
+      where: { active: true },
+      orderBy: { createdAt: "asc" }
+    });
+  }
 }

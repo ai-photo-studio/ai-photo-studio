@@ -52,6 +52,20 @@ export class AdminController {
     }
   };
 
+  jobs = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listJobs({
+        status: req.query.status as string | undefined,
+        queueName: req.query.queueName as string | undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   retryOrder = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.retryOrder(req.params.id);

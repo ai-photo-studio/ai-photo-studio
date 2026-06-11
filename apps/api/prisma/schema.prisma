@@ -11,10 +11,12 @@ enum OrderStatus {
   NEW
   PAYMENT_PENDING
   PAID
+  QUEUED
   PROCESSING
   COMPLETED
   FAILED
   CANCELLED
+  DELIVERED
 }
 
 enum PaymentStatus {
@@ -32,9 +34,11 @@ enum ImageKind {
 
 enum JobStatus {
   QUEUED
+  RETRYING
   RUNNING
   COMPLETED
   FAILED
+  DEAD_LETTER
 }
 
 model Customer {
@@ -68,6 +72,9 @@ model Order {
   customerId    String
   userId        String?
   packageId     String
+  whatsappSenderNumber String?
+  whatsappMessageId     String? @unique
+  whatsappMediaId       String?
   orderStatus   OrderStatus  @default(NEW)
   paymentStatus PaymentStatus @default(PENDING)
   currency      String       @default("PKR")
@@ -80,13 +87,64 @@ model Order {
   customer Customer     @relation(fields: [customerId], references: [id])
   user     User?        @relation("UserOrders", fields: [userId], references: [id])
   package  Package      @relation(fields: [packageId], references: [id])
+  items    OrderItem[]
   images   OrderImage[]
   payments Payment[]
   aiJobs   AiJob[]
+  processingJobs ProcessingJob[]
 
   @@index([customerId, createdAt])
   @@index([orderStatus, paymentStatus])
   @@index([userId, createdAt])
+  @@index([whatsappSenderNumber, createdAt])
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  itemType        String
+  title           String
+  quantity        Int      @default(1)
+  unitPrice       Decimal? @db.Decimal(10, 2)
+  currency        String   @default("PKR")
+  metadata        Json?
+  sourceMessageId String?
+  sourceMediaId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  processingJobs ProcessingJob[]
+
+  @@index([orderId, createdAt])
+  @@index([sourceMessageId])
+}
+
+model ProcessingJob {
+  id              String    @id @default(cuid())
+  orderId         String
+  orderItemId     String?
+  queueName       String
+  jobName         String
+  status          JobStatus @default(QUEUED)
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(5)
+  queueJobId      String?   @unique
+  errorMessage    String?
+  deadLetterReason String?
+  payload         Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, status])
+  @@index([queueName, status])
+  @@index([orderItemId, status])
 }
 
 model OrderImage {

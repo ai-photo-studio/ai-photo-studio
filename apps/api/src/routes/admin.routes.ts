@@ -9,6 +9,7 @@ export const createAdminRouter = (config: AppConfig): Router => {
 
   router.get("/admin/dashboard", controller.dashboard);
   router.get("/admin/orders", controller.orders);
+  router.get("/admin/jobs", controller.jobs);
   router.get("/admin/orders/:id", controller.orderDetail);
   router.get("/admin/failed-jobs", controller.failedJobs);
   router.post("/admin/orders/:id/retry", controller.retryOrder);

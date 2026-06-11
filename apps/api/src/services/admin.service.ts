@@ -13,6 +13,13 @@ type ListOrdersParams = {
   search?: string;
 };
 
+type ListJobsParams = {
+  status?: string;
+  queueName?: string;
+  page?: number;
+  limit?: number;
+};
+
 export class AdminService {
   private readonly queue: ImageQueueService;
   private readonly delivery: DeliveryService;
@@ -125,6 +132,37 @@ export class AdminService {
       orderBy: { updatedAt: "desc" },
       take: 100
     });
+  }
+
+  async listJobs(params: ListJobsParams) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.status) where.status = params.status.toUpperCase();
+    if (params.queueName) where.queueName = params.queueName;
+
+    const [items, total] = await Promise.all([
+      prisma.processingJob.findMany({
+        where,
+        include: {
+          order: {
+            include: {
+              customer: true,
+              package: true
+            }
+          },
+          orderItem: true
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.processingJob.count({ where })
+    ]);
+
+    return { items, total, page, limit };
   }
 
   async retryOrder(id: string) {

@@ -3,6 +3,7 @@ export type ParsedMessageType = "text" | "image" | "interactive" | "unknown";
 export type ParsedWebhookMessage = {
   type: ParsedMessageType;
   from: string;
+  messageId?: string;
   text?: string;
   imageId?: string;
   interactiveReplyId?: string;
@@ -19,7 +20,7 @@ export const parseWhatsAppWebhook = (payload: unknown): ParsedWebhookMessage[] =
     for (const change of changes) {
       const messages = Array.isArray(change?.value?.messages) ? change.value.messages : [];
       for (const msg of messages) {
-        const base = { from: String(msg?.from || "") };
+        const base = { from: String(msg?.from || ""), messageId: String(msg?.id || "") };
         if (!base.from) continue;
 
         if (msg?.type === "text") {

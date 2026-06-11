@@ -36,6 +36,9 @@ export interface StorageProvider {
   deleteExpiredFiles(): Promise<{ deleted: number }>;
   getPublicUrl(key: string): string;
   downloadFile(key: string): Promise<DownloadFileResult>;
+  uploadOriginal(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult>;
+  uploadProcessed(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult>;
+  generateDownloadUrl(key: string): Promise<string>;
 }
 
 const retentionByPrefix: Record<UploadFileInput["keyPrefix"], number> = {
@@ -115,6 +118,28 @@ class MockStorageProvider implements StorageProvider {
 
   async downloadFile(_key: string): Promise<DownloadFileResult> {
     throw new AppError("Mock storage download is not supported", 501, "STORAGE_DOWNLOAD_UNSUPPORTED");
+  }
+
+  uploadOriginal(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
+    return this.uploadFile({
+      keyPrefix: "originals",
+      fileName: params.fileName,
+      body: params.body,
+      contentType: params.contentType
+    });
+  }
+
+  uploadProcessed(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
+    return this.uploadFile({
+      keyPrefix: "finals",
+      fileName: params.fileName,
+      body: params.body,
+      contentType: params.contentType
+    });
+  }
+
+  generateDownloadUrl(key: string): Promise<string> {
+    return this.getSignedUrl(key);
   }
 
   getPublicUrl(key: string): string {
@@ -202,6 +227,28 @@ class R2StorageProvider implements StorageProvider {
     }
   }
 
+  uploadOriginal(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
+    return this.uploadFile({
+      keyPrefix: "originals",
+      fileName: params.fileName,
+      body: params.body,
+      contentType: params.contentType
+    });
+  }
+
+  uploadProcessed(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
+    return this.uploadFile({
+      keyPrefix: "finals",
+      fileName: params.fileName,
+      body: params.body,
+      contentType: params.contentType
+    });
+  }
+
+  generateDownloadUrl(key: string): Promise<string> {
+    return this.getSignedUrl(key);
+  }
+
   getPublicUrl(key: string): string {
     return buildPublicUrl(this.config.R2_PUBLIC_BASE_URL, key);
   }
@@ -236,5 +283,17 @@ export class StorageService implements StorageProvider {
 
   downloadFile(key: string): Promise<DownloadFileResult> {
     return this.provider.downloadFile(key);
+  }
+
+  uploadOriginal(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
+    return this.provider.uploadOriginal(params);
+  }
+
+  uploadProcessed(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
+    return this.provider.uploadProcessed(params);
+  }
+
+  generateDownloadUrl(key: string): Promise<string> {
+    return this.provider.generateDownloadUrl(key);
   }
 }
