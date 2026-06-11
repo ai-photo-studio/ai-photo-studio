@@ -8,6 +8,12 @@ ALTER TYPE "JobStatus" ADD VALUE IF NOT EXISTS 'DEAD_LETTER';
 ALTER TABLE "Order" ADD COLUMN "whatsappSenderNumber" TEXT;
 ALTER TABLE "Order" ADD COLUMN "whatsappMessageId" TEXT;
 ALTER TABLE "Order" ADD COLUMN "whatsappMediaId" TEXT;
+ALTER TABLE "Order" ADD COLUMN "originalStorageKey" TEXT;
+ALTER TABLE "Order" ADD COLUMN "originalUrl" TEXT;
+ALTER TABLE "Order" ADD COLUMN "originalExpiresAt" TIMESTAMP(3);
+ALTER TABLE "Order" ADD COLUMN "processedStorageKey" TEXT;
+ALTER TABLE "Order" ADD COLUMN "processedUrl" TEXT;
+ALTER TABLE "Order" ADD COLUMN "processedExpiresAt" TIMESTAMP(3);
 
 -- CreateTable
 CREATE TABLE "OrderItem" (
@@ -50,6 +56,20 @@ CREATE TABLE "ProcessingJob" (
     CONSTRAINT "ProcessingJob_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "OrderStatusHistory" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "fromStatus" "OrderStatus",
+    "toStatus" "OrderStatus" NOT NULL,
+    "source" TEXT NOT NULL,
+    "reason" TEXT,
+    "meta" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OrderStatusHistory_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Order_whatsappMessageId_key" ON "Order"("whatsappMessageId");
 
@@ -74,6 +94,12 @@ CREATE INDEX "ProcessingJob_orderItemId_status_idx" ON "ProcessingJob"("orderIte
 -- CreateIndex
 CREATE UNIQUE INDEX "ProcessingJob_queueJobId_key" ON "ProcessingJob"("queueJobId");
 
+-- CreateIndex
+CREATE INDEX "OrderStatusHistory_orderId_createdAt_idx" ON "OrderStatusHistory"("orderId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "OrderStatusHistory_toStatus_createdAt_idx" ON "OrderStatusHistory"("toStatus", "createdAt");
+
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -82,3 +108,6 @@ ALTER TABLE "ProcessingJob" ADD CONSTRAINT "ProcessingJob_orderId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "ProcessingJob" ADD CONSTRAINT "ProcessingJob_orderItemId_fkey" FOREIGN KEY ("orderItemId") REFERENCES "OrderItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderStatusHistory" ADD CONSTRAINT "OrderStatusHistory_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;

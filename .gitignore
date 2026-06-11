@@ -24,3 +24,4 @@ coverage/
 *credential*
 apps/api/generated/
 AI_code_audit_report.md
+*.audit.md

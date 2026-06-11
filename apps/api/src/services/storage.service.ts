@@ -42,8 +42,8 @@ export interface StorageProvider {
 }
 
 const retentionByPrefix: Record<UploadFileInput["keyPrefix"], number> = {
-  originals: 24,
-  finals: 72,
+  originals: 72,
+  finals: 24 * 30,
   previews: 24 * 7
 };
 

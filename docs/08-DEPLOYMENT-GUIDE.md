@@ -22,6 +22,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - AI provider credentials (optional for placeholder mode)
   - `JWT_SECRET`: secret key for web user JWT tokens
   - `ALLOWED_ORIGINS`: comma-separated CORS origins (for example `https://mystudio.pages.dev,http://localhost:5173`)
+  - Phase D media intake limits are code-based and currently enforce supported `jpg`, `jpeg`, `png`, and `webp` uploads
 - Background remover service:
   - local Python runtime with FastAPI, uvicorn, rembg, and pillow
   - test-only local mode for smoke testing the Phase 1 endpoints
@@ -35,6 +36,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Webhook endpoints must be publicly reachable over HTTPS.
 - Phase B adds the public website, but the API deployment target remains Railway.
 - Phase C adds the order pipeline tables, queue scaffolding, webhook intake foundation, and admin monitoring APIs without moving processing to Cloudflare Workers.
+- Phase D extends the webhook into full media ingestion, placeholder processing, and retention cleanup while keeping the API on Railway.
 - The Phase 1 background remover service is currently local-only and is not part of the Railway deployment yet.
 - Phase 2 WhatsApp image intake uses the existing queue and storage flow plus a `POST /product-white` background-remover call.
 - Cloudflare Pages should publish the `apps/web/dist` output with the SPA fallback in `apps/web/public/_redirects`.
@@ -48,6 +50,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Admin API availability checks:
   - `/api/admin/dashboard`
   - `/api/admin/orders`
+  - `/api/admin/orders/:id`
   - `/api/admin/jobs`
   - `/api/admin/orders/:id/approve-manual-payment` when `PAYMENT_GATEWAY_NAME=manual`
 - Auth API smoke tests:
@@ -62,6 +65,11 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - `/pricing` renders live package cards
   - `/signup` and `/login` submit against the API
   - `/account` redirects to `/login` when unauthenticated
+- Phase D smoke checks:
+  - image webhook ingest stores the original media in R2
+  - worker processing copies the original into a placeholder processed file
+  - processed delivery URL and retention timestamps are persisted on the order
+  - cleanup job deletes expired original and processed files
 
 ## Production Manual Approval Note
 - Manual payment approval is now available via the admin-only route `POST /api/admin/orders/:id/approve-manual-payment`.

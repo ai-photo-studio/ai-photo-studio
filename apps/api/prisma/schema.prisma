@@ -81,6 +81,12 @@ model Order {
   subtotal      Decimal      @db.Decimal(10, 2)
   total         Decimal      @db.Decimal(10, 2)
   notes         String?
+  originalStorageKey   String?
+  originalUrl          String?
+  originalExpiresAt    DateTime?
+  processedStorageKey  String?
+  processedUrl         String?
+  processedExpiresAt   DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -92,6 +98,7 @@ model Order {
   payments Payment[]
   aiJobs   AiJob[]
   processingJobs ProcessingJob[]
+  statusHistory OrderStatusHistory[]
 
   @@index([customerId, createdAt])
   @@index([orderStatus, paymentStatus])
@@ -145,6 +152,22 @@ model ProcessingJob {
   @@index([orderId, status])
   @@index([queueName, status])
   @@index([orderItemId, status])
+}
+
+model OrderStatusHistory {
+  id         String      @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  source     String
+  reason     String?
+  meta       Json?
+  createdAt  DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([toStatus, createdAt])
 }
 
 model OrderImage {

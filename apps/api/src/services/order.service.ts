@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { AppError } from "../utils/errors";
 import { CustomerService } from "./customer.service";
@@ -17,6 +18,13 @@ type AddOrderImageInput = {
   height?: number;
   fileSizeBytes?: number;
   kind?: "ORIGINAL" | "PREVIEW" | "FINAL";
+};
+
+type OrderStatusTransition = {
+  toStatus: string;
+  source: string;
+  reason?: string;
+  meta?: Record<string, unknown>;
 };
 
 const toOrderNo = (): string => {
@@ -93,7 +101,10 @@ export class OrderService {
         height: img.height,
         fileSizeBytes: img.fileSizeBytes,
         kind: img.kind || "ORIGINAL",
-        expiresAt: new Date(Date.now() + 24 * 3600_000)
+        expiresAt: new Date(
+          Date.now() +
+            (img.kind === "FINAL" ? 30 * 24 : img.kind === "PREVIEW" ? 7 * 24 : 72) * 3600_000
+        )
       }))
     });
 
@@ -121,7 +132,10 @@ export class OrderService {
         height: image.height,
         fileSizeBytes: image.fileSizeBytes,
         kind: image.kind || "ORIGINAL",
-        expiresAt: new Date(Date.now() + (image.kind === "FINAL" ? 72 : 24) * 3600_000)
+        expiresAt: new Date(
+          Date.now() +
+            (image.kind === "FINAL" ? 30 * 24 : image.kind === "PREVIEW" ? 7 * 24 : 72) * 3600_000
+        )
       }
     });
   }
@@ -150,23 +164,83 @@ export class OrderService {
   async getOrderById(id: string) {
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { customer: true, package: true, images: true, payments: true }
+      include: { customer: true, package: true, images: true, payments: true, statusHistory: true, processingJobs: true }
     });
     if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
     return order;
   }
 
-  async markOrderCompleted(orderId: string) {
-    await prisma.order.update({
+  async updateOrderStatus(orderId: string, transition: OrderStatusTransition) {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+
+    const updated = await prisma.order.update({
       where: { id: orderId },
-      data: { orderStatus: "COMPLETED" }
+      data: {
+        orderStatus: transition.toStatus as any,
+        notes: transition.reason ? transition.reason.slice(0, 1000) : order.notes
+      }
+    });
+
+    await prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        fromStatus: order.orderStatus as any,
+        toStatus: transition.toStatus as any,
+        source: transition.source,
+        reason: transition.reason,
+        meta: transition.meta as Prisma.InputJsonValue | undefined
+      }
+    });
+
+    return updated;
+  }
+
+  async attachOriginalMedia(
+    orderId: string,
+    input: {
+      storageKey: string;
+      url: string;
+      expiresAt: Date;
+      mimeType?: string;
+      fileSizeBytes?: number;
+    }
+  ) {
+    return prisma.order.update({
+      where: { id: orderId },
+      data: {
+        originalStorageKey: input.storageKey,
+        originalUrl: input.url,
+        originalExpiresAt: input.expiresAt
+      }
     });
   }
 
-  async markOrderFailed(orderId: string, reason: string) {
-    await prisma.order.update({
+  async attachProcessedMedia(
+    orderId: string,
+    input: {
+      storageKey: string;
+      url: string;
+      expiresAt: Date;
+      mimeType?: string;
+      fileSizeBytes?: number;
+    }
+  ) {
+    return prisma.order.update({
       where: { id: orderId },
-      data: { orderStatus: "FAILED", notes: reason.slice(0, 1000) }
+      data: {
+        processedStorageKey: input.storageKey,
+        processedUrl: input.url,
+        processedExpiresAt: input.expiresAt
+      }
     });
+  }
+
+  async markOrderCompleted(orderId: string) {
+    await this.updateOrderStatus(orderId, { toStatus: "COMPLETED", source: "order.service" });
+  }
+
+  async markOrderFailed(orderId: string, reason: string) {
+    await this.updateOrderStatus(orderId, { toStatus: "FAILED", source: "order.service", reason });
   }
 }

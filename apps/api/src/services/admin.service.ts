@@ -105,7 +105,14 @@ export class AdminService {
         package: true,
         payments: { orderBy: { createdAt: "desc" } },
         images: true,
-        aiJobs: { orderBy: { createdAt: "desc" } }
+        aiJobs: { orderBy: { createdAt: "desc" } },
+        processingJobs: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            orderItem: true
+          }
+        },
+        statusHistory: { orderBy: { createdAt: "desc" } }
       }
     });
     if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
@@ -117,8 +124,11 @@ export class AdminService {
       customer: order.customer,
       package: order.package,
       payment: order.payments[0] || null,
+      files: order.images,
       images: order.images,
+      jobs: order.processingJobs,
       aiJobs: order.aiJobs,
+      statusHistory: order.statusHistory,
       deliveryStatus
     };
   }

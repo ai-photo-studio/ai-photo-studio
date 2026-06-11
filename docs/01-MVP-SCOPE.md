@@ -62,6 +62,24 @@
   - checkout flow
   - payment gateway UI
 
+## WhatsApp Media Pipeline (Phase D)
+- In scope:
+  - fetch WhatsApp media metadata and download the binary
+  - validate supported image types and file size limits
+  - store original images in R2 with 72-hour retention
+  - consume BullMQ jobs in a processing worker
+  - create placeholder processed outputs in R2
+  - persist processed delivery URLs and retention timestamps on orders
+  - log notification events for received, processing, completed, and failed states
+  - scheduled cleanup for original and processed media
+  - detailed admin order view for files, jobs, and status history
+- Still out of scope:
+  - external AI provider integration
+  - production WhatsApp message sending for completion events
+  - customer dashboard
+  - checkout flow
+  - payment gateway UI
+
 ## MVP Success Criteria
 - A first-time customer can place and pay for an order entirely via WhatsApp.
 - Paid order enters queue and outputs are generated through provider abstraction.

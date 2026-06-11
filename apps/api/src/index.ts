@@ -11,7 +11,7 @@ import { createCorsMiddleware } from "./middleware/cors.middleware";
 import { rateLimit } from "./middleware/rate-limit.middleware";
 import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
-import { startImageWorker } from "./workers/image.worker";
+import { startImageProcessingWorker } from "./workers/image-processing.worker";
 import { runCleanupOnce } from "./workers/cleanup.worker";
 
 const bootstrap = () => {
@@ -45,7 +45,7 @@ const bootstrap = () => {
   app.use("/api", createAuthRouter(config));
   app.use("/api", createPackageRouter(config));
 
-  startImageWorker(config);
+  startImageProcessingWorker(config);
   setInterval(() => {
     runCleanupOnce(config).catch((error) => logger.error("Cleanup tick failed", { error: toErrorMessage(error) }));
   }, 60 * 60 * 1000);
