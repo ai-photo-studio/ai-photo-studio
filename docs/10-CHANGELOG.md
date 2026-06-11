@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-11 - Phase G Customer and Admin Commercial UI Added
+- Added customer wallet, payments, and subscription pages backed by the authenticated API.
+- Added admin payments, wallets, subscriptions, packages, and dashboard screens with pagination support.
+- Added customer checkout request, payment proof submission, and payment status tracking UI.
+- Added the production readiness environment checklist and updated deployment guidance for Cloudflare Pages plus Railway API separation.
+- Added the `DELIVERY_MODE` log-only/WhatsApp release switch to the customer delivery notes.
+
 ## 2026-06-11 - Phase F Wallet, Payments, and Commercial Readiness Added
 - Added wallet and wallet transaction models with credit, debit, refund, and reservation support.
 - Added package catalog fields for `STARTER`, `PRO`, `BUSINESS`, and `DEALER`.

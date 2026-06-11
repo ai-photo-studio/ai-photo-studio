@@ -38,6 +38,12 @@
   - Current payment webhook receiver.
 - `GET /payments/:orderNo/status`
   - Return latest payment state for order.
+- `GET /me/wallet`
+  - Current customer wallet, recent transactions, and subscription snapshot.
+- `GET /me/payments`
+  - Paginated current-user payment history and pending payment count.
+- `GET /me/subscription`
+  - Paginated current-user subscription history and usage summary.
 
 ## Admin (MVP-only ops views)
 - `GET /admin/orders`
@@ -59,3 +65,5 @@
 - `POST /admin/payments/:id/approve`
 - `POST /admin/payments/:id/reject`
 - `POST /admin/packages`
+  - Create or update a package record for the catalog.
+  - Paginated package listing is supported for the commercial UI.

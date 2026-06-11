@@ -15,14 +15,14 @@ export function CustomerLayout() {
           </span>
         </Link>
         <nav className="site-nav" aria-label="Customer">
-          <NavLink to="/" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-            Home
+          <NavLink to="/wallet" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            Wallet
           </NavLink>
-          <NavLink to="/pricing" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-            Pricing
+          <NavLink to="/payments" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            Payments
           </NavLink>
-          <NavLink to="/account" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-            Account
+          <NavLink to="/subscription" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            Subscription
           </NavLink>
           <button type="button" className="button button-small button-ghost" onClick={logout}>
             Sign out
@@ -34,10 +34,16 @@ export function CustomerLayout() {
           <div>
             <p className="eyebrow">Signed in</p>
             <h1>{user?.name || user?.email}</h1>
+            <p className="helper-text">Your customer workspace is protected with JWT session persistence.</p>
           </div>
-          <Link to="/pricing" className="button button-small">
-            Explore packages
-          </Link>
+          <div className="button-row">
+            <Link to="/pricing" className="button button-small button-secondary">
+              Explore packages
+            </Link>
+            <Link to="/wallet" className="button button-small">
+              Open wallet
+            </Link>
+          </div>
         </section>
         <Outlet />
       </main>

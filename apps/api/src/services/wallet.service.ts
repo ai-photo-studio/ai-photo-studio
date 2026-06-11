@@ -312,8 +312,16 @@ export class WalletService {
     const wallet = await prisma.wallet.findUnique({
       where: { userId },
       include: {
+        user: true,
         transactions: { orderBy: { createdAt: "desc" }, take: 20 },
-        subscriptions: { orderBy: { createdAt: "desc" }, take: 10 }
+        subscriptions: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          include: {
+            package: true,
+            usage: { orderBy: { periodStart: "desc" }, take: 6 }
+          }
+        }
       }
     });
 

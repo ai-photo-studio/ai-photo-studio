@@ -45,6 +45,12 @@ export type PackageSummary = {
   active: boolean;
   maxImages: number | null;
   includesJson: unknown;
+  featured?: boolean;
+  sortOrder?: number;
+  creditsIncluded?: number;
+  monthlyCreditLimit?: number;
+  workflowType?: string;
+  workflowMode?: string;
   sampleAssets?: Array<{
     id: string;
     title: string;
@@ -53,6 +59,13 @@ export type PackageSummary = {
     publicUrl: string | null;
     active: boolean;
   }>;
+};
+
+export type PaginatedResponse<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
 };
 
 const parseResponse = async <T>(response: Response): Promise<T> => {

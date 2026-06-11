@@ -492,6 +492,254 @@ button {
   background: rgba(255, 255, 255, 0.84);
 }
 
+.admin-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.admin-topbar,
+.admin-nav,
+.admin-main {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+}
+
+.admin-token-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.admin-token-form input,
+.field input,
+.field textarea,
+.inline-form input {
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  width: 100%;
+}
+
+.field textarea {
+  padding-top: 14px;
+  min-height: 120px;
+}
+
+.admin-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+
+.admin-main {
+  padding: 20px;
+}
+
+.metric-grid,
+.admin-card-grid,
+.subscription-grid,
+.provider-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.admin-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.subscription-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.provider-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.split-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+}
+
+.section-heading-tight {
+  margin-bottom: 12px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.detail-grid dt {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.detail-grid dd {
+  margin: 6px 0 0;
+  font-weight: 700;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(28, 35, 31, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.inline-form {
+  display: flex;
+  gap: 10px;
+}
+
+.inline-form input {
+  flex: 1;
+}
+
+.subscription-card,
+.admin-record-card {
+  display: grid;
+  gap: 14px;
+}
+
+.card-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ledger-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ledger-item,
+.provider-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(28, 35, 31, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.ledger-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ledger-item p,
+.provider-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.usage-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(17, 75, 60, 0.06);
+}
+
+.usage-panel span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.usage-panel strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+@media (max-width: 960px) {
+  .split-layout,
+  .admin-topbar {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-token-form,
+  .inline-form {
+    flex-direction: column;
+  }
+
+  .usage-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 960px) {
   .hero,
   .auth-grid,
@@ -511,6 +759,9 @@ button {
   .auth-copy,
   .auth-form,
   .account-card,
+  .admin-main,
+  .admin-topbar,
+  .admin-nav,
   .site-header,
   .site-footer,
   .account-banner {
@@ -543,5 +794,16 @@ button {
 
   .button-row {
     flex-direction: column;
+  }
+
+  .pagination-bar,
+  .ledger-item,
+  .card-top {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .usage-panel {
+    grid-template-columns: 1fr;
   }
 }

@@ -66,6 +66,11 @@
   - Send Delivery Again
 - [ ] Admin order detail returns files, jobs, and status history.
 - [ ] Admin payment, wallet, and subscription pages can be backed by the new endpoints.
+- [ ] Customer wallet page shows balance, ledger history, and subscription snapshot.
+- [ ] Customer payments page can create checkout requests, submit proof metadata, and track payment status.
+- [ ] Customer subscription page shows plan usage and monthly reset information.
+- [ ] Admin commercial pages support pagination for payments, wallets, subscriptions, and packages.
+- [ ] Admin dashboard displays queue depth, active workers, failed jobs, processing duration, payment approvals, and wallet usage.
 # R2 Verification
 - Confirmed `STORAGE_PROVIDER=r2` is set on Railway production/api.
 - Build and deploy readiness pass.

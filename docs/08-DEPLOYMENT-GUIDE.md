@@ -34,6 +34,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - API base URL
   - Cloudflare Pages origin to be added to `ALLOWED_ORIGINS`
   - `apps/web/wrangler.toml` Pages config and `apps/web/public/_redirects` SPA fallback
+  - public web pages remain on Cloudflare Pages while the API stays on Railway
 
 ## Notes
 - Do not use Railway local disk for durable image storage.
@@ -44,6 +45,8 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Phase D extends the webhook into full media ingestion, placeholder processing, and retention cleanup while keeping the API on Railway.
 - Phase E adds provider selection, product and vehicle processing modes, and log-only completion notifications.
 - Phase F adds wallets, payment abstraction, subscriptions, and manual payment approval without moving the API away from Railway.
+- Phase G adds customer wallet/payment/subscription screens, admin commercial screens, a production readiness checklist, and the `DELIVERY_MODE` release switch.
+- Customer-facing commercial APIs are thin wrappers over the existing authenticated backend data so the Vite app can stay on Cloudflare Pages.
 - The Phase 1 background remover service is currently local-only and is not part of the Railway deployment yet.
 - Phase 2 WhatsApp image intake uses the existing queue and storage flow plus a `POST /product-white` background-remover call.
 - Cloudflare Pages should publish the `apps/web/dist` output with the SPA fallback in `apps/web/public/_redirects`.

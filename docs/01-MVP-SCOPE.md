@@ -58,6 +58,18 @@
   - live payment gateway integration
   - customer wallet UI
 
+## Production Readiness + Customer Commercial UI (Phase G)
+- In scope:
+  - customer wallet, payment, and subscription pages
+  - admin payments, wallets, subscriptions, packages, and dashboard screens
+  - checkout request, payment proof submission, and payment status tracking UI
+  - `DELIVERY_MODE=LOG_ONLY|WHATSAPP` production delivery switch
+  - environment readiness checklist for Railway, R2, AI provider, and WhatsApp credentials
+- Still out of scope:
+  - recurring billing
+  - public checkout flow redesign
+  - finalized public marketing page redesign
+
 ## Backend Pipeline Foundation (Phase C)
 - In scope:
   - order pipeline tables for orders, order items, and processing jobs

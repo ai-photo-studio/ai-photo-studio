@@ -8,10 +8,17 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminFailedJobs } from "./pages/AdminFailedJobs";
 import { AdminOrderDetail } from "./pages/AdminOrderDetail";
 import { AdminOrders } from "./pages/AdminOrders";
+import { AdminPackagesPage } from "./pages/AdminPackagesPage";
+import { AdminPaymentsPage } from "./pages/AdminPaymentsPage";
+import { AdminSubscriptionsPage } from "./pages/AdminSubscriptionsPage";
+import { AdminWalletsPage } from "./pages/AdminWalletsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PricingPage } from "./pages/PricingPage";
+import { PaymentsPage } from "./pages/PaymentsPage";
+import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { SignupPage } from "./pages/SignupPage";
+import { WalletPage } from "./pages/WalletPage";
 
 export function App() {
   return (
@@ -24,11 +31,19 @@ export function App() {
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<CustomerLayout />}>
+          <Route index element={<Navigate to="/wallet" replace />} />
+          <Route path="wallet" element={<WalletPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
           <Route path="account" element={<AccountPage />} />
         </Route>
       </Route>
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="payments" element={<AdminPaymentsPage />} />
+        <Route path="wallets" element={<AdminWalletsPage />} />
+        <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+        <Route path="packages" element={<AdminPackagesPage />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="orders/:id" element={<AdminOrderDetail />} />
         <Route path="failed-jobs" element={<AdminFailedJobs />} />

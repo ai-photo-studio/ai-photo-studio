@@ -7,7 +7,14 @@ const bgByStatus: Record<string, string> = {
   PENDING: "#fef3c7",
   PROCESSING: "#dbeafe",
   COMPLETED: "#dcfce7",
-  FAILED: "#fee2e2"
+  FAILED: "#fee2e2",
+  APPROVED: "#dcfce7",
+  REJECTED: "#fee2e2",
+  RESERVED: "#e0f2fe",
+  ACTIVE: "#dcfce7",
+  INACTIVE: "#f3f4f6",
+  RUNNING: "#dbeafe",
+  DEAD_LETTER: "#fca5a5"
 };
 
 export function StatusBadge({ value }: StatusBadgeProps) {

@@ -36,6 +36,11 @@ type ListWalletsParams = {
   search?: string;
 };
 
+type ListPackagesParams = {
+  page?: number;
+  limit?: number;
+};
+
 export class AdminService {
   private readonly queue: ImageQueueService;
   private readonly delivery: DeliveryService;
@@ -97,7 +102,9 @@ export class AdminService {
       providerFailures,
       queueFailures,
       providerBreakdown,
-      completedDurationJobs
+      completedDurationJobs,
+      paymentTotals,
+      walletTotals
     ] = await Promise.all([
       prisma.processingJob.count(),
       prisma.processingJob.count({ where: { status: "QUEUED" } }),
@@ -127,6 +134,19 @@ export class AdminService {
         },
         orderBy: { createdAt: "desc" },
         take: 500
+      }),
+      prisma.payment.groupBy({
+        by: ["status"],
+        _count: { _all: true }
+      }),
+      prisma.wallet.aggregate({
+        _sum: {
+          balance: true,
+          reservedBalance: true,
+          lifetimeSpent: true,
+          lifetimeCredited: true
+        },
+        _count: { _all: true }
       })
     ]);
 
@@ -153,9 +173,24 @@ export class AdminService {
         providerFailures,
         queueFailures
       },
+      queueDepth: queuedJobs + retryingJobs,
+      activeWorkers: runningJobs,
       performance: {
         averageProcessingDurationMs,
         completedJobsMeasured: completedDurations.length
+      },
+      commercial: {
+        paymentApprovals: paymentTotals
+          .filter((row) => row.status === "APPROVED" || row.status === "PAID")
+          .reduce((sum, row) => sum + row._count._all, 0),
+        pendingPayments: paymentTotals
+          .filter((row) => row.status === "PENDING")
+          .reduce((sum, row) => sum + row._count._all, 0),
+        walletCount: walletTotals._count._all,
+        totalWalletBalance: walletTotals._sum.balance || 0,
+        totalWalletReserved: walletTotals._sum.reservedBalance || 0,
+        totalLifetimeSpent: walletTotals._sum.lifetimeSpent || 0,
+        totalLifetimeCredited: walletTotals._sum.lifetimeCredited || 0
       },
       providerBreakdown: providerBreakdown.map((row) => ({
         providerName: row.providerName || "unknown",
@@ -244,8 +279,22 @@ export class AdminService {
     return this.subscriptionService.listSubscriptions(page || 1, limit || 20);
   }
 
-  async listPackages() {
-    return this.packageService.listAdminPackages();
+  async listPackages(params: ListPackagesParams = {}) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.packageService.listAdminPackages(),
+      prisma.package.count()
+    ]);
+
+    return {
+      items: items.slice(skip, skip + limit),
+      total,
+      page,
+      limit
+    };
   }
 
   async upsertPackage(input: {

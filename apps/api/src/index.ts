@@ -3,6 +3,7 @@ import express from "express";
 import { loadConfig } from "./config/env";
 import { createOrderRouter } from "./routes/order.routes";
 import { createPaymentRouter } from "./routes/payment.routes";
+import { createCustomerRouter } from "./routes/customer.routes";
 import { createWhatsAppRouter } from "./routes/whatsapp.routes";
 import { createAdminRouter } from "./routes/admin.routes";
 import { createAuthRouter } from "./routes/auth.routes";
@@ -41,6 +42,7 @@ const bootstrap = () => {
   app.use("/api", createWhatsAppRouter(config));
   app.use("/api", createOrderRouter(config));
   app.use("/api", createPaymentRouter(config));
+  app.use("/api", createCustomerRouter(config));
   app.use("/api", createAdminRouter(config));
   app.use("/api", createAuthRouter(config));
   app.use("/api", createPackageRouter(config));

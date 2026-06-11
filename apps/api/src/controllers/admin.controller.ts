@@ -115,9 +115,12 @@ export class AdminController {
     }
   };
 
-  packages = async (_req: Request, res: Response): Promise<void> => {
+  packages = async (req: Request, res: Response): Promise<void> => {
     try {
-      const data = await this.adminService.listPackages();
+      const data = await this.adminService.listPackages({
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined
+      });
       res.json({ success: true, data });
     } catch (error) {
       this.handleError(res, error);
