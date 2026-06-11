@@ -21,7 +21,6 @@
 - Ghost mannequin workflows
 - Video generation
 - Customer self-service dashboard
-- Wallet and reseller features
 - Advanced BI/reporting dashboards
 
 ## Website Customer Foundation (Phase A)
@@ -46,6 +45,18 @@
   - customer dashboard
   - checkout flow
   - payment gateway UI
+
+## Commercial Readiness (Phase F)
+- In scope:
+  - wallet ledger with credit, debit, and refund transactions
+  - package catalog for `STARTER`, `PRO`, `BUSINESS`, and `DEALER`
+  - manual payment proof upload and admin approval/rejection
+  - subscriptions and monthly usage tracking
+  - credit reservation and settlement during image processing
+- Still out of scope:
+  - recurring billing
+  - live payment gateway integration
+  - customer wallet UI
 
 ## Backend Pipeline Foundation (Phase C)
 - In scope:

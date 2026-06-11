@@ -4,6 +4,8 @@ import { ImageQueueService } from "../queues/image.queue";
 import type { AppConfig } from "../config/env";
 import { DeliveryService } from "./delivery.service";
 import { PaymentService } from "./payment.service";
+import { PackageService } from "./package.service";
+import { SubscriptionService } from "./subscription.service";
 
 type ListOrdersParams = {
   status?: string;
@@ -20,10 +22,26 @@ type ListJobsParams = {
   limit?: number;
 };
 
+type ListPaymentsParams = {
+  status?: string;
+  provider?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+type ListWalletsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
 export class AdminService {
   private readonly queue: ImageQueueService;
   private readonly delivery: DeliveryService;
   private readonly payment: PaymentService;
+  private readonly packageService = new PackageService();
+  private readonly subscriptionService = new SubscriptionService();
 
   constructor(config: AppConfig) {
     this.queue = new ImageQueueService(config);
@@ -144,6 +162,125 @@ export class AdminService {
         count: row._count._all
       }))
     };
+  }
+
+  async listPayments(params: ListPaymentsParams) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.status) where.status = params.status.toUpperCase();
+    if (params.provider) where.provider = params.provider.toLowerCase();
+    if (params.search) {
+      where.OR = [
+        { providerRef: { contains: params.search, mode: "insensitive" } },
+        { order: { orderNo: { contains: params.search, mode: "insensitive" } } }
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        include: {
+          order: {
+            include: {
+              customer: true,
+              package: true,
+              user: true
+            }
+          },
+          walletTransactions: true
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.payment.count({ where })
+    ]);
+
+    return { items, total, page, limit };
+  }
+
+  async listWallets(params: ListWalletsParams) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.search) {
+      where.OR = [
+        { user: { email: { contains: params.search, mode: "insensitive" } } },
+        { user: { name: { contains: params.search, mode: "insensitive" } } }
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.wallet.findMany({
+        where,
+        include: {
+          user: true,
+          transactions: { orderBy: { createdAt: "desc" }, take: 10 },
+          subscriptions: {
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            include: {
+              package: true,
+              usage: { orderBy: { periodStart: "desc" }, take: 6 }
+            }
+          }
+        },
+        orderBy: { updatedAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.wallet.count({ where })
+    ]);
+
+    return { items, total, page, limit };
+  }
+
+  async listSubscriptions(page?: number, limit?: number) {
+    return this.subscriptionService.listSubscriptions(page || 1, limit || 20);
+  }
+
+  async listPackages() {
+    return this.packageService.listAdminPackages();
+  }
+
+  async upsertPackage(input: {
+    code: string;
+    name: string;
+    description?: string | null;
+    price: string | number;
+    currency?: string;
+    active?: boolean;
+    featured?: boolean;
+    sortOrder?: number;
+    maxImages?: number | null;
+    creditsIncluded?: number;
+    monthlyCreditLimit?: number;
+    workflowType?: string;
+    workflowMode?: string;
+    includesJson?: unknown;
+  }) {
+    const pkg = await this.packageService.upsertPackage(input);
+
+    await prisma.auditLog.create({
+      data: {
+        actorType: "admin",
+        action: "upsert_package",
+        entityType: "package",
+        entityId: pkg.id,
+        meta: {
+          code: pkg.code,
+          active: pkg.active,
+          featured: pkg.featured
+        }
+      }
+    });
+
+    return pkg;
   }
 
   async listOrders(params: ListOrdersParams) {
@@ -299,7 +436,63 @@ export class AdminService {
         meta: {
           orderNo: result.orderNo,
           paymentId: result.paymentId,
-          enqueued: result.enqueued
+          updated: result.updated
+        }
+      }
+    });
+
+    return result;
+  }
+
+  async approvePayment(paymentId: string) {
+    const result = await this.payment.approvePaymentById(paymentId, "admin");
+
+    await prisma.auditLog.create({
+      data: {
+        actorType: "admin",
+        action: "approve_payment",
+        entityType: "payment",
+        entityId: paymentId,
+        meta: {
+          orderNo: result.orderNo
+        }
+      }
+    });
+
+    return result;
+  }
+
+  async rejectManualPayment(id: string, reason?: string) {
+    const result = await this.payment.rejectManualPayment(id, reason);
+
+    await prisma.auditLog.create({
+      data: {
+        actorType: "admin",
+        action: "reject_manual_payment",
+        entityType: "payment",
+        entityId: id,
+        meta: {
+          reason: reason || "Manual payment rejected",
+          orderNo: result.orderNo
+        }
+      }
+    });
+
+    return result;
+  }
+
+  async rejectPayment(paymentId: string, reason?: string) {
+    const result = await this.payment.rejectPaymentById(paymentId, reason, "admin");
+
+    await prisma.auditLog.create({
+      data: {
+        actorType: "admin",
+        action: "reject_payment",
+        entityType: "payment",
+        entityId: paymentId,
+        meta: {
+          reason: reason || "Payment rejected",
+          orderNo: result.orderNo
         }
       }
     });

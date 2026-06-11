@@ -38,10 +38,12 @@
 - [ ] Order creation endpoint creates order + image records.
 - [ ] `POST /api/orders/:orderNo/images` stores `OrderImage` rows.
 - [ ] `POST /api/orders/:orderNo/checkout` returns checkout URL + payment reference.
+- [ ] `POST /api/payments/manual-proof` creates or updates a pending manual payment record.
 - [ ] Payment checkout endpoint returns payment link.
-- [ ] Payment webhook marks order paid and enqueues jobs.
+- [ ] Payment webhook marks order paid, credits wallet, and enqueues jobs.
 - [ ] `GET /api/payments/:orderNo/status` returns latest payment status.
 - [ ] Admin manual approval endpoint moves a pending manual order to processing.
+- [ ] Admin payment, wallet, subscription, and package list endpoints return paginated data.
 - [ ] Phase 1 background remover local smoke test passes via `services/background-remover/scripts/test_local.py`.
 
 ## Worker and Processing Checks
@@ -51,6 +53,8 @@
 - [ ] Cleanup worker deletes expired originals after 72 hours and processed files after 30 days.
 - [ ] Phase D WhatsApp media worker uploads processed output, logs notification events, and marks the order complete or failed.
 - [ ] Phase E worker routes product and vehicle jobs through the provider abstraction.
+- [ ] Phase F worker reserves credits at processing start and settles or releases them on completion/failure.
+- [ ] Phase F payment, wallet, subscription, and package endpoints return paginated data.
 - [ ] `GET /api/admin/stats` returns processing duration and failure metrics.
 
 ## Admin Web Checks
@@ -61,6 +65,7 @@
   - Retry Failed Images
   - Send Delivery Again
 - [ ] Admin order detail returns files, jobs, and status history.
+- [ ] Admin payment, wallet, and subscription pages can be backed by the new endpoints.
 # R2 Verification
 - Confirmed `STORAGE_PROVIDER=r2` is set on Railway production/api.
 - Build and deploy readiness pass.

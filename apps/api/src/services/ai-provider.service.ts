@@ -41,16 +41,16 @@ export class AiProviderService {
     const code = packageCode.toUpperCase();
     let output = await this.provider.removeBackground(inputKey);
 
-    if (code === "BASIC_PACK") {
+    if (code === "BASIC_PACK" || code === "STARTER") {
       output = await this.provider.applyWhiteBackground(output);
       return { outputKey: output };
     }
-    if (code === "SELLER_READY") {
+    if (code === "SELLER_READY" || code === "PRO") {
       output = await this.provider.applyWhiteBackground(output);
       output = await this.provider.resizeImage(output);
       return { outputKey: `${output}-bright` };
     }
-    if (code === "PREMIUM_LAUNCH") {
+    if (code === "PREMIUM_LAUNCH" || code === "BUSINESS" || code === "DEALER") {
       output = await this.provider.applyStaticTemplate(output);
       output = await this.provider.resizeImage(output);
       return { outputKey: `${output}-bright` };

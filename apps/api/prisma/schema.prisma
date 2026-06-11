@@ -21,9 +21,37 @@ enum OrderStatus {
 
 enum PaymentStatus {
   PENDING
+  APPROVED
+  REJECTED
   PAID
   FAILED
   REFUNDED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+}
+
+enum WalletTransactionState {
+  RESERVED
+  SETTLED
+  RELEASED
+  FAILED
+}
+
+enum CreditSourceType {
+  FREE
+  PURCHASED
+  PROMOTIONAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
 }
 
 enum ImageKind {
@@ -60,6 +88,8 @@ model User {
   name         String?
   customerId   String?  @unique
   customer     Customer? @relation("CustomerUser", fields: [customerId], references: [id])
+  wallet       Wallet?
+  subscriptions Subscription[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -96,6 +126,7 @@ model Order {
   items    OrderItem[]
   images   OrderImage[]
   payments Payment[]
+  walletTransactions WalletTransaction[]
   aiJobs   AiJob[]
   processingJobs ProcessingJob[]
   statusHistory OrderStatusHistory[]
@@ -200,32 +231,146 @@ model Payment {
   status          PaymentStatus @default(PENDING)
   amount          Decimal       @db.Decimal(10, 2)
   currency        String        @default("PKR")
+  screenshotPath  String?
+  screenshotStorageKey String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewNotes     String?
   rawPayload      Json?
   paidAt          DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   order Order @relation(fields: [orderId], references: [id])
+  walletTransactions WalletTransaction[]
 
   @@index([orderId, createdAt])
   @@index([provider, providerRef])
 }
 
 model Package {
-  id            String   @id @default(cuid())
-  code          String   @unique
-  name          String
-  description   String?
-  price         Decimal  @db.Decimal(10, 2)
-  currency      String   @default("PKR")
-  active        Boolean  @default(true)
-  maxImages     Int?
-  includesJson  Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  name                String
+  description         String?
+  price               Decimal  @db.Decimal(10, 2)
+  currency            String   @default("PKR")
+  active              Boolean  @default(true)
+  featured            Boolean  @default(false)
+  sortOrder           Int      @default(0)
+  maxImages           Int?
+  creditsIncluded     Int      @default(0)
+  monthlyCreditLimit  Int      @default(0)
+  workflowType        String   @default("PRODUCT")
+  workflowMode        String   @default("PRODUCT_STUDIO")
+  includesJson        Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   orders       Order[]
+  subscriptions Subscription[]
   sampleAssets SampleAsset[]
+}
+
+model Wallet {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  balance          Int      @default(0)
+  reservedBalance  Int      @default(0)
+  lifetimeSpent    Int      @default(0)
+  lifetimeCredited Int      @default(0)
+  currency         String   @default("PKR")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   WalletTransaction[]
+  subscriptions  Subscription[]
+
+  @@index([balance])
+}
+
+model WalletTransaction {
+  id              String                @id @default(cuid())
+  walletId        String
+  paymentId       String?
+  orderId         String?
+  subscriptionId  String?
+  type            WalletTransactionType
+  state           WalletTransactionState @default(SETTLED)
+  creditSource    CreditSourceType?
+  amount          Int
+  balanceBefore   Int
+  balanceAfter    Int
+  reservedBefore  Int                  @default(0)
+  reservedAfter   Int                  @default(0)
+  referenceType   String?
+  referenceId     String?
+  note            String?
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  wallet         Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  payment        Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  order          Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt])
+  @@index([referenceType, referenceId])
+  @@index([paymentId, createdAt])
+  @@index([orderId, createdAt])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  walletId             String
+  packageId            String
+  planCode             String
+  status               SubscriptionStatus @default(ACTIVE)
+  monthlyCreditLimit   Int                @default(0)
+  monthlyCreditsUsed   Int                @default(0)
+  monthlyCreditsReserved Int              @default(0)
+  periodStart          DateTime
+  periodEnd            DateTime
+  nextResetAt          DateTime
+  lastResetAt          DateTime?
+  startedAt            DateTime           @default(now())
+  endedAt              DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  package       Package           @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  usage         SubscriptionUsage[]
+  walletTransactions WalletTransaction[]
+
+  @@index([userId, status])
+  @@index([walletId, status])
+  @@index([planCode, status])
+  @@index([nextResetAt])
+}
+
+model SubscriptionUsage {
+  id                String   @id @default(cuid())
+  subscriptionId    String
+  periodStart       DateTime
+  periodEnd         DateTime
+  creditsReserved   Int      @default(0)
+  creditsSpent      Int      @default(0)
+  creditsReleased   Int      @default(0)
+  jobsReserved      Int      @default(0)
+  jobsCompleted     Int      @default(0)
+  jobsFailed        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, periodStart])
+  @@index([subscriptionId, periodEnd])
 }
 
 model SampleAsset {

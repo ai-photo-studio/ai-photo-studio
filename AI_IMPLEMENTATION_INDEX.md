@@ -19,28 +19,31 @@ Railway project binding:
 Deployment readiness snapshot:
 - Scope check passes for the current repository remote and branch.
 - Phase A web customer foundation is present and verified in the API source tree.
-- Phase B public customer website is present in the Vite frontend.
+- Phase B public customer website is present in the Vite frontend and uses the live packages/auth APIs.
 - Phase C backend foundation is present for order intake, queueing, and admin monitoring.
 - Phase D WhatsApp media intake downloads, validates, stores, and queues original files.
 - Phase E AI provider integration routes processed images through a configurable provider abstraction.
+- Phase F commercial readiness now adds wallets, payments, packages, and subscriptions.
 - Prisma schema includes the `User` model, optional `Order.userId` relation, `OrderItem`, `ProcessingJob`, and `OrderStatusHistory`.
 - Orders store original and processed file metadata, URLs, and retention timestamps.
 - Auth endpoints are present: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.
 - JWT auth middleware, CORS origin allow-list, and in-memory rate limiting are wired into the API bootstrap.
 - Public package listing is available at `GET /api/packages`.
+- Payment endpoints now include checkout creation, manual proof upload, webhook receipt, and order payment status checks.
+- Admin endpoints now include paginated payments, wallets, subscriptions, packages, orders, jobs, and stats.
 - BullMQ queue scaffolding exists for the `image-processing` queue and dead-letter path.
 - WhatsApp image intake now downloads media, validates image type and size, stores originals in R2, and creates processing jobs.
 - Processing worker now calls the configured AI provider abstraction, uploads the processed result, and persists delivery URLs on the order.
 - Cloudflare R2 upload abstraction exposes `uploadOriginal()`, `uploadProcessed()`, and `generateDownloadUrl()`.
-- Admin monitoring includes paginated `/admin/orders`, `/admin/jobs`, `/admin/stats`, and detailed `/admin/orders/:id`.
-- Prisma migration `20260611000002_phase_c_order_pipeline` exists in `apps/api/prisma/migrations`.
+- Admin monitoring includes paginated `/admin/orders`, `/admin/jobs`, `/admin/payments`, `/admin/wallets`, `/admin/subscriptions`, `/admin/stats`, and detailed `/admin/orders/:id`.
+- Prisma migration `20260611000003_phase_f_wallet_payments` exists in `apps/api/prisma/migrations`.
 - `npm run prisma:validate -w apps/api` passes and `npm run build` passes for both API and web workspaces.
-- The web app has a Cloudflare Pages SPA fallback via `apps/web/public/_redirects`.
+- The web app has a Cloudflare Pages SPA fallback via `apps/web/public/_redirects` and a Pages config at `apps/web/wrangler.toml`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
 - WhatsApp customer flow, admin auth, manual payment flow, and R2 flow remain in place.
-- Public customer dashboard and checkout are still deferred.
+- Public customer dashboard and checkout are still deferred, but the customer website foundation is live.
 
-## Phase A + B + C + D + E Summary
+## Phase A + B + C + D + E + F Summary
 - Web user model fields: `email`, `passwordHash`, `name`, optional `customerId`
 - Order linkage: `Order.userId` optional relation to `User`
 - Auth endpoints: register, login, refresh, and me
@@ -60,7 +63,14 @@ Deployment readiness snapshot:
 - Phase E workflows: product and vehicle pipelines with provider-based processing
 - Phase E delivery mode: `DELIVERY_MODE=LOG_ONLY|WHATSAPP`
 - Admin monitoring APIs: paginated orders, jobs, stats, and order detail views
+- Wallet system: `wallets`, `wallet_transactions`, credit/debit/refund ledger, reserved balances, and credit grant helpers
+- Package catalog: `STARTER`, `PRO`, `BUSINESS`, `DEALER` stored in DB with workflow and credit metadata
+- Payment abstraction: `JAZZCASH`, `EASYPAISA`, `MANUAL` via provider factory
+- Manual payment workflow: customer proof upload plus admin approve/reject flow
+- Subscription framework: `subscriptions`, `subscription_usage`, monthly reset support, and plan limits
+- Usage charging: reserve credits when processing starts, settle on completion, release on failure
+- Admin commercial endpoints: payments, wallets, subscriptions, and package catalog management
 
 ## Notes
 - The repository still contains the earlier WhatsApp-first MVP modules and the Phase 2 background-remover work.
-- This index now tracks the customer foundation, the public website layer, and the Phase C/D/E backend pipeline foundation.
+- This index now tracks the customer foundation, the public website layer, and the Phase C/D/E/F backend pipeline foundation.

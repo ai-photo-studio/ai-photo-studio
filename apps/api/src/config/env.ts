@@ -30,7 +30,8 @@ const envSchema = z
     ALLOWED_ORIGINS: z.string().optional().default("")
   })
   .superRefine((cfg, ctx) => {
-    const isManualPayment = cfg.PAYMENT_GATEWAY_NAME === "manual";
+    const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
+    const isManualPayment = normalizedPaymentProvider === "manual";
     const isMockStorage = cfg.STORAGE_PROVIDER === "mock";
     const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
     const providerKey = selectedAiProvider === "photoroom"
@@ -44,6 +45,14 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["AI_PROVIDER"],
         message: "AI_PROVIDER must be one of mock, photoroom, or fal"
+      });
+    }
+
+    if (!["jazzcash", "easypaisa", "manual"].includes(normalizedPaymentProvider)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["PAYMENT_GATEWAY_NAME"],
+        message: "PAYMENT_GATEWAY_NAME must be one of jazzcash, easypaisa, or manual"
       });
     }
 
@@ -118,6 +127,7 @@ const envSchema = z
 
 export type AppConfig = z.infer<typeof envSchema> & {
   aiProvider: "mock" | "photoroom" | "fal";
+  paymentProvider: "jazzcash" | "easypaisa" | "manual";
   whatsappDryRun: boolean;
   storageDryRun: boolean;
   queueDryRun: boolean;
@@ -138,12 +148,17 @@ export const loadConfig = (): AppConfig => {
 
   const cfg = parsed.data;
   const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
+  const paymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
   return {
     ...cfg,
     aiProvider: (["mock", "photoroom", "fal"].includes(selectedAiProvider) ? selectedAiProvider : "mock") as
       | "mock"
       | "photoroom"
       | "fal",
+    paymentProvider: (["jazzcash", "easypaisa", "manual"].includes(paymentProvider) ? paymentProvider : "manual") as
+      | "jazzcash"
+      | "easypaisa"
+      | "manual",
     whatsappDryRun: !cfg.WHATSAPP_ACCESS_TOKEN || !cfg.WHATSAPP_PHONE_NUMBER_ID || cfg.WHATSAPP_ACCESS_TOKEN === "replace_me",
     storageDryRun:
       cfg.STORAGE_PROVIDER === "mock" ||

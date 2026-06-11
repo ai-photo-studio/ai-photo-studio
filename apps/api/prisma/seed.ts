@@ -5,39 +5,67 @@ const prisma = new PrismaClient();
 async function main() {
   const packages = [
     {
-      code: "FREE_PREVIEW",
-      name: "Free Preview",
-      description: "One low-res watermarked preview image",
-      price: "0.00",
-      includesJson: {
-        services: ["background_removal", "watermarked_preview"]
-      }
-    },
-    {
-      code: "BASIC_PACK",
-      name: "Basic Pack",
-      description: "Background removal and white background",
+      code: "STARTER",
+      name: "Starter",
+      description: "Best for new stores that want a clean, fast launch kit",
       price: "1499.00",
+      featured: true,
+      sortOrder: 1,
+      maxImages: 3,
+      creditsIncluded: 10,
+      monthlyCreditLimit: 10,
+      workflowType: "PRODUCT",
+      workflowMode: "WHITE_BACKGROUND",
       includesJson: {
-        services: ["background_removal", "white_background"]
+        services: ["background_removal", "white_background", "basic_retouch"]
       }
     },
     {
-      code: "SELLER_READY",
-      name: "Seller Ready Pack",
-      description: "Background removal, white background, resize, brightness",
+      code: "PRO",
+      name: "Pro",
+      description: "Popular package for sellers who need polished product visuals",
       price: "3499.00",
+      featured: true,
+      sortOrder: 2,
+      maxImages: 10,
+      creditsIncluded: 25,
+      monthlyCreditLimit: 25,
+      workflowType: "PRODUCT",
+      workflowMode: "SHADOW_ENHANCEMENT",
       includesJson: {
-        services: ["background_removal", "white_background", "resize", "brightness"]
+        services: ["background_removal", "white_background", "shadow_enhancement", "resize"]
       }
     },
     {
-      code: "PREMIUM_LAUNCH",
-      name: "Premium Launch Pack",
-      description: "Background removal, static template, resize, brightness",
+      code: "BUSINESS",
+      name: "Business",
+      description: "Advanced package for growing brands and campaigns",
       price: "6999.00",
+      featured: false,
+      sortOrder: 3,
+      maxImages: 25,
+      creditsIncluded: 60,
+      monthlyCreditLimit: 60,
+      workflowType: "PRODUCT",
+      workflowMode: "PRODUCT_STUDIO",
       includesJson: {
-        services: ["background_removal", "static_template", "resize", "brightness"]
+        services: ["background_removal", "product_studio", "resize", "brightness", "batch_support"]
+      }
+    },
+    {
+      code: "DEALER",
+      name: "Dealer",
+      description: "Vehicle-ready package for dealers and inventory teams",
+      price: "9999.00",
+      featured: false,
+      sortOrder: 4,
+      maxImages: 50,
+      creditsIncluded: 100,
+      monthlyCreditLimit: 100,
+      workflowType: "VEHICLE",
+      workflowMode: "SHOWROOM",
+      includesJson: {
+        services: ["vehicle_showroom", "premium_road", "dark_studio", "plate_blur"]
       }
     }
   ];
@@ -49,15 +77,38 @@ async function main() {
         name: item.name,
         description: item.description,
         price: item.price,
-        includesJson: item.includesJson
+        featured: item.featured,
+        sortOrder: item.sortOrder,
+        maxImages: item.maxImages,
+        creditsIncluded: item.creditsIncluded,
+        monthlyCreditLimit: item.monthlyCreditLimit,
+        workflowType: item.workflowType,
+        workflowMode: item.workflowMode,
+        includesJson: item.includesJson,
+        active: true
       },
       create: {
         code: item.code,
         name: item.name,
         description: item.description,
         price: item.price,
+        featured: item.featured,
+        sortOrder: item.sortOrder,
+        maxImages: item.maxImages,
+        creditsIncluded: item.creditsIncluded,
+        monthlyCreditLimit: item.monthlyCreditLimit,
+        workflowType: item.workflowType,
+        workflowMode: item.workflowMode,
         includesJson: item.includesJson
       }
+    });
+  }
+
+  const legacyCodes = ["FREE_PREVIEW", "BASIC_PACK", "SELLER_READY", "PREMIUM_LAUNCH"];
+  for (const code of legacyCodes) {
+    await prisma.package.updateMany({
+      where: { code },
+      data: { active: false }
     });
   }
 

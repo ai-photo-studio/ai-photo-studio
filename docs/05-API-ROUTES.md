@@ -30,10 +30,12 @@
   - Create payment checkout link.
 - `POST /payments/create-checkout`
   - Alternate body-driven checkout creation by order number.
+- `POST /payments/manual-proof`
+  - Customer uploads manual payment proof for review.
 - `POST /webhooks/payments`
   - Payment provider webhook callback.
 - `POST /webhooks/payment`
-  - Current mock payment webhook receiver.
+  - Current payment webhook receiver.
 - `GET /payments/:orderNo/status`
   - Return latest payment state for order.
 
@@ -45,6 +47,15 @@
 - `GET /admin/stats`
 - `GET /admin/failed-jobs`
 - `GET /admin/jobs`
+- `GET /admin/payments`
+- `GET /admin/wallets`
+- `GET /admin/subscriptions`
+- `GET /admin/packages`
 - `POST /admin/orders/:id/retry`
 - `POST /admin/orders/:id/send-again`
 - `POST /admin/jobs/:id/retry`
+- `POST /admin/orders/:id/approve-manual-payment`
+- `POST /admin/orders/:id/reject-manual-payment`
+- `POST /admin/payments/:id/approve`
+- `POST /admin/payments/:id/reject`
+- `POST /admin/packages`

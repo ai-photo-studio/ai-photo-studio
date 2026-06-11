@@ -21,9 +21,9 @@ export class PaymentController {
       if (amount <= 0) throw new AppError("Order amount must be greater than zero", 400, "INVALID_AMOUNT");
 
       const checkout = await this.paymentService.createCheckout({
-        id: order.id,
+        orderId: order.id,
         orderNo: order.orderNo,
-        total: amount,
+        amount,
         currency: order.currency
       });
 
@@ -31,7 +31,8 @@ export class PaymentController {
         orderId: order.id,
         amount,
         currency: order.currency,
-        gatewayRef: checkout.gatewayRef,
+        providerName: checkout.providerName,
+        gatewayRef: checkout.providerRef,
         checkoutUrl: checkout.checkoutUrl
       });
 
@@ -45,6 +46,26 @@ export class PaymentController {
     try {
       const result = await this.paymentService.handleWebhook(req.body, req.headers);
       res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  submitManualProof = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { orderNo, screenshotPath, screenshotStorageKey, note } = req.body ?? {};
+      if (!orderNo || !screenshotPath) {
+        throw new AppError("orderNo and screenshotPath are required", 400, "INVALID_REQUEST");
+      }
+
+      const payment = await this.paymentService.recordManualPaymentProof({
+        orderNo: String(orderNo),
+        screenshotPath: String(screenshotPath),
+        screenshotStorageKey: screenshotStorageKey ? String(screenshotStorageKey) : undefined,
+        note: note ? String(note) : undefined
+      });
+
+      res.status(201).json({ success: true, data: payment });
     } catch (error) {
       this.handleError(res, error);
     }

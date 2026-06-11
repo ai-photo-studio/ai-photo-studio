@@ -69,9 +69,9 @@ export class OrderController {
       if (amount <= 0) throw new AppError("Order amount must be greater than zero", 400, "INVALID_AMOUNT");
 
       const checkout = await this.paymentService.createCheckout({
-        id: order.id,
+        orderId: order.id,
         orderNo: order.orderNo,
-        total: amount,
+        amount,
         currency: order.currency
       });
 
@@ -79,7 +79,8 @@ export class OrderController {
         orderId: order.id,
         amount,
         currency: order.currency,
-        gatewayRef: checkout.gatewayRef,
+        providerName: checkout.providerName,
+        gatewayRef: checkout.providerRef,
         checkoutUrl: checkout.checkoutUrl
       });
 
@@ -88,7 +89,7 @@ export class OrderController {
         data: {
           orderNo: order.orderNo,
           checkoutUrl: checkout.checkoutUrl,
-          paymentReference: checkout.gatewayRef
+          paymentReference: checkout.providerRef
         }
       });
     } catch (error) {

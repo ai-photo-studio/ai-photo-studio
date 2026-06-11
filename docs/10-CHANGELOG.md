@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-11 - Phase F Wallet, Payments, and Commercial Readiness Added
+- Added wallet and wallet transaction models with credit, debit, refund, and reservation support.
+- Added package catalog fields for `STARTER`, `PRO`, `BUSINESS`, and `DEALER`.
+- Added payment abstraction support for `JAZZCASH`, `EASYPAISA`, and `MANUAL`.
+- Added manual payment proof intake, admin approval/rejection, and wallet crediting on approval.
+- Added subscriptions and subscription usage tracking with monthly reset support.
+- Added credit reservation and settlement in the processing worker.
+- Added admin list endpoints for payments, wallets, subscriptions, and package management.
+- Added Cloudflare Pages config at `apps/web/wrangler.toml`.
+
 ## 2026-06-11 - Phase E AI Provider Integration Added
 - Added provider abstraction and factory support for `mock`, `photoroom`, and `fal`.
 - Added product and vehicle workflow routing for the configured AI provider.

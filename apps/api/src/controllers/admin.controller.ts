@@ -75,6 +75,64 @@ export class AdminController {
     }
   };
 
+  payments = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listPayments({
+        status: req.query.status as string | undefined,
+        provider: req.query.provider as string | undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        search: req.query.search as string | undefined
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  wallets = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listWallets({
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        search: req.query.search as string | undefined
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  subscriptions = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listSubscriptions(
+        req.query.page ? Number(req.query.page) : undefined,
+        req.query.limit ? Number(req.query.limit) : undefined
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  packages = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listPackages();
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  upsertPackage = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.upsertPackage(req.body ?? {});
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   retryOrder = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.retryOrder(req.params.id);
@@ -87,6 +145,33 @@ export class AdminController {
   approveManualPayment = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.approveManualPayment(req.params.id);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  approvePayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.approvePayment(req.params.id);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  rejectManualPayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.rejectManualPayment(req.params.id, req.body?.reason as string | undefined);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  rejectPayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.rejectPayment(req.params.id, req.body?.reason as string | undefined);
       res.json({ success: true, data });
     } catch (error) {
       this.handleError(res, error);

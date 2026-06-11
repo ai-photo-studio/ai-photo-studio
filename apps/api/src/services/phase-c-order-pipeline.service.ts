@@ -91,8 +91,31 @@ export class PhaseCOrderPipelineService {
 
     const customer = await this.customerService.findOrCreateByWhatsAppNumber(normalizedSender);
     const orderNo = toOrderNo();
-    const workflowType = resolveWorkflowType(pkg.code);
-    const workflowMode = workflowType === "VEHICLE" ? "SHOWROOM" : resolveProductWorkflowMode(pkg.code);
+    const workflowType = (pkg.workflowType?.trim().toUpperCase() === "VEHICLE" ? "VEHICLE" : resolveWorkflowType(pkg.code)) as
+      | "PRODUCT"
+      | "VEHICLE";
+    const workflowMode:
+      | "WHITE_BACKGROUND"
+      | "SOLID_COLOR_BACKGROUND"
+      | "SHADOW_ENHANCEMENT"
+      | "PRODUCT_STUDIO"
+      | "SHOWROOM"
+      | "PREMIUM_ROAD"
+      | "DARK_STUDIO"
+      | "PLATE_BLUR" =
+      workflowType === "VEHICLE"
+        ? ((pkg.workflowMode as
+            | "SHOWROOM"
+            | "PREMIUM_ROAD"
+            | "DARK_STUDIO"
+            | "PLATE_BLUR"
+            | undefined) || "SHOWROOM")
+        : ((pkg.workflowMode as
+            | "WHITE_BACKGROUND"
+            | "SOLID_COLOR_BACKGROUND"
+            | "SHADOW_ENHANCEMENT"
+            | "PRODUCT_STUDIO"
+            | undefined) || resolveProductWorkflowMode(pkg.code));
 
     const order = await prisma.order.create({
       data: {
