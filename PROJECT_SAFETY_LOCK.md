@@ -34,6 +34,10 @@ This repository has a mandatory protection system to prevent accidental operatio
 The Railway production API now returns `Access-Control-Allow-Origin: https://ai-photo-studio-whatsapp-web.pages.dev` for the dedicated frontend origin.
 Keep `ALLOWED_ORIGINS` restricted to the dedicated Pages project and do not widen it without a deliberate launch decision.
 
+## Phase P Note
+
+WhatsApp environment variables are set in Railway production, webhook verification passes, delivery payload generation passes, and Meta connectivity still requires resolution before switching away from `LOG_ONLY`.
+
 ## AI Agent Instructions
 
 See `AI_PROJECT_RULES.md` for the mandatory agent rules.

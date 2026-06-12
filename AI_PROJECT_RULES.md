@@ -50,3 +50,6 @@ Ensure all protected files exist before any operation:
 - PROJECT_SAFETY_LOCK.md
 - AI_PROJECT_RULES.md
 - AI_code_audit_report.md
+
+### Phase P Note
+Keep `DELIVERY_MODE=LOG_ONLY` until Meta connectivity passes in production.

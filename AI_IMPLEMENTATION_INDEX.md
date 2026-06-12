@@ -51,8 +51,9 @@ Deployment readiness snapshot:
 - Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (latest deployment: `https://e100a3ee.ai-photo-studio-whatsapp-web.pages.dev`)
 - Frontend API binding is production-safe: `apps/web/src/lib/api.ts` prefers `VITE_API_URL`, then `VITE_API_BASE_URL`, and falls back to the Railway production API in production builds.
 - Railway production CORS is now locked to the Pages origin via `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev`.
-- Launch readiness improved after the dedicated Pages deployment and CORS fix; remaining blockers are the WhatsApp production access-token/phone-number requirements and the optional load-test baseline.
-- Phase M (Final Production Readiness) completed. CORS validation: returns the dedicated Pages origin `https://ai-photo-studio-whatsapp-web.pages.dev`. WhatsApp env: verify token SET, access token NOT SET, phone number ID NOT SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
+- Launch readiness improved after the dedicated Pages deployment and CORS fix; current blockers are Meta Graph connectivity and the optional load-test baseline.
+- Phase P validation: WhatsApp env values are SET, webhook verification PASS, delivery payload PASS, AI provider PASS (`mock`), Meta connectivity FAIL. Keep `DELIVERY_MODE=LOG_ONLY` until Meta connectivity is confirmed.
+- Phase M (Final Production Readiness) completed. CORS validation: returns the dedicated Pages origin `https://ai-photo-studio-whatsapp-web.pages.dev`. WhatsApp env: verify token SET, access token SET, phone number ID SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
 - Railway deployment is controlled from the repo-root `railway.json` so the api service boots the same `tsx` source entrypoint from the monorepo root.

@@ -16,8 +16,8 @@
   - [x] `R2_BUCKET`
   - [x] `R2_ACCESS_KEY_ID`
   - [x] `R2_SECRET_ACCESS_KEY`
-  - [ ] `WHATSAPP_ACCESS_TOKEN`
-  - [ ] `WHATSAPP_PHONE_NUMBER_ID`
+  - [x] `WHATSAPP_ACCESS_TOKEN`
+  - [x] `WHATSAPP_PHONE_NUMBER_ID`
 - [x] Health endpoints respond successfully
   - [x] `/api/health`
   - [x] `/api/version/routes`
@@ -36,10 +36,11 @@
 
 ## WhatsApp
 - [x] Webhook verification token configured
-- [ ] Access token configured
-- [ ] Phone number ID configured
+- [x] Access token configured
+- [x] Phone number ID configured
 - [x] `DELIVERY_MODE` defaults to `LOG_ONLY`
 - [x] `WHATSAPP` mode payload generation is verified
+- [ ] Meta Graph connectivity is still failing and must be resolved before WHATSAPP delivery mode
 
 ## R2
 - [x] Bucket name is `ai-photo-studio-whatsapp-r2`
@@ -72,17 +73,17 @@
 - [x] Payment: PASS (manual)
 - [x] Backup/recovery: PASS
 - [x] CORS: LOCKED to `https://ai-photo-studio-whatsapp-web.pages.dev`
-- [ ] WhatsApp access token: BLOCKED (required for WHATSAPP mode)
-- [ ] WhatsApp phone number ID: BLOCKED (required for WHATSAPP mode)
+- [ ] WhatsApp access token: BLOCKED for WHATSAPP mode until Meta connectivity passes
+- [ ] WhatsApp phone number ID: BLOCKED for WHATSAPP mode until Meta connectivity passes
 - [ ] Load test: DEFERRED (local Redis v3 too old for BullMQ v5; requires Redis >= 5. Production Railway Redis is compatible and verified running)
 - [x] Frontend smoke test (7 routes): PASS
 - [x] Backend smoke test (6 endpoints): PASS
 
-## Phase M (Final Production Readiness) Results
-- [x] CORS validation: verified via `Origin: https://ai-photo-studio-whatsapp-web.pages.dev` â†’ response includes `Access-Control-Allow-Origin: https://ai-photo-studio-whatsapp-web.pages.dev`.
-- [x] WhatsApp env vars: `WHATSAPP_VERIFY_TOKEN`: SET, `WHATSAPP_ACCESS_TOKEN`: NOT SET, `WHATSAPP_PHONE_NUMBER_ID`: NOT SET
-- [x] AI provider: `AI_PROVIDER=mock` in production. `PHOTOROOM_API_KEY`/`FAL_API_KEY` not required in current config.
-- [x] Synthetic load test: Local Redis v3 (3.0.504) incompatible with BullMQ (requires >= 5). Production Railway Redis is compatible. Queue monitoring confirms healthy Redis connection (`dryRun: false`). 15 jobs completed, 3 failed (historical).
-- [x] Smoke tests: All 7 frontend routes HTTP 200, all 6 backend endpoints HTTP 200.
+## Phase P (WhatsApp Production Verification)
+- [x] Railway env presence: `WHATSAPP_VERIFY_TOKEN=SET`, `WHATSAPP_ACCESS_TOKEN=SET`, `WHATSAPP_PHONE_NUMBER_ID=SET`
+- [x] Webhook verification: PASS
+- [x] Delivery payload validation: PASS
+- [x] AI provider validation: PASS (`mock`)
+- [ ] Meta connectivity: FAIL
 
-## Final Launch Readiness Score: **92%**
+## Final Launch Readiness Score: **94%**
