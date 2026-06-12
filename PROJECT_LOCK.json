@@ -19,6 +19,7 @@
     "requireUnlock": true
   },
   "cloudflare": {
+    "accountEmail": "gisupp@gmail.com",
     "accountId": "85f6a6181b4653c2a45e69cb7ce8a474",
     "accountName": "Gisupp@gmail.com's Account",
     "r2BucketName": "ai-photo-studio-whatsapp-r2",

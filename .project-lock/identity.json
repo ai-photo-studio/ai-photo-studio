@@ -11,10 +11,10 @@
     "expectedService": "api"
   },
   "cloudflare": {
-    "enabled": false,
-    "expectedAccountHint": "",
-    "expectedR2Bucket": "",
-    "expectedWranglerConfig": null
+    "enabled": true,
+    "expectedAccountHint": "gisupp@gmail.com",
+    "expectedR2Bucket": "ai-photo-studio-whatsapp-r2",
+    "expectedWranglerConfig": "apps/web/wrangler.toml"
   },
   "protectedScopes": [
     "git-origin",
