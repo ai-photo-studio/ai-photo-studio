@@ -39,8 +39,11 @@ const applyPendingMigrations = async () => {
   }
 };
 
-const bootstrap = () => {
+const bootstrap = async () => {
   const config = loadConfig();
+  if (config.NODE_ENV === "production") {
+    await applyPendingMigrations();
+  }
   const app = express();
   const authController = new AuthController(config);
   const packageController = new PackageController();
@@ -129,10 +132,7 @@ const bootstrap = () => {
 
 void (async () => {
   try {
-    if (process.env.NODE_ENV === "production") {
-      await applyPendingMigrations();
-    }
-    bootstrap();
+    await bootstrap();
   } catch (error) {
     logger.error("API bootstrap failed", { error: toErrorMessage(error) });
     process.exit(1);
