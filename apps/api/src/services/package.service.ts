@@ -10,12 +10,7 @@ const packageReadSelect = {
   price: true,
   currency: true,
   active: true,
-  sortOrder: true,
   maxImages: true,
-  creditsIncluded: true,
-  monthlyCreditLimit: true,
-  workflowType: true,
-  workflowMode: true,
   includesJson: true,
   createdAt: true,
   updatedAt: true,
@@ -26,6 +21,11 @@ const hydratePackage = <T extends { sampleAssets: unknown }>(pkg: T) =>
   ({
     ...pkg,
     featured: false
+    ,sortOrder: 0
+    ,creditsIncluded: 0
+    ,monthlyCreditLimit: 0
+    ,workflowType: "PRODUCT"
+    ,workflowMode: "PRODUCT_STUDIO"
   }) as T & { featured: boolean };
 
 export class PackageService {
@@ -45,7 +45,7 @@ export class PackageService {
   async findDefaultActive() {
     const packageRecord = await prisma.package.findFirst({
       where: { active: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ createdAt: "asc" }],
       select: packageReadSelect
     });
 
@@ -59,7 +59,7 @@ export class PackageService {
         ...packageReadSelect,
         sampleAssets: { where: { active: true } }
       },
-      orderBy: [{ sortOrder: "asc" }, { price: "asc" }]
+      orderBy: [{ price: "asc" }, { createdAt: "asc" }]
     });
 
     return packages.map(hydratePackage);
@@ -72,7 +72,7 @@ export class PackageService {
         sampleAssets: true,
         orders: { take: 3, orderBy: { createdAt: "desc" } }
       },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      orderBy: [{ createdAt: "asc" }]
     });
 
     return packages.map(hydratePackage);
@@ -104,13 +104,7 @@ export class PackageService {
         price: String(input.price),
         currency: input.currency || "PKR",
         active: input.active ?? true,
-        featured: input.featured ?? false,
-        sortOrder: input.sortOrder ?? 0,
         maxImages: input.maxImages ?? null,
-        creditsIncluded: input.creditsIncluded ?? 0,
-        monthlyCreditLimit: input.monthlyCreditLimit ?? 0,
-        workflowType: input.workflowType || "PRODUCT",
-        workflowMode: input.workflowMode || "PRODUCT_STUDIO",
         includesJson: input.includesJson as any
       },
       create: {
@@ -120,13 +114,7 @@ export class PackageService {
         price: String(input.price),
         currency: input.currency || "PKR",
         active: input.active ?? true,
-        featured: input.featured ?? false,
-        sortOrder: input.sortOrder ?? 0,
         maxImages: input.maxImages ?? null,
-        creditsIncluded: input.creditsIncluded ?? 0,
-        monthlyCreditLimit: input.monthlyCreditLimit ?? 0,
-        workflowType: input.workflowType || "PRODUCT",
-        workflowMode: input.workflowMode || "PRODUCT_STUDIO",
         includesJson: input.includesJson as any
       }
     });

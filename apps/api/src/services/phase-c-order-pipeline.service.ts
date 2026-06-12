@@ -8,6 +8,7 @@ import { WhatsAppService } from "./whatsapp.service";
 import { NotificationService } from "./notification.service";
 import { OrderService } from "./order.service";
 import { resolveProductWorkflowMode } from "./product-workflow.service";
+import { resolveVehicleWorkflowMode } from "./vehicle-workflow.service";
 import type { AppConfig } from "../config/env";
 
 type IncomingImagePayload = {
@@ -91,9 +92,7 @@ export class PhaseCOrderPipelineService {
 
     const customer = await this.customerService.findOrCreateByWhatsAppNumber(normalizedSender);
     const orderNo = toOrderNo();
-    const workflowType = (pkg.workflowType?.trim().toUpperCase() === "VEHICLE" ? "VEHICLE" : resolveWorkflowType(pkg.code)) as
-      | "PRODUCT"
-      | "VEHICLE";
+    const workflowType = resolveWorkflowType(pkg.code) as "PRODUCT" | "VEHICLE";
     const workflowMode:
       | "WHITE_BACKGROUND"
       | "SOLID_COLOR_BACKGROUND"
@@ -103,19 +102,7 @@ export class PhaseCOrderPipelineService {
       | "PREMIUM_ROAD"
       | "DARK_STUDIO"
       | "PLATE_BLUR" =
-      workflowType === "VEHICLE"
-        ? ((pkg.workflowMode as
-            | "SHOWROOM"
-            | "PREMIUM_ROAD"
-            | "DARK_STUDIO"
-            | "PLATE_BLUR"
-            | undefined) || "SHOWROOM")
-        : ((pkg.workflowMode as
-            | "WHITE_BACKGROUND"
-            | "SOLID_COLOR_BACKGROUND"
-            | "SHADOW_ENHANCEMENT"
-            | "PRODUCT_STUDIO"
-            | undefined) || resolveProductWorkflowMode(pkg.code));
+      workflowType === "VEHICLE" ? resolveVehicleWorkflowMode(pkg.code) : resolveProductWorkflowMode(pkg.code);
 
     const order = await prisma.order.create({
       data: {
