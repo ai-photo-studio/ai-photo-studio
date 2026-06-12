@@ -47,7 +47,7 @@ Deployment readiness snapshot:
 - The production readiness checklist is documented in `docs/11-ENVIRONMENT-CHECKLIST.md`.
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
-- Railway now has both a repo-root and an `apps/api`-local `railway.json` so the api service can boot the same `tsx` source entrypoint from either source root.
+- Railway deployment is controlled from the repo-root `railway.json` so the api service boots the same `tsx` source entrypoint from the monorepo root.
 - WhatsApp customer flow, admin auth, manual payment flow, and R2 flow remain in place.
 - Customer dashboard shell remains deferred, but customer wallet, payment, and subscription pages are now live in the web app alongside checkout request and proof tracking.
 - The admin commercial dashboard is available for operations, including payment approvals, wallet ledgers, subscription usage, and package visibility.
