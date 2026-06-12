@@ -24,6 +24,7 @@
   - [ ] `/api/monitoring/health`
   - [ ] `/api/monitoring/queue`
   - [ ] `/api/monitoring/worker`
+- [ ] `/api/packages` and `/api/auth/me` are mounted in production
 - [ ] Railway root/service configs point the `api` service at the correct monorepo entrypoint
 
 ## Cloudflare
@@ -55,6 +56,7 @@
 - [ ] Worker health endpoint shows running state
 - [ ] Admin dashboard metrics render correctly
 - [ ] Route registry endpoint reports the mounted production API paths
+- [ ] Live production smoke test confirms `/api/packages`, `/api/monitoring/*`, and `/api/auth/me`
 
 ## Backups
 - [ ] Database backup and restore plan documented

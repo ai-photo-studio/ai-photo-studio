@@ -33,10 +33,10 @@
 - [ ] `GET /health` returns success.
 - [ ] `GET /api/health` returns success message payload.
 - [ ] `GET /api/version` returns build/version metadata.
-- [ ] `GET /api/version/routes` returns mounted route names and paths without secrets.
-- [ ] `GET /api/monitoring/health` returns environment and uptime metadata.
-- [ ] `GET /api/monitoring/queue` returns queue health or dry-run status.
-- [ ] `GET /api/monitoring/worker` returns worker health status.
+- [x] `GET /api/version/routes` returns mounted route names and paths without secrets.
+- [x] `GET /api/monitoring/health` returns environment and uptime metadata.
+- [x] `GET /api/monitoring/queue` returns queue health or dry-run status.
+- [x] `GET /api/monitoring/worker` returns worker health status.
 - [ ] WhatsApp verification endpoint responds correctly.
 - [ ] WhatsApp webhook intake stores event records.
 - [ ] WhatsApp image webhook intake detects image messages, downloads media, validates mime/size, stores originals in R2, and enqueues the processing job.
@@ -48,6 +48,8 @@
 - [ ] Payment webhook marks order paid, credits wallet, and enqueues jobs.
 - [ ] `GET /api/payments/:orderNo/status` returns latest payment status.
 - [ ] Admin manual approval endpoint moves a pending manual order to processing.
+- [ ] `GET /api/packages` returns active packages.
+- [ ] `GET /api/auth/me` returns `401` when unauthenticated and does not fall through to `Cannot GET`.
 - [ ] Admin payment, wallet, subscription, and package list endpoints return paginated data.
 - [ ] Phase 1 background remover local smoke test passes via `services/background-remover/scripts/test_local.py`.
 

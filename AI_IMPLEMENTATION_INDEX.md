@@ -26,7 +26,7 @@ Deployment readiness snapshot:
 - Phase F commercial readiness now adds wallets, payments, packages, and subscriptions.
 - Phase G customer commercial UI adds wallet, payments, and subscription pages plus admin commercial screens and a production readiness dashboard.
 - Phase H adds deployment validation hooks, explicit monitoring endpoints, launch readiness documentation, and a production delivery payload adapter.
-- Railway production route parity is now restored after fixing the missing `JWT_SECRET` runtime variable and making the public packages query ignore the currently missing live `Package.featured` column.
+- Railway production route parity is now verified on the live api service, including `GET /api/version/routes`, `GET /api/packages`, `GET /api/monitoring/health`, `GET /api/monitoring/queue`, `GET /api/monitoring/worker`, and `GET /api/auth/me`.
 - Prisma schema includes the `User` model, optional `Order.userId` relation, `OrderItem`, `ProcessingJob`, and `OrderStatusHistory`.
 - Orders store original and processed file metadata, URLs, and retention timestamps.
 - Auth endpoints are present: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.

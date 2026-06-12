@@ -16,6 +16,10 @@
 - `GET /api/monitoring/worker`
   - Worker health snapshot including run state and last activity.
 
+## Production Verification
+- The live Railway api service now returns the mounted route registry and the previously missing package, monitoring, and auth routes.
+- `GET /api/auth/me` is expected to return `401` when unauthenticated rather than `Cannot GET`.
+
 ## WhatsApp
 - `GET /webhooks/whatsapp`
   - Webhook verification endpoint.

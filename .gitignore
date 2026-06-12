@@ -24,6 +24,7 @@ coverage/
 *credential*
 apps/api/generated/
 *.audit.md
+AI_code_audit_report.md
 railway-env.txt
 .env.local
 gitpush.bat

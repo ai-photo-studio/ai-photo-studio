@@ -40,6 +40,13 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 ## Railway Recovery Note
 - If `/api/packages` returns a database column error in production, verify that the live database has the current `Package` migration applied before changing the route contract.
 - During the 2026-06-12 recovery, production was missing `JWT_SECRET`; restoring that variable allowed the api service to start and expose the live routes again.
+- The live api service now also exposes the safe route registry and the route surfaces that were previously reported as missing:
+  - `GET /api/version/routes`
+  - `GET /api/packages`
+  - `GET /api/monitoring/health`
+  - `GET /api/monitoring/queue`
+  - `GET /api/monitoring/worker`
+  - `GET /api/auth/me` returns `401` when unauthenticated.
 
 ## Notes
 - Do not use Railway local disk for durable image storage.
@@ -72,6 +79,12 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - `/api/admin/orders/:id`
   - `/api/admin/jobs`
   - `/api/admin/stats`
+  - `/api/version/routes`
+  - `/api/packages`
+  - `/api/monitoring/health`
+  - `/api/monitoring/queue`
+  - `/api/monitoring/worker`
+  - `/api/auth/me`
   - `/api/admin/orders/:id/approve-manual-payment` when `PAYMENT_GATEWAY_NAME=manual`
 - Auth API smoke tests:
   - `POST /api/auth/register` - creates a new user
