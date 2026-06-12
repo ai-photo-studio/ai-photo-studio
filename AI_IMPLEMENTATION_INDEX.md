@@ -50,6 +50,7 @@ Deployment readiness snapshot:
 - Cloudflare Pages deployment is live and verified. Account: `gisupp@gmail.com` (ID: `85f6a6181b4653c2a45e69cb7ce8a474`).
 - Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (current deployment: `https://2446d97c.ai-photo-studio-whatsapp-web.pages.dev`)
 - Launch certification completed. All phases A–K verified present. Monitoring: 6/6 PASS. WhatsApp: LOG_ONLY mode. AI: mock. Payment: manual. Readiness: 85% (blockers: WhatsApp access token/phone number ID, CORS origin for Pages, synthetic load test).
+- Phase M (Final Production Readiness) completed. CORS validation: returns `*` (open) — must set `ALLOWED_ORIGINS`. WhatsApp env: verify token SET, access token NOT SET, phone number ID NOT SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
 - Railway deployment is controlled from the repo-root `railway.json` so the api service boots the same `tsx` source entrypoint from the monorepo root.

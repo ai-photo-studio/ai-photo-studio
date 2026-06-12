@@ -79,6 +79,16 @@ npm run gh:verify
 - **Account**: `85f6a6181b4653c2a45e69cb7ce8a474` (gisupp@gmail.com)
 - **Separate from**: `hojaseeds` — do not modify
 
+## CORS Restriction (Phase M Finding)
+
+The Railway production API currently returns `Access-Control-Allow-Origin: *` because `ALLOWED_ORIGINS` is not set in the environment. Before switching to `WHATSAPP` delivery mode or full launch, this must be locked down to:
+
+```
+ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev
+```
+
+Set this in Railway production under the `api` service environment variables.
+
 ## AI Agent Instructions
 
 See `AI_PROJECT_RULES.md` for mandatory rules that AI agents must follow.
