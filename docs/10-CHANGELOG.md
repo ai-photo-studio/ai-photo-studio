@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-12 - Railway Production Route Parity Recovered
+- Fixed the Railway api bootstrap failure caused by a missing production `JWT_SECRET` variable.
+- Restored live route availability for `/api/version/routes`, `/api/monitoring/health`, `/api/monitoring/queue`, `/api/monitoring/worker`, and `/api/auth/me`.
+- Patched the public packages read path so it no longer queries the missing live `Package.featured` column and returns `featured: false` in memory.
+- Verified the production deployment became healthy again after the fix.
+
 ## 2026-06-12 - Phase H Deployment Validation and Launch Readiness Added
 - Added explicit monitoring endpoints for health, queue health, and worker health.
 - Added a formal production delivery payload builder with `LOG_ONLY` default and `WHATSAPP` feature-flag mode.

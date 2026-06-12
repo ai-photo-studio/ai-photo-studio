@@ -27,6 +27,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - `PHOTOROOM_API_KEY`: required when `AI_PROVIDER=photoroom`
   - `FAL_API_KEY`: required when `AI_PROVIDER=fal`
   - `DELIVERY_MODE`: `LOG_ONLY` or `WHATSAPP`
+  - Production must keep `JWT_SECRET` present; missing it prevents the Railway api container from booting
 - Background remover service:
   - local Python runtime with FastAPI, uvicorn, rembg, and pillow
   - test-only local mode for smoke testing the Phase 1 endpoints
@@ -35,6 +36,10 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - Cloudflare Pages origin to be added to `ALLOWED_ORIGINS`
   - `apps/web/wrangler.toml` Pages config and `apps/web/public/_redirects` SPA fallback
   - public web pages remain on Cloudflare Pages while the API stays on Railway
+
+## Railway Recovery Note
+- If `/api/packages` returns a database column error in production, verify that the live database has the current `Package` migration applied before changing the route contract.
+- During the 2026-06-12 recovery, production was missing `JWT_SECRET`; restoring that variable allowed the api service to start and expose the live routes again.
 
 ## Notes
 - Do not use Railway local disk for durable image storage.
