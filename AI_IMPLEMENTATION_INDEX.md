@@ -45,6 +45,10 @@ Deployment readiness snapshot:
 - Prisma migration `20260611000003_phase_f_wallet_payments` exists in `apps/api/prisma/migrations`.
 - `npm run prisma:validate -w apps/api` passes and `npm run build` passes for both API and web workspaces.
 - The web app has a Cloudflare Pages SPA fallback via `apps/web/public/_redirects` and a Pages config at `apps/web/wrangler.toml`.
+- The actual frontend source lives in `apps/web`, and the intended deployment target is Cloudflare Pages via project `ai-photo-studio-whatsapp-web`.
+- Railway does not currently host a frontend service; it only serves `api` and `background-remover`.
+- Cloudflare Pages verification is currently blocked by an account/project access mismatch: `wrangler whoami` is authenticated as `nazimsaeed@gmail.com`, while the project lock expects Cloudflare account ID `85f6a6181b4653c2a45e69cb7ce8a474` for the `Gisupp@gmail.com's Account` Pages owner.
+- No live Cloudflare Pages production URL has been confirmed from this workspace.
 - The production readiness checklist is documented in `docs/11-ENVIRONMENT-CHECKLIST.md`.
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
@@ -82,6 +86,14 @@ Deployment readiness snapshot:
 - Usage charging: reserve credits when processing starts, settle on completion, release on failure
 - Admin commercial endpoints: payments, wallets, subscriptions, and package catalog management
 - Customer commercial UI: wallet, payments, and subscription pages with JWT persistence and checkout/proof tracking
+
+## Frontend Discovery Summary
+- Frontend app location: `apps/web`
+- Public routes: `/`, `/pricing`, `/signup`, `/login`
+- Deployment target: Cloudflare Pages
+- Deploy config: `apps/web/wrangler.toml`
+- SPA fallback: `apps/web/public/_redirects`
+- Live frontend service on Railway: none
 
 ## Notes
 - The repository still contains the earlier WhatsApp-first MVP modules and the Phase 2 background-remover work.
