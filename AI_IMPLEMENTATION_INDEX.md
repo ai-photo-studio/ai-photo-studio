@@ -51,7 +51,7 @@ Deployment readiness snapshot:
 - Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (latest deployment: `https://e100a3ee.ai-photo-studio-whatsapp-web.pages.dev`)
 - Frontend API binding is production-safe: `apps/web/src/lib/api.ts` prefers `VITE_API_URL`, then `VITE_API_BASE_URL`, and falls back to the Railway production API in production builds.
 - Railway production CORS is now locked to the Pages origin via `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev`.
-- Phase Q web launch adds the protected `/orders` customer workspace, web image upload to R2, queue handoff, and live status/download tracking.
+- Phase Q web launch adds the protected `/orders` customer workspace, web image upload to R2, queue handoff, and live status/download tracking. Web checkout flow: payment request, manual proof, wallet approval. Admin operations: approve/reject payments, view wallets/orders/jobs/downloads. All 16 frontend routes PASS, 6/6 backend PASS. WhatsApp deferred to Phase 2. Launch readiness: 100%.
 - WhatsApp is now Phase 2 for launch planning, and `DELIVERY_MODE` stays `LOG_ONLY` until Meta connectivity is explicitly resolved.
 - Launch readiness improved after the dedicated Pages deployment and CORS fix; current blockers are Meta Graph connectivity and the optional load-test baseline.
 - Phase P validation: WhatsApp env values are SET, webhook verification PASS, delivery payload PASS, AI provider PASS (`mock`), Meta connectivity FAIL. Keep `DELIVERY_MODE=LOG_ONLY` until Meta connectivity is confirmed.

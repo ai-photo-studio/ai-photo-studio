@@ -121,3 +121,21 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Real R2 storage is wired into the API code path and uses the Cloudflare R2 S3-compatible client.
 - Production remains on manual payment and mock AI.
 - Railway-context R2 write/delete smoke test is passing with the current bucket-scoped credentials.
+
+## Phase Q — Web First Launch
+
+The web frontend is fully deployed to Cloudflare Pages:
+
+**Production URL**: `https://ai-photo-studio-whatsapp-web.pages.dev`
+
+**Web customer flow**:
+1. Create an account at `/signup`
+2. Navigate to `/orders`
+3. Select a package, workflow type (Product/Vehicle), and style
+4. Click "Create order"
+5. Upload an image file (max 10 MB, JPG/PNG/WebP)
+6. Image is stored in R2, a BullMQ job is enqueued
+7. Worker processes via mock AI provider
+8. Processed download link appears in the order status panel
+
+**WhatsApp**: Deferred to Phase 2. `DELIVERY_MODE=LOG_ONLY` remains active.

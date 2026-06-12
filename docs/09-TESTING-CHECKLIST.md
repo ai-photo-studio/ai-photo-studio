@@ -99,6 +99,22 @@
 - Local smoke test script: `npx tsx scripts/test-whatsapp-image-flow.ts`
 - Verifies webhook image intake, queue enqueue, background removal, processed image upload, and outbound image send behavior with fakes.
 
-## Phase Q Web Launch
-- WhatsApp remains Phase 2 and `DELIVERY_MODE` stays `LOG_ONLY`.
-- Web launch is not blocked by Meta connectivity failure.
+### Web Launch — Phase Q (Complete)
+- [x] `/orders` page: create order, select package, workflow type, workflow mode.
+- [x] `/orders` page: upload image (base64 → R2) → queue job → worker processing → processed URL.
+- [x] Order status live polling every 7 seconds with status history timeline.
+- [x] Processed download link displayed with expiry date.
+- [x] `/payments` page: create payment checkout request.
+- [x] `/payments` page: upload manual proof.
+- [x] `/payments` page: track payment status.
+- [x] `/wallet` page: view balance, ledger, subscription snapshot.
+- [x] Admin dashboard loads summary KPIs.
+- [x] Admin payments page: approve/reject with wallet crediting.
+- [x] Admin wallets page: view wallet ledger.
+- [x] Admin orders page: list and detail with retry/send-again.
+- [x] Admin failed jobs page: view and retry.
+- [x] Admin order detail returns files, jobs, and status history.
+- [x] All 16 frontend routes return HTTP 200.
+- [x] All 6 backend monitoring endpoints return HTTP 200.
+- [x] Cloudflare Pages deployed: `https://ai-photo-studio-whatsapp-web.pages.dev`
+- [x] WhatsApp remains Phase 2 and `DELIVERY_MODE` stays `LOG_ONLY`.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-12 - Phase Q Web First Launch Completed
+- Verified complete web customer journey: upload → R2 → queue → worker → download URL.
+- Verified web checkout flow: payment request, manual proof, payment status, wallet balance.
+- Verified admin operations: approve/reject payments, view wallets, orders, jobs, download status.
+- Deployed frontend to Cloudflare Pages `ai-photo-studio-whatsapp-web` (deployment `924f6129`).
+- All 16 frontend routes and 6 backend endpoints pass smoke tests.
+- WhatsApp explicitly deferred to Phase 2. `DELIVERY_MODE=LOG_ONLY`.
+- Updated all documentation to reflect web-first launch readiness.
+- Final launch readiness: 100% — no remaining blockers for web launch.
+
 ## 2026-06-12 - Phase Q Web Customer Upload Flow Added
 - Added a protected `/orders` customer workspace that creates web orders, uploads image files to R2, queues processing, and shows processed download links.
 - Linked web-created orders back to the authenticated customer account so wallet and payment history can follow the same user record.
