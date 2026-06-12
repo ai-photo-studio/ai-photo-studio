@@ -1,88 +1,77 @@
-# Project Safety Lock
+# Project Safety Lock - Final Production Grade
 
-This repository has a local safety lock in `.project-lock` to reduce accidental Git, Railway, Wrangler, and R2 operations against the wrong target.
+## Protected Scope Protocol v3.0.0
 
-## Verify Project Scope
+This repository has a mandatory project protection system to prevent accidental operations against wrong targets.
 
-Run:
+### Protection Rules
 
-```powershell
-.\.project-lock\verify.ps1
-```
+1. **Repository ID Verification**: Verify repository ID matches `gardenshop/ai-photo-studio-whatsapp`
+2. **Railway Project ID Verification**: Verify Railway project ID matches `ad62f340-fcfd-4989-b5bb-18753b28d8c8`
+3. **Railway Workspace Verification**: Verify workspace name matches expected value
+4. **Deployment URL Verification**: Verify deployment URL matches expected value
+5. **Cloudflare Account Verification**: Verify Cloudflare account ID and name
+6. **Environment Variable Validation**: Verify all required secrets exist
+7. **Protected Files Verification**: Ensure safety files exist
+8. **Database Protection Mode**: Block migrations and schema changes unless unlocked
+9. **Build/Lint Verification**: Run build and typecheck before push/deploy
+10. **Audit Report Verification**: Require fresh AI_code_audit_report.md
 
-The verifier checks the repository root, Git origin, current branch, and changed files against `.project-lock\identity.json`. It fails closed with exit code `1` on mismatch and does not print environment variables or secrets.
+### Verification File
 
-## Safe Git Push
+`PROJECT_LOCK.json` contains all configuration for the protection system.
 
-Run:
+## Usage
 
-```powershell
-.\.project-lock\safe-git-push.ps1
-```
-
-This runs verification first, then pushes only the expected branch to `origin`.
-
-## Safe Railway Command
-
-Check status only:
-
-```powershell
-.\.project-lock\safe-railway.ps1
-```
-
-Run a Railway command after verification and a manual `YES`:
+### Enterprise Verification
 
 ```powershell
-.\.project-lock\safe-railway.ps1 logs --service api
+npm run enterprise-verify
 ```
 
-Do not use this wrapper for commands that print variables or secrets unless you intentionally supplied that command and are ready for the output.
-
-## Safe Wrangler and R2 Command
-
-Check identity only:
+### Create Deployment Snapshot
 
 ```powershell
-.\.project-lock\safe-wrangler.ps1
+npm run snapshot:create
 ```
 
-If Wrangler is not configured for this project, the wrapper cleanly blocks with:
-
-```text
-Wrangler is not configured for this project.
-```
-
-If Wrangler is configured in another repository, run a Wrangler/R2 command after verification, config detection, `wrangler whoami`, and a manual `YES`:
+### Rollback
 
 ```powershell
-.\.project-lock\safe-wrangler.ps1 r2 bucket list
+npm run rollback           # Show rollback options
+npm run rollback:exec      # Execute rollback
 ```
 
-Wrangler commands are blocked until the expected config path in `.project-lock\identity.json` exists.
-
-## Daily Workflow
-
-1. Run `.\.project-lock\verify.ps1`.
-1. Use `.\.project-lock\safe-git-push.ps1` instead of `git push`.
-1. Use `.\.project-lock\safe-railway.ps1` for Railway commands and type `YES` before any action.
-1. Use `.\.project-lock\safe-wrangler.ps1` only in projects that have Wrangler configured.
-1. Re-run verification before pushing or changing project targets.
-
-## Never Store These In Git
-
-Never commit tokens, passwords, API keys, `DATABASE_URL`, Railway tokens, Cloudflare tokens, R2 keys, `.env` files, private keys, PEM files, or files under `secrets/`, `tokens/`, or `.project-secrets/`.
-Never store a GitHub token in the repo either.
-
-## Install Pre-Push Hook
-
-Run:
+### Safe Git Push (Enterprise)
 
 ```powershell
-.\.project-lock\install-hooks.ps1
+npm run enterprise-push
 ```
 
-The installed `.git/hooks/pre-push` runs `.project-lock\verify.ps1` and blocks pushes when verification fails.
+### Safe Deploy (Enterprise)
 
-## Add To Another Project
+```powershell
+npm run enterprise-deploy
+```
 
-Copy `.project-lock` and `PROJECT_SAFETY_LOCK.md` into the other repository, then edit `.project-lock\identity.json` so every expected Git, Railway, Cloudflare, Wrangler, and R2 field matches that project. Run verification, install hooks, and test the safe wrappers before doing any push or deploy.
+### Project Info
+
+```powershell
+npm run project-info
+```
+
+### GitHub CLI Verification
+
+```bash
+npm run gh:verify
+```
+
+## Cross-Platform Support
+
+- **Windows**: `.bat` scripts in `scripts/`
+- **Git Bash / Unix**: `.sh` scripts in `scripts/`
+- **VS Code**: Integrated terminal supports both
+
+## AI Agent Instructions
+
+See `AI_PROJECT_RULES.md` for mandatory rules that AI agents must follow.

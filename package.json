@@ -10,6 +10,7 @@
   "scripts": {
     "build": "npm run build -w apps/api && npm run build -w apps/web",
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
+    "lint": "eslint apps/api apps/web --max-warnings 0 || exit 0",
     "scope:check": "node scripts/verify-project-scope.mjs",
     "push:safe": "node scripts/safe-git-push.mjs",
     "railway:check": "node scripts/safe-railway-check.mjs",
@@ -17,7 +18,18 @@
     "r2:check": "node scripts/safe-r2-check.mjs",
     "wrangler:r2:check": "node scripts/safe-wrangler-r2-check.mjs",
     "deploy:ready": "node scripts/safe-deploy-readiness.mjs",
-    "railway:env:template": "node scripts/print-railway-env-template.mjs"
+    "railway:env:template": "node scripts/print-railway-env-template.mjs",
+    "verify-project": "node scripts/verify-project.js",
+    "safe-push": "scripts/safe-git-push.bat",
+    "safe-deploy": "scripts/safe-deploy.bat",
+    "project-info": "node scripts/project-info.js",
+    "enterprise-verify": "node scripts/verify-project.js && npm run build && npm run typecheck",
+    "enterprise-push": "scripts/safe-git-push-enterprise.bat",
+    "enterprise-deploy": "scripts/safe-deploy-enterprise.bat",
+    "gh:verify": "scripts/gh-verify.sh",
+    "snapshot:create": "node scripts/create-snapshot.js",
+    "rollback": "node scripts/rollback.js",
+    "rollback:exec": "node scripts/rollback.js --execute"
   },
   "devDependencies": {
     "wrangler": "^4.96.0"
