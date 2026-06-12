@@ -29,11 +29,12 @@
 - [x] Admin commercial screens are present for payments, wallets, subscriptions, packages, and orders
 
 ## WhatsApp
-- [x] WhatsApp env vars exist in Railway production
-- [x] Webhook verification passes
-- [x] Delivery payload generation passes
+- [x] WhatsApp env vars exist in Railway production (all 4: VERIFY_TOKEN, ACCESS_TOKEN, PHONE_NUMBER_ID, WABA_ID)
+- [x] Webhook GET verification: PASS (HTTP 200)
+- [x] Webhook POST handling: PASS (HTTP 200, `{"success":true}`)
+- [x] Delivery payload generation: PASS (`buildCompletedNotificationPayload` + LOG_ONLY mode)
 - [x] `DELIVERY_MODE` remains `LOG_ONLY`
-- [ ] Meta Graph connectivity still fails and remains a Phase 2 blocker
+- [ ] Meta Graph connectivity: FAIL — `WHATSAPP_ACCESS_TOKEN` expired 2026-06-12 05:00 PDT (error 190, subcode 463). Generate new token from Meta Developer Dashboard and update Railway production.
 
 ## AI Providers
 - [x] `AI_PROVIDER_NAME` is set to `mock`
