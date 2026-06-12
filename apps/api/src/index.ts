@@ -41,7 +41,12 @@ const applyPendingMigrations = async () => {
 
 const bootstrap = async () => {
   const config = loadConfig();
-  if (config.NODE_ENV === "production") {
+  const isRailwayProduction =
+    process.env.RAILWAY_ENVIRONMENT === "production" ||
+    process.env.RAILWAY_ENVIRONMENT_NAME === "production" ||
+    config.NODE_ENV === "production";
+
+  if (isRailwayProduction) {
     await applyPendingMigrations();
   }
   const app = express();
