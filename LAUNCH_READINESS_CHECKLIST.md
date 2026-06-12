@@ -24,6 +24,7 @@
   - [ ] `/api/monitoring/health`
   - [ ] `/api/monitoring/queue`
   - [ ] `/api/monitoring/worker`
+- [ ] Railway root/service configs point the `api` service at the correct monorepo entrypoint
 
 ## Cloudflare
 - [ ] `apps/web/wrangler.toml` exists

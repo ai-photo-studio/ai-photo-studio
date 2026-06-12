@@ -21,6 +21,7 @@
 - [ ] Railway API service has all required runtime env vars set from `.env.railway.production.example` placeholders
 - [ ] Public API domain is attached before validating WhatsApp webhook callbacks
 - [ ] Railway link is confirmed to `AI Photo Studio WhatsApp` / `production` / `api` before redeploy
+- [ ] Railway service-local `apps/api/railway.json` and repo-root `railway.json` both reflect the same api start path
 - [ ] `npm run railway:vars:check` reports required variable names as `PRESENT`
 - [ ] `npm run wrangler:r2:check` confirms Wrangler availability and expected R2 bucket presence
 - [ ] Manual payment first boot supported with `PAYMENT_GATEWAY_NAME=manual`
