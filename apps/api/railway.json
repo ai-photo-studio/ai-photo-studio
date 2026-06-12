@@ -5,7 +5,7 @@
     "buildCommand": "npm install --include=dev && npm run prisma:generate && npm run build"
   },
   "deploy": {
-    "startCommand": "node node_modules/tsx/dist/cli.mjs src/index.ts",
+    "startCommand": "node --experimental-specifier-resolution=node dist/index.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120
   }
