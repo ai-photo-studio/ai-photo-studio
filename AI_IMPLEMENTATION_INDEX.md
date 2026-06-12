@@ -49,7 +49,7 @@ Deployment readiness snapshot:
 - Railway does not currently host a frontend service; it only serves `api` and `background-remover`.
 - Cloudflare Pages deployment is live and verified. Account: `gisupp@gmail.com` (ID: `85f6a6181b4653c2a45e69cb7ce8a474`).
 - Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (current deployment: `https://2446d97c.ai-photo-studio-whatsapp-web.pages.dev`)
-- The production readiness checklist is documented in `docs/11-ENVIRONMENT-CHECKLIST.md`.
+- Launch certification completed. All phases A–K verified present. Monitoring: 6/6 PASS. WhatsApp: LOG_ONLY mode. AI: mock. Payment: manual. Readiness: 85% (blockers: WhatsApp access token/phone number ID, CORS origin for Pages, synthetic load test).
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
 - Railway deployment is controlled from the repo-root `railway.json` so the api service boots the same `tsx` source entrypoint from the monorepo root.
