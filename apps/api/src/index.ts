@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
 import express from "express";
 import { loadConfig } from "./config/env";
 import { createOrderRouter } from "./routes/order.routes";
@@ -19,6 +21,23 @@ import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
 import { startImageProcessingWorker } from "./workers/image-processing.worker";
 import { runCleanupOnce } from "./workers/cleanup.worker";
+
+const execFile = promisify(execFileCb);
+
+const applyPendingMigrations = async () => {
+  const { stdout, stderr } = await execFile("npx", ["prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"], {
+    cwd: process.cwd(),
+    env: process.env,
+    maxBuffer: 10 * 1024 * 1024
+  });
+
+  if (stdout) {
+    logger.info("Prisma migration output", { output: stdout.trim().slice(0, 1000) });
+  }
+  if (stderr) {
+    logger.warn("Prisma migration warnings", { output: stderr.trim().slice(0, 1000) });
+  }
+};
 
 const bootstrap = () => {
   const config = loadConfig();
@@ -108,9 +127,14 @@ const bootstrap = () => {
   });
 };
 
-try {
-  bootstrap();
-} catch (error) {
-  logger.error("API bootstrap failed", { error: toErrorMessage(error) });
-  process.exit(1);
-}
+void (async () => {
+  try {
+    if (process.env.NODE_ENV === "production") {
+      await applyPendingMigrations();
+    }
+    bootstrap();
+  } catch (error) {
+    logger.error("API bootstrap failed", { error: toErrorMessage(error) });
+    process.exit(1);
+  }
+})();
