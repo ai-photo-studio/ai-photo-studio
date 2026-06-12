@@ -7,6 +7,12 @@
 - Verified the production deployment became healthy again after the fix.
 - Confirmed the live Railway api service now returns the expected route registry and the previously missing package, monitoring, and auth/me routes.
 
+## 2026-06-12 - Dedicated Pages Frontend Binding and CORS Lock Added
+- Created the separate Cloudflare Pages project `ai-photo-studio-whatsapp-web` without touching `hojaseeds`.
+- Updated the web client to prefer `VITE_API_URL` and fall back to the Railway production API in production builds.
+- Locked Railway production CORS to `https://ai-photo-studio-whatsapp-web.pages.dev` and verified the live API echoes that origin.
+- Published the rebuilt frontend bundle to the dedicated Pages project and verified `/`, `/pricing`, `/signup`, `/login`, `/wallet`, `/payments`, and `/subscription`.
+
 ## 2026-06-12 - Phase H Deployment Validation and Launch Readiness Added
 - Added explicit monitoring endpoints for health, queue health, and worker health.
 - Added a formal production delivery payload builder with `LOG_ONLY` default and `WHATSAPP` feature-flag mode.

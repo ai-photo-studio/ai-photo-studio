@@ -48,9 +48,11 @@ Deployment readiness snapshot:
 - The actual frontend source lives in `apps/web`, and the intended deployment target is Cloudflare Pages via project `ai-photo-studio-whatsapp-web`.
 - Railway does not currently host a frontend service; it only serves `api` and `background-remover`.
 - Cloudflare Pages deployment is live and verified. Account: `gisupp@gmail.com` (ID: `85f6a6181b4653c2a45e69cb7ce8a474`).
-- Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (current deployment: `https://2446d97c.ai-photo-studio-whatsapp-web.pages.dev`)
-- Launch certification completed. All phases A–K verified present. Monitoring: 6/6 PASS. WhatsApp: LOG_ONLY mode. AI: mock. Payment: manual. Readiness: 85% (blockers: WhatsApp access token/phone number ID, CORS origin for Pages, synthetic load test).
-- Phase M (Final Production Readiness) completed. CORS validation: returns `*` (open) — must set `ALLOWED_ORIGINS`. WhatsApp env: verify token SET, access token NOT SET, phone number ID NOT SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
+- Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (latest deployment: `https://e100a3ee.ai-photo-studio-whatsapp-web.pages.dev`)
+- Frontend API binding is production-safe: `apps/web/src/lib/api.ts` prefers `VITE_API_URL`, then `VITE_API_BASE_URL`, and falls back to the Railway production API in production builds.
+- Railway production CORS is now locked to the Pages origin via `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev`.
+- Launch readiness improved after the dedicated Pages deployment and CORS fix; remaining blockers are the WhatsApp production access-token/phone-number requirements and the optional load-test baseline.
+- Phase M (Final Production Readiness) completed. CORS validation: returns the dedicated Pages origin `https://ai-photo-studio-whatsapp-web.pages.dev`. WhatsApp env: verify token SET, access token NOT SET, phone number ID NOT SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
 - Railway deployment is controlled from the repo-root `railway.json` so the api service boots the same `tsx` source entrypoint from the monorepo root.

@@ -2,93 +2,38 @@
 
 ## Protected Scope Protocol v3.0.0
 
-This repository has a mandatory project protection system to prevent accidental operations against wrong targets.
+This repository has a mandatory protection system to prevent accidental operations against wrong targets.
 
 ### Protection Rules
 
-1. **Repository ID Verification**: Verify repository ID matches `gardenshop/ai-photo-studio-whatsapp`
-2. **Railway Project ID Verification**: Verify Railway project ID matches `ad62f340-fcfd-4989-b5bb-18753b28d8c8`
-3. **Railway Workspace Verification**: Verify workspace name matches expected value
-4. **Deployment URL Verification**: Verify deployment URL matches expected value
-5. **Cloudflare Account Verification**: Verify Cloudflare account ID and name
-6. **Environment Variable Validation**: Verify all required secrets exist
-7. **Protected Files Verification**: Ensure safety files exist
-8. **Database Protection Mode**: Block migrations and schema changes unless unlocked
-9. **Build/Lint Verification**: Run build and typecheck before push/deploy
-10. **Audit Report Verification**: Require fresh AI_code_audit_report.md
+1. Verify repository ID matches `gardenshop/ai-photo-studio-whatsapp`.
+2. Verify Railway project ID matches `ad62f340-fcfd-4989-b5bb-18753b28d8c8`.
+3. Verify Railway environment is `production`.
+4. Verify Railway service is `api`.
+5. Verify Cloudflare account ID and name match the locked identity.
+6. Verify required secrets exist without printing them.
+7. Ensure protected files exist.
+8. Block migrations and schema changes unless the database lock is explicitly unlocked.
+9. Run build and typecheck before push or deploy.
+10. Require a fresh `AI_code_audit_report.md` after changes.
 
-### Verification File
+### Verification Files
 
-`PROJECT_LOCK.json` contains all configuration for the protection system.
-
-## Usage
-
-### Enterprise Verification
-
-```powershell
-npm run enterprise-verify
-```
-
-### Create Deployment Snapshot
-
-```powershell
-npm run snapshot:create
-```
-
-### Rollback
-
-```powershell
-npm run rollback           # Show rollback options
-npm run rollback:exec      # Execute rollback
-```
-
-### Safe Git Push (Enterprise)
-
-```powershell
-npm run enterprise-push
-```
-
-### Safe Deploy (Enterprise)
-
-```powershell
-npm run enterprise-deploy
-```
-
-### Project Info
-
-```powershell
-npm run project-info
-```
-
-### GitHub CLI Verification
-
-```bash
-npm run gh:verify
-```
-
-## Cross-Platform Support
-
-- **Windows**: `.bat` scripts in `scripts/`
-- **Git Bash / Unix**: `.sh` scripts in `scripts/`
-- **VS Code**: Integrated terminal supports both
+`PROJECT_LOCK.json` contains the protection configuration.
 
 ## Cloudflare Pages Deployment
 
-- **Frontend project**: `ai-photo-studio-whatsapp-web`
-- **Production URL**: `https://ai-photo-studio-whatsapp-web.pages.dev`
-- **Account**: `85f6a6181b4653c2a45e69cb7ce8a474` (gisupp@gmail.com)
-- **Separate from**: `hojaseeds` — do not modify
+- Frontend project: `ai-photo-studio-whatsapp-web`
+- Production URL: `https://ai-photo-studio-whatsapp-web.pages.dev`
+- Account: `85f6a6181b4653c2a45e69cb7ce8a474` (`gisupp@gmail.com`)
+- Separate from `hojaseeds`: do not modify, redeploy, relink, rename, or disturb
+- Frontend API binding: production builds use the Railway API and the API CORS allow-list is set to the Pages origin
 
-## CORS Restriction (Phase M Finding)
+## CORS Restriction
 
-The Railway production API currently returns `Access-Control-Allow-Origin: *` because `ALLOWED_ORIGINS` is not set in the environment. Before switching to `WHATSAPP` delivery mode or full launch, this must be locked down to:
-
-```
-ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev
-```
-
-Set this in Railway production under the `api` service environment variables.
+The Railway production API now returns `Access-Control-Allow-Origin: https://ai-photo-studio-whatsapp-web.pages.dev` for the dedicated frontend origin.
+Keep `ALLOWED_ORIGINS` restricted to the dedicated Pages project and do not widen it without a deliberate launch decision.
 
 ## AI Agent Instructions
 
-See `AI_PROJECT_RULES.md` for mandatory rules that AI agents must follow.
+See `AI_PROJECT_RULES.md` for the mandatory agent rules.

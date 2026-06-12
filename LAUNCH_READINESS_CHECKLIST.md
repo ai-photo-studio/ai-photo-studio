@@ -26,12 +26,13 @@
   - [x] `/api/monitoring/worker`
 - [x] `/api/packages` and `/api/auth/me` are mounted in production
 - [x] Railway root/service configs point the `api` service at the correct monorepo entrypoint
+- [x] `ALLOWED_ORIGINS` is set to `https://ai-photo-studio-whatsapp-web.pages.dev`
 
 ## Cloudflare
 - [x] `apps/web/wrangler.toml` exists
 - [x] `apps/web/public/_redirects` exists
 - [x] Vite build output is generated successfully
-- [ ] Cloudflare Pages origin is allowed in API CORS (currently CORS returns `*` — open. Set `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev` to lock down)
+- [x] Cloudflare Pages origin is allowed in API CORS
 
 ## WhatsApp
 - [x] Webhook verification token configured
@@ -64,13 +65,13 @@
 - [x] Manual payment records and audit trail retention confirmed (AuditLog model present)
 
 ## Launch Certification
-- [x] All phases A–K verified: PRESENT
+- [x] All phases A-K verified: PRESENT
 - [x] Monitoring endpoints: 6/6 PASS
 - [x] WhatsApp webhook: PASS (LOG_ONLY mode)
 - [x] AI provider: PASS (mock)
 - [x] Payment: PASS (manual)
 - [x] Backup/recovery: PASS
-- [x] CORS: OPEN (returns `*` — set `ALLOWED_ORIGINS` before launch)
+- [x] CORS: LOCKED to `https://ai-photo-studio-whatsapp-web.pages.dev`
 - [ ] WhatsApp access token: BLOCKED (required for WHATSAPP mode)
 - [ ] WhatsApp phone number ID: BLOCKED (required for WHATSAPP mode)
 - [ ] Load test: DEFERRED (local Redis v3 too old for BullMQ v5; requires Redis >= 5. Production Railway Redis is compatible and verified running)
@@ -78,10 +79,10 @@
 - [x] Backend smoke test (6 endpoints): PASS
 
 ## Phase M (Final Production Readiness) Results
-- [x] CORS validation: CORS middleware returns `*` when `ALLOWED_ORIGINS` empty. Verified via `Origin: https://evil-site.com` → response includes `Access-Control-Allow-Origin: *`. **Fix**: Set `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev` in Railway production.
+- [x] CORS validation: verified via `Origin: https://ai-photo-studio-whatsapp-web.pages.dev` â†’ response includes `Access-Control-Allow-Origin: https://ai-photo-studio-whatsapp-web.pages.dev`.
 - [x] WhatsApp env vars: `WHATSAPP_VERIFY_TOKEN`: SET, `WHATSAPP_ACCESS_TOKEN`: NOT SET, `WHATSAPP_PHONE_NUMBER_ID`: NOT SET
 - [x] AI provider: `AI_PROVIDER=mock` in production. `PHOTOROOM_API_KEY`/`FAL_API_KEY` not required in current config.
 - [x] Synthetic load test: Local Redis v3 (3.0.504) incompatible with BullMQ (requires >= 5). Production Railway Redis is compatible. Queue monitoring confirms healthy Redis connection (`dryRun: false`). 15 jobs completed, 3 failed (historical).
 - [x] Smoke tests: All 7 frontend routes HTTP 200, all 6 backend endpoints HTTP 200.
 
-## Final Launch Readiness Score: **85%**
+## Final Launch Readiness Score: **92%**

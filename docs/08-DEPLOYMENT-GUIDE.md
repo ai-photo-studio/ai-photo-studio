@@ -40,6 +40,8 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 ## Railway Recovery Note
 - If `/api/packages` returns a database column error in production, verify that the live database has the current `Package` migration applied before changing the route contract.
 - During the 2026-06-12 recovery, production was missing `JWT_SECRET`; restoring that variable allowed the api service to start and expose the live routes again.
+- The API CORS allow-list is now locked to the dedicated Pages origin:
+  - `https://ai-photo-studio-whatsapp-web.pages.dev`
 - The live api service now also exposes the safe route registry and the route surfaces that were previously reported as missing:
   - `GET /api/version/routes`
   - `GET /api/packages`

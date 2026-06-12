@@ -1,6 +1,12 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 
-export const API_BASE_URL = trimTrailingSlash(import.meta.env.VITE_API_BASE_URL || "http://localhost:4000");
+const DEFAULT_PRODUCTION_API_URL = "https://api-production-4867.up.railway.app";
+const resolvedApiUrl =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : "http://localhost:4000");
+
+export const API_BASE_URL = trimTrailingSlash(resolvedApiUrl);
 
 export class ApiError extends Error {
   readonly status: number;
