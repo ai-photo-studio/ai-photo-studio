@@ -9,6 +9,7 @@ type CreateOrderInput = {
   whatsappNumber: string;
   packageSlug: string;
   serviceType: string;
+  userId?: string;
 };
 
 type AddOrderImageInput = {
@@ -48,6 +49,7 @@ export class OrderService {
       data: {
         orderNo: toOrderNo(),
         customerId: customer.id,
+        userId: input.userId || null,
         packageId: pkg.id,
         subtotal: amount.toFixed(2),
         total: amount.toFixed(2),
@@ -85,6 +87,13 @@ export class OrderService {
     });
     if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
     return order;
+  }
+
+  async linkOrderToUser(orderId: string, userId: string) {
+    return prisma.order.update({
+      where: { id: orderId },
+      data: { userId }
+    });
   }
 
   async addImages(orderNo: string, images: AddOrderImageInput[]) {

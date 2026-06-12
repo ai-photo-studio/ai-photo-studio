@@ -1,5 +1,6 @@
 import { apiRequest, type AuthSession } from "../lib/api";
 import type {
+  CustomerOrderResponse,
   CustomerPaymentsResponse,
   CustomerSubscriptionResponse,
   CustomerWalletResponse
@@ -7,6 +8,34 @@ import type {
 
 type PaymentRequestInput = {
   orderNo: string;
+};
+
+type CreateOrderInput = {
+  whatsappNumber: string;
+  packageSlug: string;
+  serviceType: string;
+};
+
+type WebUploadInput = {
+  fileName: string;
+  contentType: string;
+  bodyBase64: string;
+  workflowType: "PRODUCT" | "VEHICLE";
+  workflowMode: string;
+};
+
+type CreateOrderResponse = {
+  id: string;
+  orderNo: string;
+  amount: number;
+  currency: string;
+  package: {
+    code: string;
+    name: string;
+    price: number;
+  };
+  paymentStatus: string;
+  orderStatus: string;
 };
 
 type ManualProofInput = {
@@ -38,6 +67,34 @@ export const customerApi = {
     apiRequest<CustomerPaymentsResponse>(`/api/me/payments?page=${page}&limit=${limit}`, {}, token),
   subscription: (token: string, page = 1, limit = 10) =>
     apiRequest<CustomerSubscriptionResponse>(`/api/me/subscription?page=${page}&limit=${limit}`, {}, token),
+  createOrder: (token: string, input: CreateOrderInput) =>
+    apiRequest<CreateOrderResponse>(
+      "/api/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      token
+    ),
+  order: (orderNo: string, token?: string) => apiRequest<CustomerOrderResponse>(`/api/orders/${orderNo}`, {}, token),
+  uploadOrderImage: (token: string, orderNo: string, input: WebUploadInput) =>
+    apiRequest<{
+      orderNo: string;
+      orderStatus: string;
+      paymentStatus: string;
+      originalImageId: string;
+      orderItemId: string;
+      processingJobId: string;
+      queueResult: { dryRun: boolean; queueJobId?: string };
+      image: { storageKey: string; url: string; expiresAt: string };
+    }>(
+      `/api/orders/${orderNo}/web-upload`,
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      token
+    ),
   createPaymentRequest: (input: PaymentRequestInput) =>
     apiRequest<{ checkoutUrl: string; providerRef: string; providerName: string; instructions?: string; raw?: Record<string, unknown> }>(
       "/api/payments/create-checkout",

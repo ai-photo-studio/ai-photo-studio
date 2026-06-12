@@ -38,6 +38,10 @@ Keep `ALLOWED_ORIGINS` restricted to the dedicated Pages project and do not wide
 
 WhatsApp environment variables are set in Railway production, webhook verification passes, delivery payload generation passes, and Meta connectivity still requires resolution before switching away from `LOG_ONLY`.
 
+## Phase Q Note
+
+WhatsApp is deferred to Phase 2 for launch planning. Keep `DELIVERY_MODE=LOG_ONLY` and do not let Meta connectivity block the web-first customer launch.
+
 ## AI Agent Instructions
 
 See `AI_PROJECT_RULES.md` for the mandatory agent rules.

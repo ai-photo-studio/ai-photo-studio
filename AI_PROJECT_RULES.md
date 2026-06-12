@@ -53,3 +53,6 @@ Ensure all protected files exist before any operation:
 
 ### Phase P Note
 Keep `DELIVERY_MODE=LOG_ONLY` until Meta connectivity passes in production.
+
+### Phase Q Note
+WhatsApp is Phase 2 for launch planning. Keep `DELIVERY_MODE=LOG_ONLY`, and do not let Meta connectivity block the web-first launch.

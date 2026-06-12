@@ -51,6 +51,8 @@ Deployment readiness snapshot:
 - Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (latest deployment: `https://e100a3ee.ai-photo-studio-whatsapp-web.pages.dev`)
 - Frontend API binding is production-safe: `apps/web/src/lib/api.ts` prefers `VITE_API_URL`, then `VITE_API_BASE_URL`, and falls back to the Railway production API in production builds.
 - Railway production CORS is now locked to the Pages origin via `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev`.
+- Phase Q web launch adds the protected `/orders` customer workspace, web image upload to R2, queue handoff, and live status/download tracking.
+- WhatsApp is now Phase 2 for launch planning, and `DELIVERY_MODE` stays `LOG_ONLY` until Meta connectivity is explicitly resolved.
 - Launch readiness improved after the dedicated Pages deployment and CORS fix; current blockers are Meta Graph connectivity and the optional load-test baseline.
 - Phase P validation: WhatsApp env values are SET, webhook verification PASS, delivery payload PASS, AI provider PASS (`mock`), Meta connectivity FAIL. Keep `DELIVERY_MODE=LOG_ONLY` until Meta connectivity is confirmed.
 - Phase M (Final Production Readiness) completed. CORS validation: returns the dedicated Pages origin `https://ai-photo-studio-whatsapp-web.pages.dev`. WhatsApp env: verify token SET, access token SET, phone number ID SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
@@ -90,10 +92,12 @@ Deployment readiness snapshot:
 - Usage charging: reserve credits when processing starts, settle on completion, release on failure
 - Admin commercial endpoints: payments, wallets, subscriptions, and package catalog management
 - Customer commercial UI: wallet, payments, and subscription pages with JWT persistence and checkout/proof tracking
+- Phase Q customer web flow: `/orders` creates an order, uploads an image, queues processing, and shows original plus processed result links.
 
 ## Frontend Discovery Summary
 - Frontend app location: `apps/web`
 - Public routes: `/`, `/pricing`, `/signup`, `/login`
+- Protected customer routes: `/orders`, `/wallet`, `/payments`, `/subscription`
 - Deployment target: Cloudflare Pages
 - Deploy config: `apps/web/wrangler.toml`
 - SPA fallback: `apps/web/public/_redirects`
@@ -102,3 +106,4 @@ Deployment readiness snapshot:
 ## Notes
 - The repository still contains the earlier WhatsApp-first MVP modules and the Phase 2 background-remover work.
 - This index now tracks the customer foundation, the public website layer, and the Phase C/D/E/F backend pipeline foundation.
+- Phase Q keeps WhatsApp as a deferred Phase 2 launch item and does not let Meta connectivity block the web-first customer launch.

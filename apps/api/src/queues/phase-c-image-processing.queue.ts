@@ -45,13 +45,17 @@ export class PhaseCImageProcessingQueue {
     });
   }
 
-  async enqueueImageProcessing(payload: PhaseCImageProcessingPayload): Promise<EnqueuePhaseCJobResult> {
+  async enqueueImageProcessing(
+    payload: PhaseCImageProcessingPayload,
+    options: { jobId?: string } = {}
+  ): Promise<EnqueuePhaseCJobResult> {
     if (!this.queue) {
       logger.info("Phase C queue dry-run enqueue", { queue: "image-processing", ...payload });
       return { dryRun: true };
     }
 
     const job = await this.queue.add("process-whatsapp-image", payload, {
+      jobId: options.jobId,
       attempts: 5,
       backoff: { type: "exponential", delay: 1_000 },
       removeOnComplete: false,

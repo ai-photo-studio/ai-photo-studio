@@ -62,10 +62,12 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - Phase G adds customer wallet/payment/subscription screens, admin commercial screens, a production readiness checklist, and the `DELIVERY_MODE` release switch.
 - Phase H adds deployment validation, health endpoints, and a formal launch checklist plus load-test plan.
 - Phase I hardens route parity by exposing a safe route registry at `GET /api/version/routes` plus explicit top-level mounts for the affected production routes.
+- Phase Q adds the web customer `/orders` workspace for order creation, image upload, queue handoff, and processed result links while keeping WhatsApp on Phase 2.
 - Phase I hardens the repo-root Railway config so the api service boot path stays on the same `tsx` source entrypoint and the monorepo root remains the source of truth.
 - Customer-facing commercial APIs are thin wrappers over the existing authenticated backend data so the Vite app can stay on Cloudflare Pages.
 - The Phase 1 background remover service is currently local-only and is not part of the Railway deployment yet.
 - Phase 2 WhatsApp image intake uses the existing queue and storage flow plus a `POST /product-white` background-remover call.
+- Phase Q web launch keeps `DELIVERY_MODE=LOG_ONLY`; Meta connectivity failures do not block the web customer launch.
 - Cloudflare Pages should publish the `apps/web/dist` output with the SPA fallback in `apps/web/public/_redirects`.
 - Cloudflare Pages config lives in `apps/web/wrangler.toml`.
 

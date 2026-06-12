@@ -14,10 +14,10 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const selectedPlan = searchParams.get("plan") || searchParams.get("package");
-  const from = useMemo(() => (location.state as { from?: string } | null)?.from || "/account", [location.state]);
+  const from = useMemo(() => (location.state as { from?: string } | null)?.from || "/orders", [location.state]);
 
   if (status === "ready" && user) {
-    return <Navigate to="/account" replace />;
+    return <Navigate to="/orders" replace />;
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

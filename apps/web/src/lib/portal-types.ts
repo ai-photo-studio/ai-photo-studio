@@ -172,6 +172,75 @@ export type CustomerSubscriptionResponse = PaginatedResponse<PortalSubscriptionR
   } | null;
 };
 
+export type CustomerOrderImage = {
+  id: string;
+  kind: string;
+  storageKey: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
+export type CustomerOrderStatusEvent = {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  source: string;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type CustomerProcessingJob = {
+  id: string;
+  queueName: string;
+  jobName: string;
+  providerName: string | null;
+  workflowType: string | null;
+  workflowMode: string | null;
+  status: string;
+  attempts: number;
+  queueJobId: string | null;
+  errorMessage: string | null;
+  deadLetterReason: string | null;
+  failureStage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerOrderResponse = {
+  id: string;
+  orderNo: string;
+  orderStatus: string;
+  paymentStatus: string;
+  subtotal: number | string;
+  total: number | string;
+  currency: string;
+  notes: string | null;
+  originalStorageKey: string | null;
+  originalUrl: string | null;
+  originalExpiresAt: string | null;
+  processedStorageKey: string | null;
+  processedUrl: string | null;
+  processedExpiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer: {
+    id: string;
+    whatsappNumber: string;
+    name: string | null;
+  };
+  user: PortalUser | null;
+  package: PackageSummary;
+  images: CustomerOrderImage[];
+  payments: PortalOrderPayment[];
+  statusHistory: CustomerOrderStatusEvent[];
+  processingJobs: CustomerProcessingJob[];
+};
+
 export type AdminDashboardResponse = {
   todayOrders: number;
   todayRevenue: number | string;

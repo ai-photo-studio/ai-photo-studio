@@ -1,8 +1,16 @@
+import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
+import { prisma } from "../db/prisma";
+import { PhaseCImageProcessingQueue } from "../queues/phase-c-image-processing.queue";
+import { NotificationService } from "../services/notification.service";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { OrderService } from "../services/order.service";
 import { PaymentService } from "../services/payment.service";
+import { StorageService } from "../services/storage.service";
+import { resolveProductWorkflowMode } from "../services/product-workflow.service";
+import { resolveVehicleWorkflowMode } from "../services/vehicle-workflow.service";
+import type { WorkflowMode } from "../providers/provider.interface";
 
 type OrderImagePayload = {
   storageKey: string;
@@ -12,12 +20,60 @@ type OrderImagePayload = {
   fileSizeBytes?: number;
 };
 
+type WebUploadPayload = {
+  fileName?: string;
+  contentType?: string;
+  bodyBase64?: string;
+  workflowType?: string;
+  workflowMode?: string;
+};
+
+const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const MAX_WEB_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const normalizeWorkflowType = (value?: string | null): "PRODUCT" | "VEHICLE" => {
+  const normalized = String(value || "").trim().toUpperCase();
+  return normalized === "VEHICLE" ? "VEHICLE" : "PRODUCT";
+};
+
+const resolveWorkflowMode = (
+  workflowType: "PRODUCT" | "VEHICLE",
+  workflowMode: string | undefined,
+  packageCode: string
+): WorkflowMode => {
+  const normalized = String(workflowMode || "").trim().toUpperCase();
+
+  if (workflowType === "VEHICLE") {
+    if (["SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"].includes(normalized)) {
+      return normalized as WorkflowMode;
+    }
+    return resolveVehicleWorkflowMode(packageCode);
+  }
+
+  if (["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO"].includes(normalized)) {
+    return normalized as WorkflowMode;
+  }
+
+  return resolveProductWorkflowMode(packageCode);
+};
+
+const decodeBase64Input = (input: string) => {
+  const cleaned = input.trim();
+  const base64 = cleaned.includes(",") ? cleaned.slice(cleaned.indexOf(",") + 1) : cleaned;
+  return Buffer.from(base64, "base64");
+};
+
 export class OrderController {
   private readonly orderService = new OrderService();
   private readonly paymentService: PaymentService;
+  private readonly storage: StorageService;
+  private readonly queue: PhaseCImageProcessingQueue;
+  private readonly notifications = new NotificationService();
 
   constructor(config: AppConfig) {
     this.paymentService = new PaymentService(config);
+    this.storage = new StorageService(config);
+    this.queue = new PhaseCImageProcessingQueue(config);
   }
 
   createOrder = async (req: Request, res: Response): Promise<void> => {
@@ -26,7 +82,12 @@ export class OrderController {
       if (!whatsappNumber || !packageSlug || !serviceType) {
         throw new AppError("whatsappNumber, packageSlug and serviceType are required", 400, "INVALID_REQUEST");
       }
-      const result = await this.orderService.createOrder({ whatsappNumber, packageSlug, serviceType });
+      const result = await this.orderService.createOrder({
+        whatsappNumber,
+        packageSlug,
+        serviceType,
+        userId: req.user?.sub
+      });
       res.status(201).json({ success: true, data: result });
     } catch (error) {
       this.handleError(res, error);
@@ -57,6 +118,171 @@ export class OrderController {
       }
       const result = await this.orderService.addImages(req.params.orderNo, mapped);
       res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  uploadWebImage = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = await this.requireUser(req);
+      const orderNo = String(req.params.orderNo || "").trim();
+      const order = await this.orderService.getOrderByOrderNo(orderNo);
+      if (order.userId && order.userId !== user.sub) {
+        throw new AppError("Order does not belong to the current customer", 403, "FORBIDDEN");
+      }
+      if (!order.userId) {
+        await this.orderService.linkOrderToUser(order.id, user.sub);
+      }
+
+      const payload = (req.body || {}) as WebUploadPayload;
+      const fileName = String(payload.fileName || "customer-upload.jpg").trim();
+      const contentType = String(payload.contentType || "").trim().toLowerCase();
+      const bodyBase64 = String(payload.bodyBase64 || "").trim();
+
+      if (!fileName || !bodyBase64) {
+        throw new AppError("fileName and bodyBase64 are required", 400, "INVALID_REQUEST");
+      }
+
+      if (!SUPPORTED_IMAGE_MIME_TYPES.has(contentType)) {
+        throw new AppError("Unsupported image type", 415, "UNSUPPORTED_IMAGE_TYPE");
+      }
+
+      const body = decodeBase64Input(bodyBase64);
+      if (body.length === 0) {
+        throw new AppError("Uploaded file is empty", 400, "EMPTY_FILE");
+      }
+      if (body.length > MAX_WEB_IMAGE_BYTES) {
+        throw new AppError("Image exceeds size limit of 10 MB", 413, "IMAGE_TOO_LARGE");
+      }
+
+      const originalUpload = await this.storage.uploadOriginal({
+        fileName,
+        body,
+        contentType
+      });
+
+      await this.orderService.attachOriginalMedia(order.id, {
+        storageKey: originalUpload.key,
+        url: originalUpload.url,
+        expiresAt: originalUpload.expiresAt,
+        mimeType: contentType,
+        fileSizeBytes: body.length
+      });
+
+      const originalImage = await prisma.orderImage.create({
+        data: {
+          orderId: order.id,
+          kind: "ORIGINAL",
+          storageKey: originalUpload.key,
+          mimeType: contentType,
+          fileSizeBytes: body.length,
+          expiresAt: originalUpload.expiresAt
+        }
+      });
+
+      const workflowType = normalizeWorkflowType(payload.workflowType);
+      const workflowMode = resolveWorkflowMode(workflowType, payload.workflowMode, order.package.code);
+      const queueJobId = `web-${randomUUID()}`;
+      const senderNumber = order.customer.whatsappNumber;
+      const messageId = `web-${order.orderNo}`;
+      const mediaId = `web-${order.orderNo}-${Date.now()}`;
+
+      const orderItem = await prisma.orderItem.create({
+        data: {
+          orderId: order.id,
+          itemType: "WEB_UPLOAD",
+          title: "Customer web upload",
+          quantity: 1,
+          unitPrice: order.total,
+          currency: order.currency,
+          metadata: {
+            source: "web",
+            workflowType,
+            workflowMode,
+            originalStorageKey: originalUpload.key,
+            originalUrl: originalUpload.url,
+            originalExpiresAt: originalUpload.expiresAt.toISOString(),
+            fileSizeBytes: body.length,
+            mimeType: contentType
+          }
+        }
+      });
+
+      const processingJob = await prisma.processingJob.create({
+        data: {
+          orderId: order.id,
+          orderItemId: orderItem.id,
+          queueName: "image-processing",
+          jobName: "process-web-upload",
+          workflowType,
+          workflowMode,
+          status: "QUEUED",
+          attempts: 0,
+          maxAttempts: 5,
+          queueJobId,
+          payload: {
+            senderNumber,
+            messageId,
+            mediaId,
+            originalStorageKey: originalUpload.key,
+            workflowType,
+            workflowMode
+          }
+        }
+      });
+
+      const queueResult = await this.queue.enqueueImageProcessing(
+        {
+          orderId: order.id,
+          orderItemId: orderItem.id,
+          senderNumber,
+          messageId,
+          mediaId,
+          originalStorageKey: originalUpload.key,
+          workflowType,
+          workflowMode
+        },
+        { jobId: queueJobId }
+      );
+
+      await this.orderService.updateOrderStatus(order.id, {
+        toStatus: "QUEUED",
+        source: "web.upload",
+        meta: {
+          queueJobId,
+          originalImageId: originalImage.id,
+          workflowType,
+          workflowMode,
+          storageKey: originalUpload.key
+        }
+      });
+
+      this.notifications.log("WHATSAPP_ORDER_RECEIVED", {
+        orderId: order.id,
+        orderNo: order.orderNo,
+        senderNumber,
+        messageId,
+        mediaId
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          orderNo: order.orderNo,
+          orderStatus: "QUEUED",
+          paymentStatus: order.paymentStatus,
+          originalImageId: originalImage.id,
+          orderItemId: orderItem.id,
+          processingJobId: processingJob.id,
+          queueResult,
+          image: {
+            storageKey: originalUpload.key,
+            url: originalUpload.url,
+            expiresAt: originalUpload.expiresAt
+          }
+        }
+      });
     } catch (error) {
       this.handleError(res, error);
     }
@@ -114,6 +340,13 @@ export class OrderController {
       this.handleError(res, error);
     }
   };
+
+  private async requireUser(req: Request) {
+    if (!req.user) {
+      throw new AppError("Not authenticated", 401, "UNAUTHORIZED");
+    }
+    return req.user;
+  }
 
   private handleError(res: Response, error: unknown) {
     if (error instanceof AppError) {

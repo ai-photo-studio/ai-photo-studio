@@ -15,6 +15,7 @@ import { AdminWalletsPage } from "./pages/AdminWalletsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PricingPage } from "./pages/PricingPage";
+import { OrdersPage } from "./pages/OrdersPage";
 import { PaymentsPage } from "./pages/PaymentsPage";
 import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -31,7 +32,8 @@ export function App() {
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<CustomerLayout />}>
-          <Route index element={<Navigate to="/wallet" replace />} />
+          <Route index element={<Navigate to="/orders" replace />} />
+          <Route path="orders" element={<OrdersPage />} />
           <Route path="wallet" element={<WalletPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="subscription" element={<SubscriptionPage />} />

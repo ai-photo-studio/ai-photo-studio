@@ -15,6 +15,9 @@ export function CustomerLayout() {
           </span>
         </Link>
         <nav className="site-nav" aria-label="Customer">
+          <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            Orders
+          </NavLink>
           <NavLink to="/wallet" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
             Wallet
           </NavLink>
@@ -37,6 +40,9 @@ export function CustomerLayout() {
             <p className="helper-text">Your customer workspace is protected with JWT session persistence.</p>
           </div>
           <div className="button-row">
+            <Link to="/orders" className="button button-small button-secondary">
+              Open orders
+            </Link>
             <Link to="/pricing" className="button button-small button-secondary">
               Explore packages
             </Link>

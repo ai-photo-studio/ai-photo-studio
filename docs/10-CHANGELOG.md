@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-12 - Phase Q Web Customer Upload Flow Added
+- Added a protected `/orders` customer workspace that creates web orders, uploads image files to R2, queues processing, and shows processed download links.
+- Linked web-created orders back to the authenticated customer account so wallet and payment history can follow the same user record.
+- Kept WhatsApp on Phase 2 and left `DELIVERY_MODE=LOG_ONLY` so Meta connectivity does not block the web-first launch.
+- Added customer route registry coverage for the web upload handoff and updated launch-readiness documentation.
+
 ## 2026-06-12 - Railway Production Route Parity Recovered
 - Fixed the Railway api bootstrap failure caused by a missing production `JWT_SECRET` variable.
 - Restored live route availability for `/api/version/routes`, `/api/monitoring/health`, `/api/monitoring/queue`, `/api/monitoring/worker`, and `/api/auth/me`.

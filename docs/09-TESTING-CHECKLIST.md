@@ -50,6 +50,7 @@
 - [ ] Admin manual approval endpoint moves a pending manual order to processing.
 - [ ] `GET /api/packages` returns active packages.
 - [ ] `GET /api/auth/me` returns `401` when unauthenticated and does not fall through to `Cannot GET`.
+- [ ] Web customer order flow can create an order, upload an image, queue processing, and surface a processed download link.
 - [ ] Admin payment, wallet, subscription, and package list endpoints return paginated data.
 - [ ] Phase 1 background remover local smoke test passes via `services/background-remover/scripts/test_local.py`.
 
@@ -76,6 +77,7 @@
 - [ ] Customer wallet page shows balance, ledger history, and subscription snapshot.
 - [ ] Customer payments page can create checkout requests, submit proof metadata, and track payment status.
 - [ ] Customer subscription page shows plan usage and monthly reset information.
+- [ ] Customer orders page shows original upload, queue state, processing status, and processed download link.
 - [ ] Admin commercial pages support pagination for payments, wallets, subscriptions, and packages.
 - [ ] Admin dashboard displays queue depth, active workers, failed jobs, processing duration, payment approvals, and wallet usage.
 - [ ] Launch readiness checklist documents GitHub, Railway, Cloudflare, WhatsApp, R2, AI provider, monitoring, and backups.
@@ -96,3 +98,7 @@
 ## Phase 2 WhatsApp Image Flow
 - Local smoke test script: `npx tsx scripts/test-whatsapp-image-flow.ts`
 - Verifies webhook image intake, queue enqueue, background removal, processed image upload, and outbound image send behavior with fakes.
+
+## Phase Q Web Launch
+- WhatsApp remains Phase 2 and `DELIVERY_MODE` stays `LOG_ONLY`.
+- Web launch is not blocked by Meta connectivity failure.
