@@ -10,7 +10,7 @@
 - Added a safe route registry endpoint at `GET /api/version/routes` that lists mounted API paths without secrets or environment values.
 - Added explicit top-level route registrations for `GET /api/packages`, `GET /api/auth/me`, and the monitoring endpoints to harden production route parity.
 - Added a service-local Railway config at `apps/api/railway.json` so the api service can boot the same entrypoint even if its source root is set to the workspace directory.
-- Switched Railway start commands to the compiled API artifact with `--experimental-specifier-resolution=node` so runtime no longer depends on `tsx`.
+- Kept Railway start commands on the `tsx` source entrypoint while adding a service-local Railway config to remove source-root ambiguity.
 
 ## 2026-06-11 - Phase G Customer and Admin Commercial UI Added
 - Added customer wallet, payments, and subscription pages backed by the authenticated API.
