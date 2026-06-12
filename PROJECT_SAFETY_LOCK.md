@@ -72,6 +72,13 @@ npm run gh:verify
 - **Git Bash / Unix**: `.sh` scripts in `scripts/`
 - **VS Code**: Integrated terminal supports both
 
+## Cloudflare Pages Deployment
+
+- **Frontend project**: `ai-photo-studio-whatsapp-web`
+- **Production URL**: `https://ai-photo-studio-whatsapp-web.pages.dev`
+- **Account**: `85f6a6181b4653c2a45e69cb7ce8a474` (gisupp@gmail.com)
+- **Separate from**: `hojaseeds` — do not modify
+
 ## AI Agent Instructions
 
 See `AI_PROJECT_RULES.md` for mandatory rules that AI agents must follow.

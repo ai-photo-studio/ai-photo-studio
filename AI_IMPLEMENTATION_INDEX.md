@@ -47,8 +47,8 @@ Deployment readiness snapshot:
 - The web app has a Cloudflare Pages SPA fallback via `apps/web/public/_redirects` and a Pages config at `apps/web/wrangler.toml`.
 - The actual frontend source lives in `apps/web`, and the intended deployment target is Cloudflare Pages via project `ai-photo-studio-whatsapp-web`.
 - Railway does not currently host a frontend service; it only serves `api` and `background-remover`.
-- Cloudflare Pages verification is currently blocked by an account/project access mismatch: `wrangler whoami` is authenticated as `nazimsaeed@gmail.com`, while the project lock requires Cloudflare login email `gisupp@gmail.com` and account ID `85f6a6181b4653c2a45e69cb7ce8a474` for the `Gisupp@gmail.com's Account` Pages owner.
-- No live Cloudflare Pages production URL has been confirmed from this workspace.
+- Cloudflare Pages deployment is live and verified. Account: `gisupp@gmail.com` (ID: `85f6a6181b4653c2a45e69cb7ce8a474`).
+- Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (current deployment: `https://2446d97c.ai-photo-studio-whatsapp-web.pages.dev`)
 - The production readiness checklist is documented in `docs/11-ENVIRONMENT-CHECKLIST.md`.
 - Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
 - Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
