@@ -79,6 +79,14 @@
 - Local AI Pipeline: 25%
 - Overall roadmap completion: 50%
 
+## Railway Status
+
+| Service | Status |
+|---------|--------|
+| API | Online (healthy) |
+| Web | Deployed |
+| Background Remover | Online |
+
 ## Recent Changes
 
 - Homepage theme redesigned to light SaaS theme
