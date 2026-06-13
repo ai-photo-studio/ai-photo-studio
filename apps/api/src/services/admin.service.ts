@@ -729,15 +729,12 @@ async listCustomers(params: ListCustomersParams) {
     return { jobId, retried: true };
   }
 
-  async toggleCustomerTestMode(userId: string, isTestAccount: boolean) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { customer: true }
-    });
-    if (!user?.customer) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
+  async toggleCustomerTestMode(customerId: string, isTestAccount: boolean) {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
 
     const updated = await prisma.customer.update({
-      where: { id: user.customer.id },
+      where: { id: customerId },
       data: { isTestAccount }
     });
 
@@ -746,11 +743,11 @@ async listCustomers(params: ListCustomersParams) {
         actorType: "admin",
         action: "toggle_test_mode",
         entityType: "customer",
-        entityId: user.customer.id,
+        entityId: customerId,
         meta: { isTestAccount }
       }
     });
 
-    return { id: user.customer.id, userId: user.id, isTestAccount: updated.isTestAccount };
+    return { id: updated.id, isTestAccount: updated.isTestAccount };
   }
 }
