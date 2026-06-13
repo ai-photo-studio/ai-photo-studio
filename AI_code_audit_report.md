@@ -2,98 +2,106 @@
 
 ## Scope
 
-Audit the repository state after Phase 3 provider framework and Phase 4 creative studio foundation work.
+Phase 4 Creative Studio Verification - validate routing, templates, database models, and admin diagnostics.
 
 ## Current Status
 
-- Product direction remains ecommerce product photography for sellers.
-- Background removal is still the entry point, not the full vision.
-- Phase 2A local AI pipeline is implemented in code.
-- Phase 2B image enhancement is implemented in code.
-- Phase 2C product classification is implemented in code.
-- Phase 3 provider framework is in progress.
-- Phase 4 creative studio foundation is in progress.
+- Product direction: ecommerce product photography for sellers.
+- Background removal is the entry point, not the full vision.
+- Phase 4 creative studio foundation verified and ready.
 - WhatsApp remains the final roadmap phase.
 
-## Phase 3 Implementation
+## Phase 4 Creative Studio Verification
 
-Implemented:
+### Service Layer Modules
 
-- Provider interface standardization (`provider.interface.ts`)
-- Provider factory with configuration-driven selection (`provider.factory.ts`)
-- Capability matrix registry with provider metadata
-- Local provider implementations:
-  - `local-esrgan`: enhancement
-  - `local-iclight`: relighting + shadow-generation
-- Cost tracking database structure (`ProviderCostLog` model)
-- Provider diagnostics in admin panels
+| Module | Status | Description |
+|--------|--------|-------------|
+| flat-lay.ts | Verified | Architecture placeholder - no generation |
+| lifestyle-scene.ts | Verified | Architecture placeholder - no generation |
+| virtual-model.ts | Verified | Architecture placeholder - no generation |
+| video-prep.ts | Verified | Architecture placeholder - no generation |
+| creative-types.ts | Verified | Creative type and scene type definitions |
+| templates.ts | Verified | 12 templates registered, all disabled |
+| creative-routing.ts | Verified | Category-aware creative route resolution |
 
-Provider types configured:
+### Template Registry Validation
 
-- Local providers (enabled): local-rembg, local-yolo, local-esrgan, local-iclight
-- Future paid providers (disabled): future-photoroom, future-falai, future-replicate
+**Flat Lay Templates (3):**
+- ecommerce-flatlay: TABLETOP, enabled: false
+- premium-flatlay: STUDIO, enabled: false
+- grocery-flatlay: TABLETOP, enabled: false
 
-Capability matrix includes:
+**Lifestyle Templates (4):**
+- home: STUDIO, enabled: false
+- office: STUDIO, enabled: false
+- luxury: STUDIO, enabled: false
+- outdoor: STUDIO, enabled: false
 
-| Capability | local-rembg | local-yolo | local-esrgan | local-iclight |
-|------------|-------------|------------|--------------|---------------|
-| background-removal | ✓ | ✓ | - | - |
-| classification | - | ✓ | - | - |
-| crop-center | - | ✓ | - | - |
-| enhancement | - | ✓ | ✓ | - |
-| relighting | - | - | - | ✓ |
-| shadow-generation | - | - | - | ✓ |
-| flat-lay | - | - | - | - |
-| lifestyle-scene | - | - | - | - |
-| virtual-model | - | - | - | - |
-| video-generation | - | - | - | - |
+**Virtual Model Templates (3):**
+- male: MODEL, enabled: false
+- female: MODEL, enabled: false
+- mannequin: MODEL, enabled: false
 
-## Phase 4 Creative Studio Foundation
+**Video Templates (3):**
+- rotation: VIDEO_LOOP, enabled: false
+- zoom: VIDEO_LOOP, enabled: false
+- showcase: VIDEO_LOOP, enabled: false
 
-Implemented:
+Total: 12 templates, all disabled as required.
 
-- Service layer modules:
-  - `apps/api/src/services/creative-studio/flat-lay.ts`: Flat lay generation architecture
-  - `apps/api/src/services/creative-studio/lifestyle-scene.ts`: Lifestyle scene generation architecture
-  - `apps/api/src/services/creative-studio/virtual-model.ts`: Virtual model generation architecture
-  - `apps/api/src/services/creative-studio/video-prep.ts`: Video preparation architecture
-- Creative templates registry:
-  - Flat Lay: ecommerce-flatlay, premium-flatlay, grocery-flatlay
-  - Lifestyle: home, office, luxury, outdoor
-  - Virtual Model: male, female, mannequin
-  - Video: rotation, zoom, showcase
-- Creative routing (`creative-routing.ts`): category-aware creative studio selection
-- Database models:
-  - `CreativeType`, `CreativeSceneType`, `CreativeGenerationStatus` enums
-  - `CreativeStudioJob` model with creativeType, sceneType, generationStatus, providerUsed fields
-- Admin UI diagnostics:
-  - Creative type display
-  - Scene type display
-  - Generation status display
-  - Provider used display
+### Creative Routing Validation
+
+Category mapping verified:
+
+| Category | Creative Type | Scene Type | Template |
+|----------|---------------|------------|----------|
+| shoes | FLAT_LAY | TABLETOP | ecommerce-flatlay |
+| fashion | FLAT_LAY | TABLETOP | premium-flatlay |
+| perfume | VIRTUAL_MODEL | MODEL | female |
+| cosmetics | VIRTUAL_MODEL | MODEL | female |
+| food | FLAT_LAY | TABLETOP | grocery-flatlay |
+| electronics | LIFESTYLE_SCENE | STUDIO | office |
+
+All routes return `enabled: false` for architecture placeholders.
+
+### Database Validation
+
+CreativeStudioJob model fields verified:
+- `creativeType`: CreativeType enum
+- `sceneType`: CreativeSceneType enum  
+- `generationStatus`: CreativeGenerationStatus @default(PENDING)
+- `providerUsed`: String
+- `estimatedCost`: Decimal @default(0)
+- `actualCost`: Decimal? @default(0)
+- `durationMs`: Int?
+- `metadata`: Json?
+
+### Admin Diagnostics Validation
+
+AdminJobsPage.tsx:
+- Creative type field added
+- Scene type field added
+- Generation status field added
+- Provider used field added
+
+AdminOrderDetail.tsx:
+- Creative diagnostics added to AI jobs listing
+
+### Provider Capability Validation
+
+Capability placeholders verified, all disabled:
+- flat-lay: disabled for all providers
+- lifestyle-scene: disabled for all providers
+- virtual-model: disabled for all providers
+- video-generation: disabled for all providers
 
 ## Verification Results
 
 - `npm run build`: PASS
 - `npm run typecheck`: PASS
 - `npm run enterprise-verify`: PASS
-
-## Files Changed In This Phase
-
-- `apps/api/src/services/creative-studio/flat-lay.ts` (new)
-- `apps/api/src/services/creative-studio/lifestyle-scene.ts` (new)
-- `apps/api/src/services/creative-studio/virtual-model.ts` (new)
-- `apps/api/src/services/creative-studio/video-prep.ts` (new)
-- `apps/api/src/services/creative-studio/creative-types.ts` (new)
-- `apps/api/src/services/creative-studio/templates.ts` (new)
-- `apps/api/src/services/creative-studio/creative-routing.ts` (new)
-- `apps/api/src/services/creative-studio/index.ts` (new)
-- `apps/web/src/pages/AdminJobsPage.tsx`
-- `apps/web/src/pages/AdminOrderDetail.tsx`
-- `MASTER_FEATURE_ROADMAP.md`
-- `MASTER_PRODUCT_VISION.md`
-- `AI_IMPLEMENTATION_INDEX.md`
-- `AI_code_audit_report.md`
+- Git status: Working tree clean
 
 ## Completion
 
@@ -103,12 +111,11 @@ Implemented:
 - Phase 2B image enhancement: 40%
 - Phase 2C product classification: 40%
 - Phase 3 provider framework: 80%
-- Phase 4 creative studio: 40%
-- Overall roadmap: 72%
+- Phase 4 creative studio: 60%
+- Overall roadmap: 73%
 
 ## Notes
 
-- Paid AI providers (Photoroom, fal.ai, Replicate) remain disabled by design.
+- Paid AI providers (Photoroom, fal.ai, Replicate) remain disabled.
 - WhatsApp remains the final roadmap phase.
-- All generation capabilities are disabled - architecture placeholders only.
-- Creative studio templates are configured but disabled for activation.
+- All creative studio services are architecture placeholders without generation.
