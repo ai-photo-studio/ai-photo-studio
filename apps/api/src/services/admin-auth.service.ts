@@ -36,7 +36,14 @@ export class AdminAuthService {
     const payload: AdminJwtPayload = { sub: admin.id, email: admin.email, sid: sessionId, role: admin.role };
     const token = this.signToken(payload);
     const refreshToken = this.signRefreshToken(payload);
-    await this.createSession(admin.id, refreshToken);
+    await prisma.adminSession.create({
+      data: {
+        id: sessionId,
+        adminUserId: admin.id,
+        refreshTokenHash: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    });
     return { user: { id: admin.id, email: admin.email, name: admin.name, role: admin.role }, token, refreshToken, expiresIn: "7d" };
   }
 
