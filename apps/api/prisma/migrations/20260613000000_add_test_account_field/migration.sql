@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Customer"
+ADD COLUMN IF NOT EXISTS "isTestAccount" BOOLEAN NOT NULL DEFAULT false;
