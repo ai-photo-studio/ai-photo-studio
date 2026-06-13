@@ -454,6 +454,16 @@ button {
   align-content: center;
 }
 
+.showcase-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  padding: 22px;
+}
+
 .upload-dropzone-title {
   margin: 0;
   font-size: 1.35rem;
@@ -641,5 +651,116 @@ button {
 
   .channel-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.showcase-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.showcase-panel h3 {
+  margin: 0;
+}
+
+.before-after-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.compare-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 340px;
+  height: 340px;
+  border-radius: var(--radius-lg);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  padding: 16px;
+}
+
+.compare-card span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.compare-card h4 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.compare-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.compare-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--bg-deep);
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.preview-card img {
+  width: 100%;
+  height: 140px;
+  object-fit: contain;
+  background: var(--bg-deep);
+}
+
+.preview-card figcaption {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.preview-card-result {
+  position: relative;
+}
+
+.preview-card-result::after {
+  content: "Preview";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  background: rgba(13, 148, 136, 0.9);
+  color: white;
+  border-radius: 999px;
+}
+
+@media (max-width: 960px) {
+  .before-after-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-card {
+    min-height: 280px;
+    height: 280px;
   }
 }

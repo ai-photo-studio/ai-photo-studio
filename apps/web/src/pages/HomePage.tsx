@@ -302,7 +302,7 @@ export function HomePage() {
         </div>
 
         <div className="landing-hero-panel">
-          <div className="showcase-panel showcase-panel-glow">
+          <div className="showcase-panel">
             <p className="eyebrow">Upload area</p>
             <div
               className="upload-dropzone"
@@ -337,13 +337,13 @@ export function HomePage() {
               <article className="compare-card compare-card-before">
                 <span>Before</span>
                 <img src={heroBeforeImage} alt="Original ecommerce product photo" />
-                <strong>Raw upload</strong>
+                <h4>Raw upload</h4>
                 <p>Messy table light, uneven background, and a photo that needs cleanup.</p>
               </article>
               <article className="compare-card compare-card-after">
                 <span>After</span>
                 <img src={heroAfterImage} alt="Clean ecommerce product photo after transformation" />
-                <strong>Seller-ready result</strong>
+                <h4>Seller-ready result</h4>
                 <p>Cleaner edges, stronger contrast, and a product image that feels ready to list.</p>
               </article>
             </div>
