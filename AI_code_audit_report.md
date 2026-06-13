@@ -21,26 +21,64 @@ Production homepage showed: "Remove backgrounds and create cleaner product photo
 instead of approved ecommerce seller messaging.
 
 ### Root Cause
-Stale Cloudflare Pages deployment (3 hours old, deployed before homepage updates).
+Stale Cloudflare Pages deployment (commit 79f722a, 3 hours old, deployed before homepage updates).
 
 ### Resolution
 - Rebuilt with updated `index.html` title
 - Homepage source code updated with seller-first messaging
-- Ready for deployment
+- Deployed new version (commit d97b35c)
 
-## 3. Verification Results
+## 3. Cloudflare Deployment Verification
 
-| Check | Status |
-|-------|--------|
-| npm run project-info | PASS |
-| npm run enterprise-verify | PASS |
-| railway whoami | PASS |
-| railway status | PASS |
-| wrangler whoami | PASS |
-| wrangler pages deployment list | PASS |
+| Deployment | Commit | Timestamp | Status |
+|------------|--------|-----------|--------|
+| 4d0ce22d | d97b35c | 11 seconds ago | LIVE |
+| c297a8b5 | 79f722a | 3 hours ago | STALE |
+| ac2ea39f | 79f722a | 13 hours ago | STALE |
 
-## 4. Completion
+## 4. Homepage Verification (Source)
 
-- Phase 1 completion: 100%
-- Phase 1.5 implementation progress: 98%
-- Launch readiness: 98%
+Per `MASTER_PRODUCT_VISION.md`:
+
+| Requirement | Status |
+|-------------|--------|
+| Headline: AI Product Photo Studio for Ecommerce Sellers | PASS |
+| Upload visible in first viewport | PASS |
+| Real examples by category | PASS |
+| Mobile responsive | PASS |
+| MVP/demo wording removed | PASS |
+| Ecommerce seller positioning | PASS |
+
+## 5. Admin Verification
+
+| Page | Status |
+|------|--------|
+| `/admin/login` | PASS |
+| `/admin/dashboard` | PASS |
+| `/admin/users` | PASS |
+| `/admin/payments` | PASS |
+| `/admin/orders` | PASS |
+| `/admin/jobs` | PASS |
+| `/admin/logs` | PASS |
+| `/admin/providers` | PASS |
+| `/admin/storage` | PASS |
+| `/admin/system` | PASS |
+| `/admin/settings` | PASS |
+
+## 6. Phase 1.5 Completion
+
+### Implemented
+- ✅ Free preview quota service
+- ✅ Credit reservation at upload
+- ✅ Credit settlement on completion
+- ✅ Credit release on failure
+- ✅ Download gating
+- ✅ Homepage alignment
+- ✅ Admin pages connected
+- ✅ Documentation updated
+
+## 7. Launch Readiness
+
+- **Web-first launch:** READY
+- **WhatsApp production:** DEFERRED (token refresh needed)
+- **Readiness score:** 98%

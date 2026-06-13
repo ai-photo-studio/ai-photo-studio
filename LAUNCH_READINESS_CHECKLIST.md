@@ -20,6 +20,7 @@
 - [x] HojaSeeds remains untouched
 - [x] Pages SPA fallback and build config are present
 - [x] Public frontend URL is live
+- [x] NEW DEPLOYMENT: 4d0ce22d (commit d97b35c) deployed successfully
 
 ## Web Launch
 - [x] Public pages are present: `/`, `/pricing`, `/signup`, `/login`

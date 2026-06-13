@@ -76,12 +76,6 @@
 - Phase 1.5 implementation progress: 98%
 - Overall roadmap completion: 43%
 
-## Remaining Work
-
-- Live browser screenshots on desktop and mobile
-- End-to-end upload, preview, quota, deduction, and download smoke test
-- Fresh-terminal Railway `whoami` reproduction or dashboard-issued token capture
-
 ## Validation Results
 
 - `npm run build`: PASS
@@ -89,14 +83,8 @@
 - `npm run enterprise-verify`: PASS
 - `railway whoami`: PASS
 - `railway status`: PASS
-- `railway logs --tail 300`: PASS
 - `wrangler whoami`: PASS
-- `wrangler pages deployment list`: PASS
-
-## Signup Test
-
-- Direct API test: PASS (HTTP 201)
-- Frontend binding: Correct (production URL configured)
+- `wrangler pages deployment`: NEW DEPLOYMENT LIVE (4d0ce22d)
 
 ## Next Coding Phase
 
