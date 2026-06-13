@@ -9,6 +9,7 @@ export const createMonitoringRouter = (config: AppConfig): Router => {
   router.get("/monitoring/health", controller.health);
   router.get("/monitoring/queue", controller.queue);
   router.get("/monitoring/worker", controller.worker);
+  router.get("/monitoring/services", controller.services);
 
   return router;
 };

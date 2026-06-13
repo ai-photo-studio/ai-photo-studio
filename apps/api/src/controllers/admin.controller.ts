@@ -2,12 +2,15 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { AdminService } from "../services/admin.service";
+import { QueueHealthService } from "../services/queue-health.service";
 
 export class AdminController {
   private readonly adminService: AdminService;
+  private readonly queueHealth: QueueHealthService;
 
   constructor(config: AppConfig) {
     this.adminService = new AdminService(config);
+    this.queueHealth = new QueueHealthService(config);
   }
 
   dashboard = async (_req: Request, res: Response): Promise<void> => {
@@ -22,6 +25,15 @@ export class AdminController {
   stats = async (_req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.getStats();
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  queueDepth = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.queueHealth.inspectImageQueue();
       res.json({ success: true, data });
     } catch (error) {
       this.handleError(res, error);

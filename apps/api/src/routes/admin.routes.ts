@@ -21,6 +21,7 @@ export const createAdminRouter = (config: AppConfig): Router => {
 
   router.get("/admin/dashboard", requireAdminAuth(config, opsRoles), controller.dashboard);
   router.get("/admin/stats", requireAdminAuth(config, adminRoles), controller.stats);
+  router.get("/admin/queue-depth", requireAdminAuth(config, opsRoles), controller.queueDepth);
   router.get("/admin/orders", requireAdminAuth(config, opsRoles), controller.orders);
   router.get("/admin/jobs", requireAdminAuth(config, opsRoles), controller.jobs);
   router.get("/admin/orders/:id", requireAdminAuth(config, opsRoles), controller.orderDetail);
@@ -40,7 +41,6 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.post("/admin/packages", requireAdminAuth(config, adminRoles), controller.upsertPackage);
   router.post("/admin/payments/:id/approve", requireAdminAuth(config, financeRoles), controller.approvePayment);
   router.post("/admin/payments/:id/reject", requireAdminAuth(config, financeRoles), controller.rejectPayment);
-  router.patch("/admin/customers/:id/test-mode", requireAdminAuth(config, adminRoles), controller.toggleCustomerTestMode);
 
   return router;
 };

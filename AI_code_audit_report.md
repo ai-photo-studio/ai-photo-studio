@@ -2,16 +2,42 @@
 
 ## Scope
 
-Phase 4 Creative Studio Verification - validate routing, templates, database models, and admin diagnostics.
+Phase 5 Operations + Real AI Validation - verify local AI pipeline, operations dashboard, and health monitoring.
 
 ## Current Status
 
 - Product direction: ecommerce product photography for sellers.
 - Background removal is the entry point, not the full vision.
-- Phase 4 creative studio foundation verified and ready.
+- Phase 4 creative studio foundation verified.
 - WhatsApp remains the final roadmap phase.
 
-## Phase 4 Creative Studio Verification
+## Phase 5 Operations Implementation
+
+### Operations Dashboard
+
+Added endpoints:
+- `/admin/stats`: total jobs, success rate, failure rate, average processing time, queue size, provider usage
+- `/admin/queue-depth`: BullMQ queue monitoring (waiting, active, completed, failed)
+
+### Queue Monitoring
+
+BullMQ integration verified:
+- `QueueHealthService` in `queue-health.service.ts`
+- Provides job counts for waiting, active, completed, failed, delayed, paused, prioritized
+- Dry-run mode for development without Redis
+
+### Health Monitoring
+
+Added `/monitoring/services` endpoint:
+- Rembg health check
+- YOLO health check  
+- ESRGAN health check
+- IC-Light health check
+- Classifier health check
+
+All services return status "ok" or "unconfigured" based on environment configuration.
+
+## Phase 4 Creative Studio Verification Results
 
 ### Service Layer Modules
 
@@ -48,11 +74,11 @@ Phase 4 Creative Studio Verification - validate routing, templates, database mod
 - zoom: VIDEO_LOOP, enabled: false
 - showcase: VIDEO_LOOP, enabled: false
 
-Total: 12 templates, all disabled as required.
+Total: 12 templates verified, all disabled as required.
 
 ### Creative Routing Validation
 
-Category mapping verified:
+Category mapping verified with `resolveCreativeStudioRoute()`:
 
 | Category | Creative Type | Scene Type | Template |
 |----------|---------------|------------|----------|
@@ -72,21 +98,12 @@ CreativeStudioJob model fields verified:
 - `sceneType`: CreativeSceneType enum  
 - `generationStatus`: CreativeGenerationStatus @default(PENDING)
 - `providerUsed`: String
+
+ProviderCostLog model verified for cost tracking:
+- `provider`: String
+- `durationMs`: Int
 - `estimatedCost`: Decimal @default(0)
-- `actualCost`: Decimal? @default(0)
-- `durationMs`: Int?
-- `metadata`: Json?
-
-### Admin Diagnostics Validation
-
-AdminJobsPage.tsx:
-- Creative type field added
-- Scene type field added
-- Generation status field added
-- Provider used field added
-
-AdminOrderDetail.tsx:
-- Creative diagnostics added to AI jobs listing
+- `actualCost`: Decimal?
 
 ### Provider Capability Validation
 
@@ -101,7 +118,6 @@ Capability placeholders verified, all disabled:
 - `npm run build`: PASS
 - `npm run typecheck`: PASS
 - `npm run enterprise-verify`: PASS
-- Git status: Working tree clean
 
 ## Completion
 
@@ -112,10 +128,12 @@ Capability placeholders verified, all disabled:
 - Phase 2C product classification: 40%
 - Phase 3 provider framework: 80%
 - Phase 4 creative studio: 60%
-- Overall roadmap: 73%
+- Phase 5 operations: 60%
+- Overall roadmap: 74%
 
 ## Notes
 
 - Paid AI providers (Photoroom, fal.ai, Replicate) remain disabled.
 - WhatsApp remains the final roadmap phase.
 - All creative studio services are architecture placeholders without generation.
+- Monitoring endpoints provide infrastructure for local AI service validation.
