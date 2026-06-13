@@ -120,8 +120,12 @@
 ## Phase 4 Creative Studio Foundation Map
 
 - `apps/api/prisma/schema.prisma`: `CreativeType`, `CreativeSceneType`, `CreativeGenerationStatus` enums; `CreativeStudioJob` model
+- `apps/api/src/services/creative-studio/`: service layer for flat-lay, lifestyle-scene, virtual-model, video-prep
+- `apps/api/src/services/creative-studio/templates.ts`: creative templates registry (ecommerce-flatlay, premium-flatlay, grocery-flatlay, home, office, luxury, outdoor, male, female, mannequin, rotation, zoom, showcase)
+- `apps/api/src/services/creative-studio/creative-routing.ts`: creative studio selection and routing
 - `apps/api/src/providers/provider.interface.ts`: capability placeholders (`flat-lay`, `lifestyle-scene`, `virtual-model`, `video-generation`)
-- `apps/web/src/pages/AdminOrderDetail.tsx`: creative studio placeholder section in admin UI
+- `apps/web/src/pages/AdminJobsPage.tsx`: creative type, scene type, generation status, provider used diagnostics
+- `apps/web/src/pages/AdminOrderDetail.tsx`: creative studio diagnostics in admin UI
 
 ## Current Completion
 
@@ -131,7 +135,7 @@
 - Phase 2B Image Enhancement: 40%
 - Phase 2C Product Classification: 40%
 - Phase 3 Provider Framework: 80%
-- Phase 4 Creative Studio Expansion: 20%
+- Phase 4 Creative Studio Expansion: 40%
 - Phase 5 Operations: 0%
 - Phase 6 WhatsApp: 0%
 - Overall roadmap completion: 74%

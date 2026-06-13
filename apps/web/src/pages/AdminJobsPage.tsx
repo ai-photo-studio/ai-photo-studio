@@ -25,6 +25,10 @@ type JobItem = {
     processingProfile: string | null;
     pipelineUsed: string | null;
   } | null;
+  creativeType: string | null;
+  sceneType: string | null;
+  generationStatus: string | null;
+  providerUsed: string | null;
   order?: {
     orderNo: string;
   };
@@ -103,38 +107,54 @@ export function AdminJobsPage() {
                   <dt>Created</dt>
                   <dd>{formatDateTime(job.createdAt)}</dd>
                 </div>
-                {job.qualityScore && (
-                  <>
-                    <div>
-                      <dt>Quality</dt>
-                      <dd>{job.qualityScore.overallScore}</dd>
-                    </div>
-                    <div>
-                      <dt>Category</dt>
-                      <dd>{job.qualityScore.category ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Confidence</dt>
-                      <dd>{job.qualityScore.confidence != null ? job.qualityScore.confidence.toFixed(2) : "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Profile</dt>
-                      <dd>{job.qualityScore.processingProfile ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Enhancement</dt>
-                      <dd>{job.qualityScore.enhancementScore ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Stage</dt>
-                      <dd>{job.qualityScore.processingStage ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Pipeline</dt>
-                      <dd>{job.qualityScore.pipelineUsed ?? "—"}</dd>
-                    </div>
-                  </>
-                )}
+{job.qualityScore && (
+                   <>
+                     <div>
+                       <dt>Quality</dt>
+                       <dd>{job.qualityScore.overallScore}</dd>
+                     </div>
+                     <div>
+                       <dt>Category</dt>
+                       <dd>{job.qualityScore.category ?? "—"}</dd>
+                     </div>
+                     <div>
+                       <dt>Confidence</dt>
+                       <dd>{job.qualityScore.confidence != null ? job.qualityScore.confidence.toFixed(2) : "—"}</dd>
+                     </div>
+                     <div>
+                       <dt>Profile</dt>
+                       <dd>{job.qualityScore.processingProfile ?? "—"}</dd>
+                     </div>
+                     <div>
+                       <dt>Enhancement</dt>
+                       <dd>{job.qualityScore.enhancementScore ?? "—"}</dd>
+                     </div>
+                     <div>
+                       <dt>Stage</dt>
+                       <dd>{job.qualityScore.processingStage ?? "—"}</dd>
+                     </div>
+                     <div>
+                       <dt>Pipeline</dt>
+                       <dd>{job.qualityScore.pipelineUsed ?? "—"}</dd>
+                     </div>
+                   </>
+                 )}
+                 <div>
+                   <dt>Creative Type</dt>
+                   <dd>{job.creativeType ?? "—"}</dd>
+                 </div>
+                 <div>
+                   <dt>Scene Type</dt>
+                   <dd>{job.sceneType ?? "—"}</dd>
+                 </div>
+                 <div>
+                   <dt>Generation Status</dt>
+                   <dd>{job.generationStatus ?? "—"}</dd>
+                 </div>
+                 <div>
+                   <dt>Provider Used</dt>
+                   <dd>{job.providerUsed ?? "—"}</dd>
+                 </div>
                 {job.errorMessage && (
                   <div className="detail-full">
                     <dt>Error</dt>

@@ -43,24 +43,28 @@ export function AdminOrderDetail() {
           <li key={img.id}>{img.kind} - {img.storageKey}</li>
         ))}
       </ul>
-      <h3>AI Jobs</h3>
-      <ul>
-        {data.aiJobs.map((job: any) => (
-          <li key={job.id}>
-            {job.operation} - {job.provider} - {job.status}
-            {job.errorMessage ? ` (${job.errorMessage})` : ""}
-            {job.durationMs ? ` [${job.durationMs}ms]` : ""}
-          </li>
-        ))}
-      </ul>
-      <h3>Quality diagnostics</h3>
-      <ul>
-        {(data.qualityScores || []).map((score: any) => (
-          <li key={score.id}>
-            Category {score.category || "—"} | Confidence {score.classificationConfidence ?? "—"} | Profile {score.processingProfile || "—"} | Overall {score.overallScore} | Enhancement {score.enhancementScore ?? "—"} | Stage {score.processingStage || "—"}
-          </li>
-        ))}
-      </ul>
+<h3>AI Jobs</h3>
+       <ul>
+         {(data.aiJobs || []).map((job: any) => (
+           <li key={job.id}>
+             {job.operation} - {job.provider} - {job.status}
+             {job.errorMessage ? ` (${job.errorMessage})` : ""}
+             {job.durationMs ? ` [${job.durationMs}ms]` : ""}
+             {job.creativeType ? ` [Creative: ${job.creativeType}]` : ""}
+             {job.sceneType ? ` [Scene: ${job.sceneType}]` : ""}
+             {job.generationStatus ? ` [GenStatus: ${job.generationStatus}]` : ""}
+             {job.providerUsed ? ` [ProviderUsed: ${job.providerUsed}]` : ""}
+           </li>
+         ))}
+       </ul>
+       <h3>Quality diagnostics</h3>
+       <ul>
+         {(data.qualityScores || []).map((score: any) => (
+           <li key={score.id}>
+             Category {score.category || "—"} | Confidence {score.classificationConfidence ?? "—"} | Profile {score.processingProfile || "—"} | Overall {score.overallScore} | Enhancement {score.enhancementScore ?? "—"} | Stage {score.processingStage || "—"}
+           </li>
+         ))}
+       </ul>
     </section>
   );
 }
