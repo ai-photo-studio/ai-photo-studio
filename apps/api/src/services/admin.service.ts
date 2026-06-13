@@ -373,60 +373,6 @@ async listCustomers(params: ListCustomersParams) {
     };
   }
 
-    const [items, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        include: {
-          customer: true,
-          orders: { take: 5, orderBy: { createdAt: "desc" } },
-          wallet: true
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit
-      }),
-      prisma.user.count({ where })
-    ]);
-
-    return {
-      items: items.map((u) => ({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        phone: u.customer?.whatsappNumber || null,
-        isTestAccount: u.customer?.isTestAccount || false,
-        orders: u.orders.length,
-        walletBalance: u.wallet?.balance || 0,
-        createdAt: u.createdAt.toISOString()
-      })),
-      total,
-      page,
-      limit
-    };
-  }
-
-  async getCustomerDetail(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        customer: true,
-        orders: { orderBy: { createdAt: "desc" }, take: 10 },
-        wallet: true
-      }
-    });
-    if (!user) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      phone: user.customer?.whatsappNumber || null,
-      isTestAccount: user.customer?.isTestAccount || false,
-      orders: user.orders.length,
-      walletBalance: user.wallet?.balance || 0,
-      createdAt: user.createdAt.toISOString()
-    };
-  }
-
   async upsertPackage(input: {
     code: string;
     name: string;
