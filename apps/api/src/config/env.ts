@@ -25,7 +25,6 @@ const envSchema = z
     R2_PUBLIC_BASE_URL: z.string().optional().default(""),
 AI_PROVIDER_API_KEY: z.string().optional().default(""),
   ADMIN_JWT_SECRET: z.string().min(1),
-  // Trigger redeploy
     JWT_SECRET: z.string().min(1),
     DELIVERY_MODE: z.enum(["LOG_ONLY", "WHATSAPP"]).default("LOG_ONLY"),
     ALLOWED_ORIGINS: z.string().optional().default("")
