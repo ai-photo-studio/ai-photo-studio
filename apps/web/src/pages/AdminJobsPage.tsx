@@ -14,6 +14,15 @@ type JobItem = {
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  qualityScore?: {
+    overallScore: number;
+    enhancementScore: number | null;
+    processingStage: string | null;
+    category: string | null;
+    confidence: number | null;
+    processingProfile: string | null;
+    pipelineUsed: string | null;
+  } | null;
   order?: {
     orderNo: string;
   };
@@ -81,6 +90,38 @@ export function AdminJobsPage() {
                   <dt>Created</dt>
                   <dd>{formatDateTime(job.createdAt)}</dd>
                 </div>
+                {job.qualityScore && (
+                  <>
+                    <div>
+                      <dt>Quality</dt>
+                      <dd>{job.qualityScore.overallScore}</dd>
+                    </div>
+                    <div>
+                      <dt>Category</dt>
+                      <dd>{job.qualityScore.category ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Confidence</dt>
+                      <dd>{job.qualityScore.confidence != null ? job.qualityScore.confidence.toFixed(2) : "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Profile</dt>
+                      <dd>{job.qualityScore.processingProfile ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Enhancement</dt>
+                      <dd>{job.qualityScore.enhancementScore ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Stage</dt>
+                      <dd>{job.qualityScore.processingStage ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Pipeline</dt>
+                      <dd>{job.qualityScore.pipelineUsed ?? "—"}</dd>
+                    </div>
+                  </>
+                )}
                 {job.errorMessage && (
                   <div className="detail-full">
                     <dt>Error</dt>

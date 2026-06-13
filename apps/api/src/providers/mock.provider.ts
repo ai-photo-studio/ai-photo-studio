@@ -3,6 +3,7 @@ import type {
   ImageProvider,
   ProcessImageInput,
   ProcessImageOutput,
+  ProductPipelineRoute,
   ProductWorkflowMode,
   VehicleWorkflowMode
 } from "./provider.interface";
@@ -28,13 +29,15 @@ export class MockImageProvider implements ImageProvider {
   readonly name = "mock" as const;
 
   async processProductImage(
-    input: ProcessImageInput & { workflowMode: ProductWorkflowMode }
+    input: ProcessImageInput & { workflowMode: ProductWorkflowMode },
+    _routing?: ProductPipelineRoute
   ): Promise<ProcessImageOutput> {
     return buildOutput(this.name, "PRODUCT", input.workflowMode, input);
   }
 
   async processVehicleImage(
-    input: ProcessImageInput & { workflowMode: VehicleWorkflowMode }
+    input: ProcessImageInput & { workflowMode: VehicleWorkflowMode },
+    _routing?: ProductPipelineRoute
   ): Promise<ProcessImageOutput> {
     return buildOutput(this.name, "VEHICLE", input.workflowMode, input);
   }

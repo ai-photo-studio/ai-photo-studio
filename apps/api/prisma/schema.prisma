@@ -189,6 +189,7 @@ model Order {
   walletTransactions WalletTransaction[]
   aiJobs   AiJob[]
   processingJobs ProcessingJob[]
+  imageQualityScores ImageQualityScore[]
   statusHistory OrderStatusHistory[]
 
   @@index([customerId, createdAt])
@@ -243,6 +244,7 @@ model ProcessingJob {
 
   order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  imageQualityScores ImageQualityScore[]
 
   @@index([orderId, status])
   @@index([queueName, status])
@@ -447,6 +449,56 @@ model SampleAsset {
   package Package? @relation(fields: [packageId], references: [id])
 
   @@index([packageId, active])
+}
+
+model ImageQualityScore {
+  id                String   @id @default(cuid())
+  orderId           String
+  processingJobId   String
+  providerName      String
+  imageStorageKey   String?
+  category          String?
+  classificationConfidence Float?
+  pipelineUsed      String?
+  processingProfile String?
+  productDetected   Boolean  @default(true)
+  confidence        Float
+  processingStage   String?
+  beforeBlurScore   Float?
+  beforeBrightnessScore Float?
+  beforeContrastScore   Float?
+  beforeVisibilityScore Float?
+  beforeCropQualityScore Float?
+  beforeOverallScore Int?
+  blurScore         Float
+  brightnessScore   Float
+  contrastScore     Float
+  visibilityScore   Float
+  cropQualityScore  Float
+  overallScore      Int
+  enhancementScore  Int?
+  enhancementDelta  Int?
+  boundingBoxLeft   Int?
+  boundingBoxTop    Int?
+  boundingBoxWidth  Int?
+  boundingBoxHeight Int?
+  cropLeft          Int?
+  cropTop           Int?
+  cropRight         Int?
+  cropBottom        Int?
+  sourceWidth       Int?
+  sourceHeight      Int?
+  canvasWidth       Int?
+  canvasHeight      Int?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  processingJob ProcessingJob @relation(fields: [processingJobId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([processingJobId, createdAt])
+  @@index([providerName, createdAt])
 }
 
 model AiJob {

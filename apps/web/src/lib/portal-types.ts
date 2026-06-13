@@ -211,6 +211,23 @@ export type CustomerProcessingJob = {
   updatedAt: string;
 };
 
+export type CustomerImageQualityScore = {
+  id: string;
+  providerName: string;
+  category: string | null;
+  classificationConfidence: number | null;
+  pipelineUsed: string | null;
+  processingProfile: string | null;
+  processingStage: string | null;
+  productDetected: boolean;
+  confidence: number;
+  beforeOverallScore: number | null;
+  overallScore: number;
+  enhancementScore: number | null;
+  enhancementDelta: number | null;
+  createdAt: string;
+};
+
 export type CustomerOrderResponse = {
   id: string;
   orderNo: string;
@@ -239,6 +256,7 @@ export type CustomerOrderResponse = {
   payments: PortalOrderPayment[];
   statusHistory: CustomerOrderStatusEvent[];
   processingJobs: CustomerProcessingJob[];
+  qualityScores?: CustomerImageQualityScore[];
   downloadAllowed?: boolean;
 };
 

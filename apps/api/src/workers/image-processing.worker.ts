@@ -7,7 +7,8 @@ import { PhaseCImageProcessingQueue, type PhaseCImageProcessingPayload } from ".
 import { StorageService } from "../services/storage.service";
 import { DeliveryService } from "../services/delivery.service";
 import { ImageProcessingService } from "../services/image-processing.service";
-import { resolveVehicleWorkflowMode } from "../services/vehicle-workflow.service";
+import { ProductClassifierService } from "../services/product-classifier.service";
+import { resolveProductPipelineRoute } from "../services/product-routing.service";
 import { WalletService } from "../services/wallet.service";
 import { SubscriptionService } from "../services/subscription.service";
 import { recordWorkerCompleted, recordWorkerFailure, recordWorkerStarted, setWorkerHealthState } from "../services/worker-health.service";
@@ -39,6 +40,7 @@ export const startImageProcessingWorker = (config: AppConfig) => {
   const notifications = new NotificationService();
   const delivery = new DeliveryService(config);
   const imageProcessing = new ImageProcessingService(config);
+  const productClassifier = new ProductClassifierService(config);
   const deadLetterQueue = new PhaseCImageProcessingQueue(config);
   const walletService = new WalletService();
   const subscriptionService = new SubscriptionService();
@@ -197,12 +199,30 @@ export const startImageProcessingWorker = (config: AppConfig) => {
           mediaId: payload.mediaId
         };
 
+        const classification = await productClassifier.classify({
+          body: original.body,
+          contentType: processInput.contentType,
+          fileName: processInput.fileName
+        });
+        const pipelineRoute = resolveProductPipelineRoute(classification);
+        const routedWorkflowType = pipelineRoute.workflowType;
+
+        await prisma.processingJob.update({
+          where: { id: processingJob.id },
+          data: {
+            providerName: payload.providerName || processingJob.providerName || config.aiProvider,
+            workflowType: routedWorkflowType,
+            workflowMode: pipelineRoute.workflowMode
+          }
+        });
+
         const processed =
-          workflowType === "VEHICLE"
-            ? await imageProcessing.processVehicleImage(processInput, resolveVehicleWorkflowMode(String(workflowMode)))
+          routedWorkflowType === "VEHICLE"
+            ? await imageProcessing.processVehicleImage(processInput, pipelineRoute.workflowMode as "SHOWROOM" | "PREMIUM_ROAD" | "DARK_STUDIO" | "PLATE_BLUR", pipelineRoute)
             : await imageProcessing.processProductImage(
                 processInput,
-                workflowMode as "WHITE_BACKGROUND" | "SOLID_COLOR_BACKGROUND" | "SHADOW_ENHANCEMENT" | "PRODUCT_STUDIO"
+                pipelineRoute.workflowMode as "WHITE_BACKGROUND" | "SOLID_COLOR_BACKGROUND" | "SHADOW_ENHANCEMENT" | "PRODUCT_STUDIO",
+                pipelineRoute
               );
 
         const processedUpload = await storage.uploadProcessed({
@@ -276,6 +296,10 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             queueJobId: job.id,
             providerName: processed.providerName,
             providerRequestId: processed.providerRequestId,
+            category: classification.category,
+            classificationConfidence: classification.confidence,
+            processingProfile: pipelineRoute.processingProfile,
+            pipelineUsed: pipelineRoute.pipelineUsed,
             workflowType: processed.workflowType,
             workflowMode: processed.workflowMode,
             processedStorageKey: processedUpload.key,
@@ -283,6 +307,61 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             processedExpiresAt: processedExpiresAt.toISOString()
           }
         });
+
+        if (processed.analysis) {
+          const beforeQuality = processed.enhancement?.before;
+          const afterQuality = processed.analysis.quality;
+          const enhancementDelta = beforeQuality ? Math.round(afterQuality.overallScore - beforeQuality.overallScore) : null;
+          await prisma.imageQualityScore.create({
+            data: {
+              orderId: order.id,
+              processingJobId: processingJob.id,
+              providerName: processed.providerName,
+              imageStorageKey: processedUpload.key,
+              category: classification.category,
+              classificationConfidence: classification.confidence,
+              pipelineUsed: pipelineRoute.pipelineUsed,
+              processingProfile: pipelineRoute.processingProfile,
+              productDetected: processed.analysis.productDetected,
+              confidence: processed.analysis.confidence,
+              processingStage: processed.enhancement?.processingStage || "EXPORT",
+              beforeBlurScore: beforeQuality?.blurScore ?? null,
+              beforeBrightnessScore: beforeQuality?.brightnessScore ?? null,
+              beforeContrastScore: beforeQuality?.contrastScore ?? null,
+              beforeVisibilityScore: beforeQuality?.visibilityScore ?? null,
+              beforeCropQualityScore: beforeQuality?.cropQualityScore ?? null,
+              beforeOverallScore: beforeQuality?.overallScore ?? null,
+              blurScore: afterQuality.blurScore,
+              brightnessScore: afterQuality.brightnessScore,
+              contrastScore: afterQuality.contrastScore,
+              visibilityScore: afterQuality.visibilityScore,
+              cropQualityScore: afterQuality.cropQualityScore,
+              overallScore: afterQuality.overallScore,
+              enhancementScore: processed.enhancement?.enhancementScore ?? null,
+              enhancementDelta: enhancementDelta,
+              boundingBoxLeft: processed.analysis.boundingBox.left,
+              boundingBoxTop: processed.analysis.boundingBox.top,
+              boundingBoxWidth: processed.analysis.boundingBox.width,
+              boundingBoxHeight: processed.analysis.boundingBox.height,
+              cropLeft: processed.analysis.cropCoordinates.left,
+              cropTop: processed.analysis.cropCoordinates.top,
+              cropRight: processed.analysis.cropCoordinates.right,
+              cropBottom: processed.analysis.cropCoordinates.bottom,
+              sourceWidth: processed.analysis.sourceDimensions.width,
+              sourceHeight: processed.analysis.sourceDimensions.height,
+              canvasWidth: processed.analysis.canvasDimensions.width,
+              canvasHeight: processed.analysis.canvasDimensions.height,
+              metadata: {
+                requestId: processed.analysis.requestId,
+                label: processed.analysis.label,
+                classificationCategory: classification.category,
+                classificationConfidence: classification.confidence,
+                processingProfile: pipelineRoute.processingProfile,
+                pipelineUsed: pipelineRoute.pipelineUsed
+              }
+            }
+          });
+        }
 
         notifications.log("WHATSAPP_COMPLETED", {
           orderId: order.id,

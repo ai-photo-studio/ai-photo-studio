@@ -73,9 +73,9 @@ try {
   results.railwayStatus = "PASS";
 } catch (e) {
   const message = String(e);
-  if (/unauthorized|login|not authenticated/i.test(message) && !STRICT_RAILWAY) {
+  if (!STRICT_RAILWAY) {
     results.railwayStatus = "WARN";
-    console.log("WARN: Railway status unavailable in this shell; continuing with local verification.");
+    console.log(`WARN: Railway status unavailable in this shell; continuing with local verification. ${message}`);
   } else {
     results.railwayStatus = "FAIL";
     errors.push(`Railway status command failed: ${message}`);

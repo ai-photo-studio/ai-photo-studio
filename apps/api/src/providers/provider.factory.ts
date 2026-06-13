@@ -2,12 +2,16 @@ import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import type { AIProviderName, ImageProvider } from "./provider.interface";
 import { MockImageProvider } from "./mock.provider";
+import { LocalRembgImageProvider } from "./local-rembg.provider";
+import { LocalYoloImageProvider } from "./local-yolo.provider";
 import { PhotoroomImageProvider } from "./photoroom.provider";
 import { FalImageProvider } from "./fal.provider";
 
 const toProviderName = (value: string): AIProviderName => {
   const normalized = value.trim().toLowerCase();
-  if (normalized === "photoroom" || normalized === "fal") return normalized;
+  if (normalized === "local-yolo" || normalized === "local-rembg" || normalized === "photoroom" || normalized === "fal") {
+    return normalized;
+  }
   return "mock";
 };
 
@@ -22,6 +26,14 @@ export const createImageProvider = (config: AppConfig): ImageProvider => {
 
   if (providerName === "fal") {
     return new FalImageProvider(config.FAL_API_KEY || config.AI_PROVIDER_API_KEY);
+  }
+
+  if (providerName === "local-yolo") {
+    return new LocalYoloImageProvider(config);
+  }
+
+  if (providerName === "local-rembg") {
+    return new LocalRembgImageProvider(config);
   }
 
   if (providerName === "mock") {

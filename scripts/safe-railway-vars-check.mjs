@@ -116,8 +116,19 @@ if (storageProvider !== "mock") {
   report("R2_PUBLIC_BASE_URL", false);
 }
 
-if (aiProviderName !== "mock") {
+if (aiProviderName === "photoroom" || aiProviderName === "fal") {
   report("AI_PROVIDER_API_KEY", true);
 } else {
   report("AI_PROVIDER_API_KEY", false);
+}
+
+if (aiProviderName === "local-yolo" || aiProviderName === "local-rembg") {
+  report("BACKGROUND_API_URL", true);
+  report("PRODUCT_CLASSIFIER_URL", true);
+}
+
+if (aiProviderName === "local-yolo") {
+  report("YOLO_DETECTOR_URL", true);
+  report("REAL_ESRGAN_URL", false);
+  report("IC_LIGHT_LAB_URL", false);
 }

@@ -3,6 +3,7 @@ import { createImageProvider } from "../providers/provider.factory";
 import type {
   ImageProvider,
   ProcessImageOutput,
+  ProductPipelineRoute,
   ProductWorkflowMode,
   VehicleWorkflowMode
 } from "../providers/provider.interface";
@@ -27,21 +28,23 @@ export class ImageProcessingService {
 
   async processProductImage(
     input: ProcessImageInput,
-    workflowMode: ProductWorkflowMode
+    workflowMode: ProductWorkflowMode,
+    routing?: ProductPipelineRoute
   ): Promise<ProcessedImageResult> {
     return this.provider.processProductImage({
       ...input,
       workflowMode
-    });
+    }, routing);
   }
 
   async processVehicleImage(
     input: ProcessImageInput,
-    workflowMode: VehicleWorkflowMode
+    workflowMode: VehicleWorkflowMode,
+    routing?: ProductPipelineRoute
   ): Promise<ProcessedImageResult> {
     return this.provider.processVehicleImage({
       ...input,
       workflowMode
-    });
+    }, routing);
   }
 }

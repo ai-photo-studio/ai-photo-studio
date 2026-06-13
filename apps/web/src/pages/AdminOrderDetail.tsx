@@ -49,6 +49,14 @@ export function AdminOrderDetail() {
           <li key={job.id}>{job.operation} - {job.status} {job.errorMessage ? `(${job.errorMessage})` : ""}</li>
         ))}
       </ul>
+      <h3>Quality diagnostics</h3>
+      <ul>
+        {(data.qualityScores || []).map((score: any) => (
+          <li key={score.id}>
+            Category {score.category || "—"} | Confidence {score.classificationConfidence ?? "—"} | Profile {score.processingProfile || "—"} | Overall {score.overallScore} | Enhancement {score.enhancementScore ?? "—"} | Stage {score.processingStage || "—"}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

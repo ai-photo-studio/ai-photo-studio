@@ -8,6 +8,9 @@ const envSchema = z
     REDIS_URL: z.string().min(1),
     STORAGE_PROVIDER: z.enum(["r2", "mock"]).default("r2"),
     BACKGROUND_API_URL: z.string().optional().default(""),
+    PRODUCT_CLASSIFIER_URL: z.string().optional().default(""),
+    REAL_ESRGAN_URL: z.string().optional().default(""),
+    IC_LIGHT_LAB_URL: z.string().optional().default(""),
     WHATSAPP_VERIFY_TOKEN: z.string().min(1),
     WHATSAPP_ACCESS_TOKEN: z.string().optional().default(""),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(""),
@@ -18,6 +21,7 @@ const envSchema = z
     AI_PROVIDER_NAME: z.string().optional().default(""),
     PHOTOROOM_API_KEY: z.string().optional().default(""),
     FAL_API_KEY: z.string().optional().default(""),
+    YOLO_DETECTOR_URL: z.string().optional().default(""),
     R2_ACCOUNT_ID: z.string().optional().default(""),
     R2_ACCESS_KEY_ID: z.string().optional().default(""),
     R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
@@ -40,11 +44,11 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
         ? cfg.FAL_API_KEY || cfg.AI_PROVIDER_API_KEY
         : "";
 
-    if (!["mock", "photoroom", "fal"].includes(selectedAiProvider)) {
+    if (!["mock", "local-yolo", "local-rembg", "photoroom", "fal"].includes(selectedAiProvider)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["AI_PROVIDER"],
-        message: "AI_PROVIDER must be one of mock, photoroom, or fal"
+        message: "AI_PROVIDER must be one of mock, local-yolo, local-rembg, photoroom, or fal"
       });
     }
 
@@ -116,17 +120,73 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
       }
     }
 
-    if (selectedAiProvider !== "mock" && !providerKey) {
+    if (["photoroom", "fal"].includes(selectedAiProvider) && !providerKey) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: selectedAiProvider === "photoroom" ? ["PHOTOROOM_API_KEY"] : ["FAL_API_KEY"],
         message: `${selectedAiProvider === "photoroom" ? "PHOTOROOM_API_KEY" : "FAL_API_KEY"} is required when AI_PROVIDER=${selectedAiProvider}`
       });
     }
+
+    if (selectedAiProvider === "local-yolo" || selectedAiProvider === "local-rembg") {
+      if (!cfg.BACKGROUND_API_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BACKGROUND_API_URL"],
+          message: "BACKGROUND_API_URL is required when AI_PROVIDER uses the local pipeline"
+        });
+      } else {
+        try {
+          new URL(cfg.BACKGROUND_API_URL);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["BACKGROUND_API_URL"],
+            message: "BACKGROUND_API_URL must be a valid URL"
+          });
+        }
+      }
+
+      if (selectedAiProvider === "local-yolo" && !cfg.YOLO_DETECTOR_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["YOLO_DETECTOR_URL"],
+          message: "YOLO_DETECTOR_URL is required when AI_PROVIDER=local-yolo"
+        });
+      } else if (selectedAiProvider === "local-yolo") {
+        try {
+          new URL(cfg.YOLO_DETECTOR_URL);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["YOLO_DETECTOR_URL"],
+            message: "YOLO_DETECTOR_URL must be a valid URL"
+          });
+        }
+      }
+
+      if (!cfg.PRODUCT_CLASSIFIER_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["PRODUCT_CLASSIFIER_URL"],
+          message: "PRODUCT_CLASSIFIER_URL is required when AI_PROVIDER uses the local pipeline"
+        });
+      } else {
+        try {
+          new URL(cfg.PRODUCT_CLASSIFIER_URL);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["PRODUCT_CLASSIFIER_URL"],
+            message: "PRODUCT_CLASSIFIER_URL must be a valid URL"
+          });
+        }
+      }
+    }
   });
 
 export type AppConfig = z.infer<typeof envSchema> & {
-  aiProvider: "mock" | "photoroom" | "fal";
+  aiProvider: "mock" | "local-yolo" | "local-rembg" | "photoroom" | "fal";
   paymentProvider: "jazzcash" | "easypaisa" | "manual";
   whatsappDryRun: boolean;
   storageDryRun: boolean;
@@ -151,10 +211,9 @@ export const loadConfig = (): AppConfig => {
   const paymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
   return {
     ...cfg,
-    aiProvider: (["mock", "photoroom", "fal"].includes(selectedAiProvider) ? selectedAiProvider : "mock") as
-      | "mock"
-      | "photoroom"
-      | "fal",
+    aiProvider: (["mock", "local-yolo", "local-rembg", "photoroom", "fal"].includes(selectedAiProvider)
+      ? selectedAiProvider
+      : "mock") as "mock" | "local-yolo" | "local-rembg" | "photoroom" | "fal",
     paymentProvider: (["jazzcash", "easypaisa", "manual"].includes(paymentProvider) ? paymentProvider : "manual") as
       | "jazzcash"
       | "easypaisa"

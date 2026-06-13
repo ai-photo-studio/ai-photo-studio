@@ -4,50 +4,163 @@ import { useAuth } from "../lib/auth";
 import { usePackages } from "../lib/packages";
 import { customerApi } from "../services/customerApi";
 
-const svgData = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+const canvasData = (draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void) => {
+  if (typeof document === "undefined") return "";
+  const width = 720;
+  const height = 520;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  draw(ctx, width, height);
+  return canvas.toDataURL("image/png");
+};
 
-const sampleImage = (
+const drawProductScene = (
   label: string,
-  background: string,
-  foreground: string,
-  shape: "bottle" | "bag" | "pouch" | "leaf" | "accessory" | "circle" | "rect" = "rect",
-  mood: "clean" | "busy" = "clean"
+  palette: { bg: string; accent: string; secondary: string; surface: string },
+  variant: "beauty" | "fashion" | "agriculture" | "packaged" | "accessory"
 ) =>
-  svgData(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="${background}"/>
-          <stop offset="1" stop-color="#ffffff"/>
-        </linearGradient>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#12352b" flood-opacity=".2"/>
-        </filter>
-      </defs>
-      <rect width="720" height="520" fill="url(#bg)"/>
-      <circle cx="585" cy="90" r="82" fill="#ffffff" opacity=".48"/>
-      <circle cx="110" cy="428" r="120" fill="${foreground}" opacity=".10"/>
-      ${
-        mood === "busy"
-          ? `<g opacity=".28"><rect x="112" y="352" width="320" height="18" rx="9" fill="#8d9a90"/><rect x="520" y="326" width="102" height="22" rx="11" fill="#d1b06a"/><circle cx="184" cy="146" r="56" fill="#d4d9d5"/><circle cx="606" cy="172" r="46" fill="#f0c2cf"/></g>`
-          : ""
+  canvasData((ctx, width, height) => {
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, palette.bg);
+    gradient.addColorStop(1, "#ffffff");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    const softGlow = ctx.createRadialGradient(width * 0.76, height * 0.18, 40, width * 0.76, height * 0.18, 220);
+    softGlow.addColorStop(0, "rgba(255,255,255,0.9)");
+    softGlow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = softGlow;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "rgba(255,255,255,0.38)";
+    ctx.beginPath();
+    ctx.arc(width * 0.16, height * 0.79, 120, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = palette.secondary;
+    ctx.beginPath();
+    ctx.arc(width * 0.82, height * 0.48, 96, 0, Math.PI * 2);
+    ctx.fill();
+
+    const shadow = (x: number, y: number, w: number, h: number, radius = 24) => {
+      ctx.save();
+      ctx.shadowColor = "rgba(23, 34, 30, 0.18)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 18;
+      ctx.fillStyle = palette.surface;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, radius);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    if (variant === "beauty") {
+      shadow(194, 112, 162, 300, 28);
+      shadow(356, 272, 184, 122, 28);
+      ctx.fillStyle = palette.accent;
+      ctx.fillRect(236, 156, 34, 48);
+      ctx.fillStyle = "#fefefe";
+      ctx.fillRect(232, 126, 42, 58);
+      ctx.fillStyle = palette.accent;
+      ctx.fillRect(220, 208, 86, 184);
+      ctx.fillRect(392, 304, 144, 90);
+      ctx.beginPath();
+      ctx.ellipse(466, 350, 64, 38, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.globalAlpha = 0.38;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (variant === "fashion") {
+      shadow(220, 140, 270, 228, 28);
+      ctx.fillStyle = palette.accent;
+      ctx.beginPath();
+      ctx.moveTo(260, 160);
+      ctx.lineTo(450, 160);
+      ctx.lineTo(486, 350);
+      ctx.lineTo(224, 350);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#f8f0e6";
+      ctx.fillRect(294, 198, 120, 84);
+      ctx.strokeStyle = "rgba(255,255,255,0.72)";
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(288, 194);
+      ctx.lineTo(416, 194);
+      ctx.stroke();
+      ctx.strokeStyle = palette.secondary;
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.arc(354, 186, 22, Math.PI, 0);
+      ctx.stroke();
+    } else if (variant === "agriculture") {
+      shadow(178, 166, 310, 190, 32);
+      ctx.fillStyle = palette.accent;
+      ctx.fillRect(184, 238, 298, 92);
+      ctx.fillStyle = "#e6d2b4";
+      ctx.fillRect(214, 170, 238, 84);
+      ctx.fillStyle = "#fff";
+      for (let i = 0; i < 6; i += 1) {
+        const x = 240 + i * 34;
+        const y = 192 + (i % 2) * 18;
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.fill();
       }
-      ${
-        shape === "circle"
-          ? `<circle cx="360" cy="252" r="122" fill="${foreground}" filter="url(#shadow)"/>`
-          : shape === "bag"
-            ? `<path d="M236 180h248l-18 198H254l-18-198Zm54-34c0-30 18-52 46-52s46 22 46 52" fill="${foreground}" filter="url(#shadow)"/><path d="M298 214h124" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity=".58"/>`
-            : shape === "pouch"
-              ? `<path d="M272 156h176l24 44-18 188H266l-16-188 22-44Z" fill="${foreground}" filter="url(#shadow)"/><rect x="306" y="208" width="108" height="72" rx="18" fill="#fff" opacity=".5"/>`
-              : shape === "leaf"
-                ? `<path d="M236 316c34-98 124-164 244-178-4 128-42 212-116 258-64 40-124 18-128-80Z" fill="${foreground}" filter="url(#shadow)"/><path d="M300 348c36-56 80-102 134-140" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".38"/>`
-              : shape === "accessory"
-                  ? `<rect x="258" y="170" width="188" height="170" rx="42" fill="${foreground}" filter="url(#shadow)"/><path d="M300 244h120c16 0 28 12 28 28 0 18-14 32-32 32h-72c-26 0-42 14-54 32" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".56"/><circle cx="434" cy="308" r="18" fill="#fff" opacity=".56"/><circle cx="390" cy="220" r="14" fill="#fff" opacity=".44"/>`
-                    : `<rect x="245" y="135" width="230" height="250" rx="42" fill="${foreground}" filter="url(#shadow)"/><rect x="288" y="174" width="144" height="72" rx="24" fill="#fff" opacity=".55"/>`
-      }
-      <text x="42" y="72" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#17221e">${label}</text>
-    </svg>
-  `);
+      ctx.fillStyle = palette.secondary;
+      ctx.beginPath();
+      ctx.arc(494, 302, 54, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (variant === "packaged") {
+      shadow(226, 132, 232, 258, 32);
+      ctx.fillStyle = palette.accent;
+      ctx.beginPath();
+      ctx.moveTo(248, 156);
+      ctx.lineTo(430, 156);
+      ctx.lineTo(454, 374);
+      ctx.lineTo(224, 374);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.roundRect(286, 222, 112, 58, 18);
+      ctx.fill();
+      ctx.strokeStyle = palette.secondary;
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(282, 198);
+      ctx.lineTo(418, 198);
+      ctx.stroke();
+    } else {
+      shadow(230, 166, 198, 170, 34);
+      ctx.fillStyle = palette.accent;
+      ctx.beginPath();
+      ctx.roundRect(252, 188, 184, 124, 34);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.strokeStyle = palette.secondary;
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(296, 248);
+      ctx.lineTo(392, 248);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(424, 306, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(382, 210, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = "rgba(23,34,30,0.92)";
+    ctx.font = "700 34px Arial, sans-serif";
+    ctx.fillText(label, 42, 72);
+  });
 
 const sellerSegments = [
   { title: "Daraz", copy: "Marketplace-ready listing photos that stand out in crowded search results." },
@@ -61,31 +174,31 @@ const productExamples = [
   {
     title: "Beauty",
     subtitle: "Skincare and cosmetic photos with a premium shelf-ready look.",
-    image: sampleImage("Beauty", "#f8d9e5", "#d14e83", "bottle", "busy")
+    image: drawProductScene("Beauty", { bg: "#f8d9e5", accent: "#d14e83", secondary: "#f4a8bf", surface: "#fff8fb" }, "beauty")
   },
   {
     title: "Fashion",
     subtitle: "Apparel and accessory visuals that feel editorial, not flat.",
-    image: sampleImage("Fashion", "#efe5d5", "#8f5f3d", "bag")
+    image: drawProductScene("Fashion", { bg: "#efe5d5", accent: "#8f5f3d", secondary: "#d7b08d", surface: "#fffaf5" }, "fashion")
   },
   {
     title: "Agriculture",
     subtitle: "Fresh farm and crop product imagery for supply sellers.",
-    image: sampleImage("Agriculture", "#dff1da", "#3c8648", "leaf")
+    image: drawProductScene("Agriculture", { bg: "#dff1da", accent: "#3c8648", secondary: "#a8d48f", surface: "#f7fff4" }, "agriculture")
   },
   {
     title: "Packaged Goods",
     subtitle: "Retail packs, pouches, and boxes made cleaner for ecommerce.",
-    image: sampleImage("Packaged", "#fff0c7", "#cf9b24", "pouch")
+    image: drawProductScene("Packaged Goods", { bg: "#fff0c7", accent: "#cf9b24", secondary: "#edcf6a", surface: "#fffaf0" }, "packaged")
   },
   {
     title: "Electronics Accessories",
     subtitle: "Cables, chargers, and small tech add-ons with crisp edges.",
-    image: sampleImage("Accessories", "#dcecff", "#2f6fb9", "accessory")
+    image: drawProductScene("Accessories", { bg: "#dcecff", accent: "#2f6fb9", secondary: "#8ab8e8", surface: "#f5fbff" }, "accessory")
   }
 ];
 
-const roadmapNow = ["background removal", "white background", "transparent PNG"];
+const roadmapNow = ["background removal", "white background"];
 const roadmapNext = ["flat lay", "lifestyle scenes", "virtual models", "product video"];
 
 const faqs = [
@@ -261,9 +374,9 @@ export function HomePage() {
       <section className="landing-hero">
         <div className="landing-hero-copy">
           <p className="eyebrow">AI Product Photo Studio for Ecommerce Sellers</p>
-          <h1>Upload one product photo and turn it into a better selling image.</h1>
+          <h1>Upload one product photo and get a cleaner, seller-ready image.</h1>
           <p className="section-lead">
-            Turn basic product photos into clean marketplace-ready images with AI-powered background removal.
+            Made for Daraz, Shopify, WooCommerce, Facebook, and WhatsApp sellers who want better product photos without a studio setup.
           </p>
           <div className="hero-actions">
             <label className="button button-upload">
@@ -313,10 +426,8 @@ export function HomePage() {
               onDragLeave={() => setDragActive(false)}
               onDrop={onDrop}
             >
-              <p className="upload-dropzone-title">{dragActive ? "Drop the image here" : "Drag and drop a product photo"}</p>
-              <p className="upload-dropzone-copy">
-                PNG, JPG, or WebP. Free preview is checked first, then the product image is cleaned for the seller view.
-              </p>
+              <p className="upload-dropzone-title">{dragActive ? "Drop the product photo here" : "Drag and drop a product photo"}</p>
+              <p className="upload-dropzone-copy">PNG, JPG, or WebP. See a preview first, then unlock the full image with credits.</p>
               <div className="button-row">
                 <label className="button button-secondary">
                   Choose file
@@ -338,13 +449,13 @@ export function HomePage() {
                 <span>Before</span>
                 <img src={heroBeforeImage} alt="Original ecommerce product photo" />
                 <h4>Raw upload</h4>
-                <p>Messy table light, uneven background, and a photo that needs cleanup.</p>
+                <p>Untouched seller photo with clutter, shadows, or an uneven background.</p>
               </article>
               <article className="compare-card compare-card-after">
                 <span>After</span>
                 <img src={heroAfterImage} alt="Clean ecommerce product photo after transformation" />
                 <h4>Seller-ready result</h4>
-                <p>Cleaner edges, stronger contrast, and a product image that feels ready to list.</p>
+                <p>Cleaner edges, stronger framing, and a product image ready to list.</p>
               </article>
             </div>
             {(sourcePreview || resultPreview) && (
@@ -404,7 +515,7 @@ export function HomePage() {
       <section className="section-card roadmap-teaser">
         <div className="section-heading">
           <p className="eyebrow">Product studio</p>
-          <h2>Background removal is the foundation. More creative styles follow.</h2>
+          <h2>Start with cleanup now. Creative studio styles follow on the roadmap.</h2>
         </div>
         <div className="roadmap-grid">
           <article className="roadmap-card">
@@ -429,24 +540,20 @@ export function HomePage() {
       <section className="section-card metrics-band">
         <div>
           <p className="eyebrow">How it works</p>
-          <h2>Upload, transform, and keep the buying flow simple.</h2>
+          <h2>Upload, preview, and keep the buying flow simple.</h2>
         </div>
         <div className="metric-strip">
           <article>
             <strong>1</strong>
-            <span>Upload a product photo or send one through WhatsApp later.</span>
+            <span>Upload a product photo and see the first result quickly.</span>
           </article>
           <article>
             <strong>2</strong>
-            <span>Preview the cleaned result before you spend credits.</span>
+            <span>Preview the cleaned result before spending credits.</span>
           </article>
           <article>
             <strong>3</strong>
             <span>Download the final image or return for more styles.</span>
-          </article>
-          <article>
-            <strong>4</strong>
-            <span>Return for more styles or try advanced studio outputs.</span>
           </article>
         </div>
       </section>
@@ -483,7 +590,7 @@ export function HomePage() {
                 <p>{pkg.description || "A credit bundle for polished ecommerce imagery."}</p>
                 <ul className="feature-list">
                   <li>{pkg.creditsIncluded} included credits</li>
-                  <li>Background removal and white background today</li>
+                <li>Background removal and white background today</li>
                   <li>More studio styles: flat lay, lifestyle, model, video</li>
                 </ul>
                 <Link to="/signup" className="button button-block">
@@ -540,7 +647,7 @@ export function HomePage() {
           </div>
           <div>
             <h3>Studio styles</h3>
-            <p>Background removal, white background, flat lay, lifestyle, virtual models, and product video are all approved roadmap priorities.</p>
+            <p>Background removal and white background are live now. Flat lay, lifestyle scenes, virtual models, and product video are approved roadmap priorities.</p>
           </div>
         </div>
       </section>

@@ -446,6 +446,7 @@ async listCustomers(params: ListCustomersParams) {
         package: true,
         payments: { orderBy: { createdAt: "desc" } },
         images: true,
+        imageQualityScores: { orderBy: { createdAt: "desc" }, take: 5 },
         aiJobs: { orderBy: { createdAt: "desc" } },
         processingJobs: {
           orderBy: { createdAt: "desc" },
@@ -467,6 +468,7 @@ async listCustomers(params: ListCustomersParams) {
       payment: order.payments[0] || null,
       files: order.images,
       images: order.images,
+      qualityScores: order.imageQualityScores,
       jobs: order.processingJobs,
       aiJobs: order.aiJobs,
       statusHistory: order.statusHistory,
@@ -504,7 +506,8 @@ async listCustomers(params: ListCustomersParams) {
               package: true
             }
           },
-          orderItem: true
+          orderItem: true,
+          imageQualityScores: { orderBy: { createdAt: "desc" }, take: 1 }
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -513,7 +516,25 @@ async listCustomers(params: ListCustomersParams) {
       prisma.processingJob.count({ where })
     ]);
 
-    return { items, total, page, limit };
+    return {
+      items: items.map((job) => ({
+        ...job,
+        qualityScore: job.imageQualityScores[0]
+          ? {
+              overallScore: job.imageQualityScores[0].overallScore,
+              enhancementScore: job.imageQualityScores[0].enhancementScore,
+              processingStage: job.imageQualityScores[0].processingStage,
+              category: job.imageQualityScores[0].category,
+              confidence: job.imageQualityScores[0].classificationConfidence,
+              processingProfile: job.imageQualityScores[0].processingProfile,
+              pipelineUsed: job.imageQualityScores[0].pipelineUsed
+            }
+          : null
+      })),
+      total,
+      page,
+      limit
+    };
   }
 
   async retryOrder(id: string) {
