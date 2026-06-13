@@ -29,6 +29,7 @@ apps/api/generated/
 *.audit.md
 AI_code_audit_report.md
 AI_IMPLEMENTATION_INDEX.md
+AI_LOCAL_AI_PIPELINE.md
 MASTER_*.md
 railway-env.txt
 .env.local

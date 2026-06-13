@@ -76,7 +76,8 @@
 - Phase 1.5 implementation progress: 100%
 - Phase 2 (WhatsApp): 0%
 - Test Account Mode: 100%
-- Overall roadmap completion: 45%
+- Local AI Pipeline: 25%
+- Overall roadmap completion: 50%
 
 ## Recent Changes
 
