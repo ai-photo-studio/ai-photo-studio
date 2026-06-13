@@ -106,7 +106,11 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         }
       });
 
-      const processingCreditCost = 1;
+      const billingReservation =
+        (payload as PhaseCImageProcessingPayload & { billingReservation?: PhaseCImageProcessingPayload["billingReservation"] }).billingReservation ??
+        ((processingJob.payload as Record<string, unknown> | null)?.billingReservation as PhaseCImageProcessingPayload["billingReservation"] | undefined) ??
+        null;
+      const reservationReferenceId = billingReservation?.referenceId || processingJob.id;
       let walletReservation:
         | {
             walletId: string;
@@ -117,11 +121,19 @@ export const startImageProcessingWorker = (config: AppConfig) => {
       let activeSubscriptionId: string | null = null;
 
       try {
-        if (order.userId) {
+        if (billingReservation?.type === "WALLET") {
+          walletReservation = {
+            walletId: billingReservation.walletId,
+            transactionId: billingReservation.transactionId,
+            amount: billingReservation.amount
+          };
+        } else if (billingReservation?.type === "SUBSCRIPTION") {
+          activeSubscriptionId = billingReservation.subscriptionId;
+        } else if (order.userId) {
           const wallet = await walletService.getOrCreateWallet(order.userId);
           walletReservation = await walletService.reserveCredits({
             walletId: wallet.id,
-            amount: processingCreditCost,
+            amount: 1,
             orderId: order.id,
             paymentId: order.payments[0]?.id,
             referenceType: "processing_job",
@@ -145,7 +157,7 @@ export const startImageProcessingWorker = (config: AppConfig) => {
           if (activeSubscription) {
             await subscriptionService.reserveUsage({
               subscriptionId: activeSubscription.id,
-              amount: processingCreditCost,
+              amount: 1,
               referenceType: "processing_job",
               referenceId: processingJob.id,
               note: `Reserved usage for order ${order.orderNo}`
@@ -242,7 +254,7 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             orderId: order.id,
             paymentId: order.payments[0]?.id,
             referenceType: "processing_job",
-            referenceId: processingJob.id,
+            referenceId: reservationReferenceId,
             note: `Settled after completion for order ${order.orderNo}`
           });
         }
@@ -250,9 +262,9 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         if (activeSubscriptionId) {
           await subscriptionService.settleUsage({
             subscriptionId: activeSubscriptionId,
-            amount: processingCreditCost,
+            amount: 1,
             referenceType: "processing_job",
-            referenceId: processingJob.id,
+            referenceId: reservationReferenceId,
             note: `Settled usage after completion for order ${order.orderNo}`
           });
         }
@@ -304,7 +316,7 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             orderId: order.id,
             paymentId: order.payments[0]?.id,
             referenceType: "processing_job",
-            referenceId: processingJob.id,
+            referenceId: reservationReferenceId,
             note: `Released after failure for order ${order.orderNo}`,
             metadata: {
               error: error instanceof Error ? error.message : String(error)
@@ -315,9 +327,9 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         if (activeSubscriptionId) {
           await subscriptionService.releaseUsage({
             subscriptionId: activeSubscriptionId,
-            amount: processingCreditCost,
+            amount: 1,
             referenceType: "processing_job",
-            referenceId: processingJob.id,
+            referenceId: reservationReferenceId,
             note: `Released usage after failure for order ${order.orderNo}`
           });
         }

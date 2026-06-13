@@ -12,6 +12,14 @@ import { AdminPackagesPage } from "./pages/AdminPackagesPage";
 import { AdminPaymentsPage } from "./pages/AdminPaymentsPage";
 import { AdminSubscriptionsPage } from "./pages/AdminSubscriptionsPage";
 import { AdminWalletsPage } from "./pages/AdminWalletsPage";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { AdminJobsPage } from "./pages/AdminJobsPage";
+import { AdminLoginPage } from "./pages/AdminLoginPage";
+import { AdminLogsPage } from "./pages/AdminLogsPage";
+import { AdminProvidersPage } from "./pages/AdminProvidersPage";
+import { AdminSettingsPage } from "./pages/AdminSettingsPage";
+import { AdminStoragePage } from "./pages/AdminStoragePage";
+import { AdminSystemPage } from "./pages/AdminSystemPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PricingPage } from "./pages/PricingPage";
@@ -40,15 +48,24 @@ export function App() {
           <Route path="account" element={<AccountPage />} />
         </Route>
       </Route>
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="payments" element={<AdminPaymentsPage />} />
-        <Route path="wallets" element={<AdminWalletsPage />} />
-        <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
-        <Route path="packages" element={<AdminPackagesPage />} />
-        <Route path="orders" element={<AdminOrders />} />
-        <Route path="orders/:id" element={<AdminOrderDetail />} />
-        <Route path="failed-jobs" element={<AdminFailedJobs />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route element={<AdminLayout />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/orders" element={<AdminOrders />} />
+        <Route path="/admin/orders/:id" element={<AdminOrderDetail />} />
+        <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+        <Route path="/admin/wallets" element={<AdminWalletsPage />} />
+        <Route path="/admin/subscriptions" element={<AdminSubscriptionsPage />} />
+        <Route path="/admin/packages" element={<AdminPackagesPage />} />
+        <Route path="/admin/jobs" element={<AdminJobsPage />} />
+        <Route path="/admin/providers" element={<AdminProvidersPage />} />
+        <Route path="/admin/storage" element={<AdminStoragePage />} />
+        <Route path="/admin/logs" element={<AdminLogsPage />} />
+        <Route path="/admin/system" element={<AdminSystemPage />} />
+        <Route path="/admin/settings" element={<AdminSettingsPage />} />
+        <Route path="/admin/failed-jobs" element={<AdminFailedJobs />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

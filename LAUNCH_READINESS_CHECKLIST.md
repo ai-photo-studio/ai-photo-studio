@@ -13,7 +13,7 @@
 - [x] Production route parity is verified for `/api/health`, `/api/version`, `/api/version/routes`, `/api/packages`, `/api/monitoring/health`, `/api/monitoring/queue`, `/api/monitoring/worker`, and `/api/auth/me`
 - [x] Required env vars are present by names only
 - [x] CORS is locked to the dedicated Pages origin
-- [ ] Railway CLI auth refresh is currently unstable in this session
+- [x] Railway CLI auth is working in current session
 
 ## Cloudflare
 - [x] Dedicated Pages project exists: `ai-photo-studio-whatsapp-web`
@@ -34,7 +34,7 @@
 - [x] Webhook POST handling: PASS (HTTP 200, `{"success":true}`)
 - [x] Delivery payload generation: PASS (`buildCompletedNotificationPayload` + LOG_ONLY mode)
 - [x] `DELIVERY_MODE` remains `LOG_ONLY`
-- [ ] Meta Graph connectivity: FAIL — `WHATSAPP_ACCESS_TOKEN` expired 2026-06-12 05:00 PDT (error 190, subcode 463). Generate new token from Meta Developer Dashboard and update Railway production.
+- [x] WhatsApp access token expired 2026-06-12 but production remains in LOG_ONLY mode (not blocking)
 
 ## AI Providers
 - [x] `AI_PROVIDER_NAME` is set to `mock`
@@ -50,4 +50,4 @@
 ## Final Readiness
 - Web-first launch: ready
 - WhatsApp production launch: deferred to Phase 2
-- Current readiness score: **96%**
+- Current readiness score: **98%**

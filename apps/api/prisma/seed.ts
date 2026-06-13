@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/services/auth.service";
 
 const prisma = new PrismaClient();
 
@@ -132,6 +133,23 @@ async function main() {
         publicUrl: null
       }
     });
+  }
+
+  const adminCount = await prisma.adminUser.count();
+  if (adminCount === 0) {
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+    const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim();
+    if (bootstrapEmail && bootstrapPassword) {
+      await prisma.adminUser.create({
+        data: {
+          email: bootstrapEmail,
+          passwordHash: hashPassword(bootstrapPassword),
+          name: process.env.ADMIN_BOOTSTRAP_NAME?.trim() || "Super Admin",
+          role: "SUPER_ADMIN",
+          isActive: true
+        }
+      });
+    }
   }
 }
 

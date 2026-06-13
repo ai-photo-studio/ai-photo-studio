@@ -7,8 +7,8 @@ export function PublicLayout() {
         <Link to="/" className="brand">
           <span className="brand-mark">AI</span>
           <span>
-            <strong>Photo Studio</strong>
-            <small>WhatsApp-first product imagery</small>
+            <strong>Product Photo Studio</strong>
+            <small>AI product photography for ecommerce sellers</small>
           </span>
         </Link>
         <nav className="site-nav" aria-label="Primary">
@@ -31,8 +31,8 @@ export function PublicLayout() {
       </main>
       <footer className="site-footer">
         <div>
-          <strong>AI Photo Studio WhatsApp</strong>
-          <p>Public customer website foundation for a WhatsApp-led product photography workflow.</p>
+          <strong>AI Product Photo Studio on WhatsApp</strong>
+          <p>Public customer website for ecommerce product photography, starting with background removal and growing into the approved studio roadmap.</p>
         </div>
         <div className="footer-links">
           <Link to="/pricing">Pricing</Link>

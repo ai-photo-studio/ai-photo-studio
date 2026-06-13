@@ -3,7 +3,8 @@ import type {
   CustomerOrderResponse,
   CustomerPaymentsResponse,
   CustomerSubscriptionResponse,
-  CustomerWalletResponse
+  CustomerWalletResponse,
+  WebPreviewQuotaResponse
 } from "../lib/portal-types";
 
 type PaymentRequestInput = {
@@ -22,6 +23,12 @@ type WebUploadInput = {
   bodyBase64: string;
   workflowType: "PRODUCT" | "VEHICLE";
   workflowMode: string;
+};
+
+type PreviewClaimInput = {
+  fileName: string;
+  contentType: string;
+  previewClientId?: string;
 };
 
 type CreateOrderResponse = {
@@ -77,6 +84,15 @@ export const customerApi = {
       token
     ),
   order: (orderNo: string, token?: string) => apiRequest<CustomerOrderResponse>(`/api/orders/${orderNo}`, {}, token),
+  claimWebPreview: (token: string | undefined, input: PreviewClaimInput) =>
+    apiRequest<WebPreviewQuotaResponse>(
+      "/api/previews/web",
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      token
+    ),
   uploadOrderImage: (token: string, orderNo: string, input: WebUploadInput) =>
     apiRequest<{
       orderNo: string;

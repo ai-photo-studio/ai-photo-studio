@@ -69,6 +69,14 @@ enum JobStatus {
   DEAD_LETTER
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+  FINANCE
+  SUPPORT
+  READ_ONLY
+}
+
 model Customer {
   id             String   @id @default(cuid())
   whatsappNumber String   @unique
@@ -79,6 +87,57 @@ model Customer {
 
   orders Order[]
   user   User?   @relation("CustomerUser")
+}
+
+model AdminUser {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String?
+  role         AdminRole   @default(READ_ONLY)
+  isActive     Boolean     @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions AdminSession[]
+  auditLogs AdminAuditLog[]
+
+  @@index([role, isActive])
+}
+
+model AdminSession {
+  id               String    @id @default(cuid())
+  adminUserId      String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+  @@index([revokedAt, expiresAt])
+}
+
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  adminUserId String?
+  action       String
+  entityType   String?
+  entityId     String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  adminUser AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([adminUserId, createdAt])
 }
 
 model User {

@@ -1,9 +1,11 @@
 import "dotenv/config";
 import { execFile as execFileCb } from "node:child_process";
+import path from "node:path";
 import { promisify } from "node:util";
 import express from "express";
 import { loadConfig } from "./config/env";
 import { createOrderRouter } from "./routes/order.routes";
+import { createPreviewRouter } from "./routes/preview.routes";
 import { createPaymentRouter } from "./routes/payment.routes";
 import { createCustomerRouter } from "./routes/customer.routes";
 import { createWhatsAppRouter } from "./routes/whatsapp.routes";
@@ -11,6 +13,7 @@ import { createAdminRouter } from "./routes/admin.routes";
 import { createAuthRouter } from "./routes/auth.routes";
 import { createPackageRouter } from "./routes/package.routes";
 import { createMonitoringRouter } from "./routes/monitoring.routes";
+import { createAdminAuthRouter } from "./routes/admin-auth.routes";
 import { AuthController } from "./controllers/auth.controller";
 import { PackageController } from "./controllers/package.controller";
 import { MonitoringController } from "./controllers/monitoring.controller";
@@ -21,11 +24,13 @@ import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
 import { startImageProcessingWorker } from "./workers/image-processing.worker";
 import { runCleanupOnce } from "./workers/cleanup.worker";
+import { AdminAuthService, normalizeAdminRole } from "./services/admin-auth.service";
 
 const execFile = promisify(execFileCb);
 
 const applyPendingMigrations = async () => {
-  const { stdout, stderr } = await execFile("npx", ["prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"], {
+  const schemaPath = path.join(process.cwd(), "apps", "api", "prisma", "schema.prisma");
+  const { stdout, stderr } = await execFile("npx", ["prisma", "migrate", "deploy", "--schema", schemaPath], {
     cwd: process.cwd(),
     env: process.env,
     maxBuffer: 10 * 1024 * 1024
@@ -49,6 +54,17 @@ const bootstrap = async () => {
   if (isRailwayProduction) {
     await applyPendingMigrations();
   }
+  const adminAuth = new AdminAuthService(config);
+  await adminAuth
+    .bootstrapFirstAdmin({
+      email: process.env.ADMIN_BOOTSTRAP_EMAIL || "",
+      password: process.env.ADMIN_BOOTSTRAP_PASSWORD || "",
+      name: process.env.ADMIN_BOOTSTRAP_NAME || "Super Admin",
+      role: normalizeAdminRole(process.env.ADMIN_BOOTSTRAP_ROLE || "SUPER_ADMIN")
+    })
+    .catch((error) => {
+      logger.warn("Admin bootstrap skipped", { error: toErrorMessage(error) });
+    });
   const app = express();
   const authController = new AuthController(config);
   const packageController = new PackageController();
@@ -87,6 +103,7 @@ const bootstrap = async () => {
           { name: "auth-refresh", path: "/api/auth/refresh" },
           { name: "auth-me", path: "/api/auth/me" },
           { name: "packages", path: "/api/packages" },
+          { name: "previews-web", path: "/api/previews/web" },
           { name: "orders-create", path: "/api/orders" },
           { name: "orders-read", path: "/api/orders/:orderNo" },
           { name: "orders-images", path: "/api/orders/:orderNo/images" },
@@ -96,10 +113,15 @@ const bootstrap = async () => {
           { name: "monitoring-queue", path: "/api/monitoring/queue" },
           { name: "monitoring-worker", path: "/api/monitoring/worker" },
           { name: "admin-dashboard", path: "/api/admin/dashboard" },
+          { name: "admin-auth-login", path: "/api/admin/auth/login" },
+          { name: "admin-auth-logout", path: "/api/admin/auth/logout" },
+          { name: "admin-auth-me", path: "/api/admin/auth/me" },
+          { name: "admin-auth-refresh", path: "/api/admin/auth/refresh" },
           { name: "admin-stats", path: "/api/admin/stats" },
           { name: "admin-orders", path: "/api/admin/orders" },
           { name: "admin-jobs", path: "/api/admin/jobs" },
-          { name: "admin-order-detail", path: "/api/admin/orders/:id" }
+          { name: "admin-order-detail", path: "/api/admin/orders/:id" },
+          { name: "admin-customers", path: "/api/admin/customers" }
         ]
       }
     });
@@ -113,10 +135,12 @@ const bootstrap = async () => {
   app.get("/api/monitoring/worker", monitoringController.worker);
 
   app.use("/api", createWhatsAppRouter(config));
+  app.use("/api", createPreviewRouter(config));
   app.use("/api", createOrderRouter(config));
   app.use("/api", createPaymentRouter(config));
   app.use("/api", createCustomerRouter(config));
   app.use("/api", createAdminRouter(config));
+  app.use("/api", createAdminAuthRouter(config));
   app.use("/api", createAuthRouter(config));
   app.use("/api", createPackageRouter(config));
   app.use("/api", createMonitoringRouter(config));

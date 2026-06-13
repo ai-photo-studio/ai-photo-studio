@@ -15,9 +15,9 @@ export function PricingPage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Pricing</p>
-        <h1>Choose a package and get started.</h1>
+        <h1>Choose a credit bundle and unlock better product photos.</h1>
         <p className="section-lead">
-          The packages below come straight from the live API. Checkout is intentionally deferred for the next phase.
+          The packages below come straight from the live API. Credits power background removal now and the broader studio roadmap next.
         </p>
       </div>
 
@@ -42,7 +42,7 @@ export function PricingPage() {
                 <p className="price">
                   {pkg.currency} {pkg.price}
                 </p>
-                <p>{pkg.description || "A package designed for the customer website foundation phase."}</p>
+                <p>{pkg.description || "A credit bundle for ecommerce product photography."}</p>
                 {features.length > 0 && (
                   <ul className="feature-list">
                     {features.slice(0, 5).map((feature) => (

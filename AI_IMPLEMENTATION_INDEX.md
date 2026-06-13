@@ -1,110 +1,103 @@
 # AI Implementation Index
 
-## Project Scope Guard
-- `npm run scope:check`
-- `npm run push:safe`
-- `npm run railway:check`
-- `npm run r2:check`
+## Canonical Files
 
-Railway project binding:
-- Project name: `AI Photo Studio WhatsApp`
-- Project ID: `ad62f340-fcfd-4989-b5bb-18753b28d8c8`
-- Environment: `production`
-- Environment ID: `13228f5e-8af5-4f5e-b57e-b1dfccd567ec`
-- R2 account: `85f6a6181b4653c2a45e69cb7ce8a474`
-- R2 bucket: `ai-photo-studio-whatsapp-r2`
-- Railway linked service: `api`
-- Required Railway services: `api`, `postgres`, `redis`
+- `MASTER_PRODUCT_VISION.md`
+- `MASTER_CUSTOMER_JOURNEY.md`
+- `MASTER_PRICING_MODEL.md`
+- `MASTER_FEATURE_ROADMAP.md`
+- `AI_code_audit_report.md`
+- `AI_IMPLEMENTATION_INDEX.md`
 
-Deployment readiness snapshot:
-- Scope check passes for the current repository remote and branch.
-- Phase A web customer foundation is present and verified in the API source tree.
-- Phase B public customer website is present in the Vite frontend and uses the live packages/auth APIs.
-- Phase C backend foundation is present for order intake, queueing, and admin monitoring.
-- Phase D WhatsApp media intake downloads, validates, stores, and queues original files.
-- Phase E AI provider integration routes processed images through a configurable provider abstraction.
-- Phase F commercial readiness now adds wallets, payments, packages, and subscriptions.
-- Phase G customer commercial UI adds wallet, payments, and subscription pages plus admin commercial screens and a production readiness dashboard.
-- Phase H adds deployment validation hooks, explicit monitoring endpoints, launch readiness documentation, and a production delivery payload adapter.
-- Railway production route parity is now verified on the live api service, including `GET /api/version/routes`, `GET /api/packages`, `GET /api/monitoring/health`, `GET /api/monitoring/queue`, `GET /api/monitoring/worker`, and `GET /api/auth/me`.
-- Prisma schema includes the `User` model, optional `Order.userId` relation, `OrderItem`, `ProcessingJob`, and `OrderStatusHistory`.
-- Orders store original and processed file metadata, URLs, and retention timestamps.
-- Auth endpoints are present: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.
-- Route registry endpoint is present: `GET /api/version/routes` returns the mounted API paths without secrets.
-- JWT auth middleware, CORS origin allow-list, and in-memory rate limiting are wired into the API bootstrap.
-- Public package listing is available at `GET /api/packages`.
-- Payment endpoints now include checkout creation, manual proof upload, webhook receipt, and order payment status checks.
-- Admin endpoints now include paginated payments, wallets, subscriptions, packages, orders, jobs, and stats.
-- BullMQ queue scaffolding exists for the `image-processing` queue and dead-letter path.
-- WhatsApp image intake now downloads media, validates image type and size, stores originals in R2, and creates processing jobs.
-- Processing worker now calls the configured AI provider abstraction, uploads the processed result, and persists delivery URLs on the order.
-- Cloudflare R2 upload abstraction exposes `uploadOriginal()`, `uploadProcessed()`, and `generateDownloadUrl()`.
-- Admin monitoring includes paginated `/admin/orders`, `/admin/jobs`, `/admin/payments`, `/admin/wallets`, `/admin/subscriptions`, `/admin/stats`, and detailed `/admin/orders/:id`.
-- Monitoring endpoints now include `/api/monitoring/health`, `/api/monitoring/queue`, and `/api/monitoring/worker`.
-- Customer commercial APIs now expose `/api/me/wallet`, `/api/me/payments`, and `/api/me/subscription` for the authenticated web client.
-- Prisma migration `20260611000003_phase_f_wallet_payments` exists in `apps/api/prisma/migrations`.
-- `npm run prisma:validate -w apps/api` passes and `npm run build` passes for both API and web workspaces.
-- The web app has a Cloudflare Pages SPA fallback via `apps/web/public/_redirects` and a Pages config at `apps/web/wrangler.toml`.
-- The actual frontend source lives in `apps/web`, and the intended deployment target is Cloudflare Pages via project `ai-photo-studio-whatsapp-web`.
-- Railway does not currently host a frontend service; it only serves `api` and `background-remover`.
-- Cloudflare Pages deployment is live and verified. Account: `gisupp@gmail.com` (ID: `85f6a6181b4653c2a45e69cb7ce8a474`).
-- Live Cloudflare Pages production URL: `https://ai-photo-studio-whatsapp-web.pages.dev` (latest deployment: `https://e100a3ee.ai-photo-studio-whatsapp-web.pages.dev`)
-- Frontend API binding is production-safe: `apps/web/src/lib/api.ts` prefers `VITE_API_URL`, then `VITE_API_BASE_URL`, and falls back to the Railway production API in production builds.
-- Railway production CORS is now locked to the Pages origin via `ALLOWED_ORIGINS=https://ai-photo-studio-whatsapp-web.pages.dev`.
-- Phase Q web launch adds the protected `/orders` customer workspace, web image upload to R2, queue handoff, and live status/download tracking. Web checkout flow: payment request, manual proof, wallet approval. Admin operations: approve/reject payments, view wallets/orders/jobs/downloads. All 16 frontend routes PASS, 6/6 backend PASS. WhatsApp deferred to Phase 2. Launch readiness: 100%.
-- Meta connectivity diagnosis: ACCESS_TOKEN expired 2026-06-12 05:00 PDT (error 190, subcode 463). WABA/Phone Number ID are correctly configured. Webhook GET+POST both PASS (HTTP 200). DELIVERY_MODE=LOG_ONLY keeps web launch unblocked. Resolution: generate new Meta access token and refresh in Railway production.
-- WhatsApp is now Phase 2 for launch planning, and `DELIVERY_MODE` stays `LOG_ONLY` until Meta connectivity is explicitly resolved.
-- Launch readiness improved after the dedicated Pages deployment and CORS fix; current blockers are Meta Graph connectivity and the optional load-test baseline.
-- Phase P validation: WhatsApp env values are SET, webhook verification PASS, delivery payload PASS, AI provider PASS (`mock`), Meta connectivity FAIL. Keep `DELIVERY_MODE=LOG_ONLY` until Meta connectivity is confirmed.
-- Phase M (Final Production Readiness) completed. CORS validation: returns the dedicated Pages origin `https://ai-photo-studio-whatsapp-web.pages.dev`. WhatsApp env: verify token SET, access token SET, phone number ID SET. AI provider: `mock`. Synthetic load test: local Redis v3 incompatible with BullMQ v5 (requires >= 5.0.0). Production Railway Redis confirmed compatible and running. Smoke tests: 7/7 frontend routes PASS, 6/6 backend endpoints PASS.
-- Launch readiness is documented in `LAUNCH_READINESS_CHECKLIST.md` and `docs/12-LOAD-TEST-PLAN.md`.
-- Railway API deployment remains separate from the frontend and is not migrated to Cloudflare Workers.
-- Railway deployment is controlled from the repo-root `railway.json` so the api service boots the same `tsx` source entrypoint from the monorepo root.
-- WhatsApp customer flow, admin auth, manual payment flow, and R2 flow remain in place.
-- Customer dashboard shell remains deferred, but customer wallet, payment, and subscription pages are now live in the web app alongside checkout request and proof tracking.
-- The admin commercial dashboard is available for operations, including payment approvals, wallet ledgers, subscription usage, and package visibility.
-- Final delivery notifications now use a formal payload builder and respect `DELIVERY_MODE=LOG_ONLY|WHATSAPP` with a log-only default.
+## Project Identity
 
-## Phase A + B + C + D + E + F + G Summary
-- Web user model fields: `email`, `passwordHash`, `name`, optional `customerId`
-- Order linkage: `Order.userId` optional relation to `User`
-- Auth endpoints: register, login, refresh, and me
-- JWT auth middleware for web users
-- CORS origin allow-list via `ALLOWED_ORIGINS`
-- Simple in-memory rate limiting
-- Public packages endpoint
-- Public customer site pages: home, pricing, signup, login
-- Protected account shell with persisted JWT session
-- Order pipeline tables: `orders`, `order_items`, `processing_jobs`, `order_status_history`
-- Order status lifecycle now includes `QUEUED` and `DELIVERED`
-- Queue framework: BullMQ `image-processing` queue with retry and dead-letter handling
-- R2 abstraction methods: `uploadOriginal()`, `uploadProcessed()`, `generateDownloadUrl()`
-- WhatsApp webhook foundation: `POST /webhooks/whatsapp` stores sender number, message ID, and media ID
-- Phase D media ingestion: mime validation, size validation, original upload, and queue submission
-- Phase E provider routing: `AI_PROVIDER`, `PHOTOROOM_API_KEY`, `FAL_API_KEY`
-- Phase E workflows: product and vehicle pipelines with provider-based processing
-- Phase E delivery mode: `DELIVERY_MODE=LOG_ONLY|WHATSAPP`
-- Admin monitoring APIs: paginated orders, jobs, stats, and order detail views
-- Wallet system: `wallets`, `wallet_transactions`, credit/debit/refund ledger, reserved balances, and credit grant helpers
-- Package catalog: `STARTER`, `PRO`, `BUSINESS`, `DEALER` stored in DB with workflow and credit metadata
-- Payment abstraction: `JAZZCASH`, `EASYPAISA`, `MANUAL` via provider factory
-- Manual payment workflow: customer proof upload plus admin approve/reject flow
-- Subscription framework: `subscriptions`, `subscription_usage`, monthly reset support, and plan limits
-- Usage charging: reserve credits when processing starts, settle on completion, release on failure
-- Admin commercial endpoints: payments, wallets, subscriptions, and package catalog management
-- Customer commercial UI: wallet, payments, and subscription pages with JWT persistence and checkout/proof tracking
-- Phase Q customer web flow: `/orders` creates an order, uploads an image, queues processing, and shows original plus processed result links.
+- Repository: `gardenshop/ai-photo-studio-whatsapp`
+- Branch: `main`
+- Product: `AI Product Photo Studio for Ecommerce Sellers`
+- Customer channels: Daraz, Shopify, WooCommerce, Facebook, WhatsApp
 
-## Frontend Discovery Summary
-- Frontend app location: `apps/web`
-- Public routes: `/`, `/pricing`, `/signup`, `/login`
-- Protected customer routes: `/orders`, `/wallet`, `/payments`, `/subscription`
-- Deployment target: Cloudflare Pages
-- Deploy config: `apps/web/wrangler.toml`
-- SPA fallback: `apps/web/public/_redirects`
-- Live frontend service on Railway: none
+## Source-of-Truth Summary
 
-## Notes
-- The repository still contains the earlier WhatsApp-first MVP modules and the Phase 2 background-remover work.
-- This index now tracks the customer foundation, the public website layer, and the Phase C/D/E/F backend pipeline foundation.
-- Phase Q keeps WhatsApp as a deferred Phase 2 launch item and does not let Meta connectivity block the web-first customer launch.
+- Product vision: background removal is Phase 1 only.
+- Customer journey: preview first, credit visibility next, then paid full-resolution delivery.
+- Pricing model: credit bundles and subscription-style usage are both supported in the app surface.
+- Roadmap: flat lay, lifestyle scenes, virtual models, product video, and WhatsApp ordering remain approved priorities.
+
+## Phase 1.5 Implementation Map
+
+- `apps/api/src/services/preview-quota.service.ts`: free preview quota enforcement with `Setting`
+- `apps/api/src/controllers/preview.controller.ts`: public preview claim endpoint
+- `apps/api/src/routes/preview.routes.ts`: route registration for preview claims
+- `apps/api/src/controllers/order.controller.ts`: credit reservation at upload start and download gating
+- `apps/api/src/workers/image-processing.worker.ts`: settlement and release of reserved credits on completion or failure
+- `apps/api/src/queues/phase-c-image-processing.queue.ts`: queue payload carries billing reservation context
+- `apps/api/src/routes/admin.routes.ts`: added `/admin/customers` endpoint
+- `apps/api/src/controllers/admin.controller.ts`: added `customers` handler
+- `apps/api/src/services/admin.service.ts`: added `listCustomers` method
+- `apps/web/src/pages/HomePage.tsx`: seller-first hero, upload box, drag/drop, examples, roadmap teaser
+- `apps/web/src/pages/AdminUsersPage.tsx`: connected to customers API
+- `apps/web/src/pages/AdminJobsPage.tsx`: connected to jobs API with proper UI
+- `apps/web/src/pages/AdminLogsPage.tsx`: added log access guidance
+- `apps/web/src/services/adminApi.ts`: added `customers` method
+- `apps/web/src/lib/portal-types.ts`: added `AdminCustomerRecord` type
+
+## Verified Behavior
+
+- Free preview claims are counted before local preview processing begins.
+- Web uploads reserve credits before the job is queued.
+- Successful processing settles the reservation instead of leaving credits dangling.
+- Full-resolution download is hidden unless the backend allows it.
+- Homepage shows the upload action in the first viewport.
+- Admin customers page lists customers with orders and wallet balance.
+- Admin jobs page shows queue status and errors.
+
+## Verification Status
+
+- `npm run build`: PASS
+- `npm run project-info`: PASS
+- `npm run enterprise-verify`: PASS
+- `railway whoami`: PASS (current session)
+- `railway status`: PASS
+- `railway logs --service api --tail 100`: PASS
+- `wrangler whoami`: PASS
+- `wrangler pages deployment list`: PASS
+
+## Deployment Snapshot
+
+- Latest Cloudflare Pages production deployment:
+  - `https://c297a8b5.ai-photo-studio-whatsapp-web.pages.dev`
+- Railway CLI is authenticated in the current shell and linked to `AI Photo Studio WhatsApp`.
+- Railway API is online at `https://api-production-4867.up.railway.app`
+- Background remover service is online at `https://background-remover-production-0627.up.railway.app`
+
+## Current Completion
+
+- Phase 1 completion: 100%
+- Phase 1.5 implementation progress: 98%
+- Overall roadmap completion: 43%
+
+## Remaining Work
+
+- Live browser screenshots on desktop and mobile
+- End-to-end upload, preview, quota, deduction, and download smoke test
+- Fresh-terminal Railway `whoami` reproduction or dashboard-issued token capture
+
+## Validation Results
+
+- `npm run build`: PASS
+- `npm run project-info`: PASS
+- `npm run enterprise-verify`: PASS
+- `railway whoami`: PASS
+- `railway status`: PASS
+- `railway logs --tail 300`: PASS
+- `wrangler whoami`: PASS
+- `wrangler pages deployment list`: PASS
+
+## Signup Test
+
+- Direct API test: PASS (HTTP 201)
+- Frontend binding: Correct (production URL configured)
+
+## Next Coding Phase
+
+- Phase 1.5 verification hardening, then WhatsApp journey execution and roadmap features after signoff

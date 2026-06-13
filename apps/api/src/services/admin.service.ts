@@ -41,6 +41,12 @@ type ListPackagesParams = {
   limit?: number;
 };
 
+type ListCustomersParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
 export class AdminService {
   private readonly queue: ImageQueueService;
   private readonly delivery: DeliveryService;
@@ -291,6 +297,51 @@ export class AdminService {
 
     return {
       items: items.slice(skip, skip + limit),
+      total,
+      page,
+      limit
+    };
+  }
+
+  async listCustomers(params: ListCustomersParams) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.search) {
+      where.OR = [
+        { email: { contains: params.search, mode: "insensitive" } },
+        { name: { contains: params.search, mode: "insensitive" } },
+        { customer: { whatsappNumber: { contains: params.search, mode: "insensitive" } } }
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: {
+          customer: true,
+          orders: { take: 5, orderBy: { createdAt: "desc" } },
+          wallet: true
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    return {
+      items: items.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        phone: u.customer?.whatsappNumber || null,
+        orders: u.orders.length,
+        walletBalance: u.wallet?.balance || 0,
+        createdAt: u.createdAt.toISOString()
+      })),
       total,
       page,
       limit

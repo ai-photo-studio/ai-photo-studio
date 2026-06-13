@@ -239,6 +239,14 @@ export type CustomerOrderResponse = {
   payments: PortalOrderPayment[];
   statusHistory: CustomerOrderStatusEvent[];
   processingJobs: CustomerProcessingJob[];
+  downloadAllowed?: boolean;
+};
+
+export type WebPreviewQuotaResponse = {
+  scopeType: "guest" | "account";
+  limit: number;
+  used: number;
+  remaining: number;
 };
 
 export type AdminDashboardResponse = {
@@ -348,4 +356,14 @@ export type AdminWalletRecord = {
 
 export type AdminSubscriptionRecord = PortalSubscriptionRecord & {
   user: PortalUser;
+};
+
+export type AdminCustomerRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  orders: number;
+  walletBalance: number;
+  createdAt: string;
 };

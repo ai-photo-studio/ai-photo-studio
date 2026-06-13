@@ -3,13 +3,18 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { prisma } from "../db/prisma";
 import { PhaseCImageProcessingQueue } from "../queues/phase-c-image-processing.queue";
+import { CustomerService } from "../services/customer.service";
 import { NotificationService } from "../services/notification.service";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { OrderService } from "../services/order.service";
 import { PaymentService } from "../services/payment.service";
 import { StorageService } from "../services/storage.service";
+import { SubscriptionService } from "../services/subscription.service";
+import { WalletService } from "../services/wallet.service";
 import { resolveProductWorkflowMode } from "../services/product-workflow.service";
 import { resolveVehicleWorkflowMode } from "../services/vehicle-workflow.service";
+import { verifyToken } from "../middleware/auth.middleware";
+import { logger } from "../utils/logger";
 import type { WorkflowMode } from "../providers/provider.interface";
 
 type OrderImagePayload = {
@@ -64,13 +69,18 @@ const decodeBase64Input = (input: string) => {
 };
 
 export class OrderController {
+  private readonly config: AppConfig;
   private readonly orderService = new OrderService();
+  private readonly customerService = new CustomerService();
+  private readonly walletService = new WalletService();
+  private readonly subscriptionService = new SubscriptionService();
   private readonly paymentService: PaymentService;
   private readonly storage: StorageService;
   private readonly queue: PhaseCImageProcessingQueue;
   private readonly notifications = new NotificationService();
 
   constructor(config: AppConfig) {
+    this.config = config;
     this.paymentService = new PaymentService(config);
     this.storage = new StorageService(config);
     this.queue = new PhaseCImageProcessingQueue(config);
@@ -97,7 +107,17 @@ export class OrderController {
   getOrder = async (req: Request, res: Response): Promise<void> => {
     try {
       const result = await this.orderService.getOrderByOrderNo(req.params.orderNo);
-      res.json({ success: true, data: result });
+      const user = this.resolveOptionalUser(req);
+      const downloadAllowed = Boolean(result.processedUrl && user && result.userId && user.sub === result.userId);
+
+      res.json({
+        success: true,
+        data: {
+          ...result,
+          processedUrl: downloadAllowed ? result.processedUrl : null,
+          downloadAllowed
+        }
+      });
     } catch (error) {
       this.handleError(res, error);
     }
@@ -124,6 +144,22 @@ export class OrderController {
   };
 
   uploadWebImage = async (req: Request, res: Response): Promise<void> => {
+    let billingReservation:
+      | {
+          type: "WALLET";
+          walletId: string;
+          transactionId: string;
+          amount: number;
+          referenceId: string;
+        }
+      | {
+          type: "SUBSCRIPTION";
+          subscriptionId: string;
+          amount: number;
+          referenceId: string;
+        }
+      | null = null;
+
     try {
       const user = await this.requireUser(req);
       const orderNo = String(req.params.orderNo || "").trim();
@@ -156,6 +192,60 @@ export class OrderController {
         throw new AppError("Image exceeds size limit of 10 MB", 413, "IMAGE_TOO_LARGE");
       }
 
+      const walletOverview = await this.customerService.getWalletOverview(user.sub);
+      const activeSubscription = walletOverview.activeSubscription;
+      const remainingSubscriptionCredits = activeSubscription
+        ? Math.max(
+            0,
+            activeSubscription.monthlyCreditLimit -
+              activeSubscription.monthlyCreditsUsed -
+              activeSubscription.monthlyCreditsReserved
+          )
+        : 0;
+      const hasWalletCredits = walletOverview.summary.availableBalance > 0;
+      const hasSubscriptionCredits = Boolean(activeSubscription && remainingSubscriptionCredits > 0);
+
+      const queueJobId = `web-${randomUUID()}`;
+
+      if (hasSubscriptionCredits && activeSubscription) {
+        await this.subscriptionService.reserveUsage({
+          subscriptionId: activeSubscription.id,
+          amount: 1,
+          referenceType: "processing_job",
+          referenceId: queueJobId,
+          note: `Reserved before upload for order ${order.orderNo}`
+        });
+        billingReservation = {
+          type: "SUBSCRIPTION",
+          subscriptionId: activeSubscription.id,
+          amount: 1,
+          referenceId: queueJobId
+        };
+      } else if (hasWalletCredits) {
+        const wallet = await this.walletService.getOrCreateWallet(user.sub);
+        const walletReservation = await this.walletService.reserveCredits({
+          walletId: wallet.id,
+          amount: 1,
+          orderId: order.id,
+          referenceType: "processing_job",
+          referenceId: queueJobId,
+          note: `Reserved before upload for order ${order.orderNo}`,
+          metadata: {
+            queueJobId,
+            packageCode: order.package.code
+          }
+        });
+        billingReservation = {
+          type: "WALLET",
+          walletId: walletReservation.walletId,
+          transactionId: walletReservation.transactionId,
+          amount: walletReservation.amount,
+          referenceId: queueJobId
+        };
+      } else {
+        throw new AppError("Credits are required before upload", 409, "CREDITS_REQUIRED");
+      }
+
       const originalUpload = await this.storage.uploadOriginal({
         fileName,
         body,
@@ -183,7 +273,6 @@ export class OrderController {
 
       const workflowType = normalizeWorkflowType(payload.workflowType);
       const workflowMode = resolveWorkflowMode(workflowType, payload.workflowMode, order.package.code);
-      const queueJobId = `web-${randomUUID()}`;
       const senderNumber = order.customer.whatsappNumber;
       const messageId = `web-${order.orderNo}`;
       const mediaId = `web-${order.orderNo}-${Date.now()}`;
@@ -204,7 +293,8 @@ export class OrderController {
             originalUrl: originalUpload.url,
             originalExpiresAt: originalUpload.expiresAt.toISOString(),
             fileSizeBytes: body.length,
-            mimeType: contentType
+            mimeType: contentType,
+            billingReservation
           }
         }
       });
@@ -227,7 +317,8 @@ export class OrderController {
             mediaId,
             originalStorageKey: originalUpload.key,
             workflowType,
-            workflowMode
+            workflowMode,
+            billingReservation
           }
         }
       });
@@ -241,7 +332,8 @@ export class OrderController {
           mediaId,
           originalStorageKey: originalUpload.key,
           workflowType,
-          workflowMode
+          workflowMode,
+          billingReservation
         },
         { jobId: queueJobId }
       );
@@ -284,6 +376,16 @@ export class OrderController {
         }
       });
     } catch (error) {
+      if (billingReservation) {
+        const reservation = billingReservation;
+        await this.releaseBillingReservation(reservation).catch((releaseError) => {
+          logger.warn("Failed to release upload billing reservation", {
+            error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+            reservationType: reservation.type,
+            referenceId: reservation.referenceId
+          });
+        });
+      }
       this.handleError(res, error);
     }
   };
@@ -346,6 +448,53 @@ export class OrderController {
       throw new AppError("Not authenticated", 401, "UNAUTHORIZED");
     }
     return req.user;
+  }
+
+  private resolveOptionalUser(req: Request) {
+    const header = req.headers.authorization;
+    if (!header || !header.toLowerCase().startsWith("bearer ")) return null;
+    const token = header.slice(7).trim();
+    try {
+      return verifyToken(this.config, token);
+    } catch {
+      return null;
+    }
+  }
+
+  private async releaseBillingReservation(
+    billingReservation:
+      | {
+          type: "WALLET";
+          walletId: string;
+          transactionId: string;
+          amount: number;
+          referenceId: string;
+        }
+      | {
+          type: "SUBSCRIPTION";
+          subscriptionId: string;
+          amount: number;
+          referenceId: string;
+        },
+  ): Promise<void> {
+    if (billingReservation.type === "SUBSCRIPTION") {
+      await this.subscriptionService.releaseUsage({
+        subscriptionId: billingReservation.subscriptionId,
+        amount: billingReservation.amount,
+        referenceType: "processing_job",
+        referenceId: billingReservation.referenceId,
+        note: `Released after upload failure for job ${billingReservation.referenceId}`
+      });
+      return;
+    }
+
+    await this.walletService.releaseReservedCredits({
+      walletId: billingReservation.walletId,
+      amount: billingReservation.amount,
+      referenceType: "processing_job",
+      referenceId: billingReservation.referenceId,
+      note: `Released after upload failure for job ${billingReservation.referenceId}`
+    });
   }
 
   private handleError(res: Response, error: unknown) {

@@ -13,6 +13,21 @@ export type PhaseCImageProcessingPayload = {
   providerName?: AIProviderName;
   workflowType?: WorkflowType;
   workflowMode?: WorkflowMode;
+  billingReservation?:
+    | {
+        type: "WALLET";
+        walletId: string;
+        transactionId: string;
+        amount: number;
+        referenceId: string;
+      }
+    | {
+        type: "SUBSCRIPTION";
+        subscriptionId: string;
+        amount: number;
+        referenceId: string;
+      }
+    | null;
   deadLetterReason?: string;
 };
 

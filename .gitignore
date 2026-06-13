@@ -1,9 +1,12 @@
 *.md
 docs/
 **/*.md
-!PROJECT_SAFETY_LOCK.md
+!.PROJECT_SAFETY_LOCK.md
 !.ai-project/PUSH_GUARD.md
 !.ai-project/SAFE_COMMANDS.md
+.ai-project/*.md
+.ai-code-audit-report.md
+.ai-implementation-index.md
 .env
 .env.*
 !.env.example
@@ -25,6 +28,8 @@ coverage/
 apps/api/generated/
 *.audit.md
 AI_code_audit_report.md
+AI_IMPLEMENTATION_INDEX.md
+MASTER_*.md
 railway-env.txt
 .env.local
 gitpush.bat

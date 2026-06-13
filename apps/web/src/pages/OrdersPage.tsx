@@ -2,9 +2,9 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../lib/auth";
-import { formatDateTime, formatMoney } from "../lib/format";
+import { formatDateTime, formatMoney, formatNumber } from "../lib/format";
 import { usePackages } from "../lib/packages";
-import type { CustomerOrderResponse } from "../lib/portal-types";
+import type { CustomerOrderResponse, CustomerWalletResponse } from "../lib/portal-types";
 import { customerApi } from "../services/customerApi";
 
 const PRODUCT_MODES = ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO"] as const;
@@ -25,6 +25,9 @@ const readFileAsBase64 = (file: File) =>
 export function OrdersPage() {
   const { token, status } = useAuth();
   const { packages, loading: packagesLoading, error: packagesError } = usePackages();
+  const [wallet, setWallet] = useState<CustomerWalletResponse | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [selectedPackage, setSelectedPackage] = useState("");
   const [serviceType, setServiceType] = useState("web-upload");
@@ -45,6 +48,33 @@ export function OrdersPage() {
       setSelectedPackage(packages[0].code);
     }
   }, [packages, selectedPackage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (status !== "ready" || !token) return;
+
+    const loadWallet = async () => {
+      setWalletLoading(true);
+      try {
+        const response = await customerApi.wallet(token);
+        if (!cancelled) {
+          setWallet(response);
+          setWalletError(null);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setWalletError(loadError instanceof Error ? loadError.message : "Unable to load wallet");
+        }
+      } finally {
+        if (!cancelled) setWalletLoading(false);
+      }
+    };
+
+    void loadWallet();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, token]);
 
   useEffect(() => {
     if (workflowType === "VEHICLE" && !VEHICLE_MODES.includes(workflowMode as (typeof VEHICLE_MODES)[number])) {
@@ -96,7 +126,7 @@ export function OrdersPage() {
         serviceType: `${serviceType.trim()}-${workflowType.toLowerCase()}`
       });
       setCurrentOrderNo(response.orderNo);
-      setStatusMessage(`Order ${response.orderNo} created. Upload an image to queue processing.`);
+      setStatusMessage(`Order ${response.orderNo} created. Upload an image to start processing.`);
       await loadOrder(response.orderNo);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Unable to create the order");
@@ -124,9 +154,7 @@ export function OrdersPage() {
         workflowType,
         workflowMode
       });
-      setStatusMessage(
-        `Uploaded ${file.name}. Order ${response.orderNo} is ${response.orderStatus.toLowerCase()} and queued for processing.`
-      );
+      setStatusMessage(`Uploaded ${file.name}. Order ${response.orderNo} is ${response.orderStatus.toLowerCase()} and processing now.`);
       await loadOrder(response.orderNo);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Unable to upload the image");
@@ -136,23 +164,55 @@ export function OrdersPage() {
   };
 
   const activeOrder = order;
+  const availableBalance = wallet?.summary.availableBalance || 0;
+  const reservedBalance = wallet?.wallet.reservedBalance || 0;
+  const activeSubscription = wallet?.activeSubscription || null;
+  const remainingSubscriptionCredits = activeSubscription
+    ? Math.max(
+        0,
+        activeSubscription.monthlyCreditLimit - activeSubscription.monthlyCreditsUsed - activeSubscription.monthlyCreditsReserved
+      )
+    : 0;
+  const canDownload = Boolean(activeOrder?.processedUrl && activeOrder.downloadAllowed !== false);
 
   return (
     <section className="page-stack">
       <div className="section-heading">
-        <p className="eyebrow">Customer studio</p>
-        <h1>Create an order, upload an image, and follow the result in one place.</h1>
+        <p className="eyebrow">Customer dashboard</p>
+        <h1>Track credits, uploads, and downloads in one place.</h1>
         <p className="section-lead">
-          This workspace reuses the existing order, R2, queue, and worker pipeline so the web journey behaves like the
-          WhatsApp flow without changing DELIVERY_MODE.
+          Your customer workspace focuses on upload, preview, and download while backend order systems stay internal.
         </p>
       </div>
 
+      <div className="metric-grid">
+        <article className="metric-card metric-card-accent">
+          <span>Credits remaining</span>
+          <strong>{walletLoading ? "..." : formatNumber(Math.max(0, availableBalance + remainingSubscriptionCredits))}</strong>
+          <p>Wallet balance plus active subscription credits</p>
+        </article>
+        <article className="metric-card">
+          <span>Available balance</span>
+          <strong>{walletLoading ? "..." : formatMoney(availableBalance, wallet?.wallet.currency || "PKR")}</strong>
+          <p>Ready to reserve for full-resolution jobs</p>
+        </article>
+        <article className="metric-card">
+          <span>Reserved balance</span>
+          <strong>{walletLoading ? "..." : formatMoney(reservedBalance, wallet?.wallet.currency || "PKR")}</strong>
+          <p>Held for active processing jobs</p>
+        </article>
+        <article className="metric-card">
+          <span>Free preview</span>
+          <strong>1 + 3</strong>
+          <p>1 guest preview, 3 credits for new accounts</p>
+        </article>
+      </div>
+
       <div className="split-layout">
-        <form className="card stack" onSubmit={createOrder}>
+        <form className="card stack" onSubmit={uploadImage}>
           <div className="section-heading section-heading-tight">
-            <p className="eyebrow">Create order</p>
-            <h2>Pick a package and customer workflow</h2>
+            <p className="eyebrow">Upload image</p>
+            <h2>Choose a file and start processing</h2>
           </div>
           <label className="field">
             <span>WhatsApp number</span>
@@ -164,10 +224,10 @@ export function OrdersPage() {
             />
           </label>
           <label className="field">
-            <span>Package</span>
+            <span>Credit bundle</span>
             <select value={selectedPackage} onChange={(event) => setSelectedPackage(event.target.value)} required>
               <option value="" disabled>
-                {packagesLoading ? "Loading packages..." : "Choose a package"}
+                {packagesLoading ? "Loading credit bundles..." : "Choose a credit bundle"}
               </option>
               {packages.map((pkg) => (
                 <option key={pkg.id} value={pkg.code}>
@@ -178,7 +238,7 @@ export function OrdersPage() {
           </label>
           <div className="split-layout">
             <label className="field">
-              <span>Workflow</span>
+              <span>Type</span>
               <select
                 value={workflowType}
                 onChange={(event) => setWorkflowType(event.target.value as "PRODUCT" | "VEHICLE")}
@@ -206,42 +266,51 @@ export function OrdersPage() {
             </label>
           </div>
           <label className="field">
-            <span>Service label</span>
-            <input value={serviceType} onChange={(event) => setServiceType(event.target.value)} placeholder="web-upload" />
+            <span>Image note</span>
+            <input value={serviceType} onChange={(event) => setServiceType(event.target.value)} placeholder="product image" />
           </label>
           {packagesError && <p className="form-error">{packagesError}</p>}
           <button type="submit" className="button" disabled={busy || packagesLoading}>
-            {busy ? "Creating..." : "Create order"}
+            {busy ? "Uploading..." : "Upload image"}
           </button>
         </form>
 
-        <form className="card stack" onSubmit={uploadImage}>
+        <form className="card stack" onSubmit={createOrder}>
           <div className="section-heading section-heading-tight">
-            <p className="eyebrow">Upload image</p>
-            <h2>Send an image to the queue</h2>
+            <p className="eyebrow">Credits</p>
+            <h2>Buy credits when the free quota runs out</h2>
           </div>
           <label className="field">
-            <span>Order number</span>
-            <input value={currentOrderNo} onChange={(event) => setCurrentOrderNo(event.target.value)} placeholder="APS-..." required />
+            <span>Customer number</span>
+            <input value={whatsappNumber} onChange={(event) => setWhatsappNumber(event.target.value)} placeholder="+92 300 1234567" required />
           </label>
           <label className="field">
-            <span>Image file</span>
-            <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+            <span>Credit bundle</span>
+            <select value={selectedPackage} onChange={(event) => setSelectedPackage(event.target.value)} required>
+              <option value="" disabled>
+                {packagesLoading ? "Loading bundles..." : "Choose a bundle"}
+              </option>
+              {packages.map((pkg) => (
+                <option key={pkg.id} value={pkg.code}>
+                  {pkg.name} ({pkg.code})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Plan note</span>
+            <input value={serviceType} onChange={(event) => setServiceType(event.target.value)} placeholder="credit top-up" />
           </label>
           <p className="helper-text">
-            Supported formats: JPG, JPEG, PNG, WebP. Maximum size: 10 MB.
+            {walletLoading
+              ? "Loading wallet status..."
+              : walletError
+                ? walletError
+                : `Available: ${formatMoney(availableBalance, wallet?.wallet.currency || "PKR")} | Reserved: ${formatMoney(reservedBalance, wallet?.wallet.currency || "PKR")} | Subscription credits: ${formatNumber(remainingSubscriptionCredits)}`}
           </p>
-          <button type="submit" className="button button-secondary" disabled={busy || !currentOrderNo || !file}>
-            {busy ? "Uploading..." : "Upload and queue"}
+          <button type="submit" className="button button-secondary" disabled={busy || packagesLoading}>
+            {busy ? "Buying..." : "Buy credits"}
           </button>
-          <div className="button-row">
-            <Link to="/payments" className="button button-ghost button-block">
-              Checkout & proof
-            </Link>
-            <Link to="/wallet" className="button button-ghost button-block">
-              View wallet
-            </Link>
-          </div>
         </form>
       </div>
 
@@ -260,21 +329,21 @@ export function OrdersPage() {
       <article className="card stack">
         <div className="section-heading section-heading-tight">
           <p className="eyebrow">Order status</p>
-          <h2>{activeOrder ? `Order ${activeOrder.orderNo}` : "Create an order to see live status"}</h2>
+          <h2>{activeOrder ? `Image ${activeOrder.orderNo}` : "Upload an image to see live status"}</h2>
         </div>
         {loadingOrder && <p className="helper-text">Refreshing order state...</p>}
         {activeOrder ? (
           <div className="stack">
             <div className="metric-grid">
               <article className="metric-card">
-                <span>Order</span>
+                <span>Status</span>
                 <strong>{activeOrder.orderStatus}</strong>
                 <p><StatusBadge value={activeOrder.orderStatus} /></p>
               </article>
               <article className="metric-card">
-                <span>Payment</span>
-                <strong>{activeOrder.paymentStatus}</strong>
-                <p><StatusBadge value={activeOrder.paymentStatus} /></p>
+                <span>Preview</span>
+                <strong>{activeOrder.processedUrl ? "Ready" : "Processing"}</strong>
+                <p><StatusBadge value={activeOrder.orderStatus} /></p>
               </article>
               <article className="metric-card">
                 <span>Total</span>
@@ -293,7 +362,7 @@ export function OrdersPage() {
                 <dd>{activeOrder.customer.whatsappNumber}</dd>
               </div>
               <div>
-                <dt>Workflow</dt>
+                <dt>Type</dt>
                 <dd>{workflowType}</dd>
               </div>
               <div>
@@ -306,30 +375,41 @@ export function OrdersPage() {
               <article className="card">
                 <div className="section-heading section-heading-tight">
                   <p className="eyebrow">Original</p>
-                  <h3>Uploaded asset</h3>
+                  <h3>Uploaded image</h3>
                 </div>
                 {activeOrder.originalUrl ? (
                   <a href={activeOrder.originalUrl} target="_blank" rel="noreferrer" className="text-link">
                     Open original image
                   </a>
                 ) : (
-                  <p className="helper-text">Upload an image to store the original in R2.</p>
+                    <p className="helper-text">Upload an image to keep the original and continue processing.</p>
                 )}
               </article>
-              <article className="card">
-                <div className="section-heading section-heading-tight">
-                  <p className="eyebrow">Processed</p>
-                  <h3>Download result</h3>
-                </div>
-                {activeOrder.processedUrl ? (
+            <article className="card">
+              <div className="section-heading section-heading-tight">
+                <p className="eyebrow">Processed</p>
+                <h3>Download PNG</h3>
+              </div>
+                {canDownload ? (
                   <>
-                    <a href={activeOrder.processedUrl} target="_blank" rel="noreferrer" className="button button-block">
-                      Download processed file
+                    <a href={activeOrder.processedUrl || "#"} target="_blank" rel="noreferrer" className="button button-block">
+                      Download full-resolution PNG
                     </a>
                     <p className="helper-text">Expires: {formatDateTime(activeOrder.processedExpiresAt)}</p>
                   </>
                 ) : (
-                  <p className="helper-text">The worker will add the processed URL here after completion.</p>
+                    <>
+                      <button type="button" className="button button-block" disabled>
+                        {activeOrder.processedUrl ? "Add credits to unlock full-resolution download" : "The processed file will appear here after completion"}
+                      </button>
+                      <p className="helper-text">
+                        {activeOrder.processedUrl
+                          ? activeOrder.downloadAllowed === false
+                            ? "Full-resolution downloads are gated for this order until the backend confirms credit access."
+                            : "The processed file is still preparing."
+                          : "The processed file will appear here after completion."}
+                      </p>
+                    </>
                 )}
               </article>
             </div>
@@ -367,15 +447,15 @@ export function OrdersPage() {
 
             <article className="card">
               <div className="section-heading section-heading-tight">
-                <p className="eyebrow">Processing jobs</p>
-                <h3>Queue handoff</h3>
+                <p className="eyebrow">Internal systems</p>
+                <h3>Hidden processing details</h3>
               </div>
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th>Job</th>
-                      <th>Queue</th>
+                      <th>System</th>
                       <th>Status</th>
                       <th>Provider</th>
                       <th>Attempts</th>
@@ -397,7 +477,7 @@ export function OrdersPage() {
             </article>
           </div>
         ) : (
-          <p className="helper-text">After you create the order and upload an image, the order record will appear here.</p>
+              <p className="helper-text">After you upload an image, the customer record will appear here.</p>
         )}
       </article>
     </section>

@@ -115,6 +115,19 @@ export class AdminController {
     }
   };
 
+  customers = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listCustomers({
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        search: req.query.search as string | undefined
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   packages = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.listPackages({

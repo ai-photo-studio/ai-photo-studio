@@ -1,20 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { adminApi } from "../services/adminApi";
 
 export function AdminLayout() {
-  const [token, setToken] = useState("");
-  const [saved, setSaved] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    setToken(adminApi.getToken());
-  }, []);
-
-  const saveToken = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    adminApi.setToken(token.trim());
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1800);
+  const logout = () => {
+    void adminApi.logout().finally(() => adminApi.clearSession());
+    navigate("/admin/login", { replace: true });
   };
 
   return (
@@ -22,21 +14,14 @@ export function AdminLayout() {
       <header className="admin-topbar">
         <div>
           <p className="eyebrow">Admin commercial workspace</p>
-          <strong>AI Photo Studio WhatsApp</strong>
+          <strong>{adminApi.getProfile()?.email || "AI Photo Studio WhatsApp"}</strong>
         </div>
-        <form className="admin-token-form" onSubmit={saveToken}>
-          <input
-            type="password"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            placeholder="Admin access token"
-            aria-label="Admin access token"
-          />
-          <button type="submit" className="button button-small">
-            Save
+        <div className="button-row">
+          <span className="pill">{adminApi.getProfile()?.role || "ADMIN"}</span>
+          <button type="button" className="button button-small button-secondary" onClick={logout}>
+            Log out
           </button>
-        </form>
-        {saved && <span className="pill">Token saved locally</span>}
+        </div>
       </header>
       <nav className="admin-nav" aria-label="Admin">
         <NavLink to="/admin/dashboard" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
@@ -54,6 +39,27 @@ export function AdminLayout() {
         <NavLink to="/admin/packages" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
           Packages
         </NavLink>
+        <NavLink to="/admin/users" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Users
+        </NavLink>
+        <NavLink to="/admin/jobs" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Jobs
+        </NavLink>
+        <NavLink to="/admin/providers" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Providers
+        </NavLink>
+        <NavLink to="/admin/storage" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Storage
+        </NavLink>
+        <NavLink to="/admin/logs" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Logs
+        </NavLink>
+        <NavLink to="/admin/system" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          System
+        </NavLink>
+        <NavLink to="/admin/settings" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Settings
+        </NavLink>
         <NavLink to="/admin/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
           Orders
         </NavLink>
@@ -63,6 +69,9 @@ export function AdminLayout() {
         <Link to="/" className="nav-link">
           Public site
         </Link>
+        <button type="button" className="nav-link nav-link-button" onClick={logout}>
+          Log out
+        </button>
       </nav>
       <main className="admin-main">
         <Outlet />
