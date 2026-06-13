@@ -1,4 +1,14 @@
-export type AIProviderName = "mock" | "local-yolo" | "local-rembg" | "photoroom" | "fal";
+export type AIProviderName =
+  | "mock"
+  | "local-rembg"
+  | "local-yolo"
+  | "local-esrgan"
+  | "local-iclight"
+  | "photoroom"
+  | "fal"
+  | "future-photoroom"
+  | "future-falai"
+  | "future-replicate";
 
 export type WorkflowType = "PRODUCT" | "VEHICLE";
 
@@ -149,3 +159,249 @@ export interface ImageProvider {
     routing?: ProductPipelineRoute
   ): Promise<ProcessImageOutput>;
 }
+
+export type CapabilityName =
+  | "background-removal"
+  | "classification"
+  | "crop-center"
+  | "enhancement"
+  | "relighting"
+  | "shadow-generation"
+  | "flat-lay"
+  | "lifestyle-scene";
+
+export type ProviderCapability = {
+  capability: CapabilityName;
+  enabled: boolean;
+  version?: string;
+  latencyMs?: number;
+};
+
+export type ProviderMetadata = {
+  name: AIProviderName;
+  displayName: string;
+  description: string;
+  enabled: boolean;
+  isLocal: boolean;
+  isPaid: boolean;
+  capabilities: ProviderCapability[];
+  costPerOperation: {
+    operation: string;
+    estimatedCost: number;
+  };
+  supportedWorkflows: WorkflowType[];
+  supportedModes: WorkflowMode[];
+};
+
+export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
+  mock: {
+    name: "mock",
+    displayName: "Mock Provider",
+    description: "Mock provider for testing",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "local-rembg": {
+    name: "local-rembg",
+    displayName: "Local REMBG",
+    description: "Local background removal using REMBG",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "background-removal", enabled: true },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "local-yolo": {
+    name: "local-yolo",
+    displayName: "Local YOLO",
+    description: "Local object detection and processing pipeline",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "background-removal", enabled: true },
+      { capability: "classification", enabled: true },
+      { capability: "crop-center", enabled: true },
+      { capability: "enhancement", enabled: true },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "local-esrgan": {
+    name: "local-esrgan",
+    displayName: "Local ESRGAN",
+    description: "Local image upscaling using ESRGAN",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: true },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "enhancement", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "local-iclight": {
+    name: "local-iclight",
+    displayName: "Local IC-Light",
+    description: "Local image relighting using IC-Light",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: true },
+      { capability: "shadow-generation", enabled: true },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "relighting", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "future-photoroom": {
+    name: "future-photoroom",
+    displayName: "Photoroom (Future)",
+    description: "Photoroom API integration - disabled",
+    enabled: false,
+    isLocal: false,
+    isPaid: true,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0.05 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "future-falai": {
+    name: "future-falai",
+    displayName: "FAL.ai (Future)",
+    description: "FAL.ai integration - disabled",
+    enabled: false,
+    isLocal: false,
+    isPaid: true,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0.08 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "future-replicate": {
+    name: "future-replicate",
+    displayName: "Replicate (Future)",
+    description: "Replicate integration - disabled",
+    enabled: false,
+    isLocal: false,
+    isPaid: true,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0.03 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  photoroom: {
+    name: "photoroom",
+    displayName: "Photoroom",
+    description: "Photoroom API integration - disabled",
+    enabled: false,
+    isLocal: false,
+    isPaid: true,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0.05 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  fal: {
+    name: "fal",
+    displayName: "FAL.ai",
+    description: "FAL.ai integration - disabled",
+    enabled: false,
+    isLocal: false,
+    isPaid: true,
+    capabilities: [
+      { capability: "background-removal", enabled: false },
+      { capability: "classification", enabled: false },
+      { capability: "crop-center", enabled: false },
+      { capability: "enhancement", enabled: false },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false }
+    ],
+    costPerOperation: { operation: "all", estimatedCost: 0.08 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  }
+};

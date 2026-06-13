@@ -67,6 +67,15 @@
 - `apps/web/src/pages/AdminJobsPage.tsx`: category and profile diagnostics
 - `apps/web/src/pages/AdminOrderDetail.tsx`: category diagnostics by order
 
+## Phase 3 Provider Framework Map
+
+- `apps/api/src/providers/provider.interface.ts`: provider types, capability matrix, provider metadata
+- `apps/api/src/providers/provider.factory.ts`: configuration-driven provider selection, fallback framework
+- `apps/api/src/providers/local-esrgan.provider.ts`: local ESRGAN provider implementation
+- `apps/api/src/providers/local-iclight.provider.ts`: local IC-Light provider implementation
+- `apps/api/prisma/schema.prisma`: `ProviderCostLog` model for cost tracking
+- `apps/api/src/services/admin.service.ts`: provider diagnostics in job listings
+
 ## Verified Behavior
 
 - Free preview claims are counted before local preview processing begins.
@@ -104,11 +113,11 @@
 - Phase 2A Local AI: 70%
 - Phase 2B Image Enhancement: 40%
 - Phase 2C Product Classification: 40%
-- Phase 3 Provider Framework: 0%
+- Phase 3 Provider Framework: 60%
 - Phase 4 Creative Studio Expansion: 0%
 - Phase 5 Operations: 0%
 - Phase 6 WhatsApp: 0%
-- Overall roadmap completion: 65%
+- Overall roadmap completion: 70%
 
 ## Remaining Work
 

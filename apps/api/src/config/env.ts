@@ -44,11 +44,11 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
         ? cfg.FAL_API_KEY || cfg.AI_PROVIDER_API_KEY
         : "";
 
-    if (!["mock", "local-yolo", "local-rembg", "photoroom", "fal"].includes(selectedAiProvider)) {
+    if (!["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "photoroom", "fal"].includes(selectedAiProvider)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["AI_PROVIDER"],
-        message: "AI_PROVIDER must be one of mock, local-yolo, local-rembg, photoroom, or fal"
+        message: "AI_PROVIDER must be one of mock, local-yolo, local-rembg, local-esrgan, local-iclight, photoroom, or fal"
       });
     }
 
@@ -186,7 +186,7 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
   });
 
 export type AppConfig = z.infer<typeof envSchema> & {
-  aiProvider: "mock" | "local-yolo" | "local-rembg" | "photoroom" | "fal";
+  aiProvider: "mock" | "local-yolo" | "local-rembg" | "local-esrgan" | "local-iclight" | "photoroom" | "fal";
   paymentProvider: "jazzcash" | "easypaisa" | "manual";
   whatsappDryRun: boolean;
   storageDryRun: boolean;
@@ -209,11 +209,12 @@ export const loadConfig = (): AppConfig => {
   const cfg = parsed.data;
   const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
   const paymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
+  const validAiProviders = ["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "photoroom", "fal"];
   return {
     ...cfg,
-    aiProvider: (["mock", "local-yolo", "local-rembg", "photoroom", "fal"].includes(selectedAiProvider)
+    aiProvider: (validAiProviders.includes(selectedAiProvider)
       ? selectedAiProvider
-      : "mock") as "mock" | "local-yolo" | "local-rembg" | "photoroom" | "fal",
+      : "mock") as "mock" | "local-yolo" | "local-rembg" | "local-esrgan" | "local-iclight" | "photoroom" | "fal",
     paymentProvider: (["jazzcash", "easypaisa", "manual"].includes(paymentProvider) ? paymentProvider : "manual") as
       | "jazzcash"
       | "easypaisa"

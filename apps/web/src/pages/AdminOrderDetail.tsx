@@ -46,7 +46,11 @@ export function AdminOrderDetail() {
       <h3>AI Jobs</h3>
       <ul>
         {data.aiJobs.map((job: any) => (
-          <li key={job.id}>{job.operation} - {job.status} {job.errorMessage ? `(${job.errorMessage})` : ""}</li>
+          <li key={job.id}>
+            {job.operation} - {job.provider} - {job.status}
+            {job.errorMessage ? ` (${job.errorMessage})` : ""}
+            {job.durationMs ? ` [${job.durationMs}ms]` : ""}
+          </li>
         ))}
       </ul>
       <h3>Quality diagnostics</h3>

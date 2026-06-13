@@ -470,7 +470,10 @@ async listCustomers(params: ListCustomersParams) {
       images: order.images,
       qualityScores: order.imageQualityScores,
       jobs: order.processingJobs,
-      aiJobs: order.aiJobs,
+      aiJobs: order.aiJobs.map((job) => ({
+        ...job,
+        provider: job.provider
+      })),
       statusHistory: order.statusHistory,
       deliveryStatus
     };
@@ -519,6 +522,10 @@ async listCustomers(params: ListCustomersParams) {
     return {
       items: items.map((job) => ({
         ...job,
+        providerName: job.providerName,
+        durationMs: job.startedAt && job.completedAt
+          ? Math.round((job.completedAt.getTime() - job.startedAt.getTime()))
+          : null,
         qualityScore: job.imageQualityScores[0]
           ? {
               overallScore: job.imageQualityScores[0].overallScore,

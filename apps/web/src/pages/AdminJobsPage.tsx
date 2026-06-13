@@ -7,6 +7,7 @@ type JobItem = {
   id: string;
   queueName: string;
   jobName: string;
+  providerName: string | null;
   status: string;
   attempts: number;
   maxAttempts: number;
@@ -14,6 +15,7 @@ type JobItem = {
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  durationMs: number | null;
   qualityScore?: {
     overallScore: number;
     enhancementScore: number | null;
@@ -73,15 +75,26 @@ export function AdminJobsPage() {
                 <div>
                   <p className="eyebrow">{job.queueName}</p>
                   <h3>{job.jobName}</h3>
+                  {job.providerName && <span className="helper-text">Provider: {job.providerName}</span>}
                   {job.order && <span className="helper-text">Order: {job.order.orderNo}</span>}
                 </div>
                 <StatusBadge value={job.status} />
               </div>
               <dl className="detail-grid">
                 <div>
+                  <dt>Provider</dt>
+                  <dd>{job.providerName || "—"}</dd>
+                </div>
+                <div>
                   <dt>Attempts</dt>
                   <dd>{job.attempts}/{job.maxAttempts}</dd>
                 </div>
+                {job.durationMs && (
+                  <div>
+                    <dt>Duration</dt>
+                    <dd>{job.durationMs}ms</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Started</dt>
                   <dd>{job.startedAt ? formatDateTime(job.startedAt) : "—"}</dd>

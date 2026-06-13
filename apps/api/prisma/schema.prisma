@@ -559,3 +559,37 @@ model AuditLog {
   @@index([entityType, entityId, createdAt])
   @@index([actorType, createdAt])
 }
+
+enum ProviderCostType {
+  BACKGROUND_REMOVAL
+  CLASSIFICATION
+  CROP_CENTER
+  ENHANCEMENT
+  RELATINGHT
+  SHADOW_GENERATION
+  FLAT_LAY
+  LIFESTYLE_SCENE
+}
+
+model ProviderCostLog {
+  id              String           @id @default(cuid())
+  provider        String
+  operation       String
+  costType        ProviderCostType?
+  durationMs      Int
+  inputSizeBytes  Int?
+  outputSizeBytes Int?
+  estimatedCost   Decimal        @db.Decimal(10, 4) @default(0)
+  actualCost      Decimal?       @db.Decimal(10, 4)
+  orderId         String?
+  aiJobId         String?
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  aiJob AiJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
+
+  @@index([provider, createdAt])
+  @@index([orderId, createdAt])
+  @@index([aiJobId, createdAt])
+}
