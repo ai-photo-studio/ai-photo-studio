@@ -303,7 +303,7 @@ export class AdminService {
     };
   }
 
-  async listCustomers(params: ListCustomersParams) {
+async listCustomers(params: ListCustomersParams) {
     const page = Math.max(1, params.page || 1);
     const limit = Math.min(100, Math.max(1, params.limit || 20));
     const skip = (page - 1) * limit;
@@ -316,6 +316,62 @@ export class AdminService {
         { customer: { whatsappNumber: { contains: params.search, mode: "insensitive" } } }
       ];
     }
+
+    const [items, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: {
+          customer: true,
+          orders: { take: 5, orderBy: { createdAt: "desc" } },
+          wallet: true
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    return {
+      items: items.map((u) => ({
+        id: u.customer?.id ?? u.id,
+        userId: u.id,
+        email: u.email,
+        name: u.name,
+        phone: u.customer?.whatsappNumber || null,
+        isTestAccount: u.customer?.isTestAccount || false,
+        orders: u.orders.length,
+        walletBalance: u.wallet?.balance || 0,
+        createdAt: u.createdAt.toISOString()
+      })),
+      total,
+      page,
+      limit
+    };
+  }
+
+  async getCustomerDetail(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        customer: true,
+        orders: { orderBy: { createdAt: "desc" }, take: 10 },
+        wallet: true
+      }
+    });
+    if (!user) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
+    return {
+      id: user.customer?.id ?? user.id,
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.customer?.whatsappNumber || null,
+      isTestAccount: user.customer?.isTestAccount || false,
+      orders: user.orders.length,
+      walletBalance: user.wallet?.balance || 0,
+      createdAt: user.createdAt.toISOString()
+    };
+  }
 
     const [items, total] = await Promise.all([
       prisma.user.findMany({
@@ -678,7 +734,7 @@ export class AdminService {
       where: { id: userId },
       include: { customer: true }
     });
-    if (!user || !user.customer) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
+    if (!user?.customer) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
 
     const updated = await prisma.customer.update({
       where: { id: user.customer.id },
@@ -695,6 +751,6 @@ export class AdminService {
       }
     });
 
-    return { id: user.customer.id, isTestAccount: updated.isTestAccount };
+    return { id: user.customer.id, userId: user.id, isTestAccount: updated.isTestAccount };
   }
 }
