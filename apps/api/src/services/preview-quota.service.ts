@@ -4,6 +4,7 @@ import { AppError } from "../utils/errors";
 
 type PreviewScopeInput = {
   userId?: string | null;
+  customerId?: string | null;
   previewClientId?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -19,6 +20,7 @@ type PreviewQuotaResult = {
   limit: number;
   used: number;
   remaining: number;
+  isTestAccount: boolean;
 };
 
 const GUEST_LIMIT = 1;
@@ -55,6 +57,22 @@ export class PreviewQuotaService {
     const settingKey = `free-preview:${scope.scopeKey}`;
 
     return prisma.$transaction(async (tx) => {
+      let isTestAccount = false;
+      if (input.customerId) {
+        const customer = await tx.customer.findUnique({ where: { id: input.customerId } });
+        isTestAccount = customer?.isTestAccount === true;
+      }
+
+      if (isTestAccount) {
+        return {
+          scopeType: scope.scopeType,
+          limit: -1,
+          used: 0,
+          remaining: -1,
+          isTestAccount: true
+        };
+      }
+
       const existing = await tx.setting.findUnique({ where: { key: settingKey } });
       let currentValue = 0;
       if (existing) {
@@ -104,7 +122,8 @@ export class PreviewQuotaService {
         scopeType: scope.scopeType,
         limit: scope.limit,
         used: nextValue,
-        remaining: Math.max(0, scope.limit - nextValue)
+        remaining: Math.max(0, scope.limit - nextValue),
+        isTestAccount: false
       };
     });
   }

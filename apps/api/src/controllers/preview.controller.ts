@@ -3,6 +3,7 @@ import type { AppConfig } from "../config/env";
 import { PreviewQuotaService } from "../services/preview-quota.service";
 import { verifyToken } from "../middleware/auth.middleware";
 import { AppError, toErrorMessage } from "../utils/errors";
+import { prisma } from "../db/prisma";
 
 type WebPreviewPayload = {
   fileName?: string;
@@ -20,8 +21,18 @@ export class PreviewController {
       const payload = (req.body || {}) as WebPreviewPayload;
       const user = this.resolveOptionalUser(req);
 
+      let customerId: string | undefined;
+      if (user?.sub) {
+        const userWithCustomer = await prisma.user.findUnique({
+          where: { id: user.sub },
+          select: { customerId: true }
+        });
+        customerId = userWithCustomer?.customerId ?? undefined;
+      }
+
       const result = await this.previewQuotaService.claimWebPreview({
         userId: user?.sub,
+        customerId,
         previewClientId: payload.previewClientId,
         ipAddress: this.getRequestIp(req),
         userAgent: req.headers["user-agent"] ? String(req.headers["user-agent"]) : undefined,

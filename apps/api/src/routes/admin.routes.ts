@@ -30,6 +30,8 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.get("/admin/subscriptions", requireAdminAuth(config, financeRoles), controller.subscriptions);
   router.get("/admin/customers", requireAdminAuth(config, opsRoles), controller.customers);
   router.get("/admin/packages", requireAdminAuth(config, adminRoles), controller.packages);
+  router.get("/admin/customers/:id", requireAdminAuth(config, opsRoles), controller.customerDetail);
+  router.patch("/admin/customers/:id/test-mode", requireAdminAuth(config, adminRoles), controller.toggleCustomerTestMode);
   router.post("/admin/orders/:id/retry", requireAdminAuth(config, opsRoles), controller.retryOrder);
   router.post("/admin/orders/:id/approve-manual-payment", requireAdminAuth(config, financeRoles), controller.approveManualPayment);
   router.post("/admin/orders/:id/reject-manual-payment", requireAdminAuth(config, financeRoles), controller.rejectManualPayment);
@@ -38,6 +40,7 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.post("/admin/packages", requireAdminAuth(config, adminRoles), controller.upsertPackage);
   router.post("/admin/payments/:id/approve", requireAdminAuth(config, financeRoles), controller.approvePayment);
   router.post("/admin/payments/:id/reject", requireAdminAuth(config, financeRoles), controller.rejectPayment);
+  router.patch("/admin/customers/:id/test-mode", requireAdminAuth(config, adminRoles), controller.toggleCustomerTestMode);
 
   return router;
 };

@@ -338,6 +338,7 @@ export class AdminService {
         email: u.email,
         name: u.name,
         phone: u.customer?.whatsappNumber || null,
+        isTestAccount: u.customer?.isTestAccount || false,
         orders: u.orders.length,
         walletBalance: u.wallet?.balance || 0,
         createdAt: u.createdAt.toISOString()
@@ -345,6 +346,28 @@ export class AdminService {
       total,
       page,
       limit
+    };
+  }
+
+  async getCustomerDetail(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        customer: true,
+        orders: { orderBy: { createdAt: "desc" }, take: 10 },
+        wallet: true
+      }
+    });
+    if (!user) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.customer?.whatsappNumber || null,
+      isTestAccount: user.customer?.isTestAccount || false,
+      orders: user.orders.length,
+      walletBalance: user.wallet?.balance || 0,
+      createdAt: user.createdAt.toISOString()
     };
   }
 
@@ -648,5 +671,27 @@ export class AdminService {
     });
 
     return { jobId, retried: true };
+  }
+
+  async toggleCustomerTestMode(customerId: string, isTestAccount: boolean) {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) throw new AppError("Customer not found", 404, "CUSTOMER_NOT_FOUND");
+
+    const updated = await prisma.customer.update({
+      where: { id: customerId },
+      data: { isTestAccount }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actorType: "admin",
+        action: "toggle_test_mode",
+        entityType: "customer",
+        entityId: customerId,
+        meta: { isTestAccount }
+      }
+    });
+
+    return { id: updated.id, isTestAccount: updated.isTestAccount };
   }
 }

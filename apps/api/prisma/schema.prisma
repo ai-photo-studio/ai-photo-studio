@@ -82,6 +82,7 @@ model Customer {
   whatsappNumber String   @unique
   name           String?
   locale         String?  @default("en-PK")
+  isTestAccount  Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

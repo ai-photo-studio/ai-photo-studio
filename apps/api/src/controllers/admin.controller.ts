@@ -128,6 +128,15 @@ export class AdminController {
     }
   };
 
+  customerDetail = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.getCustomerDetail(req.params.id);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   packages = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.listPackages({
@@ -206,6 +215,15 @@ export class AdminController {
   retryJob = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.retryJob(req.params.id);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  toggleCustomerTestMode = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.toggleCustomerTestMode(req.params.id, req.body?.isTestAccount);
       res.json({ success: true, data });
     } catch (error) {
       this.handleError(res, error);
