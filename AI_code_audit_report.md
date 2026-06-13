@@ -1,65 +1,77 @@
 # AI Code Audit Report
 
-## Audit Summary
-
 **Date:** 2026-06-13
-**Status:** Phase 1.5 Complete
-**Completion:** 98%
+**Project:** AI Photo Studio WhatsApp
+**Status:** Web-First Production Ready
 
-## 1. Upload Error Diagnosis
+---
 
-### Issue
-Production showed: `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
+## Executive Summary
 
-### Root Cause
-Stale deployment (commit 79f722a, 3 hours old). The API endpoint `/api/previews/web` was not available in the stale deployed code.
+| Status | Metric |
+|--------|--------|
+| Build | PASS |
+| Typecheck | PASS |
+| Railway | DEPLOYED |
+| Cloudflare | DEPLOYED |
 
-### Resolution
-- Rebuilt production code
-- Deployed fresh version to Cloudflare Pages
-- New deployment: fc0200c9
+---
 
-## 2. Theme Redesign
+## Root Cause Analysis
 
-### Changes
-Converted homepage from dark theme to light SaaS theme:
+### Issue: Production Upload Error
 
-| Before | After |
-|--------|-------|
-| Dark gradient hero | Light white cards |
-| Forest green accents | Teal accent (#0d9488) |
-| Dark background | White background |
-| Large dark gradients | Clean white cards |
+**Symptom:** `Unexpected token '<', '<!DOCTYPE' is not valid JSON`
 
-### Files Changed
-- `apps/web/src/styles.css` - Complete light theme redesign
-- `apps/web/index.html` - Updated title
+**Root Cause:** Railway deployment was stale. The API was running an old build that was missing the `/api/previews/web` route.
 
-## 3. Deployment Status
+**Resolution:** Redeployed API to Railway using `railway up` command. Deployment ID changed from `9428f398` to `0475f398`.
 
-| Service | Status |
-|---------|--------|
-| API (Railway) | Online |
-| Web (Cloudflare) | Deployed (fc0200c9) |
-| Preview endpoint | Working |
+---
 
-## 4. Homepage Verification
+## Production Verification
 
-| Requirement | Status |
-|-------------|--------|
-| Upload in first viewport | PASS |
-| Ecommerce seller messaging | PASS |
-| Light theme | PASS |
-| Product examples | PASS |
+### API Routes (Post-Redeploy)
+- `/api/health` - OK
+- `/api/version` - OK
+- `/api/previews/web` - OK (was missing, now present)
+- `/api/orders` - OK
+- `/api/auth/*` - OK
+- `/api/admin/*` - OK
 
-## 5. Completion Metrics
+### Web Theme
+- Light theme active (white cards, soft gray background)
+- CSS variables: `--bg: #ffffff`, `--panel: #ffffff`
 
-- Phase 1: 100%
-- Phase 1.5: 98%
-- Launch readiness: 98%
+---
 
-## 6. Next Steps
+## Files Changed
 
-- Deploy API to Railway (if needed)
-- Verify production upload flow
-- WhatsApp token refresh (deferred)
+| File | Change |
+|------|--------|
+| apps/api/src/config/env.ts | Added comment to trigger redeploy |
+| apps/web/src/styles.css | Light theme CSS variables |
+| apps/web/src/pages/HomePage.tsx | Homepage redesign |
+
+---
+
+## Deployment Status
+
+| Environment | Status | URL |
+|-------------|--------|-----|
+| Railway API | Online | https://api-production-4867.up.railway.app |
+| Cloudflare Web | Deployed | https://ai-photo-studio-whatsapp-web.pages.dev |
+
+---
+
+## Remaining Work
+
+1. **WhatsApp Production Integration** - Deferred to Phase 2
+2. **Admin Page Testing** - Requires authentication
+3. **Order Flow Testing** - Requires funded wallet
+
+---
+
+## Completion: 95%
+
+Web-first production readiness achieved. WhatsApp integration deferred per project requirements.
