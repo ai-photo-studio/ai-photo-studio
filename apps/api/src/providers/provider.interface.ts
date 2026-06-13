@@ -103,6 +103,7 @@ export type ProcessingStage =
   | "AUTO_CENTER"
   | "REMBG"
   | "REAL_ESRGAN"
+  | "CREATIVE_STUDIO"
   | "EXPORT"
   | "IC_LIGHT_LAB";
 
@@ -168,7 +169,9 @@ export type CapabilityName =
   | "relighting"
   | "shadow-generation"
   | "flat-lay"
-  | "lifestyle-scene";
+  | "lifestyle-scene"
+  | "virtual-model"
+  | "video-generation";
 
 export type ProviderCapability = {
   capability: CapabilityName;
@@ -209,7 +212,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -230,7 +235,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -251,7 +258,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -272,7 +281,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "enhancement", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -293,7 +304,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: true },
       { capability: "shadow-generation", enabled: true },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "relighting", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -314,7 +327,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0.05 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -335,7 +350,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0.08 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -356,7 +373,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0.03 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -377,7 +396,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0.05 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
@@ -398,7 +419,9 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false }
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0.08 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],

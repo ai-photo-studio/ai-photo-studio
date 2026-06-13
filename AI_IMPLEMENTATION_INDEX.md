@@ -73,8 +73,19 @@
 - `apps/api/src/providers/provider.factory.ts`: configuration-driven provider selection, fallback framework
 - `apps/api/src/providers/local-esrgan.provider.ts`: local ESRGAN provider implementation
 - `apps/api/src/providers/local-iclight.provider.ts`: local IC-Light provider implementation
-- `apps/api/prisma/schema.prisma`: `ProviderCostLog` model for cost tracking
+- `apps/api/prisma/schema.prisma`: `ProviderCostLog` model for cost tracking, `CreativeStudioJob` model for Phase 4
 - `apps/api/src/services/admin.service.ts`: provider diagnostics in job listings
+- `apps/web/src/pages/AdminJobsPage.tsx`: provider, duration, and quality diagnostics
+- `apps/web/src/pages/AdminOrderDetail.tsx`: provider and quality diagnostics by order
+
+## Phase 3 Provider Verification
+
+- `apps/api/src/services/background-remover.service.ts`: health endpoint for local-rembg
+- `apps/api/src/services/yolo-detector.service.ts`: health endpoint for local-yolo
+- `apps/api/src/services/real-esrgan.service.ts`: health endpoint for local-esrgan
+- `apps/api/src/services/ic-light-lab.service.ts`: health endpoint for local-iclight
+- `apps/api/src/services/product-classifier.service.ts`: health endpoint and fallback classifier
+- `apps/api/src/services/service-health.types.ts`: health status types
 
 ## Verified Behavior
 
@@ -106,6 +117,12 @@
 - Railway API previously reported online at `https://api-production-4867.up.railway.app`
 - Background remover service previously reported online at `https://background-remover-production-0627.up.railway.app`
 
+## Phase 4 Creative Studio Foundation Map
+
+- `apps/api/prisma/schema.prisma`: `CreativeType`, `CreativeSceneType`, `CreativeGenerationStatus` enums; `CreativeStudioJob` model
+- `apps/api/src/providers/provider.interface.ts`: capability placeholders (`flat-lay`, `lifestyle-scene`, `virtual-model`, `video-generation`)
+- `apps/web/src/pages/AdminOrderDetail.tsx`: creative studio placeholder section in admin UI
+
 ## Current Completion
 
 - Phase 1: 100%
@@ -113,11 +130,11 @@
 - Phase 2A Local AI: 70%
 - Phase 2B Image Enhancement: 40%
 - Phase 2C Product Classification: 40%
-- Phase 3 Provider Framework: 60%
-- Phase 4 Creative Studio Expansion: 0%
+- Phase 3 Provider Framework: 80%
+- Phase 4 Creative Studio Expansion: 20%
 - Phase 5 Operations: 0%
 - Phase 6 WhatsApp: 0%
-- Overall roadmap completion: 70%
+- Overall roadmap completion: 74%
 
 ## Remaining Work
 

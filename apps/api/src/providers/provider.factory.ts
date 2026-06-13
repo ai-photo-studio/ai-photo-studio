@@ -26,6 +26,44 @@ export const isProviderEnabled = (providerName: AIProviderName): boolean => {
   return false;
 };
 
+export const getFallbackProvider = (primaryProvider: AIProviderName): AIProviderName => {
+  if (!isProviderEnabled(primaryProvider)) return "local-yolo";
+  return primaryProvider;
+};
+
+export const getProviderChain = (config: AppConfig): AIProviderName[] => {
+  const primary = resolveProviderName(config);
+  const selected = isProviderEnabled(primary) ? primary : "local-yolo";
+  const chain: AIProviderName[] = [];
+
+  for (const providerName of [selected, "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "mock"] as AIProviderName[]) {
+    if (!chain.includes(providerName) && isProviderEnabled(providerName)) {
+      chain.push(providerName);
+    }
+  }
+
+  return chain;
+};
+
+export const getProviderSelection = (config: AppConfig): {
+  primaryProvider: AIProviderName;
+  activeProvider: AIProviderName;
+  fallbackProvider: AIProviderName;
+  providerChain: AIProviderName[];
+  paidProviderDisabled: boolean;
+} => {
+  const primaryProvider = resolveProviderName(config);
+  const activeProvider = isProviderEnabled(primaryProvider) ? primaryProvider : "local-yolo";
+  const fallbackProvider = getFallbackProvider(primaryProvider);
+  return {
+    primaryProvider,
+    activeProvider,
+    fallbackProvider,
+    providerChain: getProviderChain(config),
+    paidProviderDisabled: !isProviderEnabled(primaryProvider)
+  };
+};
+
 export const createImageProvider = (config: AppConfig): ImageProvider => {
   const providerName = resolveProviderName(config);
 

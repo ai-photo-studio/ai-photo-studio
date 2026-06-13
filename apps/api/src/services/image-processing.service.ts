@@ -2,20 +2,12 @@ import type { AppConfig } from "../config/env";
 import { createImageProvider } from "../providers/provider.factory";
 import type {
   ImageProvider,
+  ProcessImageInput,
   ProcessImageOutput,
   ProductPipelineRoute,
   ProductWorkflowMode,
   VehicleWorkflowMode
 } from "../providers/provider.interface";
-
-export type ProcessImageInput = {
-  buffer: Buffer;
-  contentType: string;
-  fileName: string;
-  orderId: string;
-  orderNo: string;
-  mediaId?: string;
-};
 
 export type ProcessedImageResult = ProcessImageOutput;
 

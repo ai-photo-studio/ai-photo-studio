@@ -1,6 +1,7 @@
 import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import type { ServiceHealth } from "./service-health.types";
 
 export type ICLightLabRelightInput = {
   body: Buffer;
@@ -69,5 +70,30 @@ export class ICLightLabService {
       throw new AppError("IC-Light lab returned no data", 502, "IC_LIGHT_LAB_EMPTY");
     }
     return envelope.data;
+  }
+
+  async health(): Promise<ServiceHealth> {
+    const baseUrl = this.config.IC_LIGHT_LAB_URL.trim();
+    if (!baseUrl) {
+      return { healthy: false, status: "unconfigured", message: "IC_LIGHT_LAB_URL is not configured; pass-through mode enabled", checkedAt: new Date().toISOString() };
+    }
+
+    try {
+      const endpoint = `${baseUrl.replace(/\/$/, "")}/health`;
+      const response = await fetch(endpoint, { method: "GET" });
+      if (!response.ok) {
+        const body = await response.text();
+        return { healthy: false, status: "error", endpoint, statusCode: response.status, message: body.slice(0, 200), checkedAt: new Date().toISOString() };
+      }
+      return { healthy: true, status: "ok", endpoint, checkedAt: new Date().toISOString() };
+    } catch (error) {
+      return {
+        healthy: false,
+        status: "error",
+        endpoint: `${baseUrl.replace(/\/$/, "")}/health`,
+        message: error instanceof Error ? error.message : String(error),
+        checkedAt: new Date().toISOString()
+      };
+    }
   }
 }

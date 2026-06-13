@@ -565,10 +565,12 @@ enum ProviderCostType {
   CLASSIFICATION
   CROP_CENTER
   ENHANCEMENT
-  RELATINGHT
+  RELIGHTING
   SHADOW_GENERATION
   FLAT_LAY
   LIFESTYLE_SCENE
+  VIRTUAL_MODEL
+  VIDEO_GENERATION
 }
 
 model ProviderCostLog {
@@ -582,14 +584,68 @@ model ProviderCostLog {
   estimatedCost   Decimal        @db.Decimal(10, 4) @default(0)
   actualCost      Decimal?       @db.Decimal(10, 4)
   orderId         String?
+  processingJobId String?
   aiJobId         String?
   metadata        Json?
   createdAt       DateTime       @default(now())
 
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  processingJob ProcessingJob? @relation(fields: [processingJobId], references: [id], onDelete: SetNull)
   aiJob AiJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
 
   @@index([provider, createdAt])
   @@index([orderId, createdAt])
+  @@index([processingJobId, createdAt])
   @@index([aiJobId, createdAt])
+}
+
+enum CreativeType {
+  FLAT_LAY
+  LIFESTYLE_SCENE
+  VIRTUAL_MODEL
+  PRODUCT_VIDEO
+}
+
+enum CreativeSceneType {
+  STUDIO
+  TABLETOP
+  LIFESTYLE
+  MODEL
+  VIDEO_LOOP
+}
+
+enum CreativeGenerationStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CreativeStudioJob {
+  id                String                  @id @default(cuid())
+  orderId           String?
+  orderImageId      String?
+  creativeType      CreativeType
+  sceneType         CreativeSceneType
+  generationStatus  CreativeGenerationStatus @default(PENDING)
+  providerUsed      String
+  inputStorageKey   String?
+  outputStorageKey  String?
+  promptSummary     String?
+  durationMs        Int?
+  estimatedCost     Decimal                 @db.Decimal(10, 4) @default(0)
+  actualCost        Decimal?                @db.Decimal(10, 4)
+  metadata          Json?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  order       Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderImage  OrderImage?  @relation(fields: [orderImageId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([orderImageId, createdAt])
+  @@index([creativeType, generationStatus])
+  @@index([providerUsed, createdAt])
 }
