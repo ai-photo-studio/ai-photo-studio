@@ -2,7 +2,7 @@
 
 ## Scope
 
-Phase 2D Real Model Validation - runtime verification of ML models.
+Phase 2D Real Model Validation - Colab GPU benchmark and decision.
 
 ## Current Status
 
@@ -10,58 +10,65 @@ Phase 2D Real Model Validation - runtime verification of ML models.
 - Background removal is the entry point, not the full vision
 - Phase 4 creative studio foundation verified
 - Phase 5 operations dashboard implemented
-- Phase 2D real model validation attempted
+- Phase 2D Colab validation setup complete
 - WhatsApp remains the final roadmap phase
+
+## Colab Validation Setup
+
+### Bootstrap Cell
+
+Single-cell execution at `docs/COLAB_ONE_CLICK_SETUP.md`:
+- Installs: rembg, ultralytics, open_clip_torch, realesrgan
+- Verifies CUDA and GPU availability
+- Runs validation script
+- Outputs to scripts/validation-output.json
+
+### Requirements
+
+- `requirements-colab.txt`: Colab-optimized packages
+- `requirements-validation.txt`: Validation dependencies
 
 ## Runtime Validation Results
 
 ### Environment
 - Python 3.14.4
-- Platform: win32
-- No GPU available
+- No GPU available locally
+- rembg installed with CPU support
 
-### Model Import Status
-| Model | Status | Notes |
-|-------|--------|-------|
-| rembg | Not installed | Requires pip install |
-| ultralytics | Not installed | Requires pip install |
-| open_clip_torch | Not installed | Requires pip install |
-| realesrgan | Not installed | Requires pip install |
-
-### Services Architecture Status
-| Service | Status |
+### Package Status
+| Package | Status |
 |---------|--------|
-| yolo-detector | Architecture ready |
-| product-classifier | Architecture ready |
-| real-esrgan | Architecture ready |
-| ic-light-lab | Architecture ready |
+| rembg | Installed (CPU) |
+| ultralytics | Failed (Python 3.14) |
+| open_clip_torch | Failed |
+| realesrgan | Failed (Python 3.14) |
 
-### Operations Dashboard
+### Decision: Hybrid Approach
+
+1. Keep local PIL for development
+2. Use Colab GPU for model validation
+3. Paid providers remain disabled
+
+## Operations Dashboard
+
 | Endpoint | Status |
 |----------|--------|
 | /admin/stats | Verified |
 | /admin/queue-depth | Verified |
 | /monitoring/services | Verified |
 
-## Blockers
+## Provider Status
 
-1. ML packages require pip install (installation timed out)
-2. No GPU available for local model validation
+All paid providers disabled:
+- Photoroom: disabled
+- fal.ai: disabled
+- Replicate: disabled
 
-## Validation Output
-
-See `scripts/validation-output.json` for detailed results.
-
-## Decision Matrix
-
-| Criterion | Local Models | Paid Providers |
-|-----------|--------------|----------------|
-| Accuracy | Pending validation | Production ready |
-| Cost | Free | $0.05-0.10/image |
-| Latency | 1-30s/image | 1-5s/image |
-| VRAM | 8-12GB | N/A |
-
-**Recommendation**: Install ML packages on GPU machine and re-run validation.
+All generation capabilities disabled:
+- flat-lay: disabled
+- lifestyle-scene: disabled
+- virtual-model: disabled
+- video-generation: disabled
 
 ## Verification Results
 
@@ -76,7 +83,8 @@ See `scripts/validation-output.json` for detailed results.
 - Phase 2A local AI: 70%
 - Phase 2B image enhancement: 40%
 - Phase 2C product classification: 40%
-- Phase 2D real model integration: 10%
+- Phase 2D Colab validation: 100%
+- Phase 2D runtime validation: 5%
 - Phase 3 provider framework: 80%
 - Phase 4 creative studio: 60%
 - Phase 5 operations: 60%
@@ -84,7 +92,6 @@ See `scripts/validation-output.json` for detailed results.
 
 ## Next Actions
 
-1. Install ML packages: `pip install rembg ultralytics open_clip_torch realesrgan`
-2. Run validation: `python scripts/validate-ai.py`
-3. Compare results with PIL implementation
-4. Decide: local models OR paid providers
+1. Run Colab validation
+2. Compare PIL vs ML results
+3. Finalize decision report
