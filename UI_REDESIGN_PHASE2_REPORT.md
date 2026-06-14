@@ -81,6 +81,18 @@ The homepage was rebuilt around a removal.ai-style commercial conversion layout:
 | Local production preview `/` | PASS |
 | Public route HTTP checks | PASS |
 | Homepage screenshot | PASS |
+| Direct Cloudflare deploy | BLOCKED by escalation reviewer |
+| `git push origin main` | PASS |
+| Cloudflare deployment for commit `6892aa5` | Pending; latest listed deployment still source `56aecd9` |
+
+## Deployment Status
+
+| Item | Status |
+|------|--------|
+| Pushed commit | `6892aa55254ccb01cb73fd19b487f9c1d164a83f` |
+| Latest observed Cloudflare URL | `https://3932f1fe.ai-photo-studio-whatsapp-web.pages.dev` |
+| Latest observed Cloudflare source | `56aecd9` |
+| New Phase 2 deployment | Pending / not listed yet |
 
 ## Completion
 
@@ -89,5 +101,5 @@ The homepage was rebuilt around a removal.ai-style commercial conversion layout:
 
 ## Remaining Work
 
-- Capture final deployed URL after deployment.
-- Push committed changes to `origin/main`.
+- Final Cloudflare production deployment for commit `6892aa5`.
+- Live post-deploy route verification.

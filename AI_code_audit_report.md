@@ -37,8 +37,8 @@ Public web Phase 2 redesign for AI Product Photo Studio.
 | Full typecheck | PASS |
 | Enterprise verify | PASS with Railway network warnings |
 | Screenshot capture | PASS |
-| Deploy | Pending final deploy command |
+| Deploy | BLOCKED: direct Wrangler deploy rejected by escalation reviewer; GitHub push completed but Cloudflare has not published commit `6892aa5` yet |
 
 ## Recommendation
 
-Commercial polish improved substantially. Remaining risk is limited to live deployment verification after the final deploy command completes.
+Commercial polish improved substantially. Remaining risk is limited to live deployment verification after Cloudflare publishes commit `6892aa5` or a direct deploy is explicitly approved.

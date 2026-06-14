@@ -126,6 +126,9 @@
 - `npm.cmd run typecheck`: PASS on 2026-06-14
 - `npm.cmd run enterprise-verify`: PASS with Railway network warnings on 2026-06-14
 - Local production preview screenshot: PASS on 2026-06-14
+- Direct Cloudflare deploy: BLOCKED by escalation reviewer on 2026-06-14
+- `git push origin main`: PASS, commit `6892aa5`
+- Cloudflare Pages deployment for commit `6892aa5`: pending; latest observed deployment source remains `56aecd9`
 - `railway whoami`: unauthorized in this shell
 - `railway status`: PASS
 - `railway logs --service api --tail 300`: PASS
