@@ -1,6 +1,8 @@
 import type { CreativeType, CreativeSceneType, FlatLayTemplate } from "./creative-types";
 import { prisma } from "../../db/prisma";
 import { logger } from "../../utils/logger";
+import { CreativeProviderFactory } from "../../providers/creative-provider.factory";
+import type { AppConfig } from "../../config/env";
 
 export type FlatLayBackground = "white" | "marble" | "wood" | "ecommerce";
 
@@ -20,36 +22,28 @@ export type FlatLayOutput = {
   contentType: string;
   fileName: string;
   durationMs?: number;
+  outputStorageKey?: string;
+  outputUrl?: string;
 };
 
 export class FlatLayService {
+  private readonly providerFactory: CreativeProviderFactory;
+
+  constructor(config: AppConfig) {
+    this.providerFactory = new CreativeProviderFactory(config);
+  }
+
   async generate(input: FlatLayInput): Promise<FlatLayOutput> {
     const startTime = Date.now();
     const requestId = `flat-lay-${Date.now()}`;
     const background = input.background || "white";
+    const provider = this.providerFactory.create("mock");
 
     try {
-      let resultBuffer: Buffer;
-      let outputContentType = input.contentType || "image/png";
-
-      switch (background) {
-        case "white":
-          resultBuffer = await this.generateWhiteBackground(input.body, input.contentType);
-          break;
-        case "marble":
-          resultBuffer = await this.generateMarbleBackground(input.body, input.contentType);
-          break;
-        case "wood":
-          resultBuffer = await this.generateWoodBackground(input.body, input.contentType);
-          break;
-        case "ecommerce":
-          resultBuffer = await this.generateEcommerceBackground(input.body, input.contentType);
-          break;
-        default:
-          resultBuffer = await this.generateWhiteBackground(input.body, input.contentType);
-      }
-
+      const result = await provider.generateFlatLay({ body: input.body, background });
+      const resultBuffer = result.body;
       const durationMs = Date.now() - startTime;
+      const outputContentType = input.contentType || "image/png";
 
       await this.persistJob({
         requestId,
@@ -59,7 +53,7 @@ export class FlatLayService {
         sceneType: "TABLETOP",
         template: input.template || "ecommerce-flatlay",
         background,
-        providerUsed: "flat-lay-mock",
+        providerUsed: provider.name,
         status: "COMPLETED",
         durationMs,
         inputSizeBytes: input.body.length,
@@ -72,7 +66,9 @@ export class FlatLayService {
         imageBase64: encoded,
         contentType: outputContentType,
         fileName: input.fileName || "flat-lay.png",
-        durationMs
+        durationMs,
+        outputStorageKey: resultBuffer.length.toString(),
+        outputUrl: undefined
       };
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -86,7 +82,7 @@ export class FlatLayService {
         sceneType: "TABLETOP",
         template: input.template || "ecommerce-flatlay",
         background,
-        providerUsed: "flat-lay-mock",
+        providerUsed: provider.name,
         status: "FAILED",
         durationMs,
         inputSizeBytes: input.body.length
@@ -94,22 +90,6 @@ export class FlatLayService {
 
       throw error;
     }
-  }
-
-  private async generateWhiteBackground(body: Buffer, contentType?: string): Promise<Buffer> {
-    return body;
-  }
-
-  private async generateMarbleBackground(body: Buffer, contentType?: string): Promise<Buffer> {
-    return body;
-  }
-
-  private async generateWoodBackground(body: Buffer, contentType?: string): Promise<Buffer> {
-    return body;
-  }
-
-  private async generateEcommerceBackground(body: Buffer, contentType?: string): Promise<Buffer> {
-    return body;
   }
 
   private async persistJob(params: {
@@ -125,6 +105,8 @@ export class FlatLayService {
     durationMs?: number;
     inputSizeBytes?: number;
     outputSizeBytes?: number;
+    outputStorageKey?: string;
+    outputUrl?: string;
   }) {
     try {
       await prisma.creativeStudioJob.create({
@@ -139,9 +121,10 @@ export class FlatLayService {
           durationMs: params.durationMs,
           estimatedCost: 0,
           actualCost: 0,
-          metadata: { background: params.background },
+          metadata: params.background ? { background: params.background } : {},
           inputStorageKey: params.inputSizeBytes ? `${params.inputSizeBytes} bytes` : null,
-          outputStorageKey: params.outputSizeBytes ? `${params.outputSizeBytes} bytes` : null
+          outputStorageKey: params.outputStorageKey,
+          createdAt: new Date()
         }
       });
     } catch (error) {

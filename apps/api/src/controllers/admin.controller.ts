@@ -264,6 +264,54 @@ export class AdminController {
     }
   };
 
+  processingMetrics = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const hoursBack = req.query.hours ? Number(req.query.hours) : 24;
+      const data = await this.adminService.getProcessingMetrics(hoursBack);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  queueMetrics = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.getQueueMetrics();
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  costMetrics = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const hoursBack = req.query.hours ? Number(req.query.hours) : 24;
+      const data = await this.adminService.getCostMetrics(hoursBack);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+creativeCostMetrics = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const hoursBack = req.query.hours ? Number(req.query.hours) : 24;
+      const data = await this.adminService.getCreativeCostMetrics(hoursBack);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  getQueueHealthStatus = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.getQueueHealth();
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   private handleError(res: Response, error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ success: false, code: error.code, message: error.message });

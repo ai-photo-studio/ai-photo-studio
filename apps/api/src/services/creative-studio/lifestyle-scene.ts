@@ -1,6 +1,8 @@
 import type { CreativeType, CreativeSceneType, LifestyleTemplate } from "./creative-types";
 import { prisma } from "../../db/prisma";
 import { logger } from "../../utils/logger";
+import { CreativeProviderFactory } from "../../providers/creative-provider.factory";
+import type { AppConfig } from "../../config/env";
 
 export type LifestyleSceneInput = {
   body: Buffer;
@@ -17,16 +19,26 @@ export type LifestyleSceneOutput = {
   contentType: string;
   fileName: string;
   durationMs?: number;
+  outputStorageKey?: string;
+  outputUrl?: string;
 };
 
 export class LifestyleSceneService {
+  private readonly providerFactory: CreativeProviderFactory;
+
+  constructor(config: AppConfig) {
+    this.providerFactory = new CreativeProviderFactory(config);
+  }
+
   async generate(input: LifestyleSceneInput): Promise<LifestyleSceneOutput> {
     const startTime = Date.now();
     const requestId = `lifestyle-scene-${Date.now()}`;
     const template = input.template || "home";
+    const provider = this.providerFactory.create("mock");
 
     try {
-      const resultBuffer = await this.generateScene(input.body, input.contentType, template);
+      const result = await provider.generateLifestyleScene({ body: input.body, sceneType: template });
+      const resultBuffer = result.body;
       const durationMs = Date.now() - startTime;
       const outputContentType = input.contentType || "image/png";
 
@@ -37,7 +49,7 @@ export class LifestyleSceneService {
         creativeType: "LIFESTYLE_SCENE",
         sceneType: this.mapTemplateToSceneType(template),
         template,
-        providerUsed: "lifestyle-scene-mock",
+        providerUsed: provider.name,
         status: "COMPLETED",
         durationMs,
         inputSizeBytes: input.body.length,
@@ -50,7 +62,9 @@ export class LifestyleSceneService {
         imageBase64: encoded,
         contentType: outputContentType,
         fileName: input.fileName || "lifestyle-scene.png",
-        durationMs
+        durationMs,
+        outputStorageKey: resultBuffer.length.toString(),
+        outputUrl: undefined
       };
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -63,7 +77,7 @@ export class LifestyleSceneService {
         creativeType: "LIFESTYLE_SCENE",
         sceneType: this.mapTemplateToSceneType(template),
         template,
-        providerUsed: "lifestyle-scene-mock",
+        providerUsed: provider.name,
         status: "FAILED",
         durationMs,
         inputSizeBytes: input.body.length
@@ -71,10 +85,6 @@ export class LifestyleSceneService {
 
       throw error;
     }
-  }
-
-  private async generateScene(body: Buffer, contentType: string | undefined, template: LifestyleTemplate): Promise<Buffer> {
-    return body;
   }
 
   private mapTemplateToSceneType(template: LifestyleTemplate): CreativeSceneType {
@@ -99,6 +109,8 @@ export class LifestyleSceneService {
     durationMs?: number;
     inputSizeBytes?: number;
     outputSizeBytes?: number;
+    outputStorageKey?: string;
+    outputUrl?: string;
   }) {
     try {
       await prisma.creativeStudioJob.create({
@@ -115,7 +127,8 @@ export class LifestyleSceneService {
           actualCost: 0,
           metadata: {},
           inputStorageKey: params.inputSizeBytes ? `${params.inputSizeBytes} bytes` : null,
-          outputStorageKey: params.outputSizeBytes ? `${params.outputSizeBytes} bytes` : null
+          outputStorageKey: params.outputStorageKey,
+          createdAt: new Date()
         }
       });
     } catch (error) {

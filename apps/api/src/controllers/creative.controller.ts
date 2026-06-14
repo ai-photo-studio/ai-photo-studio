@@ -5,6 +5,8 @@ import { LifestyleSceneService, type LifestyleSceneInput } from "../services/cre
 import { VirtualModelService, type VirtualModelInput } from "../services/creative-studio/virtual-model";
 import { VideoPrepService, type VideoPrepInput } from "../services/creative-studio/video-prep";
 import { AppError, toErrorMessage } from "../utils/errors";
+import { CustomerService } from "../services/customer.service";
+import { SubscriptionService } from "../services/subscription.service";
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const SUPPORTED_VIDEO_MIME_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
@@ -18,12 +20,51 @@ const decodeBase64Input = (input: string) => {
 };
 
 export class CreativeController {
-  private readonly flatLayService = new FlatLayService();
-  private readonly lifestyleSceneService = new LifestyleSceneService();
-  private readonly virtualModelService = new VirtualModelService();
-  private readonly videoPrepService = new VideoPrepService();
+  private readonly flatLayService: FlatLayService;
+  private readonly lifestyleSceneService: LifestyleSceneService;
+  private readonly virtualModelService: VirtualModelService;
+  private readonly videoPrepService: VideoPrepService;
+  private readonly customerService = new CustomerService();
+  private readonly subscriptionService = new SubscriptionService();
 
-  constructor(private readonly config: AppConfig) {}
+  constructor(private readonly config: AppConfig) {
+    this.flatLayService = new FlatLayService(config);
+    this.lifestyleSceneService = new LifestyleSceneService(config);
+    this.virtualModelService = new VirtualModelService(config);
+    this.videoPrepService = new VideoPrepService(config);
+  }
+
+  private async reserveCredit(userId: string): Promise<void> {
+    const walletOverview = await this.customerService.getWalletOverview(userId);
+    const hasSubscriptionCredits = walletOverview.activeSubscription &&
+      walletOverview.activeSubscription.monthlyCreditLimit -
+      walletOverview.activeSubscription.monthlyCreditsUsed -
+      walletOverview.activeSubscription.monthlyCreditsReserved > 0;
+
+    if (hasSubscriptionCredits && walletOverview.activeSubscription) {
+      await this.subscriptionService.reserveUsage({
+        subscriptionId: walletOverview.activeSubscription.id,
+        amount: 1,
+        referenceType: "creative_job",
+        referenceId: `creative-${Date.now()}`,
+        note: "Reserved for creative generation"
+      });
+      return;
+    }
+
+    if (walletOverview.summary.availableBalance > 0) {
+      const { WalletService } = await import("../services/wallet.service");
+      const walletService = new WalletService();
+      const wallet = await walletService.getOrCreateWallet(userId);
+      await walletService.reserveCredits({
+        walletId: wallet.id,
+        amount: 1,
+        referenceType: "creative_job",
+        referenceId: `creative-${Date.now()}`,
+        note: "Reserved for creative generation"
+      });
+    }
+  }
 
   createFlatLay = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -31,6 +72,8 @@ export class CreativeController {
       if (!userId) {
         throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
       }
+
+      await this.reserveCredit(userId);
 
       const payload = req.body;
       const fileName = String(payload.fileName || "flat-lay.png").trim();
@@ -92,6 +135,8 @@ export class CreativeController {
         throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
       }
 
+      await this.reserveCredit(userId);
+
       const payload = req.body;
       const fileName = String(payload.fileName || "lifestyle-scene.png").trim();
       const contentType = String(payload.contentType || "image/png").trim().toLowerCase();
@@ -150,6 +195,8 @@ export class CreativeController {
         throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
       }
 
+      await this.reserveCredit(userId);
+
       const payload = req.body;
       const fileName = String(payload.fileName || "virtual-model.png").trim();
       const contentType = String(payload.contentType || "image/png").trim().toLowerCase();
@@ -207,6 +254,8 @@ export class CreativeController {
       if (!userId) {
         throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
       }
+
+      await this.reserveCredit(userId);
 
       const payload = req.body;
       const fileName = String(payload.fileName || "video.mp4").trim();

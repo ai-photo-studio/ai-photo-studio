@@ -124,7 +124,9 @@ const bootstrap = async () => {
            { name: "admin-order-detail", path: "/api/admin/orders/:id" },
            { name: "admin-customers", path: "/api/admin/customers" },
            { name: "creative-flat-lay", path: "/api/creative/flat-lay" },
-           { name: "creative-lifestyle", path: "/api/creative/lifestyle" }
+           { name: "creative-lifestyle", path: "/api/creative/lifestyle" },
+           { name: "creative-virtual-model", path: "/api/creative/virtual-model" },
+           { name: "creative-video-prep", path: "/api/creative/video-prep" }
         ]
       }
     });

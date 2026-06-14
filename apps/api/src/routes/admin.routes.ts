@@ -35,6 +35,11 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.patch("/admin/customers/:id/test-mode", requireAdminAuth(config, adminRoles), controller.toggleCustomerTestMode);
   router.get("/admin/creative-jobs", requireAdminAuth(config, opsRoles), controller.creativeJobs);
   router.get("/admin/creative-jobs/:id", requireAdminAuth(config, opsRoles), controller.creativeJobDetail);
+  router.get("/admin/processing-metrics", requireAdminAuth(config, opsRoles), controller.processingMetrics);
+  router.get("/admin/queue-metrics", requireAdminAuth(config, opsRoles), controller.queueMetrics);
+  router.get("/admin/queue-health", requireAdminAuth(config, opsRoles), controller.getQueueHealthStatus);
+  router.get("/admin/cost-metrics", requireAdminAuth(config, adminRoles), controller.costMetrics);
+  router.get("/admin/creative-cost-metrics", requireAdminAuth(config, adminRoles), controller.creativeCostMetrics);
   router.post("/admin/orders/:id/retry", requireAdminAuth(config, opsRoles), controller.retryOrder);
   router.post("/admin/orders/:id/approve-manual-payment", requireAdminAuth(config, financeRoles), controller.approveManualPayment);
   router.post("/admin/orders/:id/reject-manual-payment", requireAdminAuth(config, financeRoles), controller.rejectManualPayment);

@@ -6,6 +6,9 @@ import { DeliveryService } from "./delivery.service";
 import { PaymentService } from "./payment.service";
 import { PackageService } from "./package.service";
 import { SubscriptionService } from "./subscription.service";
+import { ProcessingMetricsService } from "./processing-metrics.service";
+import { QueueMetricsService } from "./queue-metrics.service";
+import { CostMetricsService } from "./cost-metrics.service";
 
 type ListOrdersParams = {
   status?: string;
@@ -53,6 +56,9 @@ export class AdminService {
   private readonly payment: PaymentService;
   private readonly packageService = new PackageService();
   private readonly subscriptionService = new SubscriptionService();
+  private readonly processingMetrics = new ProcessingMetricsService();
+  private readonly queueMetrics = new QueueMetricsService();
+  private readonly costMetrics = new CostMetricsService();
 
   constructor(config: AppConfig) {
     this.queue = new ImageQueueService(config);
@@ -810,5 +816,25 @@ async listCustomers(params: ListCustomersParams) {
       createdAt: job.createdAt.toISOString(),
       updatedAt: job.updatedAt.toISOString()
     };
+  }
+
+  async getProcessingMetrics(hoursBack = 24) {
+    return this.processingMetrics.getMetrics(hoursBack);
+  }
+
+  async getQueueMetrics() {
+    return this.queueMetrics.getMetrics();
+  }
+
+  async getQueueHealth() {
+    return this.queueMetrics.getQueueHealth();
+  }
+
+  async getCostMetrics(hoursBack = 24) {
+    return this.costMetrics.getMetrics(hoursBack);
+  }
+
+  async getCreativeCostMetrics(hoursBack = 24) {
+    return this.costMetrics.getCreativeCostMetrics(hoursBack);
   }
 }

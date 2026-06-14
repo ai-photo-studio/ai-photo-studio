@@ -1,6 +1,8 @@
 import type { CreativeType, CreativeSceneType, VideoTemplate } from "./creative-types";
 import { prisma } from "../../db/prisma";
 import { logger } from "../../utils/logger";
+import { StorageService } from "../../services/storage.service";
+import type { AppConfig } from "../../config/env";
 
 export type VideoPrepInput = {
   body: Buffer;
@@ -17,9 +19,13 @@ export type VideoPrepOutput = {
   contentType: string;
   fileName: string;
   durationMs?: number;
+  outputStorageKey?: string;
+  outputUrl?: string;
 };
 
 export class VideoPrepService {
+  constructor(private readonly config: AppConfig) {}
+
   async prepare(input: VideoPrepInput): Promise<VideoPrepOutput> {
     const startTime = Date.now();
     const requestId = `video-prep-${Date.now()}`;
@@ -29,6 +35,13 @@ export class VideoPrepService {
       const resultBuffer = await this.prepareVideo(input.body, input.contentType, template);
       const durationMs = Date.now() - startTime;
       const outputContentType = input.contentType || "video/mp4";
+
+      const storage = new StorageService(this.config);
+      const uploadResult = await storage.uploadProcessed({
+        fileName: input.fileName || "video.mp4",
+        body: resultBuffer,
+        contentType: outputContentType
+      });
 
       await this.persistJob({
         requestId,
@@ -41,7 +54,9 @@ export class VideoPrepService {
         status: "COMPLETED",
         durationMs,
         inputSizeBytes: input.body.length,
-        outputSizeBytes: resultBuffer.length
+        outputSizeBytes: resultBuffer.length,
+        outputStorageKey: uploadResult.key,
+        outputUrl: uploadResult.url
       });
 
       const encoded = resultBuffer.toString("base64");
@@ -50,7 +65,9 @@ export class VideoPrepService {
         videoBase64: encoded,
         contentType: outputContentType,
         fileName: input.fileName || "video.mp4",
-        durationMs
+        durationMs,
+        outputStorageKey: uploadResult.key,
+        outputUrl: uploadResult.url
       };
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -89,6 +106,8 @@ export class VideoPrepService {
     durationMs?: number;
     inputSizeBytes?: number;
     outputSizeBytes?: number;
+    outputStorageKey?: string;
+    outputUrl?: string;
   }) {
     try {
       await prisma.creativeStudioJob.create({
@@ -105,7 +124,8 @@ export class VideoPrepService {
           actualCost: 0,
           metadata: {},
           inputStorageKey: params.inputSizeBytes ? `${params.inputSizeBytes} bytes` : null,
-          outputStorageKey: params.outputSizeBytes ? `${params.outputSizeBytes} bytes` : null
+          outputStorageKey: params.outputStorageKey,
+          createdAt: new Date()
         }
       });
     } catch (error) {

@@ -161,6 +161,18 @@ export interface ImageProvider {
   ): Promise<ProcessImageOutput>;
 }
 
+export type ProviderHealth = {
+  healthy: boolean;
+  status: string;
+  latencyMs?: number;
+  error?: string;
+};
+
+export type ProviderCostEstimate = {
+  estimatedCost: number;
+  currency: string;
+};
+
 export type CapabilityName =
   | "background-removal"
   | "classification"
