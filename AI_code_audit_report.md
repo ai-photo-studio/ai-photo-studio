@@ -2,74 +2,74 @@
 
 ## Scope
 
-Real AI Validation Sprint - validate actual AI quality and production operations visibility.
+Real AI Validation Sprint - validate actual processing quality and commercial readiness.
 
 ## Current Status
 
-- Product direction: ecommerce product photography for sellers.
-- Background removal is the entry point, not the full vision.
-- Phase 4 creative studio foundation verified.
-- Phase 5 operations dashboard implemented.
-- WhatsApp remains the final roadmap phase.
+- Product direction: ecommerce product photography for sellers
+- Background removal is the entry point, not the full vision
+- Phase 4 creative studio foundation verified
+- Phase 5 operations dashboard implemented
+- Local AI services use PIL-based processing (not ML models)
+- WhatsApp remains the final roadmap phase
 
-## Phase 5 Operations Implementation
+## AI Validation Framework
 
-### Operations Dashboard Endpoints
+Created `scripts/validate-ai.py`:
 
-Added and verified:
-- `/admin/stats`: total jobs, queued/running/completed/failed counts, average processing duration, provider breakdown
-- `/admin/queue-depth`: BullMQ queue monitoring (waiting, active, completed, failed, delayed)
-- `/monitoring/services`: Multi-service health check (rembg, yolo, esrgan, iclight, classifier)
+| Component | Status |
+|-----------|--------|
+| Test Image Generator | Ready |
+| Health Check Harness | Ready |
+| Classification Tests | Ready |
+| YOLO Detection Tests | Ready |
 
-### Queue Monitoring
+Categories for validation:
+- perfume (20 images)
+- cosmetics (20 images)
+- furniture (20 images)
+- electronics (20 images)
+- food (20 images)
+- shoes (20 images)
+- fashion (20 images)
 
-BullMQ integration verified in `queue-health.service.ts`:
-- Uses REDIS_URL from environment
-- Provides job counts for all states
-- Dry-run mode when REDIS_URL not configured
+Total: 140 images required.
 
-### Health Monitoring
+## Local AI Services Architecture
 
-Added `/monitoring/services` endpoint in `monitoring.controller.ts`:
-- Tests all 5 AI services concurrently
-- Returns healthy status, endpoint, and timing
-- Graceful error handling with Promise.allSettled
+| Service | Implementation | Notes |
+|---------|----------------|-------|
+| YOLO Detector | PIL foreground detection | Quality scoring implemented |
+| Product Classifier | Keyword + aspect analysis | Category routing configured |
+| Real-ESRGAN | LANCZOS upscaling | Sharpen/denoise parameters |
+| IC-Light Lab | PIL overlay generation | Shadow/relight effects |
+| Background Remover | Placeholder | Requires external service |
 
-## Phase 4 Creative Studio Verification
+## Operations Dashboard Results
 
-### Service Layer Modules Verified
+Endpoints verified:
 
-| Module | Status | Description |
-|--------|--------|-------------|
-| flat-lay.ts | Verified | Architecture placeholder |
-| lifestyle-scene.ts | Verified | Architecture placeholder |
-| virtual-model.ts | Verified | Architecture placeholder |
-| video-prep.ts | Verified | Architecture placeholder |
-| creative-routing.ts | Verified | Category-aware routing |
+| Endpoint | Status | Provides |
+|----------|--------|----------|
+| /admin/stats | Verified | total jobs, success/failure rates, avg processing time |
+| /admin/queue-depth | Verified | BullMQ job counts |
+| /monitoring/services | Verified | Multi-service health check |
 
-### Template Registry
+## Provider Capability Status
 
-12 templates across 4 categories, all disabled:
-- Flat Lay: ecommerce-flatlay, premium-flatlay, grocery-flatlay
-- Lifestyle: home, office, luxury, outdoor
-- Virtual Model: male, female, mannequin
-- Video: rotation, zoom, showcase
+All generation capabilities disabled:
 
-## Real AI Services Architecture
+| Capability | Status | Providers |
+|------------|--------|-----------|
+| flat-lay | disabled | All |
+| lifestyle-scene | disabled | All |
+| virtual-model | disabled | All |
+| video-generation | disabled | All |
 
-Local services are PIL-based implementations:
-
-| Service | Health Endpoint | Process Endpoint |
-|---------|-----------------|----------------|
-| YOLO Detector | /health | /detect |
-| Product Classifier | /health | /classify |
-| Real-ESRGAN | /health | /enhance |
-| IC-Light Lab | /health | /relight |
-| Background Remover | /health | /product-white |
-
-Quality scoring implemented in YOLO detector:
-- blurScore, brightnessScore, contrastScore, visibilityScore
-- cropQualityScore, overallScore
+Paid providers remain disabled:
+- Photoroom: disabled
+- fal.ai: disabled
+- Replicate: disabled
 
 ## Verification Results
 
@@ -91,8 +91,7 @@ Quality scoring implemented in YOLO detector:
 
 ## Notes
 
-- Paid AI providers (Photoroom, fal.ai, Replicate) remain disabled.
-- WhatsApp remains the final roadmap phase.
-- Real AI validation requires running local services with test images.
-- Services use PIL-based processing, not ML models.
-- Validation report template: VALIDATION_REPORT.md
+- Paid AI providers remain disabled by design
+- WhatsApp remains the final roadmap phase
+- Real validation requires running Python services locally
+- Validation script at `scripts/validate-ai.py` for when services are online
