@@ -2,7 +2,7 @@
 
 ## Scope
 
-Real AI Validation Sprint - validate actual processing quality and commercial readiness.
+Phase 2D Real Model Integration Assessment - evaluate current PIL architecture and requirements for ML models.
 
 ## Current Status
 
@@ -10,66 +10,70 @@ Real AI Validation Sprint - validate actual processing quality and commercial re
 - Background removal is the entry point, not the full vision
 - Phase 4 creative studio foundation verified
 - Phase 5 operations dashboard implemented
-- Local AI services use PIL-based processing (not ML models)
+- Current implementation uses PIL placeholders (not ML models)
 - WhatsApp remains the final roadmap phase
 
-## AI Validation Framework
+## Real Model Integration Assessment
 
-Created `scripts/validate-ai.py`:
+### Current Architecture (PIL-based)
 
-| Component | Status |
-|-----------|--------|
-| Test Image Generator | Ready |
-| Health Check Harness | Ready |
-| Classification Tests | Ready |
-| YOLO Detection Tests | Ready |
+| Service | Status | Implementation |
+|---------|--------|--------------|
+| YOLO Detector | PIL-only | Foreground detection via pixel analysis |
+| Product Classifier | PIL-only | Keyword + aspect ratio matching |
+| Real-ESRGAN | PIL-only | LANCZOS upscaling (no ML model) |
+| IC-Light Lab | PIL-only | Overlay-based relighting |
+| Background Remover | Placeholder | No implementation |
 
-Categories for validation:
-- perfume (20 images)
-- cosmetics (20 images)
-- furniture (20 images)
-- electronics (20 images)
-- food (20 images)
-- shoes (20 images)
-- fashion (20 images)
+### Model Requirements
 
-Total: 140 images required.
+**Background Removal (rembg)**:
+- CPU: 2-4GB RAM, 2-5s/image
+- GPU: 4-6GB VRAM, 0.5-1s/image
 
-## Local AI Services Architecture
+**YOLOv8n Object Detection**:
+- CPU: 4-8GB RAM, 1-3s/image
+- GPU: 4-6GB VRAM, 0.1-0.3s/image
 
-| Service | Implementation | Notes |
-|---------|----------------|-------|
-| YOLO Detector | PIL foreground detection | Quality scoring implemented |
-| Product Classifier | Keyword + aspect analysis | Category routing configured |
-| Real-ESRGAN | LANCZOS upscaling | Sharpen/denoise parameters |
-| IC-Light Lab | PIL overlay generation | Shadow/relight effects |
-| Background Remover | Placeholder | Requires external service |
+**CLIP Classification**:
+- CPU: 8-12GB RAM, 3-8s/image
+- GPU: 6-8GB VRAM, 0.2-0.5s/image
 
-## Operations Dashboard Results
+**Real-ESRGAN Enhancement**:
+- CPU: 6-12GB RAM, 5-15s/image
+- GPU: 6-8GB VRAM, 1-3s/image
 
-Endpoints verified:
+**IC-Light**:
+- VRAM: 8-12GB minimum
+- RAM: 12-16GB
+- Runtime: 10-30s/image
+
+## Operations Dashboard Verified
 
 | Endpoint | Status | Provides |
 |----------|--------|----------|
-| /admin/stats | Verified | total jobs, success/failure rates, avg processing time |
-| /admin/queue-depth | Verified | BullMQ job counts |
+| /admin/stats | Verified | Job counts, success rates, avg processing time |
+| /admin/queue-depth | Verified | BullMQ queue monitoring |
 | /monitoring/services | Verified | Multi-service health check |
+
+## Validation Framework
+
+- `scripts/validate-ai.py`: Test harness for services
+- `VALIDATION_REPORT.md`: Current validation template
+- `MODEL_INTEGRATION.md`: Model requirements documentation
 
 ## Provider Capability Status
 
-All generation capabilities disabled:
-
-| Capability | Status | Providers |
-|------------|--------|-----------|
-| flat-lay | disabled | All |
-| lifestyle-scene | disabled | All |
-| virtual-model | disabled | All |
-| video-generation | disabled | All |
-
-Paid providers remain disabled:
+All paid providers disabled:
 - Photoroom: disabled
 - fal.ai: disabled
 - Replicate: disabled
+
+All generation capabilities disabled:
+- flat-lay: disabled
+- lifestyle-scene: disabled
+- virtual-model: disabled
+- video-generation: disabled
 
 ## Verification Results
 
@@ -84,6 +88,7 @@ Paid providers remain disabled:
 - Phase 2A local AI: 70%
 - Phase 2B image enhancement: 40%
 - Phase 2C product classification: 40%
+- Phase 2D real model integration: 0%
 - Phase 3 provider framework: 80%
 - Phase 4 creative studio: 60%
 - Phase 5 operations: 60%
@@ -93,5 +98,5 @@ Paid providers remain disabled:
 
 - Paid AI providers remain disabled by design
 - WhatsApp remains the final roadmap phase
-- Real validation requires running Python services locally
-- Validation script at `scripts/validate-ai.py` for when services are online
+- Real model integration requires GPU resources
+- Validation script ready for when models are deployed
