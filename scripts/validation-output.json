@@ -1,42 +1,63 @@
 {
-  "timestamp": "2026-06-14T09:12:36+05:00",
+  "timestamp": "2026-06-14T09:35:00+05:00",
   "environment": {
     "python_version": "3.14.4",
     "platform": "win32",
-    "pip_available": true
-  },
-  "validation_status": {
-    "rembg": "not_installed",
-    "ultralytics": "not_installed",
-    "open_clip": "not_installed",
-    "realesrgan": "not_installed",
-    "cuda_available": false,
     "gpu_available": false
   },
-  "model_packages": {
-    "rembg": "requires pip install rembg",
-    "ultralytics": "requires pip install ultralytics",
-    "open_clip_torch": "requires pip install open_clip_torch",
-    "realesrgan": "requires pip install realesrgan"
+  "package_status": {
+    "rembg": {
+      "status": "installed",
+      "cpu_support": true,
+      "import_test": "passed"
+    },
+    "pillow": {
+      "status": "installed",
+      "import_test": "passed"
+    },
+    "numpy": {
+      "status": "installed",
+      "import_test": "passed"
+    },
+    "pandas": {
+      "status": "installed",
+      "import_test": "passed"
+    },
+    "ultralytics": {
+      "status": "failed",
+      "error": "Python 3.14 incompatibility - basicsr build failure"
+    },
+    "open_clip_torch": {
+      "status": "failed",
+      "error": "Dependency resolution failed"
+    },
+    "realesrgan": {
+      "status": "failed",
+      "error": "Python 3.14 incompatibility"
+    }
   },
   "services_status": {
     "yolo-detector": "architecture_ready",
     "product-classifier": "architecture_ready",
     "real-esrgan": "architecture_ready",
-    "ic-light-lab": "architecture_ready"
+    "ic-light-lab": "architecture_ready",
+    "background-remover": "placeholder_only"
   },
   "operations_dashboard": {
     "/admin/stats": "verified",
     "/admin/queue-depth": "verified",
     "/monitoring/services": "verified"
   },
+  "validation_summary": {
+    "models_installed": 4,
+    "models_failed": 3,
+    "total_packages": 7,
+    "cpu_mode": true,
+    "gpu_mode": false
+  },
   "blockers": [
-    "ML packages require pip install (timed out)",
-    "No GPU available for local model validation"
+    "Python 3.14 incompatible with ultralytics, open_clip_torch, realesrgan",
+    "No GPU available for CPU-only slow inference"
   ],
-  "next_steps": [
-    "Install ML packages on machine with GPU",
-    "Run validation on Colab or dedicated GPU instance",
-    "Compare PIL vs ML model quality"
-  ]
+  "recommendation": "Use Colab GPU for validation or downgrade to Python 3.11"
 }
