@@ -2,7 +2,7 @@
 
 ## Scope
 
-Phase 2D Real Model Integration Assessment - evaluate current PIL architecture and requirements for ML models.
+Phase 2D Real Model Validation - prepare Google Colab environment for ML model testing.
 
 ## Current Status
 
@@ -13,42 +13,50 @@ Phase 2D Real Model Integration Assessment - evaluate current PIL architecture a
 - Current implementation uses PIL placeholders (not ML models)
 - WhatsApp remains the final roadmap phase
 
-## Real Model Integration Assessment
+## Real Model Validation Preparation
 
-### Current Architecture (PIL-based)
+### Google Colab Notebook
 
-| Service | Status | Implementation |
-|---------|--------|--------------|
-| YOLO Detector | PIL-only | Foreground detection via pixel analysis |
-| Product Classifier | PIL-only | Keyword + aspect ratio matching |
-| Real-ESRGAN | PIL-only | LANCZOS upscaling (no ML model) |
-| IC-Light Lab | PIL-only | Overlay-based relighting |
-| Background Remover | Placeholder | No implementation |
+Created `notebooks/model-validation.ipynb`:
+- Installs: rembg, ultralytics, open_clip_torch, realesrgan
+- Tests each model with synthetic images
+- Measures processing duration and VRAM usage
+- Outputs validation_results.csv
 
-### Model Requirements
+### Models Architecture
 
-**Background Removal (rembg)**:
-- CPU: 2-4GB RAM, 2-5s/image
-- GPU: 4-6GB VRAM, 0.5-1s/image
+| Model | Package | VRAM Required | CPU Fallback |
+|-------|---------|---------------|--------------|
+| YOLOv8n | ultralytics | 4-6GB | Yes |
+| CLIP ViT-B/32 | open_clip_torch | 6-8GB | Yes (8-12s/image) |
+| rembg | rembg | 2-4GB | Yes |
+| Real-ESRGAN | realesrgan | 6-8GB | Yes (5-15s/image) |
 
-**YOLOv8n Object Detection**:
-- CPU: 4-8GB RAM, 1-3s/image
-- GPU: 4-6GB VRAM, 0.1-0.3s/image
+### GPU Comparison
 
-**CLIP Classification**:
-- CPU: 8-12GB RAM, 3-8s/image
-- GPU: 6-8GB VRAM, 0.2-0.5s/image
+| GPU | VRAM | Throughput (img/min) | Monthly Cost |
+|-----|------|---------------------|--------------|
+| T4 16GB | 16GB | 60-120 | $100-200 |
+| L4 24GB | 24GB | 120-200 | $200-400 |
+| A10G 24GB | 24GB | 100-180 | $150-300 |
 
-**Real-ESRGAN Enhancement**:
-- CPU: 6-12GB RAM, 5-15s/image
-- GPU: 6-8GB VRAM, 1-3s/image
+## Validation Dataset
 
-**IC-Light**:
-- VRAM: 8-12GB minimum
-- RAM: 12-16GB
-- Runtime: 10-30s/image
+Required structure:
+```
+validation-dataset/
+├── perfume/ (20 images)
+├── cosmetics/ (20 images)
+├── furniture/ (20 images)
+├── electronics/ (20 images)
+├── food/ (20 images)
+├── shoes/ (20 images)
+└── fashion/ (20 images)
+```
 
-## Operations Dashboard Verified
+Total: 140 images
+
+## Operations Dashboard
 
 | Endpoint | Status | Provides |
 |----------|--------|----------|
@@ -56,13 +64,7 @@ Phase 2D Real Model Integration Assessment - evaluate current PIL architecture a
 | /admin/queue-depth | Verified | BullMQ queue monitoring |
 | /monitoring/services | Verified | Multi-service health check |
 
-## Validation Framework
-
-- `scripts/validate-ai.py`: Test harness for services
-- `VALIDATION_REPORT.md`: Current validation template
-- `MODEL_INTEGRATION.md`: Model requirements documentation
-
-## Provider Capability Status
+## Provider Status
 
 All paid providers disabled:
 - Photoroom: disabled
@@ -88,15 +90,15 @@ All generation capabilities disabled:
 - Phase 2A local AI: 70%
 - Phase 2B image enhancement: 40%
 - Phase 2C product classification: 40%
-- Phase 2D real model integration: 0%
+- Phase 2D real model integration: 10%
 - Phase 3 provider framework: 80%
 - Phase 4 creative studio: 60%
 - Phase 5 operations: 60%
 - Overall roadmap: 74%
 
-## Notes
+## Next Actions
 
-- Paid AI providers remain disabled by design
-- WhatsApp remains the final roadmap phase
-- Real model integration requires GPU resources
-- Validation script ready for when models are deployed
+1. Upload validation notebook to Google Colab
+2. Run models on validation dataset
+3. Record accuracy and timing in VALIDATION_REPORT.md
+4. Decide: local models OR paid providers based on results
