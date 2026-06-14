@@ -1,25 +1,7 @@
-import { useEffect, useState, type ChangeEvent, type DragEvent } from "react";
+import { useState, type ChangeEvent, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { usePackages } from "../lib/packages";
 import { customerApi } from "../services/customerApi";
-import { BeforeAfterSlider } from "../components/BeforeAfterSlider";
-
-const features = [
-  { title: "Background Removal", path: "/background-removal" },
-  { title: "Auto Crop", path: "/features#auto-crop" },
-  { title: "Auto Center", path: "/features#auto-center" },
-  { title: "AI Enhancement", path: "/features#ai-enhancement" },
-  { title: "Product Classifier", path: "/features#classifier" },
-  { title: "Flat Lay", path: "/flat-lay" },
-  { title: "Lifestyle Scenes", path: "/lifestyle-scenes" },
-  { title: "Virtual Models", path: "/virtual-models" },
-  { title: "Product Videos", path: "/product-videos" },
-  { title: "Batch Processing", path: "/features#batch" },
-  { title: "Credit System", path: "/pricing" },
-  { title: "API Ready", path: "/features#api" },
-  { title: "Admin Analytics", path: "/features#analytics" }
-];
 
 const LOCAL_REMOVER_URL = import.meta.env.VITE_LOCAL_REMOVER_URL || "";
 const LOCAL_REMOVER_MODE = import.meta.env.VITE_LOCAL_REMOVER_MODE || "remove-bg";
@@ -40,8 +22,7 @@ const buildRemoverUrl = () => {
 };
 
 export function HomePage() {
-  const { token, status } = useAuth();
-  const { packages, loading, error } = usePackages();
+  const { status } = useAuth();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewClientId] = useState(getPreviewClientId);
@@ -51,7 +32,7 @@ export function HomePage() {
   const [uploadState, setUploadState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const removerUrl = buildRemoverUrl();
-  const previewToken = status === "ready" && token ? token : undefined;
+  const previewToken = status === "ready" ? undefined : undefined;
 
   const resetResult = () => {
     if (resultPreview) URL.revokeObjectURL(resultPreview);
@@ -156,123 +137,126 @@ export function HomePage() {
   const afterImage = resultPreview || "https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=800";
 
   return (
-    <div className="landing-page page-stack">
-      <section className="landing-hero">
-        <div className="landing-hero-copy">
-          <h1>Remove backgrounds from product photos.</h1>
-          <p className="section-lead">
-            Upload a product image and get a clean, transparent background in seconds.
-          </p>
-          <div className="hero-actions">
-            <label className="button button-upload">
-              Upload product photo
-              <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
-            </label>
-            <Link to="/pricing" className="button button-secondary">
-              See pricing
-            </Link>
-          </div>
-        </div>
+    <div className="landing-page">
+      <header className="site-header">
+        <Link to="/" className="brand">
+          <span className="brand-mark">AI</span>
+          <span>
+            <strong>Photo Studio</strong>
+            <small>AI product photography</small>
+          </span>
+        </Link>
+        <nav className="site-nav">
+          <Link to="/pricing" className="nav-link">Pricing</Link>
+          <Link to="/login" className="nav-link">Login</Link>
+          <Link to="/signup" className="button">Sign Up</Link>
+        </nav>
+      </header>
 
-        <div className="landing-hero-panel">
-          <div className="showcase-panel">
-            <p className="eyebrow">Upload area</p>
-            <div
-              className="upload-dropzone"
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={onDrop}
-            >
-              <p className="upload-dropzone-title">{dragActive ? "Drop the product photo here" : "Drag and drop a product photo"}</p>
-              <p className="upload-dropzone-copy">PNG, JPG, or WebP. Free preview available.</p>
-              <div className="button-row">
-                <label className="button button-secondary">
-                  Choose file
-                  <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
-                </label>
-                <button type="button" className="button" onClick={removeBackground} disabled={!selectedFile || uploadState === "working"}>
-                  {uploadState === "working" ? "Processing..." : "Process image"}
-                </button>
+      <main className="site-main">
+        <section className="hero">
+          <div className="hero-container">
+            <h1>Remove backgrounds from product photos</h1>
+            <p className="section-lead">
+              Upload a product image and get a clean, transparent background in seconds.
+            </p>
+            <div className="upload-card" onDragOver={(e) => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onDrop={onDrop}>
+              <div className="upload-content">
+                <p className="upload-title">{dragActive ? "Drop the product photo here" : "Drag and drop a product photo"}</p>
+                <p className="upload-copy">PNG, JPG, or WebP. Free preview available.</p>
+                <div className="button-row">
+                  <label className="button button-secondary">
+                    Choose file
+                    <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
+                  </label>
+                  <button type="button" className="button" onClick={removeBackground} disabled={!selectedFile || uploadState === "working"}>
+                    {uploadState === "working" ? "Processing..." : "Process image"}
+                  </button>
+                </div>
+                {uploadError && <p className="form-error-panel">{uploadError}</p>}
               </div>
-              {uploadError && <p className="form-error-panel">{uploadError}</p>}
+            </div>
+
+            <div className="example-thumbnails">
+              <img src="https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=400" alt="Example 1" />
+              <img src="https://images.unsplash.com/photo-1567428588258-93b0b5f0c217?f=auto&q=80&w=400" alt="Example 2" />
+              <img src="https://images.unsplash.com/photo-1596461404720?f=auto&q=80&w=400" alt="Example 3" />
             </div>
           </div>
+        </section>
 
-          <div className="showcase-panel">
-            <p className="eyebrow">Before / After</p>
-            <BeforeAfterSlider beforeSrc={beforeImage} afterSrc={afterImage} />
+        <section className="section">
+          <div className="section-container">
+            <h2>Features</h2>
+            <div className="feature-grid">
+              <Link to="/background-removal" className="feature-item">Background Removal</Link>
+              <Link to="/features" className="feature-item">Auto Crop</Link>
+              <Link to="/features" className="feature-item">Auto Center</Link>
+              <Link to="/features" className="feature-item">AI Enhancement</Link>
+              <Link to="/features" className="feature-item">Product Classifier</Link>
+              <Link to="/features" className="feature-item">Flat Lay</Link>
+              <Link to="/features" className="feature-item">Lifestyle Scenes</Link>
+              <Link to="/features" className="feature-item">Virtual Models</Link>
+              <Link to="/features" className="feature-item">Product Videos</Link>
+              <Link to="/features" className="feature-item">Batch Processing</Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="section-card">
-        <div className="section-heading">
-          <h2>All AI Features</h2>
-        </div>
-        <div className="feature-grid">
-          {features.map((feature) => (
-            <article key={feature.title} className="feature-card">
-              <h3>{feature.title}</h3>
-              <Link to={feature.path} className="text-link">Learn more →</Link>
-            </article>
-          ))}
-        </div>
-      </section>
+        <section className="section">
+          <div className="section-container">
+            <h2>Before / After</h2>
+            <div className="before-after">
+              <div className="compare-panel">
+                <span className="label">Before</span>
+                <img src={beforeImage} alt="Before" />
+              </div>
+              <div className="compare-panel">
+                <span className="label">After</span>
+                <img src={afterImage} alt="After" />
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <section className="section-card">
-        <div className="section-heading">
-          <h2>Pricing</h2>
-        </div>
+        <section className="section">
+          <div className="section-container">
+            <h2>Pricing</h2>
+            <div className="pricing-grid">
+              <div className="pricing-card">
+                <h3>Starter</h3>
+                <p className="price">$9<span className="unit">/month</span></p>
+                <p>100 credits/month</p>
+                <Link to="/signup" className="button">Get started</Link>
+              </div>
+              <div className="pricing-card">
+                <h3>Pro</h3>
+                <p className="price">$29<span className="unit">/month</span></p>
+                <p>500 credits/month</p>
+                <Link to="/signup" className="button">Get started</Link>
+              </div>
+            </div>
+          </div>
+        </section>
 
-        {loading ? (
-          <div className="state-panel">
-            <p>Loading plans...</p>
+        <section className="section">
+          <div className="section-container">
+            <h2>FAQ</h2>
+            <details className="faq-item">
+              <summary>How do I get started?</summary>
+              <p>Upload a product photo and use our AI tools to remove backgrounds or enhance images.</p>
+            </details>
+            <details className="faq-item">
+              <summary>What credits are used for?</summary>
+              <p>Each credit processes one product photo. Use them for any feature in our studio.</p>
+            </details>
           </div>
-        ) : error ? (
-          <div className="state-panel state-panel-error">
-            <p>{error}</p>
-          </div>
-        ) : packages.length > 0 ? (
-          <div className="pricing-grid pricing-grid-wide">
-            {packages.slice(0, 3).map((pkg) => (
-              <article key={pkg.id} className="pricing-card pricing-card-featured">
-                <div className="pricing-card-top">
-                  <h2>{pkg.name}</h2>
-                  <p className="price">
-                    {pkg.currency} {pkg.price}
-                  </p>
-                </div>
-                <p>{pkg.description || "A credit bundle for polished ecommerce imagery."}</p>
-                <Link to="/signup" className="button button-block">
-                  Get started
-                </Link>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="state-panel">
-            <p>Plan details will appear here once the catalog is populated.</p>
-          </div>
-        )}
-      </section>
+        </section>
 
-      <section className="whatsapp-cta">
-        <div>
-          <h2>Get started now.</h2>
-          <p>Upload a product photo and get a clean, marketplace-ready image in seconds.</p>
-        </div>
-        <div className="hero-actions">
-          <Link to="/signup" className="button">
-            Start now
-          </Link>
-          <Link to="/pricing" className="button button-secondary">
-            See pricing
-          </Link>
-        </div>
-      </section>
+        <footer className="site-footer">
+          <p>&copy; 2026 AI Photo Studio. All rights reserved.</p>
+        </footer>
+      </main>
     </div>
   );
 }
