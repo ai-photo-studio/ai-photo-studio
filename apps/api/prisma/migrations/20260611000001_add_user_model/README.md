@@ -1,0 +1,2 @@
+-- Add User model and link to Order
+-- See migration.sql for full DDL

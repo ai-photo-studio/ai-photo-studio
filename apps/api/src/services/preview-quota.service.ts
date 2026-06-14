@@ -25,6 +25,7 @@ type PreviewQuotaResult = {
 
 const GUEST_LIMIT = 1;
 const ACCOUNT_LIMIT = 3;
+const DISABLE_PREVIEW_LIMIT = process.env.DISABLE_PREVIEW_LIMIT === "true";
 
 const normalizeValue = (value?: string | null) => String(value || "").trim();
 
@@ -53,6 +54,16 @@ const buildScope = (input: PreviewScopeInput) => {
 
 export class PreviewQuotaService {
   async claimWebPreview(input: ClaimPreviewInput): Promise<PreviewQuotaResult> {
+    if (DISABLE_PREVIEW_LIMIT) {
+      return {
+        scopeType: "guest",
+        limit: -1,
+        used: 0,
+        remaining: -1,
+        isTestAccount: false
+      };
+    }
+
     const scope = buildScope(input);
     const settingKey = `free-preview:${scope.scopeKey}`;
 
