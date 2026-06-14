@@ -211,8 +211,8 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "enhancement", enabled: false },
       { capability: "relighting", enabled: false },
       { capability: "shadow-generation", enabled: false },
-      { capability: "flat-lay", enabled: false },
-      { capability: "lifestyle-scene", enabled: false },
+      { capability: "flat-lay", enabled: true },
+      { capability: "lifestyle-scene", enabled: true },
       { capability: "virtual-model", enabled: false },
       { capability: "video-generation", enabled: false }
     ],

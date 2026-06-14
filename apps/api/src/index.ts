@@ -14,6 +14,7 @@ import { createAuthRouter } from "./routes/auth.routes";
 import { createPackageRouter } from "./routes/package.routes";
 import { createMonitoringRouter } from "./routes/monitoring.routes";
 import { createAdminAuthRouter } from "./routes/admin-auth.routes";
+import { createCreativeRouter } from "./routes/creative.routes";
 import { AuthController } from "./controllers/auth.controller";
 import { PackageController } from "./controllers/package.controller";
 import { MonitoringController } from "./controllers/monitoring.controller";
@@ -118,10 +119,12 @@ const bootstrap = async () => {
           { name: "admin-auth-me", path: "/api/admin/auth/me" },
           { name: "admin-auth-refresh", path: "/api/admin/auth/refresh" },
           { name: "admin-stats", path: "/api/admin/stats" },
-          { name: "admin-orders", path: "/api/admin/orders" },
-          { name: "admin-jobs", path: "/api/admin/jobs" },
-          { name: "admin-order-detail", path: "/api/admin/orders/:id" },
-          { name: "admin-customers", path: "/api/admin/customers" }
+{ name: "admin-orders", path: "/api/admin/orders" },
+           { name: "admin-jobs", path: "/api/admin/jobs" },
+           { name: "admin-order-detail", path: "/api/admin/orders/:id" },
+           { name: "admin-customers", path: "/api/admin/customers" },
+           { name: "creative-flat-lay", path: "/api/creative/flat-lay" },
+           { name: "creative-lifestyle", path: "/api/creative/lifestyle" }
         ]
       }
     });
@@ -144,6 +147,7 @@ const bootstrap = async () => {
   app.use("/api", createAuthRouter(config));
   app.use("/api", createPackageRouter(config));
   app.use("/api", createMonitoringRouter(config));
+  app.use("/api", createCreativeRouter(config));
 
   startImageProcessingWorker(config);
   setInterval(() => {

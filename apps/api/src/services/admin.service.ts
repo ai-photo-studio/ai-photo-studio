@@ -724,4 +724,91 @@ async listCustomers(params: ListCustomersParams) {
 
     return { id: updated.id, isTestAccount: updated.isTestAccount };
   }
+
+  async listCreativeStudioJobs(params: ListJobsParams) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.status) where.generationStatus = params.status.toUpperCase();
+
+    const [items, total] = await Promise.all([
+      prisma.creativeStudioJob.findMany({
+        where,
+        include: {
+          order: {
+            include: {
+              customer: true
+            }
+          },
+          orderImage: true
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.creativeStudioJob.count({ where })
+    ]);
+
+    return {
+      items: items.map((job) => ({
+        id: job.id,
+        orderId: job.orderId,
+        orderNo: job.order?.orderNo,
+        customer: job.order?.customer
+          ? {
+              id: job.order.customer.id,
+              name: job.order.customer.name,
+              phone: job.order.customer.whatsappNumber
+            }
+          : null,
+        creativeType: job.creativeType,
+        sceneType: job.sceneType,
+        generationStatus: job.generationStatus,
+        providerUsed: job.providerUsed,
+        durationMs: job.durationMs,
+        estimatedCost: job.estimatedCost,
+        actualCost: job.actualCost,
+        createdAt: job.createdAt.toISOString()
+      })),
+      total,
+      page,
+      limit
+    };
+  }
+
+  async getCreativeStudioJob(id: string) {
+    const job = await prisma.creativeStudioJob.findUnique({
+      where: { id },
+      include: {
+        order: {
+          include: {
+            customer: true,
+            package: true
+          }
+        },
+        orderImage: true
+      }
+    });
+    if (!job) throw new AppError("Creative studio job not found", 404, "CREATIVE_JOB_NOT_FOUND");
+
+    return {
+      id: job.id,
+      orderId: job.orderId,
+      order: job.order,
+      orderImage: job.orderImage,
+      creativeType: job.creativeType,
+      sceneType: job.sceneType,
+      generationStatus: job.generationStatus,
+      providerUsed: job.providerUsed,
+      promptSummary: job.promptSummary,
+      durationMs: job.durationMs,
+      estimatedCost: job.estimatedCost,
+      actualCost: job.actualCost,
+      metadata: job.metadata,
+      createdAt: job.createdAt.toISOString(),
+      updatedAt: job.updatedAt.toISOString()
+    };
+  }
 }

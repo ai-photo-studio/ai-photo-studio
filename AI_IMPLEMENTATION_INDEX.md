@@ -141,6 +141,13 @@
 - `apps/api/src/services/creative-studio/templates.ts`: creative templates registry (ecommerce-flatlay, premium-flatlay, grocery-flatlay, home, office, luxury, outdoor, male, female, mannequin, rotation, zoom, showcase)
 - `apps/api/src/services/creative-studio/creative-routing.ts`: creative studio selection and routing
 - `apps/api/src/providers/provider.interface.ts`: capability placeholders (`flat-lay`, `lifestyle-scene`, `virtual-model`, `video-generation`)
+- `apps/api/src/services/creative-studio/flat-lay.ts`: FlatLayService with white, marble, wood, ecommerce backgrounds
+- `apps/api/src/services/creative-studio/lifestyle-scene.ts`: LifestyleSceneService with home, office, luxury, outdoor scenes
+- `apps/api/src/routes/creative.routes.ts`: POST /creative/flat-lay, POST /creative/lifestyle routes
+- `apps/api/src/controllers/creative.controller.ts`: creative studio controllers
+- `apps/api/src/services/admin.service.ts`: listCreativeStudioJobs, getCreativeStudioJob diagnostics
+- `apps/api/src/routes/admin.routes.ts`: /admin/creative-jobs, /admin/creative-jobs/:id routes
+- `apps/api/src/services/creative-studio/test-fixtures.ts`: test fixtures for creative studio
 - `apps/web/src/pages/AdminJobsPage.tsx`: creative type, scene type, generation status, provider used diagnostics
 - `apps/web/src/pages/AdminOrderDetail.tsx`: creative studio diagnostics in admin UI
 
@@ -154,10 +161,10 @@
 - Phase 2D Colab validation: 100%
 - Phase 2D runtime validation: 100%
 - Phase 3 Provider Framework: 80%
-- Phase 4 Creative Studio Expansion: 40%
+- Phase 4 Creative Studio Expansion: 75%
 - Phase 5 Operations: 60%
 - Phase 6 WhatsApp: 0%
-- Overall roadmap completion: 74%
+- Overall roadmap completion: 77%
 
 ## Remaining Work
 

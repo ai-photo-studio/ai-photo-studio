@@ -157,7 +157,7 @@ model User {
 }
 
 model Order {
-  id            String       @id @default(cuid())
+  id             String   @id @default(cuid())
   orderNo       String       @unique
   customerId    String
   userId        String?
@@ -191,6 +191,8 @@ model Order {
   processingJobs ProcessingJob[]
   imageQualityScores ImageQualityScore[]
   statusHistory OrderStatusHistory[]
+  creativeStudioJobs CreativeStudioJob[]
+  providerCostLogs ProviderCostLog[]
 
   @@index([customerId, createdAt])
   @@index([orderStatus, paymentStatus])
@@ -245,6 +247,7 @@ model ProcessingJob {
   order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   imageQualityScores ImageQualityScore[]
+  providerCostLogs ProviderCostLog[]
 
   @@index([orderId, status])
   @@index([queueName, status])
@@ -280,6 +283,7 @@ model OrderImage {
   createdAt     DateTime  @default(now())
 
   order Order @relation(fields: [orderId], references: [id])
+  creativeStudioJobs CreativeStudioJob[]
 
   @@index([orderId, kind])
 }
@@ -518,6 +522,7 @@ model AiJob {
   updatedAt      DateTime  @updatedAt
 
   order Order @relation(fields: [orderId], references: [id])
+  providerCostLogs ProviderCostLog[]
 
   @@index([orderId, status])
 }
@@ -586,17 +591,20 @@ model ProviderCostLog {
   orderId         String?
   processingJobId String?
   aiJobId         String?
+  creativeStudioJobId String?
   metadata        Json?
   createdAt       DateTime       @default(now())
 
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
   processingJob ProcessingJob? @relation(fields: [processingJobId], references: [id], onDelete: SetNull)
   aiJob AiJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
+  creativeStudioJob CreativeStudioJob? @relation(fields: [creativeStudioJobId], references: [id], onDelete: SetNull)
 
   @@index([provider, createdAt])
   @@index([orderId, createdAt])
   @@index([processingJobId, createdAt])
   @@index([aiJobId, createdAt])
+  @@index([creativeStudioJobId, createdAt])
 }
 
 enum CreativeType {
@@ -643,6 +651,7 @@ model CreativeStudioJob {
 
   order       Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
   orderImage  OrderImage?  @relation(fields: [orderImageId], references: [id], onDelete: SetNull)
+  providerCostLogs ProviderCostLog[]
 
   @@index([orderId, createdAt])
   @@index([orderImageId, createdAt])

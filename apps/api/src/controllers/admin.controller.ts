@@ -242,6 +242,28 @@ export class AdminController {
     }
   };
 
+  creativeJobs = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.listCreativeStudioJobs({
+        status: req.query.status as string | undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  creativeJobDetail = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.adminService.getCreativeStudioJob(req.params.id);
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   private handleError(res: Response, error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ success: false, code: error.code, message: error.message });
