@@ -14,6 +14,7 @@
 *.audit.md
 AI_code_audit_report.md
 AI_code_audit_report_ARCHIVED.md
+AI_code_audit_report_archive_*.md
 .env
 .env.*
 !.env.example
