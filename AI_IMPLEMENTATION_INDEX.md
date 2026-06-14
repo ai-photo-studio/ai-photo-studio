@@ -71,10 +71,14 @@
 
 - `requirements-colab.txt`: pinned Colab model stack for Python 3.12
 - `requirements-validation.txt`: validation runtime requirements
-- `colab_setup.sh`: install, preflight, service launch, and validation entrypoint
+- `colab_setup.sh`: CLI dispatcher for `setup`, `validate`, and `cleanup`
+- `scripts/colab-preflight.sh`: fail-fast dependency and GPU preflight
 - `colab_setup.ipynb`: notebook wrapper for Colab runs
 - `docs/COLAB_SETUP_GUIDE.md`: reproducible Colab setup instructions
 - `docs/GPU_VALIDATION.md`: GPU and model import validation checklist
+- `docs/COLAB_TROUBLESHOOTING.md`: recovery steps for Python and wheel mismatches
+- `docs/LOCAL_AI_VERIFICATION_REPORT.md`: repository-side local verification report
+- `docs/RUNTIME_VALIDATION_REPORT.md`: live runtime validation status and blockers
 - `scripts/validate-ai.py`: local service validation harness, writes `scripts/validation-output.json`
 - `notebooks/model-validation.ipynb`: benchmark notebook for model-level experiments; use the new setup files for reproducible installation
 
@@ -120,6 +124,8 @@
 - `railway logs --service api --tail 300`: PASS
 - `wrangler whoami`: PASS
 - `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS
+- Live local Bash/Python verification: blocked by shell runtime limitations in this session
+- Live runtime validation: blocked by shell runtime limitations in this session
 
 ## Deployment Snapshot
 
@@ -146,11 +152,13 @@
 - Phase 2B Image Enhancement: 40%
 - Phase 2C Product Classification: 40%
 - Phase 2D Colab validation setup: 100%
+- Phase 2D local AI verification: 30%
+- Phase 2D runtime validation: 5%
 - Phase 3 Provider Framework: 80%
 - Phase 4 Creative Studio Expansion: 60%
 - Phase 5 Operations: 60%
 - Phase 6 WhatsApp: 0%
-- Overall roadmap completion: 75%
+- Overall roadmap completion: 76%
 
 ## Remaining Work
 
@@ -158,6 +166,8 @@
 - Confirm category routing and enhancement comparison persistence in the API
 - Capture updated screenshots after the homepage refresh
 - Run the Colab validation notebook on a live GPU session and capture `scripts/validation-output.json`
+- Execute local Bash/Python validation in a shell that supports those launchers
+- Complete live runtime validation and persistence checks in a Python/Bash-capable environment
 - Keep paid AI providers disabled
 - Keep WhatsApp in the final phase
 

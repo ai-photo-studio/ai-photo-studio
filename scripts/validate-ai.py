@@ -2,6 +2,7 @@ import json
 import io
 import sys
 import time
+import platform
 import urllib.request
 from pathlib import Path
 
@@ -16,6 +17,39 @@ SERVICES = [
 ]
 
 CATEGORIES = ["perfume", "cosmetics", "furniture", "electronics", "food", "shoes", "fashion"]
+
+
+def fail(message: str) -> None:
+    raise SystemExit(message)
+
+
+def get_gpu_info() -> dict:
+    info = {
+        "available": False,
+        "deviceName": None,
+        "cudaAvailable": False,
+        "cudaVersion": None,
+        "pythonVersion": platform.python_version(),
+    }
+    try:
+        import torch
+
+        info["cudaAvailable"] = torch.cuda.is_available()
+        if torch.cuda.is_available():
+            info["available"] = True
+            info["deviceName"] = torch.cuda.get_device_name(0)
+            info["cudaVersion"] = torch.version.cuda
+    except Exception as exc:  # noqa: BLE001
+        info["error"] = str(exc)
+    return info
+
+
+def import_or_fail(module_name: str, label: str | None = None):
+    try:
+        module = __import__(module_name)
+        return module
+    except Exception as exc:  # noqa: BLE001
+        fail(f"{label or module_name} import failed: {exc}")
 
 
 def create_test_image(category: str) -> bytes:
@@ -106,11 +140,48 @@ def validate_yolo(port: int, category: str) -> dict:
 
 
 def main():
+    start_time = time.time()
+    gpu_info = get_gpu_info()
+
+    pil = import_or_fail("PIL", "pillow")
+    import_or_fail("rembg")
+    import_or_fail("ultralytics")
+    import_or_fail("open_clip")
+    import_or_fail("realesrgan")
+
+    try:
+        import numpy  # noqa: F401
+        import scipy  # noqa: F401
+    except Exception as exc:  # noqa: BLE001
+        fail(f"numpy/scipy compatibility check failed: {exc}")
+
     results = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "runtimeSeconds": None,
+        "environment": {
+            "pythonVersion": platform.python_version(),
+            "pythonExecutable": sys.executable,
+            "platform": platform.platform(),
+            "gpu": gpu_info,
+        },
         "healthChecks": [],
         "classificationResults": [],
         "yoloResults": [],
+        "imports": {
+            "pillow": "ok",
+            "rembg": "ok",
+            "ultralytics": "ok",
+            "open_clip": "ok",
+            "realesrgan": "ok",
+            "numpy": "ok",
+            "scipy": "ok",
+        },
+        "timing": {
+            "classificationMs": 0,
+            "yoloMs": 0,
+            "healthChecksMs": 0,
+            "totalMs": 0,
+        },
     }
 
     ports = {
@@ -122,26 +193,34 @@ def main():
     }
 
     print("=== Classification Validation ===")
+    classification_start = time.time()
     for category in CATEGORIES:
         result = validate_classifier(ports["classifier"], category)
         results["classificationResults"].append(result)
         status = "ok" if "error" not in result else "error"
         print(f"  {category}: {status} - detected={result.get('detected')}, confidence={result.get('confidence')}")
+    results["timing"]["classificationMs"] = int((time.time() - classification_start) * 1000)
 
     print("\n=== YOLO Detection Validation ===")
+    yolo_start = time.time()
     for category in CATEGORIES:
         result = validate_yolo(ports["yolo"], category)
         results["yoloResults"].append(result)
         status = "ok" if "error" not in result else "error"
         print(f"  {category}: {status} - score={result.get('overallScore')}")
+    results["timing"]["yoloMs"] = int((time.time() - yolo_start) * 1000)
 
     print("\n=== Health Checks ===")
+    health_start = time.time()
     for name, port in ports.items():
         result = validate_service_health(port, name)
         results["healthChecks"].append(result)
         print(f"  {name}: {result['status']}")
+    results["timing"]["healthChecksMs"] = int((time.time() - health_start) * 1000)
 
     out_path = ROOT / "validation-output.json"
+    results["runtimeSeconds"] = round(time.time() - start_time, 3)
+    results["timing"]["totalMs"] = int((time.time() - start_time) * 1000)
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
 

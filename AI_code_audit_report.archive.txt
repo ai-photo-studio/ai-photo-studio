@@ -1,0 +1,12 @@
+Archived audit snapshot for prior Colab validation setup work.
+
+Previous focus:
+- CLI-first Colab setup and validation flow
+- pinned NumPy / SciPy / numba / rembg stack
+- validation output writing to scripts/validation-output.json
+
+Previous status summary:
+- Setup files existed
+- Validation docs existed
+- Production code unchanged
+- WhatsApp remained the final roadmap phase

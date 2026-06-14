@@ -7,6 +7,8 @@ docs/
 !docs/
 !docs/COLAB_SETUP_GUIDE.md
 !docs/GPU_VALIDATION.md
+!docs/LOCAL_AI_VERIFICATION_REPORT.md
+!docs/RUNTIME_VALIDATION_REPORT.md
 .ai-project/*.md
 .ai-code-audit-report.md
 .ai-implementation-index.md
