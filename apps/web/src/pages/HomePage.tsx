@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { usePackages } from "../lib/packages";
 import { customerApi } from "../services/customerApi";
+import { BeforeAfterSlider } from "../components/BeforeAfterSlider";
 
 const canvasData = (draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void) => {
   if (typeof document === "undefined") return "";
@@ -167,7 +168,7 @@ const sellerSegments = [
   { title: "Shopify", copy: "Branded storefront visuals that keep product pages consistent and sharp." },
   { title: "WooCommerce", copy: "Catalog images that fit store themes, variant sets, and product grids." },
   { title: "Facebook", copy: "Social selling creatives that feel clean enough for paid and organic posts." },
-  { title: "WhatsApp", copy: "Fast seller-to-buyer sharing with simple upload and delivery loops." }
+  { title: "TikTok", copy: "Short-form vertical content with clean, scroll-stopping product visuals." }
 ];
 
 const productExamples = [
@@ -192,35 +193,90 @@ const productExamples = [
     image: drawProductScene("Packaged Goods", { bg: "#fff0c7", accent: "#cf9b24", secondary: "#edcf6a", surface: "#fffaf0" }, "packaged")
   },
   {
-    title: "Electronics Accessories",
-    subtitle: "Cables, chargers, and small tech add-ons with crisp edges.",
+    title: "Electronics",
+    subtitle: "Tech accessories with crisp edges and professional presentation.",
     image: drawProductScene("Accessories", { bg: "#dcecff", accent: "#2f6fb9", secondary: "#8ab8e8", surface: "#f5fbff" }, "accessory")
   }
 ];
 
-const roadmapNow = ["background removal", "white background"];
-const roadmapNext = ["flat lay", "lifestyle scenes", "virtual models", "product video"];
+const features = [
+  {
+    title: "Background Removal",
+    description: "Remove backgrounds instantly with AI precision. Get clean, transparent PNGs ready for any background.",
+    icon: "🖼️"
+  },
+  {
+    title: "Auto Crop",
+    description: "Automatically crop and center your product with optimal framing and aspect ratios.",
+    icon: "✂️"
+  },
+  {
+    title: "AI Enhancement",
+    description: "Enhance product photos with AI-powered upscaling, color correction, and noise reduction.",
+    icon: "✨"
+  },
+  {
+    title: "Flat Lay Creation",
+    description: "Generate professional flat lay product photos with customizable backgrounds and layouts.",
+    icon: "📐"
+  },
+  {
+    title: "Lifestyle Scenes",
+    description: "Place products in realistic lifestyle environments with contextual backgrounds.",
+    icon: "🏠"
+  },
+  {
+    title: "Virtual Models",
+    description: "Show products on virtual models for fashion, apparel, and wearable categories.",
+    icon: "👗"
+  },
+  {
+    title: "Product Videos",
+    description: "Create short, engaging product videos with smooth camera movements and transitions.",
+    icon: "🎥"
+  },
+  {
+    title: "Batch Processing",
+    description: "Process hundreds of products at once with our batch upload and processing system.",
+    icon: "⚡"
+  },
+  {
+    title: "Credit System",
+    description: "Flexible credit-based pricing with volume discounts and subscription options.",
+    icon: "💳"
+  },
+  {
+    title: "API Ready",
+    description: "Integrate AI photo editing directly into your workflow with our REST API.",
+    icon: "🔌"
+  },
+  {
+    title: "Admin Analytics",
+    description: "Track usage, credits, and performance metrics through our admin dashboard.",
+    icon: "📊"
+  }
+];
 
 const faqs = [
   {
     question: "Who is this for?",
-    answer:
-      "It is built for ecommerce sellers on Daraz, Shopify, WooCommerce, Facebook, and WhatsApp who need stronger product photos."
+    answer: "It is built for ecommerce sellers on Daraz, Shopify, WooCommerce, Facebook, TikTok, and WhatsApp who need stronger product photos."
   },
   {
     question: "What can I do first?",
-    answer:
-      "Start with free background removal, then move into clean white-background outputs and paid credit bundles."
+    answer: "Start with free background removal, then move into clean white-background outputs and paid credit bundles."
   },
   {
     question: "What studio styles are available?",
-    answer:
-      "Background removal and white background are live now. Flat lay, lifestyle scenes, virtual models, and product video are approved roadmap priorities coming soon."
+    answer: "Background removal and white background are live now. Flat lay, lifestyle scenes, virtual models, and product video are approved roadmap priorities coming soon."
   },
   {
     question: "Can I use it for different categories?",
-    answer:
-      "Yes. The product supports beauty, fashion, agriculture products, packaged goods, and electronics accessories."
+    answer: "Yes. The product supports beauty, fashion, agriculture products, packaged goods, and electronics accessories."
+  },
+  {
+    question: "Do you have an API?",
+    answer: "Yes, we offer a REST API for integrating background removal and other features directly into your workflow."
   }
 ];
 
@@ -284,7 +340,6 @@ const processLocally = (file: File) =>
 export function HomePage() {
   const { token, status } = useAuth();
   const { packages, loading, error } = usePackages();
-  const packagePreview = packages.slice(0, 3);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewClientId] = useState(getPreviewClientId);
@@ -293,7 +348,6 @@ export function HomePage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [comparePosition, setComparePosition] = useState(58);
   const removerUrl = buildRemoverUrl();
   const previewToken = status === "ready" && token ? token : undefined;
 
@@ -366,291 +420,208 @@ export function HomePage() {
     }
   };
 
-  const heroBeforeImage = sourcePreview || productExamples[0].image;
-  const heroAfterImage = resultPreview || productExamples[0].image;
+  const beforeImage = sourcePreview || "https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=800";
+  const afterImage = resultPreview || "https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=800";
 
   return (
-    <div className="landing-page page-stack">
-      <section className="landing-hero">
-        <div className="landing-hero-copy">
-          <p className="eyebrow">AI Product Photo Studio for Ecommerce Sellers</p>
-          <h1>Upload one product photo and get a cleaner, seller-ready image.</h1>
-          <p className="section-lead">
-            Made for Daraz, Shopify, WooCommerce, Facebook, and WhatsApp sellers who want better product photos without a studio setup.
-          </p>
+    <>
+      <script>
+        {`
+          document.title = "AI Product Photo Studio | Ecommerce Background Removal & AI Photo Editing";
+          document.querySelector('meta[name="description"]')?.setAttribute('content', 'Professional AI product photo editing for ecommerce sellers. Background removal, auto crop, flat lay, lifestyle scenes, virtual models, and more.');
+        `}
+      </script>
+      <div className="landing-page page-stack">
+        <section className="landing-hero">
+          <div className="landing-hero-copy">
+            <p className="eyebrow">AI Product Photo Studio for Ecommerce Sellers</p>
+            <h1>Professional product photos in seconds, not hours.</h1>
+            <p className="section-lead">
+              Background removal, auto crop, and AI enhancement for Daraz, Shopify, WooCommerce, Facebook, TikTok sellers.
+            </p>
+            <div className="hero-actions">
+              <label className="button button-upload">
+                Upload product photo
+                <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
+              </label>
+              <Link to="/pricing" className="button button-secondary">
+                View pricing
+              </Link>
+            </div>
+            <div className="trust-strip">
+              <span>✓ No credit card required</span>
+              <span>✓ Free preview available</span>
+              <span>✓ 300K+ products edited</span>
+            </div>
+          </div>
+
+          <div className="landing-hero-panel">
+            <div className="showcase-panel">
+              <p className="eyebrow">Try it now</p>
+              <div
+                className="upload-dropzone"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={onDrop}
+              >
+                <p className="upload-dropzone-title">{dragActive ? "Drop the product photo here" : "Drag and drop a product photo"}</p>
+                <p className="upload-dropzone-copy">PNG, JPG, or WebP. See a preview first, then unlock the full image with credits.</p>
+                <div className="button-row">
+                  <label className="button button-secondary">
+                    Choose file
+                    <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
+                  </label>
+                  <button type="button" className="button" onClick={removeBackground} disabled={!selectedFile || uploadState === "working"}>
+                    {uploadState === "working" ? "Processing..." : "Process image"}
+                  </button>
+                </div>
+                {uploadError && <p className="form-error-panel">{uploadError}</p>}
+                <p className="helper-text">{removerUrl ? "Free preview is ready." : "Free preview is available."}</p>
+              </div>
+            </div>
+
+            <div className="showcase-panel">
+              <p className="eyebrow">Before / After comparison</p>
+              <BeforeAfterSlider beforeSrc={beforeImage} afterSrc={afterImage} />
+            </div>
+          </div>
+        </section>
+
+        <section className="section-card">
+          <div className="section-heading">
+            <p className="eyebrow">Trusted by sellers on</p>
+            <div className="channel-grid channel-grid-light">
+              {sellerSegments.map((segment) => (
+                <article key={segment.title} className="channel-card channel-card-light">
+                  <strong>{segment.title}</strong>
+                  <span>{segment.copy}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section-card">
+          <div className="section-heading">
+            <p className="eyebrow">All AI Features</p>
+            <h2>Everything you need for professional product photography.</h2>
+          </div>
+          <div className="feature-grid">
+            {features.map((feature) => (
+              <article key={feature.title} className="feature-card">
+                <div className="feature-icon">{feature.icon}</div>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            ))}
+          </div>
+          <div className="button-row" style={{ marginTop: "24px", justifyContent: "center" }}>
+            <Link to="/features" className="button button-secondary">
+              View all features
+            </Link>
+          </div>
+        </section>
+
+        <section className="section-card">
+          <div className="section-heading">
+            <p className="eyebrow">Product examples</p>
+            <h2>By ecommerce category, not generic mockups.</h2>
+          </div>
+          <div className="example-grid">
+            {productExamples.map((item) => (
+              <article key={item.title} className="example-card example-card-tall">
+                <img className="example-image" src={item.image} alt={`${item.title} ecommerce photography example`} />
+                <h3>{item.title}</h3>
+                <p>{item.subtitle}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="section-card">
+          <div className="section-heading">
+            <p className="eyebrow">Pricing</p>
+            <h2>Choose a credit bundle that matches your workload.</h2>
+          </div>
+
+          {loading ? (
+            <div className="state-panel">
+              <p>Loading plans...</p>
+            </div>
+          ) : error ? (
+            <div className="state-panel state-panel-error">
+              <p>{error}</p>
+            </div>
+          ) : packages.length > 0 ? (
+            <div className="pricing-grid pricing-grid-wide">
+              {packages.slice(0, 3).map((pkg, index) => (
+                <article key={pkg.id} className={`pricing-card pricing-card-featured${index === 1 ? " pricing-card-highlight" : ""}`}>
+                  <div className="pricing-card-top">
+                    <h3>{pkg.name}</h3>
+                    <p className="price">
+                      {pkg.currency} {pkg.price}
+                    </p>
+                  </div>
+                  <p>{pkg.description || "A credit bundle for polished ecommerce imagery."}</p>
+                  <ul className="feature-list">
+                    <li>{pkg.creditsIncluded} included credits</li>
+                    <li>Background removal and white background today</li>
+                    <li>More studio styles: flat lay, lifestyle, model, video</li>
+                  </ul>
+                  <Link to="/signup" className="button button-block">
+                    Buy credits
+                  </Link>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="state-panel">
+              <p>Plan details will appear here once the catalog is populated.</p>
+            </div>
+          )}
+          <div className="button-row" style={{ marginTop: "24px", justifyContent: "center" }}>
+            <Link to="/pricing" className="button button-secondary">
+              View all pricing plans
+            </Link>
+          </div>
+        </section>
+
+        <section className="section-card">
+          <div className="section-heading">
+            <p className="eyebrow">FAQ</p>
+            <h2>Quick answers for sellers getting ready to launch.</h2>
+          </div>
+          <div className="faq-grid">
+            {faqs.map((faq) => (
+              <details key={faq.question} className="faq-card">
+                <summary>{faq.question}</summary>
+                <p>{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <section className="whatsapp-cta">
+          <div>
+            <p className="eyebrow">Get started</p>
+            <h2>Ready to improve your product photos?</h2>
+            <p>
+              Upload a product photo and get a clean, marketplace-ready image in seconds.
+            </p>
+          </div>
           <div className="hero-actions">
-            <label className="button button-upload">
-              Upload product photo
-              <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
-            </label>
+            <Link to="/signup" className="button">
+              Start now
+            </Link>
             <Link to="/pricing" className="button button-secondary">
               See pricing
             </Link>
           </div>
-          <div className="trial-strip" aria-label="Free preview limits">
-            <article className="trial-card">
-              <strong>Guest</strong>
-              <span>1 free preview</span>
-            </article>
-            <article className="trial-card">
-              <strong>New account</strong>
-              <span>3 preview credits</span>
-            </article>
-            <article className="trial-card">
-              <strong>Finals</strong>
-              <span>Credits unlock full resolution</span>
-            </article>
-          </div>
-          <div className="channel-grid">
-            {sellerSegments.map((segment) => (
-              <article key={segment.title} className="channel-card">
-                <strong>{segment.title}</strong>
-                <span>{segment.copy}</span>
-              </article>
-            ))}
-          </div>
-          <p className="hero-footnote">
-            Built for Daraz, Shopify, WooCommerce, Facebook, and WhatsApp sellers who need cleaner product visuals.
-          </p>
-        </div>
-
-        <div className="landing-hero-panel">
-          <div className="showcase-panel">
-            <p className="eyebrow">Upload area</p>
-            <div
-              className="upload-dropzone"
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={onDrop}
-            >
-              <p className="upload-dropzone-title">{dragActive ? "Drop the product photo here" : "Drag and drop a product photo"}</p>
-              <p className="upload-dropzone-copy">PNG, JPG, or WebP. See a preview first, then unlock the full image with credits.</p>
-              <div className="button-row">
-                <label className="button button-secondary">
-                  Choose file
-                  <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
-                </label>
-                <button type="button" className="button" onClick={removeBackground} disabled={!selectedFile || uploadState === "working"}>
-                  {uploadState === "working" ? "Processing..." : "Process image"}
-                </button>
-              </div>
-              {uploadError && <p className="form-error-panel">{uploadError}</p>}
-              <p className="helper-text">{removerUrl ? "Free preview is ready." : "Free preview is available."}</p>
-            </div>
-          </div>
-
-          <div className="showcase-panel">
-            <p className="eyebrow">Product transformation</p>
-            <div className="before-after-grid">
-              <article className="compare-card compare-card-before">
-                <span>Before</span>
-                <img src={heroBeforeImage} alt="Original ecommerce product photo" />
-                <h4>Raw upload</h4>
-                <p>Untouched seller photo with clutter, shadows, or an uneven background.</p>
-              </article>
-              <article className="compare-card compare-card-after">
-                <span>After</span>
-                <img src={heroAfterImage} alt="Clean ecommerce product photo after transformation" />
-                <h4>Seller-ready result</h4>
-                <p>Cleaner edges, stronger framing, and a product image ready to list.</p>
-              </article>
-            </div>
-            {(sourcePreview || resultPreview) && (
-              <div className="compare-preview">
-                <div className="preview-grid">
-                  <figure className="preview-card">
-                    <img src={sourcePreview || ""} alt="Selected original upload preview" />
-                    <figcaption>Original</figcaption>
-                  </figure>
-                  <figure className="preview-card preview-card-result">
-                    <img src={resultPreview || sourcePreview || ""} alt="Processed result preview" />
-                    <figcaption>Result</figcaption>
-                  </figure>
-                </div>
-                {downloadUrl && (
-                  <a className="button button-secondary" href={downloadUrl} download="product-photo.png">
-                    Download PNG
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="section-card">
-        <div className="section-heading">
-          <p className="eyebrow">Approved customer segments</p>
-          <h2>Built for the channels ecommerce sellers actually use.</h2>
-        </div>
-        <div className="channel-grid channel-grid-light">
-          {sellerSegments.map((segment) => (
-            <article key={segment.title} className="channel-card channel-card-light">
-              <strong>{segment.title}</strong>
-              <span>{segment.copy}</span>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="section-card">
-        <div className="section-heading">
-          <p className="eyebrow">Product examples</p>
-          <h2>Examples by ecommerce category, not generic mockups.</h2>
-        </div>
-        <div className="example-grid">
-          {productExamples.map((item) => (
-            <article key={item.title} className="example-card example-card-tall">
-              <img className="example-image" src={item.image} alt={`${item.title} ecommerce photography example`} />
-              <h3>{item.title}</h3>
-              <p>{item.subtitle}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="section-card roadmap-teaser">
-        <div className="section-heading">
-          <p className="eyebrow">Product studio</p>
-          <h2>Start with cleanup now. Creative studio styles follow on the roadmap.</h2>
-        </div>
-        <div className="roadmap-grid">
-          <article className="roadmap-card">
-            <p className="eyebrow">Available now</p>
-            <ul className="roadmap-list">
-              {roadmapNow.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </article>
-          <article className="roadmap-card">
-            <p className="eyebrow">Coming soon</p>
-            <ul className="roadmap-list">
-              {roadmapNext.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section className="section-card metrics-band">
-        <div>
-          <p className="eyebrow">How it works</p>
-          <h2>Upload, preview, and keep the buying flow simple.</h2>
-        </div>
-        <div className="metric-strip">
-          <article>
-            <strong>1</strong>
-            <span>Upload a product photo and see the first result quickly.</span>
-          </article>
-          <article>
-            <strong>2</strong>
-            <span>Preview the cleaned result before spending credits.</span>
-          </article>
-          <article>
-            <strong>3</strong>
-            <span>Download the final image or return for more styles.</span>
-          </article>
-        </div>
-      </section>
-
-      <section className="section-card">
-        <div className="section-heading section-heading-row">
-          <div>
-            <p className="eyebrow">Pricing</p>
-            <h2>Choose a credit bundle that matches your workload.</h2>
-          </div>
-          <Link to="/pricing" className="button button-secondary">
-            See all plans
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="state-panel">
-            <p>Loading plans...</p>
-          </div>
-        ) : error ? (
-          <div className="state-panel state-panel-error">
-            <p>{error}</p>
-          </div>
-        ) : packagePreview.length > 0 ? (
-          <div className="pricing-grid pricing-grid-wide">
-            {packagePreview.map((pkg, index) => (
-              <article key={pkg.id} className={`pricing-card pricing-card-featured${index === 1 ? " pricing-card-highlight" : ""}`}>
-                <div className="pricing-card-top">
-                  <h3>{pkg.name}</h3>
-                  <p className="price">
-                    {pkg.currency} {pkg.price}
-                  </p>
-                </div>
-                <p>{pkg.description || "A credit bundle for polished ecommerce imagery."}</p>
-                <ul className="feature-list">
-                  <li>{pkg.creditsIncluded} included credits</li>
-                <li>Background removal and white background today</li>
-                  <li>More studio styles: flat lay, lifestyle, model, video</li>
-                </ul>
-                <Link to="/signup" className="button button-block">
-                  Buy credits
-                </Link>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="state-panel">
-            <p>Plan details will appear here once the catalog is populated.</p>
-          </div>
-        )}
-      </section>
-
-      <section className="section-card">
-        <div className="section-heading">
-          <p className="eyebrow">FAQ</p>
-          <h2>Quick answers for sellers getting ready to launch.</h2>
-        </div>
-        <div className="faq-grid">
-          {faqs.map((faq) => (
-            <details key={faq.question} className="faq-card">
-              <summary>{faq.question}</summary>
-              <p>{faq.answer}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      <section className="whatsapp-cta">
-        <div>
-          <p className="eyebrow">Get started</p>
-          <h2>Ready to improve your product photos?</h2>
-          <p>
-            Upload a product photo and get a clean, marketplace-ready image in seconds.
-          </p>
-        </div>
-        <div className="hero-actions">
-          <Link to="/signup" className="button">
-            Start now
-          </Link>
-          <Link to="/pricing" className="button button-secondary">
-            See pricing
-          </Link>
-        </div>
-      </section>
-
-      <section className="section-card footer-summary">
-        <div className="footer-summary-grid">
-          <div>
-            <h3>AI Product Photo Studio</h3>
-            <p>An ecommerce product photography platform for sellers on Daraz, Shopify, WooCommerce, Facebook, and WhatsApp.</p>
-          </div>
-          <div>
-            <h3>Studio styles</h3>
-            <p>Background removal and white background are live now. Flat lay, lifestyle scenes, virtual models, and product video are approved roadmap priorities.</p>
-          </div>
-        </div>
-      </section>
-    </div>
+        </section>
+      </div>
+    </>
   );
 }

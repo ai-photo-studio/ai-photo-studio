@@ -13,6 +13,7 @@
 .ai-project/*.md
 *.audit.md
 AI_code_audit_report.md
+AI_code_audit_report_ARCHIVED.md
 .env
 .env.*
 !.env.example

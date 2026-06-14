@@ -28,6 +28,12 @@ import { PaymentsPage } from "./pages/PaymentsPage";
 import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { SignupPage } from "./pages/SignupPage";
 import { WalletPage } from "./pages/WalletPage";
+import { BackgroundRemovalPage } from "./pages/BackgroundRemovalPage";
+import { FlatLayPage } from "./pages/FlatLayPage";
+import { LifestyleScenesPage } from "./pages/LifestyleScenesPage";
+import { VirtualModelsPage } from "./pages/VirtualModelsPage";
+import { ProductVideosPage } from "./pages/ProductVideosPage";
+import { FeaturesPage } from "./pages/FeaturesPage";
 
 export function App() {
   return (
@@ -35,6 +41,12 @@ export function App() {
       <Route element={<PublicLayout />}>
         <Route index element={<HomePage />} />
         <Route path="pricing" element={<PricingPage />} />
+        <Route path="features" element={<FeaturesPage />} />
+        <Route path="background-removal" element={<BackgroundRemovalPage />} />
+        <Route path="flat-lay" element={<FlatLayPage />} />
+        <Route path="lifestyle-scenes" element={<LifestyleScenesPage />} />
+        <Route path="virtual-models" element={<VirtualModelsPage />} />
+        <Route path="product-videos" element={<ProductVideosPage />} />
         <Route path="signup" element={<SignupPage />} />
         <Route path="login" element={<LoginPage />} />
       </Route>

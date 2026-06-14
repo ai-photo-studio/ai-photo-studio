@@ -150,6 +150,14 @@
 - `apps/api/src/services/creative-studio/test-fixtures.ts`: test fixtures for creative studio
 - `apps/web/src/pages/AdminJobsPage.tsx`: creative type, scene type, generation status, provider used diagnostics
 - `apps/web/src/pages/AdminOrderDetail.tsx`: creative studio diagnostics in admin UI
+- `apps/web/src/components/BeforeAfterSlider.tsx`: interactive before/after comparison component
+- `apps/web/src/pages/HomePage.tsx`: redesigned modern SaaS landing page
+- `apps/web/src/pages/BackgroundRemovalPage.tsx`: dedicated background removal page
+- `apps/web/src/pages/FlatLayPage.tsx`: flat lay creation page
+- `apps/web/src/pages/LifestyleScenesPage.tsx`: lifestyle scenes page
+- `apps/web/src/pages/VirtualModelsPage.tsx`: virtual models page
+- `apps/web/src/pages/ProductVideosPage.tsx`: product videos page
+- `apps/web/src/pages/FeaturesPage.tsx`: all features overview page
 
 ## Current Completion
 

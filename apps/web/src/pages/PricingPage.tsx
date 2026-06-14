@@ -15,9 +15,9 @@ export function PricingPage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Pricing</p>
-        <h1>Choose a credit bundle and unlock better product photos.</h1>
+        <h1>Simple, transparent pricing for teams of all sizes.</h1>
         <p className="section-lead">
-          The packages below come straight from the live API. Credits power background removal now and the broader studio roadmap next.
+          Credits power all features. Use them for background removal, flat lays, virtual models, and more.
         </p>
       </div>
 
@@ -31,10 +31,10 @@ export function PricingPage() {
         </div>
       ) : (
         <div className="pricing-grid pricing-grid-wide">
-          {packages.map((pkg) => {
+          {packages.map((pkg, index) => {
             const features = toFeatureList(pkg.includesJson);
             return (
-              <article key={pkg.id} className="pricing-card pricing-card-featured">
+              <article key={pkg.id} className={`pricing-card pricing-card-featured${index === Math.floor(packages.length / 2) ? " pricing-card-highlight" : ""}`}>
                 <div className="pricing-card-top">
                   <p className="eyebrow">{pkg.code}</p>
                   <h2>{pkg.name}</h2>
@@ -43,19 +43,20 @@ export function PricingPage() {
                   {pkg.currency} {pkg.price}
                 </p>
                 <p>{pkg.description || "A credit bundle for ecommerce product photography."}</p>
-                {features.length > 0 && (
-                  <ul className="feature-list">
-                    {features.slice(0, 5).map((feature) => (
-                      <li key={feature}>{feature}</li>
-                    ))}
-                  </ul>
-                )}
+                <ul className="feature-list">
+                  <li>{pkg.creditsIncluded} included credits</li>
+                  <li>Background removal and white background today</li>
+                  <li>More studio styles: flat lay, lifestyle, model, video</li>
+                  {features.slice(0, 3).map((feature) => (
+                    <li key={feature}>{feature}</li>
+                  ))}
+                </ul>
                 <div className="button-row">
                   <Link to="/signup" className="button button-secondary button-block">
                     Get started
                   </Link>
                   <Link to="/login" className="button button-ghost button-block">
-                    Buy
+                    Buy now
                   </Link>
                 </div>
               </article>
@@ -63,6 +64,25 @@ export function PricingPage() {
           })}
         </div>
       )}
+
+      <div className="section-heading">
+        <h2>FAQ about pricing</h2>
+      </div>
+
+      <div className="faq-grid">
+        <details className="faq-card">
+          <summary>How do credits work?</summary>
+          <p>Each credit processes one product photo. Credits never expire and can be used for any feature.</p>
+        </details>
+        <details className="faq-card">
+          <summary>Do you offer discounts for bulk purchases?</summary>
+          <p>Yes, we offer volume discounts for teams and enterprises. Contact us for custom pricing.</p>
+        </details>
+        <details className="faq-card">
+          <summary>Can I upgrade or downgrade anytime?</summary>
+          <p>You can purchase additional credits at any time. Your existing credits remain available.</p>
+        </details>
+      </div>
     </section>
   );
 }
