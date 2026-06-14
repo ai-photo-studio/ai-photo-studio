@@ -67,6 +67,17 @@
 - `apps/web/src/pages/AdminJobsPage.tsx`: category and profile diagnostics
 - `apps/web/src/pages/AdminOrderDetail.tsx`: category diagnostics by order
 
+## Phase 2D Real Model Validation Setup
+
+- `requirements-colab.txt`: pinned Colab model stack for Python 3.12
+- `requirements-validation.txt`: validation runtime requirements
+- `colab_setup.sh`: install, preflight, service launch, and validation entrypoint
+- `colab_setup.ipynb`: notebook wrapper for Colab runs
+- `docs/COLAB_SETUP_GUIDE.md`: reproducible Colab setup instructions
+- `docs/GPU_VALIDATION.md`: GPU and model import validation checklist
+- `scripts/validate-ai.py`: local service validation harness, writes `scripts/validation-output.json`
+- `notebooks/model-validation.ipynb`: benchmark notebook for model-level experiments; use the new setup files for reproducible installation
+
 ## Phase 3 Provider Framework Map
 
 - `apps/api/src/providers/provider.interface.ts`: provider types, capability matrix, provider metadata
@@ -134,17 +145,19 @@
 - Phase 2A Local AI: 70%
 - Phase 2B Image Enhancement: 40%
 - Phase 2C Product Classification: 40%
+- Phase 2D Colab validation setup: 100%
 - Phase 3 Provider Framework: 80%
 - Phase 4 Creative Studio Expansion: 60%
 - Phase 5 Operations: 60%
 - Phase 6 WhatsApp: 0%
-- Overall roadmap completion: 74%
+- Overall roadmap completion: 75%
 
 ## Remaining Work
 
 - Verify the new product classifier, Real-ESRGAN, and IC-Light services locally
 - Confirm category routing and enhancement comparison persistence in the API
 - Capture updated screenshots after the homepage refresh
+- Run the Colab validation notebook on a live GPU session and capture `scripts/validation-output.json`
 - Keep paid AI providers disabled
 - Keep WhatsApp in the final phase
 
@@ -154,6 +167,6 @@
 
 ## Phase 5 AI Validation Script
 
-- `scripts/validate-ai.py`: Test harness for local AI services
+- `scripts/validate-ai.py`: test harness for local AI services
 - Tests classifier and YOLO detection quality
-- Generates validation-output.json with results
+- Generates `scripts/validation-output.json` with results

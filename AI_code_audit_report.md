@@ -2,103 +2,108 @@
 
 ## Scope
 
-Phase 2D Real Model Validation - prepare Google Colab environment for ML model testing.
+Google Colab validation runbook finalization for the local AI stack.
 
 ## Current Status
 
-- Product direction: ecommerce product photography for sellers
-- Background removal is the entry point, not the full vision
-- Phase 4 creative studio foundation verified
-- Phase 5 operations dashboard implemented
-- Current implementation uses PIL placeholders (not ML models)
+- Production code remains unchanged
+- Photoroom, fal.ai, and Replicate remain disabled
 - WhatsApp remains the final roadmap phase
+- Validation is now documented as a CLI-first flow with manual fallback only when needed
 
-## Real Model Validation Preparation
+## Deliverables
 
-### Google Colab Notebook
+- `requirements-colab.txt`
+- `requirements-validation.txt`
+- `colab_setup.sh`
+- `colab_setup.ipynb`
+- `docs/COLAB_SETUP_GUIDE.md`
+- `docs/GPU_VALIDATION.md`
+- `scripts/validate-ai.py`
 
-Created `notebooks/model-validation.ipynb`:
-- Installs: rembg, ultralytics, open_clip_torch, realesrgan
-- Tests each model with synthetic images
-- Measures processing duration and VRAM usage
-- Outputs validation_results.csv
+## Colab Validation Flow
 
-### Models Architecture
+1. Open Google Colab
+2. Switch runtime to GPU
+3. Run `nvidia-smi`
+4. Clone the repository
+5. Run `bash colab_setup.sh`
+6. Use manual fallback commands if the script fails
+7. Download `scripts/validation-output.json`
 
-| Model | Package | VRAM Required | CPU Fallback |
-|-------|---------|---------------|--------------|
-| YOLOv8n | ultralytics | 4-6GB | Yes |
-| CLIP ViT-B/32 | open_clip_torch | 6-8GB | Yes (8-12s/image) |
-| rembg | rembg | 2-4GB | Yes |
-| Real-ESRGAN | realesrgan | 6-8GB | Yes (5-15s/image) |
+## Root Cause
 
-### GPU Comparison
+The Colab failure we are avoiding is a dependency chain problem around `rembg`.
 
-| GPU | VRAM | Throughput (img/min) | Monthly Cost |
-|-----|------|---------------------|--------------|
-| T4 16GB | 16GB | 60-120 | $100-200 |
-| L4 24GB | 24GB | 120-200 | $200-400 |
-| A10G 24GB | 24GB | 100-180 | $150-300 |
+- `rembg` depends on `pymatting`
+- `pymatting` pulls in compiled numerical packages
+- Colab Python 3.12 can resolve an incompatible mix of `numpy`, `scipy`, and `numba`
 
-## Validation Dataset
+The result is typically an import-time failure before any image processing runs. In practical terms, the crash is not about background removal logic; it is about a compiled wheel mismatch in the scientific stack.
 
-Required structure:
-```
-validation-dataset/
-├── perfume/ (20 images)
-├── cosmetics/ (20 images)
-├── furniture/ (20 images)
-├── electronics/ (20 images)
-├── food/ (20 images)
-├── shoes/ (20 images)
-└── fashion/ (20 images)
-```
+## Pinned Stack
 
-Total: 140 images
+The pinned validation stack is designed to keep the Colab runtime stable:
 
-## Operations Dashboard
+- `numpy==1.26.4`
+- `scipy==1.13.1`
+- `numba==0.60.0`
+- `pymatting==1.1.13`
+- `pillow==10.4.0`
+- `onnxruntime==1.18.1`
+- `rembg==2.0.61`
+- `ultralytics==8.2.103`
+- `open_clip_torch==2.30.0`
+- `realesrgan==0.3.0`
 
-| Endpoint | Status | Provides |
-|----------|--------|----------|
-| /admin/stats | Verified | Job counts, success rates, avg processing time |
-| /admin/queue-depth | Verified | BullMQ queue monitoring |
-| /monitoring/services | Verified | Multi-service health check |
+## Validation Checks
 
-## Provider Status
+The CLI runbook now verifies:
 
-All paid providers disabled:
-- Photoroom: disabled
-- fal.ai: disabled
-- Replicate: disabled
+- GPU visibility
+- `rembg` import
+- `ultralytics` import
+- `open_clip` import
+- `realesrgan` import
+- local validation services
+- `scripts/validate-ai.py`
+- `scripts/validation-output.json`
 
-All generation capabilities disabled:
-- flat-lay: disabled
-- lifestyle-scene: disabled
-- virtual-model: disabled
-- video-generation: disabled
+## GPU Guidance
 
-## Verification Results
+| GPU | Recommendation | Notes |
+|-----|----------------|-------|
+| T4 | Best for free testing | Good starter option, but with the least memory headroom |
+| L4 | Preferred for longer-term production | Best balance of speed, headroom, and reliability |
+| A10G | Optional production choice | Strong alternative when available in Colab or other hosted GPU setups |
 
-- `npm run build`: PASS
-- `npm run typecheck`: PASS
-- `npm run enterprise-verify`: PASS
+## Required VRAM by Model
+
+| Model | Package | Required VRAM |
+|-------|---------|---------------|
+| Background removal | `rembg` | 2 to 4 GB |
+| Object detection | `ultralytics` | 4 to 6 GB |
+| Product classification | `open_clip_torch` | 6 to 8 GB |
+| Image enhancement | `realesrgan` | 6 to 8 GB |
+
+## Python 3.12 Compatibility
+
+Python 3.12 is compatible with the pinned stack above when Colab resolves the wheels correctly. If Colab drifts again, the fallback strategy is:
+
+- isolated Python 3.11 environment
+- no production code changes
+- keep the pinned requirements files as source of truth
+
+## Operations Notes
+
+- Local validation services are only for the validation workflow
+- Production deployment and WhatsApp remain out of scope here
+- No paid provider activation was added
 
 ## Completion
 
-- Phase 1: 100%
-- Phase 1.5: 100%
-- Phase 2A local AI: 70%
-- Phase 2B image enhancement: 40%
-- Phase 2C product classification: 40%
-- Phase 2D real model integration: 10%
-- Phase 3 provider framework: 80%
-- Phase 4 creative studio: 60%
-- Phase 5 operations: 60%
-- Overall roadmap: 74%
-
-## Next Actions
-
-1. Upload validation notebook to Google Colab
-2. Run models on validation dataset
-3. Record accuracy and timing in VALIDATION_REPORT.md
-4. Decide: local models OR paid providers based on results
+- Colab validation setup: complete
+- CLI-first validation runbook: complete
+- Manual fallback documentation: complete
+- Production code changes: none
+- Project roadmap impact: documentation and validation only

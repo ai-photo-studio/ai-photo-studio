@@ -1,0 +1,4 @@
+# Validation runtime for local service launch plus the Colab model stack.
+-r requirements-colab.txt
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
