@@ -108,7 +108,11 @@
 - Web uploads reserve credits before the job is queued.
 - Successful processing settles the reservation instead of leaving credits dangling.
 - Full-resolution download is hidden unless the backend allows it.
-- Homepage shows the upload action in the first viewport.
+- Homepage shows the upload action in the first viewport with a single public navbar.
+- Homepage now uses a removal.ai-style layout with left upload flow and right feature showcase.
+- Homepage explicitly targets Daraz, Shopify, WooCommerce, Facebook, and Instagram sellers.
+- Homepage uses PKR pricing only and shows JazzCash and Bank Transfer payment options.
+- Homepage includes a visual before/after slider and marketplace export section.
 - Product examples now reflect ecommerce categories instead of a generic mockup.
 - Local AI pipeline now stages detection, crop, center, background removal, enhancement, and quality comparison before export.
 - Product images are now classified before processing so category-specific routing can change the pipeline profile.
@@ -116,9 +120,12 @@
 
 ## Verification Status
 
-- `npm run build`: PASS
-- `npm run typecheck`: PASS
-- `npm run enterprise-verify`: PASS
+- `npm.cmd run build -w apps/web`: PASS on 2026-06-14
+- `npm.cmd run typecheck -w apps/web`: PASS on 2026-06-14
+- `npm.cmd run build`: PASS on 2026-06-14
+- `npm.cmd run typecheck`: PASS on 2026-06-14
+- `npm.cmd run enterprise-verify`: PASS with Railway network warnings on 2026-06-14
+- Local production preview screenshot: PASS on 2026-06-14
 - `railway whoami`: unauthorized in this shell
 - `railway status`: PASS
 - `railway logs --service api --tail 300`: PASS
@@ -150,14 +157,20 @@
 - `apps/api/src/services/creative-studio/test-fixtures.ts`: test fixtures for creative studio
 - `apps/web/src/pages/AdminJobsPage.tsx`: creative type, scene type, generation status, provider used diagnostics
 - `apps/web/src/pages/AdminOrderDetail.tsx`: creative studio diagnostics in admin UI
-- `apps/web/src/components/BeforeAfterSlider.tsx`: interactive before/after comparison component
-- `apps/web/src/pages/HomePage.tsx`: redesigned modern SaaS landing page
-- `apps/web/src/pages/BackgroundRemovalPage.tsx`: dedicated background removal page
-- `apps/web/src/pages/FlatLayPage.tsx`: flat lay creation page
-- `apps/web/src/pages/LifestyleScenesPage.tsx`: lifestyle scenes page
-- `apps/web/src/pages/VirtualModelsPage.tsx`: virtual models page
-- `apps/web/src/pages/ProductVideosPage.tsx`: product videos page
-- `apps/web/src/pages/FeaturesPage.tsx`: all features overview page
+- `apps/web/src/pages/HomePage.tsx`: Phase 2 removal.ai-style commercial homepage
+- `apps/web/src/pages/FeaturePage.tsx`: reusable feature pages for background removal, enhancement, flat lay, lifestyle, virtual model, and videos
+- `apps/web/src/App.tsx`: public and admin route map
+- `apps/web/src/components/PublicLayout.tsx`: single public navbar
+- `apps/web/src/styles.css`: rebuilt public/admin visual system
+
+## Phase 2 UI Redesign Map
+
+- `apps/web/src/pages/HomePage.tsx`: hero, upload card, samples, marketplace badges, feature panel, before/after slider, export cards, PKR pricing
+- `apps/web/src/pages/FeaturePage.tsx`: public route content for background removal, enhancement, flat lay, lifestyle, virtual model, and videos
+- `apps/web/src/App.tsx`: verified routes for public features, pricing, login, register, and admin modules
+- `apps/web/src/components/PublicLayout.tsx`: duplicate homepage navbar removed
+- `apps/web/src/styles.css`: old homepage CSS replaced
+- `UI_REDESIGN_PHASE2_REPORT.md`: route matrices, changed files, deleted files, and completion status
 
 ## Current Completion
 

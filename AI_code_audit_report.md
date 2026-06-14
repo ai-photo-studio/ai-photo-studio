@@ -2,49 +2,43 @@
 
 ## Scope
 
-Public Web MVP - remove.bg style rebuild.
+Public web Phase 2 redesign for AI Product Photo Studio.
 
 ## Current Status
 
-- Product direction: ecommerce product photography for sellers
-- Phase 4 Creative Studio: 100% complete
-- Phase 5 Operations: 100% complete
-- UI/UX MVP: 100% complete
+- Duplicate public navbar removed by keeping navigation in `PublicLayout` only.
+- Homepage rebuilt in a removal.ai-style two-column layout.
+- Public feature routes restored for background removal, enhancement, flat lay, lifestyle, virtual model, and videos.
+- Admin route surface restored for dashboard, jobs, orders, creative jobs, providers, metrics, and login.
+- Pakistan localization added with PKR pricing, JazzCash, and Bank Transfer.
+- Marketplace positioning now explicitly includes Daraz, Shopify, WooCommerce, Facebook, and Instagram.
 
-## Launch Readiness Assessment
-
-### UI/UX Status - COMPLETE
+## UI/UX Status
 
 | Component | Status |
 |-----------|--------|
-| Clean Homepage | PASS |
-| Upload Card | PASS |
-| Feature Menu | PASS |
-| Before/After | PASS |
-| Pricing | PASS |
-| FAQ | PASS |
-| Footer | PASS |
-
-### Preview Limit Status - DISABLED FOR TESTING
-
-| Setting | Value |
-|---------|-------|
-| DISABLE_PREVIEW_LIMIT | true |
-| Unlimited previews | ENABLED |
-| Production | Will revert to false |
-
-## Deployment
-
-**URL:** https://3932f1fe.ai-photo-studio-whatsapp-web.pages.dev
+| Single navbar | PASS |
+| Hero left upload flow | PASS |
+| Hero right feature showcase | PASS |
+| Feature cards | PASS |
+| Sample images | PASS |
+| Marketplace badges | PASS |
+| Homepage before/after slider | PASS |
+| Marketplace export section | PASS |
+| PKR pricing | PASS |
+| Pakistan payment labels | PASS |
 
 ## Verification
 
 | Check | Status |
 |-------|--------|
-| Build | PASS |
-| Typecheck | PASS |
-| Enterprise Verify | PASS |
+| Web typecheck | PASS |
+| Web build | PASS |
+| Full typecheck | PASS |
+| Enterprise verify | PASS with Railway network warnings |
+| Screenshot capture | PASS |
+| Deploy | Pending final deploy command |
 
 ## Recommendation
 
-**APPROVED FOR PUBLIC LAUNCH**
+Commercial polish improved substantially. Remaining risk is limited to live deployment verification after the final deploy command completes.

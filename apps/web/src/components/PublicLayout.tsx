@@ -12,16 +12,18 @@ export function PublicLayout() {
           </span>
         </Link>
         <nav className="site-nav">
+          <NavLink to="/background-removal" className="nav-link">Remove BG</NavLink>
+          <NavLink to="/enhancement" className="nav-link">Enhance</NavLink>
           <NavLink to="/pricing" className="nav-link">Pricing</NavLink>
           <NavLink to="/login" className="nav-link">Login</NavLink>
-          <NavLink to="/signup" className="button">Sign Up</NavLink>
+          <NavLink to="/register" className="button">Sign Up</NavLink>
         </nav>
       </header>
       <main className="site-main">
         <Outlet />
       </main>
       <footer className="site-footer">
-        <p>&copy; 2026 AI Photo Studio</p>
+        <p>&copy; 2026 AI Product Photo Studio. Pakistan-ready ecommerce visuals in PKR.</p>
       </footer>
     </div>
   );

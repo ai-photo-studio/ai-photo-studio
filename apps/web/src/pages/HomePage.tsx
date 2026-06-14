@@ -6,6 +6,22 @@ import { customerApi } from "../services/customerApi";
 const LOCAL_REMOVER_URL = import.meta.env.VITE_LOCAL_REMOVER_URL || "";
 const LOCAL_REMOVER_MODE = import.meta.env.VITE_LOCAL_REMOVER_MODE || "remove-bg";
 
+const features = [
+  ["Remove Background", "/background-removal"],
+  ["AI Enhancement", "/enhancement"],
+  ["Auto Crop", "/enhancement"],
+  ["Auto Center", "/enhancement"],
+  ["White Background", "/background-removal"],
+  ["Flat Lay", "/flat-lay"],
+  ["Lifestyle Scenes", "/lifestyle"],
+  ["Virtual Models", "/virtual-model"],
+  ["Product Videos", "/videos"],
+  ["Batch Processing", "/pricing"],
+  ["Daraz Ready", "/pricing"],
+  ["Shopify Ready", "/pricing"],
+  ["Meta Ads Ready", "/pricing"]
+] as const;
+
 const getPreviewClientId = () => {
   if (typeof window === "undefined") return "preview";
   const storageKey = "aps-preview-client-id";
@@ -76,15 +92,16 @@ export function HomePage() {
           reject(new Error("Unable to create image preview"));
           return;
         }
-        context.clearRect(0, 0, size, size);
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, size, size);
         const scale = Math.min(900 / image.width, 900 / image.height);
         const width = image.width * scale;
         const height = image.height * scale;
         const x = (size - width) / 2;
         const y = (size - height) / 2;
-        context.shadowColor = "rgba(17, 75, 60, 0.18)";
+        context.shadowColor = "rgba(20, 83, 45, 0.16)";
         context.shadowBlur = 34;
-        context.shadowOffsetY = 28;
+        context.shadowOffsetY = 26;
         context.drawImage(image, x, y, width, height);
         canvas.toBlob((blob) => {
           URL.revokeObjectURL(objectUrl);
@@ -113,16 +130,13 @@ export function HomePage() {
         ? await fetch(removerUrl, {
             method: "POST",
             body: selectedFile,
-            headers: {
-              "Content-Type": selectedFile.type || "image/png"
-            }
+            headers: { "Content-Type": selectedFile.type || "image/png" }
           }).then((response) => {
             if (!response.ok) throw new Error(`Background removal failed (${response.status})`);
             return response.blob();
           })
         : await processLocally(selectedFile);
-      if (resultPreview) URL.revokeObjectURL(resultPreview);
-      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+      resetResult();
       const nextUrl = URL.createObjectURL(blob);
       setResultPreview(nextUrl);
       setDownloadUrl(nextUrl);
@@ -133,130 +147,130 @@ export function HomePage() {
     }
   };
 
-  const beforeImage = sourcePreview || "https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=800";
-  const afterImage = resultPreview || "https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=800";
+  const beforeImage = sourcePreview || "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=80";
+  const afterImage = resultPreview || "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=80";
 
   return (
-    <div className="landing-page">
-      <header className="site-header">
-        <Link to="/" className="brand">
-          <span className="brand-mark">AI</span>
-          <span>
-            <strong>Photo Studio</strong>
-            <small>AI product photography</small>
-          </span>
-        </Link>
-        <nav className="site-nav">
-          <Link to="/pricing" className="nav-link">Pricing</Link>
-          <Link to="/login" className="nav-link">Login</Link>
-          <Link to="/signup" className="button">Sign Up</Link>
-        </nav>
-      </header>
+    <div className="home-page">
+      <section className="hero-grid">
+        <div className="hero-copy">
+          <p className="eyebrow">Pakistan ecommerce photo studio</p>
+          <h1>AI product photos for Daraz, Shopify, WooCommerce, Facebook, and Instagram.</h1>
+          <p className="section-lead">
+            Upload one product photo and create clean marketplace images, white backgrounds, social posts, Meta ad
+            creatives, and catalog-ready exports priced in PKR.
+          </p>
 
-      <main className="site-main">
-        <section className="hero">
-          <div className="hero-container">
-            <h1>Remove backgrounds from product photos</h1>
-            <p className="section-lead">
-              Upload a product image and get a clean, transparent background in seconds.
-            </p>
-            <div className="upload-card" onDragOver={(e) => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onDrop={onDrop}>
-              <div className="upload-content">
-                <p className="upload-title">{dragActive ? "Drop the product photo here" : "Drag and drop a product photo"}</p>
-                <p className="upload-copy">PNG, JPG, or WebP. Free preview available.</p>
-                <div className="button-row">
-                  <label className="button button-secondary">
-                    Choose file
-                    <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
-                  </label>
-                  <button type="button" className="button" onClick={removeBackground} disabled={!selectedFile || uploadState === "working"}>
-                    {uploadState === "working" ? "Processing..." : "Process image"}
-                  </button>
-                </div>
-                {uploadError && <p className="form-error-panel">{uploadError}</p>}
-              </div>
+          <div className={`upload-card ${dragActive ? "upload-card-active" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onDrop={onDrop}>
+            <div>
+              <span className="upload-icon">+</span>
+              <p className="upload-title">{selectedFile ? selectedFile.name : dragActive ? "Drop your product photo" : "Upload product photo"}</p>
+              <p className="upload-copy">PNG, JPG, or WebP. Preview before checkout.</p>
             </div>
-
-            <div className="example-thumbnails">
-              <img src="https://images.unsplash.com/photo-1555527770-2df52954a47e?f=auto&q=80&w=400" alt="Example 1" />
-              <img src="https://images.unsplash.com/photo-1567428588258-93b0b5f0c217?f=auto&q=80&w=400" alt="Example 2" />
-              <img src="https://images.unsplash.com/photo-1596461404720?f=auto&q=80&w=400" alt="Example 3" />
+            <div className="button-row">
+              <label className="button button-secondary">
+                Choose file
+                <input type="file" accept="image/*" onChange={onFileChange} className="sr-only" />
+              </label>
+              <button type="button" className="button" onClick={removeBackground} disabled={!selectedFile || uploadState === "working"}>
+                {uploadState === "working" ? "Processing..." : "Create preview"}
+              </button>
             </div>
+            {uploadError && <p className="form-error-panel">{uploadError}</p>}
+            {downloadUrl && (
+              <a href={downloadUrl} download="ai-product-photo.png" className="text-link">
+                Download preview
+              </a>
+            )}
           </div>
-        </section>
 
-        <section className="section">
-          <div className="section-container">
-            <h2>Features</h2>
-            <div className="feature-grid">
-              <Link to="/background-removal" className="feature-item">Background Removal</Link>
-              <Link to="/features" className="feature-item">Auto Crop</Link>
-              <Link to="/features" className="feature-item">Auto Center</Link>
-              <Link to="/features" className="feature-item">AI Enhancement</Link>
-              <Link to="/features" className="feature-item">Product Classifier</Link>
-              <Link to="/features" className="feature-item">Flat Lay</Link>
-              <Link to="/features" className="feature-item">Lifestyle Scenes</Link>
-              <Link to="/features" className="feature-item">Virtual Models</Link>
-              <Link to="/features" className="feature-item">Product Videos</Link>
-              <Link to="/features" className="feature-item">Batch Processing</Link>
-            </div>
+          <div className="sample-strip" aria-label="Sample product images">
+            {[
+              "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=260&q=80",
+              "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=260&q=80",
+              "https://images.unsplash.com/photo-1563170351-be82bc888aa4?auto=format&fit=crop&w=260&q=80",
+              "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=260&q=80"
+            ].map((src) => (
+              <img key={src} src={src} alt="Product sample" />
+            ))}
           </div>
-        </section>
 
-        <section className="section">
-          <div className="section-container">
-            <h2>Before / After</h2>
-            <div className="before-after">
-              <div className="compare-panel">
-                <span className="label">Before</span>
-                <img src={beforeImage} alt="Before" />
-              </div>
-              <div className="compare-panel">
-                <span className="label">After</span>
-                <img src={afterImage} alt="After" />
-              </div>
-            </div>
+          <div className="badge-row">
+            {["Daraz", "Shopify", "WooCommerce", "Facebook", "Instagram"].map((badge) => (
+              <span className="market-badge" key={badge}>{badge}</span>
+            ))}
           </div>
-        </section>
+        </div>
 
-        <section className="section">
-          <div className="section-container">
-            <h2>Pricing</h2>
-            <div className="pricing-grid">
-              <div className="pricing-card">
-                <h3>Starter</h3>
-                <p className="price">$9<span className="unit">/month</span></p>
-                <p>100 credits/month</p>
-                <Link to="/signup" className="button">Get started</Link>
-              </div>
-              <div className="pricing-card">
-                <h3>Pro</h3>
-                <p className="price">$29<span className="unit">/month</span></p>
-                <p>500 credits/month</p>
-                <Link to="/signup" className="button">Get started</Link>
-              </div>
-            </div>
+        <aside className="showcase-panel" aria-label="AI feature showcase">
+          <div className="showcase-preview">
+            <span className="before-chip">Original</span>
+            <span className="after-chip">Marketplace ready</span>
+            <img src={afterImage} alt="AI processed product preview" />
           </div>
-        </section>
-
-        <section className="section">
-          <div className="section-container">
-            <h2>FAQ</h2>
-            <details className="faq-item">
-              <summary>How do I get started?</summary>
-              <p>Upload a product photo and use our AI tools to remove backgrounds or enhance images.</p>
-            </details>
-            <details className="faq-item">
-              <summary>What credits are used for?</summary>
-              <p>Each credit processes one product photo. Use them for any feature in our studio.</p>
-            </details>
+          <div className="feature-card-grid">
+            {features.map(([label, href]) => (
+              <Link to={href} className="feature-card" key={label}>
+                <span>{label}</span>
+              </Link>
+            ))}
           </div>
-        </section>
+        </aside>
+      </section>
 
-        <footer className="site-footer">
-          <p>&copy; 2026 AI Photo Studio. All rights reserved.</p>
-        </footer>
-      </main>
+      <section className="section comparison-section">
+        <div className="section-heading">
+          <p className="eyebrow">Before and after</p>
+          <h2>Slide from raw product shot to ready-to-sell visual.</h2>
+        </div>
+        <div className="before-after-slider">
+          <img className="before-image" src={beforeImage} alt="Before AI product editing" />
+          <div className="after-image-wrap">
+            <img src={afterImage} alt="After AI product editing" />
+          </div>
+          <span className="slider-handle" aria-hidden="true" />
+        </div>
+      </section>
+
+      <section className="section marketplace-export">
+        <div className="section-heading">
+          <p className="eyebrow">Marketplace exports</p>
+          <h2>One workflow, every channel your customers already use.</h2>
+        </div>
+        <div className="export-grid">
+          {["Daraz listing images", "Shopify product photos", "Meta ad creatives", "Social media posts"].map((item) => (
+            <article className="export-card" key={item}>
+              <strong>{item}</strong>
+              <span>Clean crops, centered products, and channel-safe sizes.</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section pricing-local">
+        <div className="section-heading">
+          <p className="eyebrow">Pakistan payments</p>
+          <h2>PKR pricing with local payment options.</h2>
+        </div>
+        <div className="pricing-grid">
+          <article className="pricing-card pricing-card-highlight">
+            <p className="eyebrow">Starter</p>
+            <h3>PKR 1,500</h3>
+            <p>50 image credits for new sellers.</p>
+            <Link to="/register" className="button button-block">Start in PKR</Link>
+          </article>
+          <article className="pricing-card">
+            <p className="eyebrow">Growth</p>
+            <h3>PKR 4,500</h3>
+            <p>200 credits for catalog teams and agencies.</p>
+            <Link to="/pricing" className="button button-secondary button-block">View packages</Link>
+          </article>
+        </div>
+        <div className="payment-row">
+          <span>JazzCash</span>
+          <span>Bank Transfer</span>
+        </div>
+      </section>
     </div>
   );
 }
