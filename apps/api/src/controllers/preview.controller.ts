@@ -9,6 +9,7 @@ type WebPreviewPayload = {
   fileName?: string;
   contentType?: string;
   previewClientId?: string;
+  selectedActions?: string[];
 };
 
 export class PreviewController {

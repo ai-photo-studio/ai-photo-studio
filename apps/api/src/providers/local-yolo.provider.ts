@@ -92,6 +92,36 @@ export class LocalYoloImageProvider implements ImageProvider {
     workflowMode: ProcessImageOutput["workflowMode"],
     routing?: ProductPipelineRoute
   ): Promise<ProcessImageOutput> {
+    const selectedActions = new Set(input.selectedActions || []);
+    const hasExplicitActions = selectedActions.size > 0;
+    const wantsCropCenter =
+      !hasExplicitActions ||
+      selectedActions.has("auto-crop") ||
+      selectedActions.has("auto-center") ||
+      selectedActions.has("daraz-ready") ||
+      selectedActions.has("shopify-ready");
+    const wantsBackground =
+      !hasExplicitActions ||
+      selectedActions.has("remove-background") ||
+      selectedActions.has("white-background") ||
+      selectedActions.has("daraz-ready") ||
+      selectedActions.has("shopify-ready");
+    const wantsEnhancement = !hasExplicitActions || selectedActions.has("enhancement") || selectedActions.has("meta-ads-ready");
+
+    if (!wantsCropCenter && !wantsBackground && !wantsEnhancement) {
+      return buildOutput(
+        workflowType,
+        workflowMode,
+        {
+          body: input.buffer,
+          contentType: input.contentType,
+          fileName: input.fileName
+        },
+        undefined,
+        undefined
+      );
+    }
+
     const before = await this.yolo.detect({
       body: input.buffer,
       contentType: input.contentType,
@@ -101,21 +131,36 @@ export class LocalYoloImageProvider implements ImageProvider {
       canvasHeight: routing?.canvasHeight
     });
 
-    const centered = Buffer.from(before.images.centeredImageBase64, "base64");
-    const rembgOutput = await this.backgroundRemover.productWhite({
-      body: centered,
-      contentType: before.images.contentType,
-      fileName: before.images.fileName
-    });
+    const centeredOutput = wantsCropCenter
+      ? {
+          body: Buffer.from(before.images.centeredImageBase64, "base64"),
+          contentType: before.images.contentType,
+          fileName: before.images.fileName
+        }
+      : {
+          body: input.buffer,
+          contentType: input.contentType,
+          fileName: input.fileName
+        };
 
-    const enhancedOutput = await this.enhancement.enhance({
-      body: rembgOutput.body,
-      contentType: rembgOutput.contentType,
-      fileName: rembgOutput.fileName,
-      scale: routing?.enhancementScale || 2,
-      sharpen: routing?.enhancementSharpen || 0.55,
-      denoise: routing?.enhancementDenoise || 0.3
-    });
+    const rembgOutput = wantsBackground
+      ? await this.backgroundRemover.productWhite({
+          body: centeredOutput.body,
+          contentType: centeredOutput.contentType,
+          fileName: centeredOutput.fileName
+        })
+      : centeredOutput;
+
+    const enhancedOutput = wantsEnhancement
+      ? await this.enhancement.enhance({
+          body: rembgOutput.body,
+          contentType: rembgOutput.contentType,
+          fileName: rembgOutput.fileName,
+          scale: routing?.enhancementScale || 2,
+          sharpen: routing?.enhancementSharpen || 0.55,
+          denoise: routing?.enhancementDenoise || 0.3
+        })
+      : rembgOutput;
 
     const after = await this.yolo.detect({
       body: enhancedOutput.body,
@@ -128,7 +173,7 @@ export class LocalYoloImageProvider implements ImageProvider {
       workflowMode,
       enhancedOutput,
       toImageAnalysis(after),
-      buildEnhancementComparison(before.quality, after.quality)
+      wantsEnhancement ? buildEnhancementComparison(before.quality, after.quality) : undefined
     );
   }
 }

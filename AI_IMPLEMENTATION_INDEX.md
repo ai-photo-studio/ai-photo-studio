@@ -113,6 +113,10 @@
 - Homepage explicitly targets Daraz, Shopify, WooCommerce, Facebook, and Instagram sellers.
 - Homepage uses PKR pricing only and shows JazzCash and Bank Transfer payment options.
 - Homepage includes a working range-based before/after slider, immediate selected-file preview, and marketplace export section.
+- Homepage upload card now includes selectable service actions with defaults: remove background, auto crop, and auto center.
+- Selected upload actions are sent through preview/upload request types and backend processing metadata.
+- Local processing only applies resize when Resize is selected and gates crop/center, background, and enhancement by selected actions.
+- Unsupported creative actions are labeled coming soon and use mock/placeholder preview treatment.
 - Preview quota is fully bypassed for testing when `DISABLE_PREVIEW_LIMIT=true` and `VITE_DISABLE_PREVIEW_LIMIT=true`.
 - Product examples now reflect ecommerce categories instead of a generic mockup.
 - Local AI pipeline now stages detection, crop, center, background removal, enhancement, and quality comparison before export.
@@ -127,10 +131,9 @@
 - `npm.cmd run typecheck`: PASS on 2026-06-14
 - `npm.cmd run enterprise-verify`: PASS with Railway network warnings on 2026-06-14
 - `VITE_DISABLE_PREVIEW_LIMIT=true npm.cmd run build -w apps/web`: PASS on 2026-06-14
-- Local production preview screenshot: PASS on 2026-06-14, `UI_POLISH_FINAL_SCREENSHOT.png`
 - Direct Cloudflare deploy: PASS on 2026-06-14
-- Live Cloudflare URL: `https://15d98e3e.ai-photo-studio-whatsapp-web.pages.dev`
-- Live deployed screenshot: `UI_POLISH_FINAL_DEPLOYED_SCREENSHOT.png`
+- Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`
+- Live deployed screenshot: `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`
 - `railway whoami`: unauthorized in this shell
 - `railway status`: PASS
 - `railway logs --service api --tail 300`: PASS
@@ -182,13 +185,18 @@
 ## Final UI Polish Map
 
 - `apps/web/src/pages/HomePage.tsx`: premium hero, selected upload preview, rotating services, and interactive before/after slider
+- `apps/web/src/services/customerApi.ts`: selected action request typing
+- `apps/api/src/controllers/order.controller.ts`: selected action normalization, workflow mapping, metadata persistence, and queue payload
+- `apps/api/src/queues/phase-c-image-processing.queue.ts`: selected action queue payload
+- `apps/api/src/workers/image-processing.worker.ts`: action-aware route metadata and provider input
+- `apps/api/src/providers/provider.interface.ts`: selected action provider input
+- `apps/api/src/providers/local-yolo.provider.ts`: action-gated crop/center, background, and enhancement execution
 - `apps/web/src/styles.css`: final premium homepage styles and responsive slider/upload states
 - `apps/web/src/App.tsx`: admin logs and audit logs routes
 - `ADMIN_FEATURE_VERIFICATION_REPORT.md`: refreshed admin route matrix
 - `AI_code_audit_report.md`: refreshed preview-limit and homepage audit
-- `UI_POLISH_FINAL_REPORT.md`: final polish report
-- `UI_POLISH_FINAL_SCREENSHOT.png`: final screenshot proof
-- `UI_POLISH_FINAL_DEPLOYED_SCREENSHOT.png`: live deployment screenshot proof
+- `UI_UPLOAD_ACTIONS_FINAL_REPORT.md`: final upload-actions report
+- `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`: final deployed screenshot proof
 
 ## Current Completion
 
@@ -228,7 +236,7 @@
 - Web platform: 100% READY
 - AI pipeline: CODE-COMPLETE
 - Runtime validation: BLOCKED (shell limitations)
-- Deployment status: LIVE (https://15d98e3e.ai-photo-studio-whatsapp-web.pages.dev)
+- Deployment status: LIVE (https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev)
 - Preview limit: DISABLED for testing
 
 ## Deployment Verification
@@ -237,4 +245,4 @@
 - Typecheck: PASS
 - Enterprise Verify: PASS
 - Production URL: LIVE
-- Latest verified URL: https://15d98e3e.ai-photo-studio-whatsapp-web.pages.dev
+- Latest verified URL: https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev

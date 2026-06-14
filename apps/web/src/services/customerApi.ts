@@ -23,12 +23,14 @@ type WebUploadInput = {
   bodyBase64: string;
   workflowType: "PRODUCT" | "VEHICLE";
   workflowMode: string;
+  selectedActions?: string[];
 };
 
 type PreviewClaimInput = {
   fileName: string;
   contentType: string;
   previewClientId?: string;
+  selectedActions?: string[];
 };
 
 type CreateOrderResponse = {

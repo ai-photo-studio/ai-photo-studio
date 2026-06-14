@@ -59,6 +59,7 @@ export type ProcessImageInput = {
   orderId: string;
   orderNo: string;
   mediaId?: string;
+  selectedActions?: string[];
 };
 
 export type ProcessImageOutput = {

@@ -31,6 +31,7 @@ type WebUploadPayload = {
   bodyBase64?: string;
   workflowType?: string;
   workflowMode?: string;
+  selectedActions?: string[];
 };
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -66,6 +67,47 @@ const decodeBase64Input = (input: string) => {
   const cleaned = input.trim();
   const base64 = cleaned.includes(",") ? cleaned.slice(cleaned.indexOf(",") + 1) : cleaned;
   return Buffer.from(base64, "base64");
+};
+
+const SUPPORTED_ACTIONS = new Set([
+  "remove-background",
+  "resize",
+  "auto-crop",
+  "auto-center",
+  "enhancement",
+  "white-background",
+  "flat-lay",
+  "lifestyle-scene",
+  "virtual-model",
+  "product-video",
+  "daraz-ready",
+  "shopify-ready",
+  "meta-ads-ready"
+]);
+
+const normalizeSelectedActions = (actions: unknown): string[] => {
+  if (!Array.isArray(actions)) return ["remove-background", "auto-crop", "auto-center"];
+  const normalized = actions
+    .map((action) => String(action || "").trim().toLowerCase())
+    .filter((action) => SUPPORTED_ACTIONS.has(action));
+  return Array.from(new Set(normalized));
+};
+
+const resolveWorkflowModeFromActions = (
+  workflowType: "PRODUCT" | "VEHICLE",
+  workflowMode: string | undefined,
+  packageCode: string,
+  selectedActions: string[]
+): WorkflowMode => {
+  if (workflowType === "VEHICLE") return resolveWorkflowMode(workflowType, workflowMode, packageCode);
+  const actions = new Set(selectedActions);
+  if (actions.has("white-background") || actions.has("remove-background") || actions.has("daraz-ready") || actions.has("shopify-ready")) {
+    return "WHITE_BACKGROUND";
+  }
+  if (actions.has("enhancement") || actions.has("meta-ads-ready")) {
+    return "SHADOW_ENHANCEMENT";
+  }
+  return resolveWorkflowMode(workflowType, workflowMode, packageCode);
 };
 
 export class OrderController {
@@ -272,7 +314,8 @@ export class OrderController {
       });
 
       const workflowType = normalizeWorkflowType(payload.workflowType);
-      const workflowMode = resolveWorkflowMode(workflowType, payload.workflowMode, order.package.code);
+      const selectedActions = normalizeSelectedActions(payload.selectedActions);
+      const workflowMode = resolveWorkflowModeFromActions(workflowType, payload.workflowMode, order.package.code, selectedActions);
       const senderNumber = order.customer.whatsappNumber;
       const messageId = `web-${order.orderNo}`;
       const mediaId = `web-${order.orderNo}-${Date.now()}`;
@@ -289,6 +332,7 @@ export class OrderController {
             source: "web",
             workflowType,
             workflowMode,
+            selectedActions,
             originalStorageKey: originalUpload.key,
             originalUrl: originalUpload.url,
             originalExpiresAt: originalUpload.expiresAt.toISOString(),
@@ -318,6 +362,7 @@ export class OrderController {
             originalStorageKey: originalUpload.key,
             workflowType,
             workflowMode,
+            selectedActions,
             billingReservation
           }
         }
@@ -333,6 +378,7 @@ export class OrderController {
           originalStorageKey: originalUpload.key,
           workflowType,
           workflowMode,
+          selectedActions,
           billingReservation
         },
         { jobId: queueJobId }
@@ -346,6 +392,7 @@ export class OrderController {
           originalImageId: originalImage.id,
           workflowType,
           workflowMode,
+          selectedActions,
           storageKey: originalUpload.key
         }
       });

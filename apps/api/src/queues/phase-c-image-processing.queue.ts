@@ -13,6 +13,7 @@ export type PhaseCImageProcessingPayload = {
   providerName?: AIProviderName;
   workflowType?: WorkflowType;
   workflowMode?: WorkflowMode;
+  selectedActions?: string[];
   billingReservation?:
     | {
         type: "WALLET";

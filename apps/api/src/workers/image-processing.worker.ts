@@ -196,7 +196,8 @@ export const startImageProcessingWorker = (config: AppConfig) => {
           fileName: originalFileName,
           orderId: order.id,
           orderNo: order.orderNo,
-          mediaId: payload.mediaId
+          mediaId: payload.mediaId,
+          selectedActions: payload.selectedActions || ((processingJob.payload as Record<string, unknown> | null)?.selectedActions as string[] | undefined)
         };
 
         const classification = await productClassifier.classify({
@@ -206,23 +207,40 @@ export const startImageProcessingWorker = (config: AppConfig) => {
         });
         const pipelineRoute = resolveProductPipelineRoute(classification);
         const routedWorkflowType = pipelineRoute.workflowType;
+        const selectedActions = processInput.selectedActions || [];
+        const actionAwareRoute =
+          selectedActions.length > 0
+            ? {
+                ...pipelineRoute,
+                workflowMode:
+                  selectedActions.includes("white-background") ||
+                  selectedActions.includes("remove-background") ||
+                  selectedActions.includes("daraz-ready") ||
+                  selectedActions.includes("shopify-ready")
+                    ? ("WHITE_BACKGROUND" as const)
+                    : selectedActions.includes("enhancement") || selectedActions.includes("meta-ads-ready")
+                      ? ("SHADOW_ENHANCEMENT" as const)
+                      : pipelineRoute.workflowMode,
+                pipelineUsed: `${pipelineRoute.pipelineUsed}+actions:${selectedActions.join(",")}`
+              }
+            : pipelineRoute;
 
         await prisma.processingJob.update({
           where: { id: processingJob.id },
           data: {
             providerName: payload.providerName || processingJob.providerName || config.aiProvider,
             workflowType: routedWorkflowType,
-            workflowMode: pipelineRoute.workflowMode
+            workflowMode: actionAwareRoute.workflowMode
           }
         });
 
         const processed =
           routedWorkflowType === "VEHICLE"
-            ? await imageProcessing.processVehicleImage(processInput, pipelineRoute.workflowMode as "SHOWROOM" | "PREMIUM_ROAD" | "DARK_STUDIO" | "PLATE_BLUR", pipelineRoute)
+            ? await imageProcessing.processVehicleImage(processInput, actionAwareRoute.workflowMode as "SHOWROOM" | "PREMIUM_ROAD" | "DARK_STUDIO" | "PLATE_BLUR", actionAwareRoute)
             : await imageProcessing.processProductImage(
                 processInput,
-                pipelineRoute.workflowMode as "WHITE_BACKGROUND" | "SOLID_COLOR_BACKGROUND" | "SHADOW_ENHANCEMENT" | "PRODUCT_STUDIO",
-                pipelineRoute
+                actionAwareRoute.workflowMode as "WHITE_BACKGROUND" | "SOLID_COLOR_BACKGROUND" | "SHADOW_ENHANCEMENT" | "PRODUCT_STUDIO",
+                actionAwareRoute
               );
 
         const processedUpload = await storage.uploadProcessed({
@@ -299,7 +317,8 @@ export const startImageProcessingWorker = (config: AppConfig) => {
             category: classification.category,
             classificationConfidence: classification.confidence,
             processingProfile: pipelineRoute.processingProfile,
-            pipelineUsed: pipelineRoute.pipelineUsed,
+            pipelineUsed: actionAwareRoute.pipelineUsed,
+            selectedActions,
             workflowType: processed.workflowType,
             workflowMode: processed.workflowMode,
             processedStorageKey: processedUpload.key,
@@ -357,7 +376,8 @@ export const startImageProcessingWorker = (config: AppConfig) => {
                 classificationCategory: classification.category,
                 classificationConfidence: classification.confidence,
                 processingProfile: pipelineRoute.processingProfile,
-                pipelineUsed: pipelineRoute.pipelineUsed
+                pipelineUsed: actionAwareRoute.pipelineUsed,
+                selectedActions
               }
             }
           });
