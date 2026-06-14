@@ -4,11 +4,13 @@ docs/
 !.PROJECT_SAFETY_LOCK.md
 !.ai-project/PUSH_GUARD.md
 !.ai-project/SAFE_COMMANDS.md
-!docs/
-!docs/COLAB_SETUP_GUIDE.md
-!docs/GPU_VALIDATION.md
-!docs/LOCAL_AI_VERIFICATION_REPORT.md
-!docs/RUNTIME_VALIDATION_REPORT.md
+!.docs/
+!.docs/COLAB_SETUP_GUIDE.md
+!.docs/GPU_VALIDATION.md
+!.docs/LOCAL_AI_VERIFICATION_REPORT.md
+!.docs/RUNTIME_VALIDATION_REPORT.md
+!.docs/CREATIVE_STUDIO_PRODUCTION_READINESS.md
+!.docs/PHASE5_OPERATIONS_REPORT.md
 .ai-project/*.md
 .ai-code-audit-report.md
 .ai-implementation-index.md
@@ -38,7 +40,7 @@ AI_code_audit_report.md
 AI_IMPLEMENTATION_INDEX.md
 AI_LOCAL_AI_PIPELINE.md
 MASTER_*.md
-!VALIDATION_REPORT.md
+!.VALIDATION_REPORT.md
 railway-env.txt
 .env.local
 gitpush.bat
