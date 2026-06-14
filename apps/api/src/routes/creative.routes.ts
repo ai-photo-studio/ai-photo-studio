@@ -9,6 +9,8 @@ export const createCreativeRouter = (config: AppConfig): Router => {
 
   router.post("/creative/flat-lay", requireAuth(config), controller.createFlatLay);
   router.post("/creative/lifestyle", requireAuth(config), controller.createLifestyleScene);
+  router.post("/creative/virtual-model", requireAuth(config), controller.createVirtualModel);
+  router.post("/creative/video-prep", requireAuth(config), controller.createVideoPrep);
 
   return router;
 };

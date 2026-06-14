@@ -16,6 +16,15 @@ export const createMockImageBuffer = (): Buffer => {
   ]);
 };
 
+export const createMockVideoBuffer = (): Buffer => {
+  return Buffer.from([
+    0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70,
+    0x6d, 0x70, 0x34, 0x32, 0x00, 0x00, 0x00, 0x00,
+    0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d,
+    0x00, 0x00, 0x00, 0x00, 0x69, 0x73, 0x6f, 0x6d
+  ]);
+};
+
 export const createFlatLayFixture = (overrides?: Partial<{
   background: FlatLayBackground;
   template: string;
@@ -37,6 +46,28 @@ export const createLifestyleSceneFixture = (overrides?: Partial<{
   contentType: "image/png",
   fileName: "test-lifestyle.png",
   template: (overrides?.template || "home") as LifestyleTemplate,
+  orderId: overrides?.orderId
+});
+
+export const createVirtualModelFixture = (overrides?: Partial<{
+  template: "male" | "female" | "mannequin";
+  orderId: string;
+}>) => ({
+  body: createMockImageBuffer(),
+  contentType: "image/png",
+  fileName: "test-virtual-model.png",
+  template: overrides?.template || "male",
+  orderId: overrides?.orderId
+});
+
+export const createVideoPrepFixture = (overrides?: Partial<{
+  template: "rotation" | "zoom" | "showcase";
+  orderId: string;
+}>) => ({
+  body: createMockVideoBuffer(),
+  contentType: "video/mp4",
+  fileName: "test-video.mp4",
+  template: overrides?.template || "rotation",
   orderId: overrides?.orderId
 });
 

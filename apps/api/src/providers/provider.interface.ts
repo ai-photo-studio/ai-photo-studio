@@ -213,8 +213,8 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "shadow-generation", enabled: false },
       { capability: "flat-lay", enabled: true },
       { capability: "lifestyle-scene", enabled: true },
-      { capability: "virtual-model", enabled: false },
-      { capability: "video-generation", enabled: false }
+      { capability: "virtual-model", enabled: true },
+      { capability: "video-generation", enabled: true }
     ],
     costPerOperation: { operation: "all", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
