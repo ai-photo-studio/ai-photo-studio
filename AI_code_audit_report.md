@@ -2,116 +2,74 @@
 
 ## Scope
 
-Phase 5 Operations + Real AI Validation - verify local AI pipeline, operations dashboard, and health monitoring.
+Real AI Validation Sprint - validate actual AI quality and production operations visibility.
 
 ## Current Status
 
 - Product direction: ecommerce product photography for sellers.
 - Background removal is the entry point, not the full vision.
 - Phase 4 creative studio foundation verified.
+- Phase 5 operations dashboard implemented.
 - WhatsApp remains the final roadmap phase.
 
 ## Phase 5 Operations Implementation
 
-### Operations Dashboard
+### Operations Dashboard Endpoints
 
-Added endpoints:
-- `/admin/stats`: total jobs, success rate, failure rate, average processing time, queue size, provider usage
-- `/admin/queue-depth`: BullMQ queue monitoring (waiting, active, completed, failed)
+Added and verified:
+- `/admin/stats`: total jobs, queued/running/completed/failed counts, average processing duration, provider breakdown
+- `/admin/queue-depth`: BullMQ queue monitoring (waiting, active, completed, failed, delayed)
+- `/monitoring/services`: Multi-service health check (rembg, yolo, esrgan, iclight, classifier)
 
 ### Queue Monitoring
 
-BullMQ integration verified:
-- `QueueHealthService` in `queue-health.service.ts`
-- Provides job counts for waiting, active, completed, failed, delayed, paused, prioritized
-- Dry-run mode for development without Redis
+BullMQ integration verified in `queue-health.service.ts`:
+- Uses REDIS_URL from environment
+- Provides job counts for all states
+- Dry-run mode when REDIS_URL not configured
 
 ### Health Monitoring
 
-Added `/monitoring/services` endpoint:
-- Rembg health check
-- YOLO health check  
-- ESRGAN health check
-- IC-Light health check
-- Classifier health check
+Added `/monitoring/services` endpoint in `monitoring.controller.ts`:
+- Tests all 5 AI services concurrently
+- Returns healthy status, endpoint, and timing
+- Graceful error handling with Promise.allSettled
 
-All services return status "ok" or "unconfigured" based on environment configuration.
+## Phase 4 Creative Studio Verification
 
-## Phase 4 Creative Studio Verification Results
-
-### Service Layer Modules
+### Service Layer Modules Verified
 
 | Module | Status | Description |
 |--------|--------|-------------|
-| flat-lay.ts | Verified | Architecture placeholder - no generation |
-| lifestyle-scene.ts | Verified | Architecture placeholder - no generation |
-| virtual-model.ts | Verified | Architecture placeholder - no generation |
-| video-prep.ts | Verified | Architecture placeholder - no generation |
-| creative-types.ts | Verified | Creative type and scene type definitions |
-| templates.ts | Verified | 12 templates registered, all disabled |
-| creative-routing.ts | Verified | Category-aware creative route resolution |
+| flat-lay.ts | Verified | Architecture placeholder |
+| lifestyle-scene.ts | Verified | Architecture placeholder |
+| virtual-model.ts | Verified | Architecture placeholder |
+| video-prep.ts | Verified | Architecture placeholder |
+| creative-routing.ts | Verified | Category-aware routing |
 
-### Template Registry Validation
+### Template Registry
 
-**Flat Lay Templates (3):**
-- ecommerce-flatlay: TABLETOP, enabled: false
-- premium-flatlay: STUDIO, enabled: false
-- grocery-flatlay: TABLETOP, enabled: false
+12 templates across 4 categories, all disabled:
+- Flat Lay: ecommerce-flatlay, premium-flatlay, grocery-flatlay
+- Lifestyle: home, office, luxury, outdoor
+- Virtual Model: male, female, mannequin
+- Video: rotation, zoom, showcase
 
-**Lifestyle Templates (4):**
-- home: STUDIO, enabled: false
-- office: STUDIO, enabled: false
-- luxury: STUDIO, enabled: false
-- outdoor: STUDIO, enabled: false
+## Real AI Services Architecture
 
-**Virtual Model Templates (3):**
-- male: MODEL, enabled: false
-- female: MODEL, enabled: false
-- mannequin: MODEL, enabled: false
+Local services are PIL-based implementations:
 
-**Video Templates (3):**
-- rotation: VIDEO_LOOP, enabled: false
-- zoom: VIDEO_LOOP, enabled: false
-- showcase: VIDEO_LOOP, enabled: false
+| Service | Health Endpoint | Process Endpoint |
+|---------|-----------------|----------------|
+| YOLO Detector | /health | /detect |
+| Product Classifier | /health | /classify |
+| Real-ESRGAN | /health | /enhance |
+| IC-Light Lab | /health | /relight |
+| Background Remover | /health | /product-white |
 
-Total: 12 templates verified, all disabled as required.
-
-### Creative Routing Validation
-
-Category mapping verified with `resolveCreativeStudioRoute()`:
-
-| Category | Creative Type | Scene Type | Template |
-|----------|---------------|------------|----------|
-| shoes | FLAT_LAY | TABLETOP | ecommerce-flatlay |
-| fashion | FLAT_LAY | TABLETOP | premium-flatlay |
-| perfume | VIRTUAL_MODEL | MODEL | female |
-| cosmetics | VIRTUAL_MODEL | MODEL | female |
-| food | FLAT_LAY | TABLETOP | grocery-flatlay |
-| electronics | LIFESTYLE_SCENE | STUDIO | office |
-
-All routes return `enabled: false` for architecture placeholders.
-
-### Database Validation
-
-CreativeStudioJob model fields verified:
-- `creativeType`: CreativeType enum
-- `sceneType`: CreativeSceneType enum  
-- `generationStatus`: CreativeGenerationStatus @default(PENDING)
-- `providerUsed`: String
-
-ProviderCostLog model verified for cost tracking:
-- `provider`: String
-- `durationMs`: Int
-- `estimatedCost`: Decimal @default(0)
-- `actualCost`: Decimal?
-
-### Provider Capability Validation
-
-Capability placeholders verified, all disabled:
-- flat-lay: disabled for all providers
-- lifestyle-scene: disabled for all providers
-- virtual-model: disabled for all providers
-- video-generation: disabled for all providers
+Quality scoring implemented in YOLO detector:
+- blurScore, brightnessScore, contrastScore, visibilityScore
+- cropQualityScore, overallScore
 
 ## Verification Results
 
@@ -135,5 +93,6 @@ Capability placeholders verified, all disabled:
 
 - Paid AI providers (Photoroom, fal.ai, Replicate) remain disabled.
 - WhatsApp remains the final roadmap phase.
-- All creative studio services are architecture placeholders without generation.
-- Monitoring endpoints provide infrastructure for local AI service validation.
+- Real AI validation requires running local services with test images.
+- Services use PIL-based processing, not ML models.
+- Validation report template: VALIDATION_REPORT.md
