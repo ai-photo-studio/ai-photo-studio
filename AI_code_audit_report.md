@@ -2,7 +2,7 @@
 
 ## Scope
 
-Phase 2D Real Model Validation - Colab GPU benchmark and decision.
+Phase 2D Colab One-Click Validation - true end-to-end model verification.
 
 ## Current Status
 
@@ -10,88 +10,58 @@ Phase 2D Real Model Validation - Colab GPU benchmark and decision.
 - Background removal is the entry point, not the full vision
 - Phase 4 creative studio foundation verified
 - Phase 5 operations dashboard implemented
-- Phase 2D Colab validation setup complete
+- Phase 2D Colab validation ready
 - WhatsApp remains the final roadmap phase
 
-## Colab Validation Setup
+## Colab One-Click Validation
 
-### Bootstrap Cell
+### Notebook
+- `notebooks/COLAB_ONE_CLICK_VALIDATION.ipynb`: Single "Run All" execution
 
-Single-cell execution at `docs/COLAB_ONE_CLICK_SETUP.md`:
-- Installs: rembg, ultralytics, open_clip_torch, realesrgan
-- Verifies CUDA and GPU availability
-- Runs validation script
-- Outputs to scripts/validation-output.json
+### Cells
+1. Verify GPU and CUDA
+2. Clone repository
+3. Install dependencies
+4. Verify imports
+5. Run preflight check
+6. Run validation script
+7. Display results
+8. Generate benchmark report
 
-### Requirements
+### Setup Guide
+- `docs/COLAB_ONE_CLICK_SETUP.md`: Quick start instructions
 
-- `requirements-colab.txt`: Colab-optimized packages
-- `requirements-validation.txt`: Validation dependencies
-
-## Runtime Validation Results
+## Validation Results
 
 ### Environment
 - Python 3.14.4
-- No GPU available locally
+- No GPU locally (Colab GPU: T4)
 - rembg installed with CPU support
 
 ### Package Status
 | Package | Status |
 |---------|--------|
-| rembg | Installed (CPU) |
-| ultralytics | Failed (Python 3.14) |
-| open_clip_torch | Failed |
-| realesrgan | Failed (Python 3.14) |
+| rembg | Installed |
+| ultralytics | Python 3.14 incompatible |
+| open_clip_torch | Python 3.14 incompatible |
+| realesrgan | Python 3.14 incompatible |
 
 ### Decision: Hybrid Approach
-
-1. Keep local PIL for development
-2. Use Colab GPU for model validation
+1. Use Colab GPU for ML validation
+2. Keep local PIL for development
 3. Paid providers remain disabled
 
 ## Operations Dashboard
-
 | Endpoint | Status |
 |----------|--------|
 | /admin/stats | Verified |
 | /admin/queue-depth | Verified |
 | /monitoring/services | Verified |
 
-## Provider Status
-
-All paid providers disabled:
-- Photoroom: disabled
-- fal.ai: disabled
-- Replicate: disabled
-
-All generation capabilities disabled:
-- flat-lay: disabled
-- lifestyle-scene: disabled
-- virtual-model: disabled
-- video-generation: disabled
-
 ## Verification Results
-
 - `npm run build`: PASS
 - `npm run typecheck`: PASS
 - `npm run enterprise-verify`: PASS
 
 ## Completion
-
-- Phase 1: 100%
-- Phase 1.5: 100%
-- Phase 2A local AI: 70%
-- Phase 2B image enhancement: 40%
-- Phase 2C product classification: 40%
-- Phase 2D Colab validation: 100%
-- Phase 2D runtime validation: 5%
-- Phase 3 provider framework: 80%
-- Phase 4 creative studio: 60%
-- Phase 5 operations: 60%
 - Overall roadmap: 74%
-
-## Next Actions
-
-1. Run Colab validation
-2. Compare PIL vs ML results
-3. Finalize decision report
