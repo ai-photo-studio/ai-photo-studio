@@ -2,7 +2,7 @@
 
 ## Scope
 
-Phase 2D Colab One-Click Validation - true end-to-end model verification.
+Phase 2D Final Validation - Colab GPU benchmark and proof artifacts.
 
 ## Current Status
 
@@ -10,58 +10,63 @@ Phase 2D Colab One-Click Validation - true end-to-end model verification.
 - Background removal is the entry point, not the full vision
 - Phase 4 creative studio foundation verified
 - Phase 5 operations dashboard implemented
-- Phase 2D Colab validation ready
+- Phase 2D Colab validation workflow ready
 - WhatsApp remains the final roadmap phase
 
 ## Colab One-Click Validation
 
 ### Notebook
-- `notebooks/COLAB_ONE_CLICK_VALIDATION.ipynb`: Single "Run All" execution
+- `notebooks/COLAB_ONE_CLICK_VALIDATION.ipynb`: 8-cell validation workflow
 
-### Cells
-1. Verify GPU and CUDA
-2. Clone repository
-3. Install dependencies
-4. Verify imports
-5. Run preflight check
-6. Run validation script
-7. Display results
-8. Generate benchmark report
+### Setup
+1. Open notebook in Colab
+2. Runtime → GPU
+3. Runtime → Run All
 
-### Setup Guide
-- `docs/COLAB_ONE_CLICK_SETUP.md`: Quick start instructions
+### Expected Results
+| Model | Import | Inference |
+|-------|--------|-----------|
+| rembg | OK | Pass |
+| ultralytics | OK | Pass |
+| open_clip | OK | Pass |
+| realesrgan | OK | Pass |
 
-## Validation Results
+## Local Services Status
 
-### Environment
-- Python 3.14.4
-- No GPU locally (Colab GPU: T4)
-- rembg installed with CPU support
-
-### Package Status
-| Package | Status |
+| Service | Status |
 |---------|--------|
-| rembg | Installed |
-| ultralytics | Python 3.14 incompatible |
-| open_clip_torch | Python 3.14 incompatible |
-| realesrgan | Python 3.14 incompatible |
+| yolo-detector | Architecture ready |
+| product-classifier | Architecture ready |
+| real-esrgan | Architecture ready |
+| ic-light-lab | Architecture ready |
 
-### Decision: Hybrid Approach
-1. Use Colab GPU for ML validation
-2. Keep local PIL for development
-3. Paid providers remain disabled
+## Persistence Status
 
-## Operations Dashboard
-| Endpoint | Status |
-|----------|--------|
-| /admin/stats | Verified |
-| /admin/queue-depth | Verified |
-| /monitoring/services | Verified |
+| Entity | Status |
+|--------|--------|
+| ImageQualityScore | Schema verified |
+| ProviderCostLog | Schema verified |
+| Category routing | Implemented |
+| Enhancement comparison | Implemented |
+
+## Decision: Hybrid Approach
+
+1. Run Colab validation for baseline
+2. Compare PIL vs ML quality
+3. Keep paid providers disabled
+4. Use local PIL for development
 
 ## Verification Results
+
 - `npm run build`: PASS
 - `npm run typecheck`: PASS
 - `npm run enterprise-verify`: PASS
 
 ## Completion
+
+- Phase 2D: 10%
 - Overall roadmap: 74%
+
+## Next Phase
+
+Run Colab validation, then decide between Local AI or Paid Providers.
