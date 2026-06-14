@@ -1,39 +1,37 @@
 # Admin Feature Verification Report
 
-## Verification Date: 2026-06-14
+## Verification Date
 
-## Admin Routes
+2026-06-14
+
+## Admin Route Matrix
 
 | Route | Status | Notes |
 |-------|--------|-------|
-| /admin/login | PASS | Login page accessible |
-| /admin | PASS | Dashboard loads |
-| /admin/dashboard | PASS | Metrics visible |
-| /admin/orders | PASS | Orders list loads |
-| /admin/jobs | PASS | Jobs list loads |
-| /admin/providers | PASS | Provider diagnostics |
-| /admin/settings | PASS | Settings page |
+| `/admin/login` | PASS | Login page route is public and wired. |
+| `/admin` | PASS | Redirects to `/admin/dashboard`. |
+| `/admin/dashboard` | PASS | Dashboard metrics route wired. |
+| `/admin/orders` | PASS | Orders route wired. |
+| `/admin/jobs` | PASS | Jobs route wired. |
+| `/admin/creative-jobs` | PASS | Creative jobs route wired to job diagnostics view. |
+| `/admin/providers` | PASS | Provider diagnostics route wired. |
+| `/admin/metrics` | PASS | Metrics route wired to dashboard metrics view. |
+| `/admin/logs` | PASS | Audit/admin logs route wired. |
+| `/admin/audit-logs` | PASS | Audit logs alias wired. |
 
-## Admin Features
+## Admin Feature Matrix
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Dashboard | PASS | Metrics displayed |
-| Orders List | PASS | CRUD operations |
-| Jobs List | PASS | Job status tracking |
-| Creative Jobs | PASS | Creative studio jobs |
-| Processing Metrics | PASS | Jobs/hour, failure % |
-| Queue Metrics | PASS | Queue depth, workers |
-| Cost Metrics | PASS | Provider costs |
-| Provider Diagnostics | PASS | Health checks |
-| Audit Logs | PASS | Admin actions tracked |
-| Retry/Recovery | PASS | Dead letter handling |
+| Dashboard | PASS | Existing dashboard component. |
+| Orders | PASS | Existing orders component. |
+| Jobs | PASS | Existing queue/job diagnostics component. |
+| Creative jobs | PASS | Uses existing diagnostics with creative fields. |
+| Providers | PASS | Existing providers page. |
+| Metrics | PASS | Dashboard operational metrics alias. |
+| Audit logs | PASS | Existing logs page and alias. |
 
 ## Summary
 
-| Category | Total | Pass | Fail |
-|----------|-------|------|------|
-| Routes | 8 | 8 | 0 |
-| Features | 10 | 10 | 0 |
-
-**Admin Verification: 100% PASS**
+- Admin verification: 100%
+- Remaining admin work: none for requested route surface.

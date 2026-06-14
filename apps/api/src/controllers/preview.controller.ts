@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
-import { PreviewQuotaService } from "../services/preview-quota.service";
+import { isPreviewLimitDisabled, PreviewQuotaService } from "../services/preview-quota.service";
 import { verifyToken } from "../middleware/auth.middleware";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { prisma } from "../db/prisma";
@@ -19,6 +19,22 @@ export class PreviewController {
   claimWebPreview = async (req: Request, res: Response): Promise<void> => {
     try {
       const payload = (req.body || {}) as WebPreviewPayload;
+
+      if (isPreviewLimitDisabled()) {
+        res.status(201).json({
+          success: true,
+          data: {
+            scopeType: "guest",
+            limit: -1,
+            used: 0,
+            remaining: -1,
+            isTestAccount: false,
+            disabled: true
+          }
+        });
+        return;
+      }
+
       const user = this.resolveOptionalUser(req);
 
       let customerId: string | undefined;

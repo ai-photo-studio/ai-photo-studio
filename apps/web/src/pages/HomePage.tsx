@@ -1,34 +1,64 @@
-import { useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { customerApi } from "../services/customerApi";
 
 const LOCAL_REMOVER_URL = import.meta.env.VITE_LOCAL_REMOVER_URL || "";
 const LOCAL_REMOVER_MODE = import.meta.env.VITE_LOCAL_REMOVER_MODE || "remove-bg";
+const DISABLE_PREVIEW_LIMIT = import.meta.env.VITE_DISABLE_PREVIEW_LIMIT === "true";
+const PREVIEW_CLIENT_STORAGE_KEY = "aps-preview-client-id";
 
-const features = [
-  ["Remove Background", "/background-removal"],
-  ["AI Enhancement", "/enhancement"],
-  ["Auto Crop", "/enhancement"],
-  ["Auto Center", "/enhancement"],
-  ["White Background", "/background-removal"],
-  ["Flat Lay", "/flat-lay"],
-  ["Lifestyle Scenes", "/lifestyle"],
-  ["Virtual Models", "/virtual-model"],
-  ["Product Videos", "/videos"],
-  ["Batch Processing", "/pricing"],
-  ["Daraz Ready", "/pricing"],
-  ["Shopify Ready", "/pricing"],
-  ["Meta Ads Ready", "/pricing"]
+const fallbackProduct = "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=80";
+
+const serviceCards = [
+  ["Remove background", "/background-removal"],
+  ["Brightness / enhance", "/enhancement"],
+  ["Auto crop", "/enhancement"],
+  ["Auto center", "/enhancement"],
+  ["Flat lay", "/flat-lay"],
+  ["Lifestyle scenes", "/lifestyle"],
+  ["Virtual model", "/virtual-model"],
+  ["Product video", "/videos"],
+  ["Batch processing", "/pricing"],
+  ["Daraz ready", "/pricing"],
+  ["Shopify ready", "/pricing"],
+  ["Meta ads ready", "/pricing"]
 ] as const;
+
+const showcaseSlides = [
+  { title: "Original image", detail: "Start with any product shot from your phone.", tone: "original" },
+  { title: "Background removed", detail: "Cut out the product for clean transparent exports.", tone: "cutout" },
+  { title: "White background", detail: "Generate catalog-safe white photos for marketplaces.", tone: "white" },
+  { title: "Auto crop", detail: "Frame every product consistently for listings.", tone: "crop" },
+  { title: "Brightness / enhancement", detail: "Lift shadows and sharpen details without reshooting.", tone: "enhance" },
+  { title: "Flat lay", detail: "Create premium overhead compositions for stores.", tone: "flatlay" },
+  { title: "Lifestyle scene", detail: "Place products into tasteful commercial scenes.", tone: "lifestyle" },
+  { title: "Virtual model", detail: "Preview apparel and accessories with model-style output.", tone: "model" },
+  { title: "Product video", detail: "Prepare motion-ready product visuals for reels.", tone: "video" },
+  { title: "Meta ad creative", detail: "Build campaign-ready visuals for Facebook and Instagram.", tone: "meta" },
+  { title: "Daraz ready image", detail: "Export centered, clean, marketplace-ready photos.", tone: "daraz" }
+] as const;
+
+const clearPreviewStorage = () => {
+  if (typeof window === "undefined") return;
+  const clearMatchingKeys = (storage: Storage) => {
+    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter(Boolean) as string[];
+    keys.filter((key) => key.toLowerCase().includes("preview")).forEach((key) => storage.removeItem(key));
+  };
+  clearMatchingKeys(window.localStorage);
+  clearMatchingKeys(window.sessionStorage);
+};
 
 const getPreviewClientId = () => {
   if (typeof window === "undefined") return "preview";
-  const storageKey = "aps-preview-client-id";
-  const existing = window.localStorage.getItem(storageKey);
+  if (DISABLE_PREVIEW_LIMIT) {
+    clearPreviewStorage();
+    return "preview-limit-disabled";
+  }
+  const existing = window.localStorage.getItem(PREVIEW_CLIENT_STORAGE_KEY);
   if (existing) return existing;
   const next = window.crypto?.randomUUID?.() || `preview-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  window.localStorage.setItem(storageKey, next);
+  window.localStorage.setItem(PREVIEW_CLIENT_STORAGE_KEY, next);
   return next;
 };
 
@@ -47,8 +77,25 @@ export function HomePage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [compareValue, setCompareValue] = useState(52);
   const removerUrl = buildRemoverUrl();
   const previewToken = status === "ready" ? undefined : undefined;
+
+  useEffect(() => {
+    if (DISABLE_PREVIEW_LIMIT) clearPreviewStorage();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % showcaseSlides.length);
+    }, 2600);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const currentSlide = showcaseSlides[activeSlide];
+  const beforeImage = sourcePreview || fallbackProduct;
+  const afterImage = resultPreview || sourcePreview || fallbackProduct;
 
   const resetResult = () => {
     if (resultPreview) URL.revokeObjectURL(resultPreview);
@@ -68,6 +115,7 @@ export function HomePage() {
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setFile(event.target.files?.[0] || null);
+    event.target.value = "";
   };
 
   const onDrop = (event: DragEvent<HTMLElement>) => {
@@ -75,6 +123,10 @@ export function HomePage() {
     setDragActive(false);
     const file = event.dataTransfer.files?.[0] || null;
     if (file) setFile(file);
+  };
+
+  const clearFile = () => {
+    setFile(null);
   };
 
   const processLocally = (file: File) =>
@@ -121,11 +173,13 @@ export function HomePage() {
     setUploadState("working");
     setUploadError(null);
     try {
-      await customerApi.claimWebPreview(previewToken, {
-        fileName: selectedFile.name,
-        contentType: selectedFile.type || "image/png",
-        previewClientId
-      });
+      if (!DISABLE_PREVIEW_LIMIT) {
+        await customerApi.claimWebPreview(previewToken, {
+          fileName: selectedFile.name,
+          contentType: selectedFile.type || "image/png",
+          previewClientId
+        });
+      }
       const blob = removerUrl
         ? await fetch(removerUrl, {
             method: "POST",
@@ -147,26 +201,52 @@ export function HomePage() {
     }
   };
 
-  const beforeImage = sourcePreview || "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=80";
-  const afterImage = resultPreview || "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=80";
+  const selectedMeta = useMemo(() => {
+    if (!selectedFile) return null;
+    const size = selectedFile.size > 1024 * 1024
+      ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(selectedFile.size / 1024))} KB`;
+    return `${selectedFile.type || "image"} · ${size}`;
+  }, [selectedFile]);
 
   return (
-    <div className="home-page">
-      <section className="hero-grid">
+    <div className="home-page premium-home">
+      <section className="hero-grid premium-hero">
         <div className="hero-copy">
           <p className="eyebrow">Pakistan ecommerce photo studio</p>
-          <h1>AI product photos for Daraz, Shopify, WooCommerce, Facebook, and Instagram.</h1>
+          <h1>Premium AI product photos in seconds.</h1>
           <p className="section-lead">
-            Upload one product photo and create clean marketplace images, white backgrounds, social posts, Meta ad
-            creatives, and catalog-ready exports priced in PKR.
+            Remove backgrounds, clean up lighting, center products, and export marketplace-ready images for Daraz,
+            Shopify, WooCommerce, Facebook, and Instagram.
           </p>
 
-          <div className={`upload-card ${dragActive ? "upload-card-active" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onDrop={onDrop}>
-            <div>
-              <span className="upload-icon">+</span>
-              <p className="upload-title">{selectedFile ? selectedFile.name : dragActive ? "Drop your product photo" : "Upload product photo"}</p>
-              <p className="upload-copy">PNG, JPG, or WebP. Preview before checkout.</p>
+          <div className={`upload-card premium-upload ${dragActive ? "upload-card-active" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onDrop={onDrop}>
+            <div className="upload-card-head">
+              <div>
+                <span className="upload-icon">+</span>
+                <p className="upload-title">{dragActive ? "Drop your product photo" : "Upload product photo"}</p>
+                <p className="upload-copy">PNG, JPG, or WebP. Unlimited previews while testing.</p>
+              </div>
+              {DISABLE_PREVIEW_LIMIT && <span className="test-badge">Preview limit off</span>}
             </div>
+
+            {sourcePreview ? (
+              <div className="selected-preview-card">
+                <img src={sourcePreview} alt={`Selected product preview: ${selectedFile?.name || "product image"}`} />
+                <div>
+                  <strong>{selectedFile?.name}</strong>
+                  <span>{selectedMeta}</span>
+                </div>
+                <button type="button" className="button button-small button-ghost" onClick={clearFile}>
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="empty-preview">
+                <span>Drop a product image here or choose a file.</span>
+              </div>
+            )}
+
             <div className="button-row">
               <label className="button button-secondary">
                 Choose file
@@ -184,32 +264,41 @@ export function HomePage() {
             )}
           </div>
 
-          <div className="sample-strip" aria-label="Sample product images">
-            {[
-              "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=260&q=80",
-              "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=260&q=80",
-              "https://images.unsplash.com/photo-1563170351-be82bc888aa4?auto=format&fit=crop&w=260&q=80",
-              "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=260&q=80"
-            ].map((src) => (
-              <img key={src} src={src} alt="Product sample" />
-            ))}
-          </div>
-
           <div className="badge-row">
             {["Daraz", "Shopify", "WooCommerce", "Facebook", "Instagram"].map((badge) => (
               <span className="market-badge" key={badge}>{badge}</span>
             ))}
           </div>
+          <div className="payment-row">
+            <span>JazzCash</span>
+            <span>Bank Transfer</span>
+            <span>PKR 1,500 starter</span>
+          </div>
         </div>
 
-        <aside className="showcase-panel" aria-label="AI feature showcase">
-          <div className="showcase-preview">
-            <span className="before-chip">Original</span>
-            <span className="after-chip">Marketplace ready</span>
-            <img src={afterImage} alt="AI processed product preview" />
+        <aside className="showcase-panel premium-showcase" aria-label="AI feature showcase">
+          <div className={`showcase-preview showcase-tone-${currentSlide.tone}`}>
+            <span className="before-chip">{currentSlide.title}</span>
+            <span className="after-chip">Live showcase</span>
+            <img src={afterImage} alt={`${currentSlide.title} product preview`} />
+            <div className="showcase-caption">
+              <strong>{currentSlide.title}</strong>
+              <span>{currentSlide.detail}</span>
+            </div>
           </div>
-          <div className="feature-card-grid">
-            {features.map(([label, href]) => (
+          <div className="slider-dots" aria-label="Service showcase controls">
+            {showcaseSlides.map((slide, index) => (
+              <button
+                key={slide.title}
+                type="button"
+                className={index === activeSlide ? "active" : ""}
+                onClick={() => setActiveSlide(index)}
+                aria-label={`Show ${slide.title}`}
+              />
+            ))}
+          </div>
+          <div className="feature-card-grid compact-feature-grid">
+            {serviceCards.map(([label, href]) => (
               <Link to={href} className="feature-card" key={label}>
                 <span>{label}</span>
               </Link>
@@ -221,14 +310,22 @@ export function HomePage() {
       <section className="section comparison-section">
         <div className="section-heading">
           <p className="eyebrow">Before and after</p>
-          <h2>Slide from raw product shot to ready-to-sell visual.</h2>
+          <h2>Drag the slider to compare original vs marketplace-ready.</h2>
         </div>
-        <div className="before-after-slider">
-          <img className="before-image" src={beforeImage} alt="Before AI product editing" />
-          <div className="after-image-wrap">
-            <img src={afterImage} alt="After AI product editing" />
+        <div className="interactive-compare" style={{ "--compare": `${compareValue}%` } as CSSProperties & Record<"--compare", string>}>
+          <img className="compare-before" src={beforeImage} alt="Original product before AI editing" />
+          <div className="compare-after-wrap">
+            <img src={afterImage} alt="Product after AI editing" />
           </div>
-          <span className="slider-handle" aria-hidden="true" />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={compareValue}
+            onChange={(event) => setCompareValue(Number(event.target.value))}
+            aria-label="Before and after comparison"
+          />
+          <span className="compare-handle" aria-hidden="true" />
         </div>
       </section>
 
@@ -244,31 +341,6 @@ export function HomePage() {
               <span>Clean crops, centered products, and channel-safe sizes.</span>
             </article>
           ))}
-        </div>
-      </section>
-
-      <section className="section pricing-local">
-        <div className="section-heading">
-          <p className="eyebrow">Pakistan payments</p>
-          <h2>PKR pricing with local payment options.</h2>
-        </div>
-        <div className="pricing-grid">
-          <article className="pricing-card pricing-card-highlight">
-            <p className="eyebrow">Starter</p>
-            <h3>PKR 1,500</h3>
-            <p>50 image credits for new sellers.</p>
-            <Link to="/register" className="button button-block">Start in PKR</Link>
-          </article>
-          <article className="pricing-card">
-            <p className="eyebrow">Growth</p>
-            <h3>PKR 4,500</h3>
-            <p>200 credits for catalog teams and agencies.</p>
-            <Link to="/pricing" className="button button-secondary button-block">View packages</Link>
-          </article>
-        </div>
-        <div className="payment-row">
-          <span>JazzCash</span>
-          <span>Bank Transfer</span>
         </div>
       </section>
     </div>

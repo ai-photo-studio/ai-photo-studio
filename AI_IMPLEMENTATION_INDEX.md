@@ -109,10 +109,11 @@
 - Successful processing settles the reservation instead of leaving credits dangling.
 - Full-resolution download is hidden unless the backend allows it.
 - Homepage shows the upload action in the first viewport with a single public navbar.
-- Homepage now uses a removal.ai-style layout with left upload flow and right feature showcase.
+- Homepage now uses a premium removal.ai-style layout with compact hero copy, left upload flow, and right rotating feature showcase.
 - Homepage explicitly targets Daraz, Shopify, WooCommerce, Facebook, and Instagram sellers.
 - Homepage uses PKR pricing only and shows JazzCash and Bank Transfer payment options.
-- Homepage includes a visual before/after slider and marketplace export section.
+- Homepage includes a working range-based before/after slider, immediate selected-file preview, and marketplace export section.
+- Preview quota is fully bypassed for testing when `DISABLE_PREVIEW_LIMIT=true` and `VITE_DISABLE_PREVIEW_LIMIT=true`.
 - Product examples now reflect ecommerce categories instead of a generic mockup.
 - Local AI pipeline now stages detection, crop, center, background removal, enhancement, and quality comparison before export.
 - Product images are now classified before processing so category-specific routing can change the pipeline profile.
@@ -125,10 +126,11 @@
 - `npm.cmd run build`: PASS on 2026-06-14
 - `npm.cmd run typecheck`: PASS on 2026-06-14
 - `npm.cmd run enterprise-verify`: PASS with Railway network warnings on 2026-06-14
-- Local production preview screenshot: PASS on 2026-06-14
-- Direct Cloudflare deploy: BLOCKED by escalation reviewer on 2026-06-14
-- `git push origin main`: PASS, commit `6892aa5`
-- Cloudflare Pages deployment for commit `6892aa5`: pending; latest observed deployment source remains `56aecd9`
+- `VITE_DISABLE_PREVIEW_LIMIT=true npm.cmd run build -w apps/web`: PASS on 2026-06-14
+- Local production preview screenshot: PASS on 2026-06-14, `UI_POLISH_FINAL_SCREENSHOT.png`
+- Direct Cloudflare deploy: PASS on 2026-06-14
+- Live Cloudflare URL: `https://15d98e3e.ai-photo-studio-whatsapp-web.pages.dev`
+- Live deployed screenshot: `UI_POLISH_FINAL_DEPLOYED_SCREENSHOT.png`
 - `railway whoami`: unauthorized in this shell
 - `railway status`: PASS
 - `railway logs --service api --tail 300`: PASS
@@ -169,11 +171,24 @@
 ## Phase 2 UI Redesign Map
 
 - `apps/web/src/pages/HomePage.tsx`: hero, upload card, samples, marketplace badges, feature panel, before/after slider, export cards, PKR pricing
+- `apps/api/src/controllers/preview.controller.ts`: disabled preview limit early return
+- `apps/api/src/services/preview-quota.service.ts`: runtime `DISABLE_PREVIEW_LIMIT` helper
 - `apps/web/src/pages/FeaturePage.tsx`: public route content for background removal, enhancement, flat lay, lifestyle, virtual model, and videos
 - `apps/web/src/App.tsx`: verified routes for public features, pricing, login, register, and admin modules
 - `apps/web/src/components/PublicLayout.tsx`: duplicate homepage navbar removed
 - `apps/web/src/styles.css`: old homepage CSS replaced
 - `UI_REDESIGN_PHASE2_REPORT.md`: route matrices, changed files, deleted files, and completion status
+
+## Final UI Polish Map
+
+- `apps/web/src/pages/HomePage.tsx`: premium hero, selected upload preview, rotating services, and interactive before/after slider
+- `apps/web/src/styles.css`: final premium homepage styles and responsive slider/upload states
+- `apps/web/src/App.tsx`: admin logs and audit logs routes
+- `ADMIN_FEATURE_VERIFICATION_REPORT.md`: refreshed admin route matrix
+- `AI_code_audit_report.md`: refreshed preview-limit and homepage audit
+- `UI_POLISH_FINAL_REPORT.md`: final polish report
+- `UI_POLISH_FINAL_SCREENSHOT.png`: final screenshot proof
+- `UI_POLISH_FINAL_DEPLOYED_SCREENSHOT.png`: live deployment screenshot proof
 
 ## Current Completion
 
@@ -213,7 +228,7 @@
 - Web platform: 100% READY
 - AI pipeline: CODE-COMPLETE
 - Runtime validation: BLOCKED (shell limitations)
-- Deployment status: LIVE (https://8d9c992f.ai-photo-studio-whatsapp-web.pages.dev)
+- Deployment status: LIVE (https://15d98e3e.ai-photo-studio-whatsapp-web.pages.dev)
 - Preview limit: DISABLED for testing
 
 ## Deployment Verification
@@ -222,4 +237,4 @@
 - Typecheck: PASS
 - Enterprise Verify: PASS
 - Production URL: LIVE
-- Commit: 22da44e pushed to origin/main
+- Latest verified URL: https://15d98e3e.ai-photo-studio-whatsapp-web.pages.dev

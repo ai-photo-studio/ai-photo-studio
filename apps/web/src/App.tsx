@@ -4,6 +4,7 @@ import { PublicLayout } from "./components/PublicLayout";
 import { RequireAdminPortal } from "./components/RequireAdminPortal";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminJobsPage } from "./pages/AdminJobsPage";
+import { AdminLogsPage } from "./pages/AdminLogsPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { AdminOrders } from "./pages/AdminOrders";
 import { AdminProvidersPage } from "./pages/AdminProvidersPage";
@@ -46,6 +47,8 @@ export function App() {
         <Route path="creative-jobs" element={<AdminJobsPage />} />
         <Route path="providers" element={<AdminProvidersPage />} />
         <Route path="metrics" element={<AdminDashboard />} />
+        <Route path="logs" element={<AdminLogsPage />} />
+        <Route path="audit-logs" element={<AdminLogsPage />} />
         <Route path="system" element={<AdminSystemPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
