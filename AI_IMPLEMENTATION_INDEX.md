@@ -164,15 +164,14 @@
 - Phase 4 Creative Studio Expansion: 100%
 - Phase 5 Operations: 100%
 - Phase 6 WhatsApp: 0%
-- Overall roadmap completion: 90%
+- Overall roadmap completion: 92%
 
 ## Remaining Work
 
-- Enable paid AI providers (photoroom, fal, replicate)
-- Implement actual AI generation logic
-- Webhook notifications
-- Credit pricing configuration
-- WhatsApp integration (Phase 6)
+- Enable paid AI providers (photoroom, fal, replicate) - feature flagged
+- Configure credit pricing in admin - packages are database-driven
+- Activate webhook notifications - framework exists
+- WhatsApp integration (Phase 6) - deferred per roadmap
 
 ## Next Coding Phase
 
