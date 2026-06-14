@@ -151,3 +151,9 @@
 ## Next Coding Phase
 
 - Phase 3 provider framework planning
+
+## Phase 5 AI Validation Script
+
+- `scripts/validate-ai.py`: Test harness for local AI services
+- Tests classifier and YOLO detection quality
+- Generates validation-output.json with results
