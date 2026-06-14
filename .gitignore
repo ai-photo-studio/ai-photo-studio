@@ -8,9 +8,11 @@
 !.docs/PHASE5_OPERATIONS_REPORT.md
 !.docs/PHASE_2_VERIFICATION_REPORT.md
 !.docs/WEB_PRODUCTION_GAP_REPORT.md
+!.docs/PUBLIC_LAUNCH_READINESS_REPORT.md
+!.docs/PERFORMANCE_BENCHMARK_REPORT.md
 .ai-project/*.md
-.ai-code-audit-report.md
-.ai-implementation-index.md
+*.audit.md
+AI_code_audit_report.md
 .env
 .env.*
 !.env.example
