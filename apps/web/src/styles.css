@@ -1222,7 +1222,27 @@ img {
   height: 100%;
   max-width: none;
   object-fit: contain;
+  object-position: center;
   padding: 18px;
+}
+
+.bg-upload-card .selected-preview-card img {
+  object-fit: contain;
+  object-position: center;
+}
+
+.single-preview-stage img {
+  object-position: center;
+}
+
+.bg-compare .compare-after-wrap {
+  width: 100%;
+  clip-path: inset(0 calc(100% - var(--compare)) 0 0);
+}
+
+.bg-compare .compare-after-wrap img {
+  position: absolute;
+  inset: 0;
 }
 
 .waiting-compare {

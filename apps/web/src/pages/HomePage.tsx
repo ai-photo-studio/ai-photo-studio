@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { customerApi } from "../services/customerApi";
 
-const LOCAL_REMOVER_URL = import.meta.env.VITE_LOCAL_REMOVER_URL || "";
-const LOCAL_REMOVER_MODE = import.meta.env.VITE_LOCAL_REMOVER_MODE || "remove-bg";
 const DISABLE_PREVIEW_LIMIT = import.meta.env.VITE_DISABLE_PREVIEW_LIMIT === "true";
 const PREVIEW_CLIENT_STORAGE_KEY = "aps-preview-client-id";
 
@@ -45,9 +43,29 @@ const getPreviewClientId = () => {
   return next;
 };
 
-const buildRemoverUrl = () => {
-  if (!LOCAL_REMOVER_URL) return "";
-  return `${LOCAL_REMOVER_URL.replace(/\/+$/, "")}/${LOCAL_REMOVER_MODE === "white" ? "product-white" : "remove-bg"}`;
+const fileToBase64 = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const [, base64 = ""] = result.split(",");
+      if (!base64) {
+        reject(new Error("Unable to read the selected image"));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Unable to read the selected image"));
+    reader.readAsDataURL(file);
+  });
+
+const base64ToBlobUrl = (bodyBase64: string, contentType: string) => {
+  const binary = window.atob(bodyBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return URL.createObjectURL(new Blob([bytes], { type: contentType || "image/png" }));
 };
 
 export function HomePage() {
@@ -61,7 +79,6 @@ export function HomePage() {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [compareValue, setCompareValue] = useState(52);
-  const removerUrl = buildRemoverUrl();
   const previewToken = status === "ready" ? undefined : undefined;
 
   useEffect(() => {
@@ -112,29 +129,16 @@ export function HomePage() {
     resetResult();
 
     try {
-      if (!DISABLE_PREVIEW_LIMIT) {
-        await customerApi.claimWebPreview(previewToken, {
-          fileName: selectedFile.name,
-          contentType: selectedFile.type || "image/png",
-          previewClientId,
-          selectedActions: ["remove-background"]
-        });
-      }
-
-      if (!removerUrl) {
-        throw new Error("Background removal preview API is not configured for this environment.");
-      }
-
-      const blob = await fetch(removerUrl, {
-        method: "POST",
-        body: selectedFile,
-        headers: { "Content-Type": selectedFile.type || "image/png" }
-      }).then((response) => {
-        if (!response.ok) throw new Error(`Background removal failed (${response.status})`);
-        return response.blob();
+      const bodyBase64 = await fileToBase64(selectedFile);
+      const result = await customerApi.removeBackgroundPreview(previewToken, {
+        fileName: selectedFile.name,
+        contentType: selectedFile.type || "image/png",
+        previewClientId,
+        selectedActions: ["remove-background"],
+        bodyBase64
       });
 
-      const nextUrl = URL.createObjectURL(blob);
+      const nextUrl = base64ToBlobUrl(result.bodyBase64, result.contentType);
       setResultPreview(nextUrl);
       setDownloadUrl(nextUrl);
       setUploadState("done");

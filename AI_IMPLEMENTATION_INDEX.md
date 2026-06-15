@@ -121,6 +121,9 @@
 - Homepage background-remover final pass now removes hero checkboxes/service tabs and shows only upload, real API background removal, and an honest original/result comparison.
 - Homepage no longer fakes background removal with local canvas or frame changes; processed preview appears only from the remover API result.
 - Public navbar now includes a Services dropdown for non-hero product photo tools.
+- Critical API fix: homepage background removal now calls Railway API `POST /api/previews/background-removal` instead of a local-only browser remover URL.
+- Preview pipeline now returns a real processed image from the background-remover service before showing the before/after slider.
+- API JSON limit increased to `12mb` so base64 product preview uploads can reach the remover pipeline.
 - Selected upload actions are sent through preview/upload request types and backend processing metadata.
 - Local processing only applies resize when Resize is selected and gates crop/center, background, and enhancement by selected actions.
 - Unsupported creative actions are labeled coming soon and use mock/placeholder preview treatment.
@@ -142,6 +145,13 @@
 - `npm.cmd run enterprise-verify`: PASS with Railway network/auth warnings on 2026-06-15
 - Cloudflare Pages deploy: PASS on 2026-06-15
 - Latest verified Cloudflare URL: `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev`
+- `npm.cmd run build`: PASS on 2026-06-15 after background API proxy fix
+- `npm.cmd run typecheck`: PASS on 2026-06-15 after background API proxy fix
+- `npm.cmd run enterprise-verify`: PASS on 2026-06-15 after background API proxy fix
+- `railway.cmd status`: PASS on 2026-06-15; API and background-remover online
+- `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS on 2026-06-15
+- Background remover health: PASS on 2026-06-15, model `isnet-general-use`
+- CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
 - `VITE_DISABLE_PREVIEW_LIMIT=true npm.cmd run build -w apps/web`: PASS on 2026-06-14
 - Direct Cloudflare deploy: PASS on 2026-06-14
 - Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`
@@ -226,6 +236,16 @@
 - `AI_code_audit_report.md`: refreshed background-remover final audit
 - `HOMEPAGE_BG_REMOVER_FINAL_REPORT.md`: final report with deployment and verification proof
 - Latest Cloudflare Pages URL: `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev`
+
+## Homepage Background API Fix Map
+
+- `apps/api/src/controllers/preview.controller.ts`: `removeBackgroundPreview` endpoint for base64 product-photo previews
+- `apps/api/src/routes/preview.routes.ts`: registered `POST /previews/background-removal`
+- `apps/api/src/index.ts`: route registry update and `12mb` JSON body limit
+- `apps/web/src/services/customerApi.ts`: `removeBackgroundPreview` client method
+- `apps/web/src/pages/HomePage.tsx`: frontend now calls Railway API preview proxy and no longer requires `VITE_LOCAL_REMOVER_URL`
+- `apps/web/src/styles.css`: contain-fit preview and slider clipping fixes
+- `HOMEPAGE_BG_API_FIX_REPORT.md`: root cause, proof, and deployment checklist
 
 ## Current Completion
 

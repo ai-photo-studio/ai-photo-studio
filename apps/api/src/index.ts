@@ -73,7 +73,7 @@ const bootstrap = async () => {
 
   app.use(createCorsMiddleware(config));
   app.use(rateLimit(60_000, 120));
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({ limit: "12mb" }));
 
   app.get("/api/health", (_req, res) => {
     res.json({
@@ -105,6 +105,7 @@ const bootstrap = async () => {
           { name: "auth-me", path: "/api/auth/me" },
           { name: "packages", path: "/api/packages" },
           { name: "previews-web", path: "/api/previews/web" },
+          { name: "previews-background-removal", path: "/api/previews/background-removal" },
           { name: "orders-create", path: "/api/orders" },
           { name: "orders-read", path: "/api/orders/:orderNo" },
           { name: "orders-images", path: "/api/orders/:orderNo/images" },

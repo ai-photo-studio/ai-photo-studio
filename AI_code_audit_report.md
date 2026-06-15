@@ -2,68 +2,52 @@
 
 ## Scope
 
-Homepage background-remover final pass for AI Product Photo Studio. WhatsApp is intentionally ignored.
+Critical homepage background-removal API fix for AI Product Photo Studio. WhatsApp is intentionally ignored.
 
-## Background Remover Hero Audit
+## Root Cause
 
-| Area | Status | Proof |
-|------|--------|-------|
-| remove.bg-style hero | PASS | Hero is now focused on background removal only: heading, short copy, upload, and preview. |
-| No hero checkboxes | PASS | Multi-service action picker was removed from the hero. |
-| Upload preview | PASS | Selected files create `sourcePreview` and immediately render in the upload card and right preview card. |
-| Button text | PASS | Choose file shows `Choose file` / `Opening...`; background removal shows `Remove background` / `Processing...`. |
-| No fake result | PASS | Local canvas fallback was removed. Processed preview is only shown after the remover API returns a blob. |
-| Waiting state | PASS | Until the API result returns, the comparison area says `Preview will appear here` and shows the original only. |
-| Object-fit contain | PASS | Uploaded images use `object-fit: contain` in fixed preview blocks. |
-| Large image behavior | PASS | Visual scaling is CSS-only; no crop/resize is applied before the API result. |
-| Download | PASS | Download link appears only when a returned processed blob exists. |
+The homepage called `VITE_LOCAL_REMOVER_URL` directly from the browser. That variable is local-only and was not configured in Cloudflare Pages, so the deployed hero showed `Background removal preview API is not configured for this environment.`
 
-## Slider Audit
+The correct architecture is:
 
-| Requirement | Status | Proof |
-|-------------|--------|-------|
-| Original side | PASS | Slider before layer uses `sourcePreview`. |
-| Processed side | PASS | Slider after layer uses `resultPreview` only after API success. |
-| Draggable handle | PASS | Range input controls `--compare` and the visible handle. |
-| No demo after upload | PASS | No fallback/demo image is rendered after `sourcePreview` exists. |
+Cloudflare Pages frontend -> Railway API -> Railway background-remover service.
 
-## Services Navigation Audit
+## Fix Audit
 
 | Area | Status | Proof |
 |------|--------|-------|
-| Services menu | PASS | Public navbar includes a Services dropdown. |
-| Menu routes | PASS | Dropdown links to background removal, enhancement, crop/center, flat lay, lifestyle, virtual models, videos, and marketplace-ready images. |
-| Below-hero services | PASS | Other services are shown below the hero in a dedicated Services section. |
+| Frontend API URL | PASS | Web API base falls back to `https://api-production-4867.up.railway.app` in production. |
+| Local remover dependency removed | PASS | Homepage no longer reads `VITE_LOCAL_REMOVER_URL`. |
+| Preview API proxy | PASS | Added `POST /api/previews/background-removal` on the Railway API. |
+| Background remover connectivity | PASS | API endpoint proxies to `BackgroundRemoverService.productWhite`. |
+| CORS | PASS | API OPTIONS preflight returned `204 No Content` with CORS headers. |
+| Upload body limit | PASS | API JSON body limit raised to `12mb` for base64 product photo previews. |
+| No fake result | PASS | Homepage only creates `resultPreview` from returned API `bodyBase64`. |
+| Slider gating | PASS | Slider renders only when both `sourcePreview` and `resultPreview` exist. |
+| Original-only waiting state | PASS | Before API result, right side shows uploaded original image and waiting copy. |
+| Preview cropping | PASS | Preview image containers use `object-fit: contain` and `object-position: center`. |
 
-## Preview Limit Audit
-
-| Requirement | Status |
-|-------------|--------|
-| No frontend limit message in homepage | PASS |
-| `VITE_DISABLE_PREVIEW_LIMIT=true` skips quota endpoint | PASS |
-| `DISABLE_PREVIEW_LIMIT=true` backend early return remains implemented | PASS |
-| Clear preview local/session storage counters | PASS |
-| Production default remains false | PASS |
-
-## Verification
+## Platform Verification
 
 | Check | Status |
 |-------|--------|
-| `npm.cmd run build` | PASS on 2026-06-15 |
-| `npm.cmd run typecheck` | PASS on 2026-06-15 |
-| `npm.cmd run enterprise-verify` | PASS on 2026-06-15 with Railway network/auth warnings only |
-| Cloudflare Pages deploy | PASS on 2026-06-15 |
-| Live URL HTTP check | PASS, 200 OK |
+| Railway status | PASS: API and background-remover services online |
+| Railway API URL | `https://api-production-4867.up.railway.app` |
+| Background remover URL | `https://background-remover-production-0627.up.railway.app` |
+| Background remover health | PASS: `isnet-general-use` model reported |
+| Cloudflare deployment list | PASS |
+| API health | PASS: `/api/health` returned `200 OK` |
+| CORS preflight | PASS: `/api/previews/background-removal` returned `204` |
 
-## Deployment
+## Build Verification
 
-| Item | Value |
-|------|-------|
-| Cloudflare Pages URL | `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev` |
-| Deployed JS asset | `/assets/index-BogKxvFX.js` |
-| Deployed CSS asset | `/assets/index-dODJLa_s.css` |
+| Check | Status |
+|-------|--------|
+| `npm.cmd run build` | PASS |
+| `npm.cmd run typecheck` | PASS |
+| `npm.cmd run enterprise-verify` | PASS with Railway network/auth warning inside verification script; direct `railway status` passed |
 
-## Notes
+## Deployment Notes
 
-- `AI_code_audit_report.md` is listed in `.gitignore`.
-- Screenshot capture was attempted with headless Edge command mode and remote-debugging mode. Edge did not stay alive or write a PNG in this shell, so screenshot artifact remains blocked by local browser tooling.
+- The frontend build now contains assets `index-DrIR6fJD.css` and `index-0FRsnax4.js` before deployment.
+- `AI_code_audit_report.md` remains listed in `.gitignore`.

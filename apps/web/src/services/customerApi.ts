@@ -33,6 +33,10 @@ type PreviewClaimInput = {
   selectedActions?: string[];
 };
 
+type BackgroundRemovalPreviewInput = PreviewClaimInput & {
+  bodyBase64: string;
+};
+
 type CreateOrderResponse = {
   id: string;
   orderNo: string;
@@ -89,6 +93,15 @@ export const customerApi = {
   claimWebPreview: (token: string | undefined, input: PreviewClaimInput) =>
     apiRequest<WebPreviewQuotaResponse>(
       "/api/previews/web",
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      token
+    ),
+  removeBackgroundPreview: (token: string | undefined, input: BackgroundRemovalPreviewInput) =>
+    apiRequest<{ fileName: string; contentType: string; bodyBase64: string; disabledPreviewLimit?: boolean }>(
+      "/api/previews/background-removal",
       {
         method: "POST",
         body: JSON.stringify(input)
