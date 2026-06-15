@@ -1,4 +1,4 @@
 fastapi
 uvicorn
-rembg[beta]
+rembg
 pillow

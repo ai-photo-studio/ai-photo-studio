@@ -11,7 +11,7 @@ from PIL import Image, ImageOps
 
 MAX_PROCESS_DIMENSION = 2000
 
-MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "birefnet")
+MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "birefnet-general")
 MODEL_FALLBACK = os.getenv("BACKGROUND_MODEL_FALLBACK", "u2net")
 MODEL_EMERGENCY = os.getenv("BACKGROUND_MODEL_EMERGENCY", "u2netp")
 
