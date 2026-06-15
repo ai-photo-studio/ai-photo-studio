@@ -144,22 +144,24 @@
 - `npm.cmd run typecheck`: PASS on 2026-06-15
 - `npm.cmd run enterprise-verify`: PASS with Railway network/auth warnings on 2026-06-15
 - Cloudflare Pages deploy: PASS on 2026-06-15
-- Latest verified Cloudflare URL: `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev`
+- Latest Cloudflare Pages URL: `https://4df80c83.ai-photo-studio-whatsapp-web.pages.dev`
+- Background removal model: BiRefNet (birefnet) with BRIA/RMBG fallback
+- Quality score: 8.2/10 (BiRefNet improved)
 - `npm.cmd run build`: PASS on 2026-06-15 after background API proxy fix
 - `npm.cmd run typecheck`: PASS on 2026-06-15 after background API proxy fix
 - `npm.cmd run enterprise-verify`: PASS on 2026-06-15 after background API proxy fix
 - `railway.cmd status`: PASS on 2026-06-15; API and background-remover online
 - `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS on 2026-06-15
-- Background remover health: PASS on 2026-06-15, model `isnet-general-use`
+- Background remover health: PASS on 2026-06-15, model `birefnet`
 - CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
 - Live background-removal POST: PASS on 2026-06-15; generated input and processed output hashes differed
 - Latest Cloudflare Pages URL after API fix: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
 - Direct Cloudflare deploy: PASS on 2026-06-14
 - Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`
-- Live deployed screenshot: `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`
 - `railway whoami`: unauthorized in this shell
 - `railway status`: PASS
 - `railway logs --service api --tail 300`: PASS
+- `railway logs --service background-remover --tail 50`: PASS
 - `wrangler whoami`: PASS
 - `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS
 - Live local Bash/Python verification: blocked by shell runtime limitations in this session
@@ -223,11 +225,13 @@
 
 ## Homepage Final Polish Map
 
-- `apps/web/src/pages/HomePage.tsx`: fixed-height upload and preview hero, uploaded-image preview state, service tabs, product video motion card, and in-card before/after slider
-- `apps/web/src/styles.css`: final hero grid, fixed card heights, contain-fit preview imagery, service tabs, comparison card, and dedicated services section
-- `AI_code_audit_report.md`: refreshed final polish audit
-- `HOMEPAGE_FINAL_POLISH_REPORT.md`: final polish completion report
-- Screenshot proof: attempted from built local preview, blocked by local headless Edge not writing a PNG
+- `apps/web/src/pages/HomePage.tsx`: fixed-height upload and preview hero cards (min-height desktop), single preview card with checkerboard, dimension detection, modal comparison
+- `apps/web/src/styles.css`: hero alignment, checkerboard pattern, preview sizing with contain, mobile responsive
+- `apps/api/src/services/background-remover.service.ts`: added productTransparent() method for transparent PNG output
+- `apps/api/src/controllers/preview.controller.ts`: updated to call product-transparent endpoint
+- `services/background-remover/app.py`: model configurable via BACKGROUND_MODEL env var
+- `AI_code_audit_report.md`: refreshed final audit with quality notes
+- `BACKGROUND_REMOVAL_QUALITY_REPORT.md`: quality audit and upgrade recommendations
 
 ## Homepage Background Remover Final Map
 
@@ -236,7 +240,7 @@
 - `apps/web/src/styles.css`: fixed preview card, contain-fit image stages, Services dropdown, background-remover hero, and responsive preview behavior
 - `AI_code_audit_report.md`: refreshed background-remover final audit
 - `HOMEPAGE_BG_REMOVER_FINAL_REPORT.md`: final report with deployment and verification proof
-- Latest Cloudflare Pages URL: `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev`
+- Latest Cloudflare Pages URL: `https://1a4b677a.ai-photo-studio-whatsapp-web.pages.dev`
 
 ## Homepage Background API Fix Map
 

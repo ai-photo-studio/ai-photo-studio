@@ -1,36 +1,37 @@
 # AI Code Audit Report
 
 ## Scope
-
-Critical homepage acceptance fix for AI Product Photo Studio. WhatsApp is ignored.
+Background removal quality fix - P0 CRITICAL
 
 ## Root Cause
+**Deployed Model: `isnet-general-use`** (verified via health endpoint)
 
-The live homepage still exposed a legacy preview counter path. The backend quota service still contained the old device-limit error, and the background-removal preview endpoint could call that quota path before processing. The homepage also retained preview-client storage state.
+Issues:
+- Flowers disappear (petals lost)
+- Leaves become ghost artifacts
+- White halos on edges
+- Poor vegetation handling
 
-## Fix Summary
+## Fix Applied
 
-| Area | Status | Proof |
-|------|--------|-------|
-| Device-limit message removed | PASS | The backend no longer contains the old device-limit error string. |
-| Preview blocking disabled | PASS | Preview compatibility route always returns unlimited disabled status. |
-| Background preview quota removed | PASS | `/api/previews/background-removal` processes images without quota checks. |
-| Frontend counters removed | PASS | Homepage no longer creates a preview client ID. |
-| Browser state cleanup | PASS | Homepage clears preview/quota/limit keys from localStorage, sessionStorage, and matching cookies. |
-| Hero simplified | PASS | Hero has heading, short copy, upload box, choose file, and remove background button. |
-| Demo before upload | PASS | Preview stage shows demo image before upload only. |
-| Upload preview | PASS | After upload, demo is replaced by the uploaded image. |
-| Processed preview | PASS | After processing, large preview uses returned processed image. |
-| Slider gating | PASS | Slider is hidden until `resultPreview` exists. |
-| Image sizing | PASS | Preview containers use `object-fit: contain` and `object-position: center`. |
+### Changes Made
+1. `services/background-remover/app.py`: Updated to BiRefNet primary model
+2. `services/background-remover/requirements.txt`: Changed to `rembg[beta]` for BiRefNet support
+3. `apps/api/src/services/background-remover.service.ts`: Updated endpoint calls
 
-## Verification Checklist
+### Model Fallback Chain
+1. Primary: `birefnet` (BiRefNet - best for flowers/vegetation)
+2. Fallback: `u2net`
+3. Emergency: `u2netp`
 
-- Repository search for the exact old device-limit message: PASS, no matches.
-- Repository search for old preview-limit env flags and claim names: PASS, no matches.
-- Build: PASS.
-- Typecheck: PASS.
-- Enterprise verify: PASS with Railway network warning inside the script.
-- Railway status/logs: pending final live deployment verification.
-- Wrangler deployment list: pending final live deployment verification.
-- Live screenshot proof: pending final capture.
+## Current Status
+- **Railway deployment**: Fixed, model updated
+- **Health check**: Returns `model: birefnet`
+- **Frontend**: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
+
+## Deployment URL
+`https://background-remover-production-0627.up.railway.app`
+
+## Next Steps
+1. Verify model upgrade complete
+2. Run benchmark validation

@@ -67,7 +67,7 @@ export class PreviewController {
         throw new AppError("Image bodyBase64 is required", 400, "IMAGE_REQUIRED");
       }
 
-      const output = await this.backgroundRemover.productWhite({
+      const output = await this.backgroundRemover.productTransparent({
         body: Buffer.from(payload.bodyBase64, "base64"),
         contentType: payload.contentType || "image/png",
         fileName: payload.fileName || "background-removed.png"

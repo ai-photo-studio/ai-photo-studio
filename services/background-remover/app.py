@@ -11,7 +11,7 @@ from PIL import Image, ImageOps
 
 MAX_PROCESS_DIMENSION = 2000
 
-MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "isnet-general-use")
+MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "birefnet")
 MODEL_FALLBACK = os.getenv("BACKGROUND_MODEL_FALLBACK", "u2net")
 MODEL_EMERGENCY = os.getenv("BACKGROUND_MODEL_EMERGENCY", "u2netp")
 
@@ -130,7 +130,7 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
 
 @app.get("/health")
 def health():
-    return {"success": True, "message": "background remover is running", "model": MODEL_PRIMARY}
+    return {"success": True, "message": "background remover is running", "model": MODEL_PRIMARY, "status": "ready"}
 
 
 @app.post("/remove-bg")

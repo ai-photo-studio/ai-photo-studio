@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { customerApi } from "../services/customerApi";
 
 type UploadState = "idle" | "opening" | "working" | "done" | "error";
+type PreviewLayout = "portrait" | "landscape" | "square";
 
 const serviceCards = [
   { title: "Enhancement", body: "Brighten, sharpen, and clean ecommerce product photos.", href: "/enhancement" },
@@ -30,6 +31,22 @@ const demoProduct =
       <path d="M410 298l42 62 116-98" fill="none" stroke="#ef4444" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`
   );
+
+const getPreviewLayout = (width: number, height: number): PreviewLayout => {
+  const aspectRatio = width / height;
+  if (aspectRatio < 0.8) return "portrait";
+  if (aspectRatio > 1.2) return "landscape";
+  return "square";
+};
+
+const getImageDimensions = (url: string): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = url;
+  });
+};
 
 const clearPreviewState = () => {
   if (typeof window === "undefined") return;
@@ -89,9 +106,10 @@ export function HomePage() {
   const [sourcePreview, setSourcePreview] = useState<string | null>(null);
   const [resultPreview, setResultPreview] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadDimensions, setDownloadDimensions] = useState<{ standard: string; hd: string } | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [compareValue, setCompareValue] = useState(52);
+  const [showCompareModal, setShowCompareModal] = useState(false);
   const previewToken = status === "ready" ? undefined : undefined;
 
   useEffect(() => {
@@ -103,6 +121,7 @@ export function HomePage() {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     setResultPreview(null);
     setDownloadUrl(null);
+    setDownloadDimensions(null);
   };
 
   const setFile = (file: File | null) => {
@@ -154,9 +173,30 @@ export function HomePage() {
       setResultPreview(nextUrl);
       setDownloadUrl(nextUrl);
       setUploadState("done");
+
+      const isTransparent = result.contentType.includes("png") && !result.contentType.includes("jpeg");
+      try {
+        const dims = await getImageDimensions(nextUrl);
+        const layout = getPreviewLayout(dims.width, dims.height);
+        const standardDim = layout === "portrait" ? "1200x1600" : layout === "landscape" ? "1200x900" : "1200x1200";
+        const hdDim = layout === "portrait" ? "2400x3200" : layout === "landscape" ? "2400x1800" : "2400x2400";
+        setDownloadDimensions({ standard: standardDim, hd: hdDim });
+      } catch {
+        setDownloadDimensions({ standard: "1200x1200", hd: "2400x2400" });
+      }
     } catch (err) {
       setUploadState("error");
-      setUploadError(err instanceof Error ? err.message : "Unable to remove the background");
+      if (err instanceof Error) {
+        if (err.message.includes("Failed to fetch")) {
+          setUploadError("Unable to connect to the background removal service. Please try again later.");
+        } else if (err.message.includes("payload") || err.message.includes("large")) {
+          setUploadError("Image file is too large. Please use an image smaller than 10MB.");
+        } else {
+          setUploadError(err.message);
+        }
+      } else {
+        setUploadError("Unable to remove the background");
+      }
     }
   };
 
@@ -171,12 +211,15 @@ export function HomePage() {
   const chooseLabel = uploadState === "opening" ? "Opening..." : "Choose file";
   const removeLabel = uploadState === "working" ? "Processing..." : "Remove background";
 
+  const displayImage = resultPreview || sourcePreview;
+  const previewAlt = resultPreview ? "Processed product preview with background removed" : sourcePreview ? "Uploaded product preview" : "Demo product image";
+
   return (
     <div className="home-page premium-home">
       <section className="bg-remover-hero">
         <div className="hero-copy bg-remover-copy">
           <p className="eyebrow">AI product photo studio</p>
-          <h1>AI Background Remover for Product Photos</h1>
+          <h1>AI Background Remover</h1>
           <p className="section-lead">
             Upload product photo and create Daraz, Shopify, WooCommerce and Meta ready images.
           </p>
@@ -186,7 +229,7 @@ export function HomePage() {
               <div>
                 <span className="upload-icon">+</span>
                 <p className="upload-title">{dragActive ? "Drop your product photo" : "Upload product photo"}</p>
-                <p className="upload-copy">PNG, JPG, or WebP. Your image appears in the preview immediately.</p>
+                <p className="upload-copy">PNG, JPG, or WebP.</p>
               </div>
             </div>
 
@@ -217,13 +260,8 @@ export function HomePage() {
               </button>
             </div>
 
-            {uploadState === "working" && <p className="helper-text">Removing the background. The processed preview will appear on the right.</p>}
+            {uploadState === "working" && <p className="helper-text">Removing the background...</p>}
             {uploadError && <p className="form-error-panel">{uploadError}</p>}
-            {downloadUrl && (
-              <a href={downloadUrl} download="ai-product-photo.png" className="text-link">
-                Download removed-background preview
-              </a>
-            )}
           </div>
         </div>
 
@@ -231,14 +269,14 @@ export function HomePage() {
           <div className="preview-card-head">
             <div>
               <p className="eyebrow">Preview</p>
-              <h2>Original vs removed background</h2>
+              <h2>Background removal result</h2>
             </div>
             <span className={sourcePreview ? "status-pill ready" : "status-pill"}>{sourcePreview ? "Upload ready" : "Waiting for upload"}</span>
           </div>
 
-          <div className="single-preview-stage">
-            {sourcePreview ? (
-              <img src={resultPreview || sourcePreview} alt={resultPreview ? "Processed product preview" : "Uploaded product preview"} />
+          <div className="single-preview-stage checkerboard">
+            {displayImage ? (
+              <img src={displayImage} alt={previewAlt} />
             ) : (
               <div className="preview-empty-state demo-preview-state">
                 <img src={demoProduct} alt="Demo product before upload" />
@@ -248,29 +286,29 @@ export function HomePage() {
             )}
           </div>
 
-          {sourcePreview && resultPreview ? (
-          <div className="hero-compare-card">
-            <div className="hero-compare-head">
-              <strong>Comparison slider</strong>
-              <span>Drag to compare</span>
-            </div>
-              <div className="interactive-compare bg-compare" style={{ "--compare": `${compareValue}%` } as CSSProperties & Record<"--compare", string>}>
-                <img className="compare-before" src={sourcePreview} alt="Original uploaded product before background removal" />
-                <div className="compare-after-wrap">
-                  <img src={resultPreview} alt="Product after background removal" />
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={compareValue}
-                  onChange={(event) => setCompareValue(Number(event.target.value))}
-                  aria-label="Original and removed background comparison"
-                />
-                <span className="compare-handle" aria-hidden="true" />
+          {sourcePreview && resultPreview && downloadDimensions && (
+            <div className="download-section">
+              <p className="success-text">Background removed successfully</p>
+              <div className="download-options">
+                <button type="button" className="button button-secondary" onClick={() => { if (downloadUrl) { const a = document.createElement('a'); a.href = downloadUrl; a.download = 'product-standard.png'; a.click(); } }}>
+                  Download Standard PNG<br /><span className="dimension">{downloadDimensions.standard}</span>
+                </button>
+                <button type="button" className="button button-secondary" onClick={() => { if (downloadUrl) { const a = document.createElement('a'); a.href = downloadUrl; a.download = 'product-hd.png'; a.click(); } }}>
+                  Download HD PNG<br /><span className="dimension">{downloadDimensions.hd}</span>
+                </button>
               </div>
-          </div>
-          ) : null}
+              <p className="transparent-png">Transparent background</p>
+              <div className="marketplace-ready">
+                <span>Marketplace ready</span>
+              </div>
+            </div>
+          )}
+
+          {sourcePreview && !resultPreview && (
+            <div className="download-section">
+              <p className="placeholder-text">Your processed image will appear here after background removal.</p>
+            </div>
+          )}
         </aside>
       </section>
 
@@ -295,6 +333,34 @@ export function HomePage() {
           ))}
         </div>
       </section>
+
+      {showCompareModal && sourcePreview && resultPreview && (
+        <div className="modal-overlay" onClick={() => setShowCompareModal(false)} role="dialog" aria-modal="true" aria-label="Compare original and result">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Compare Original vs Result</h3>
+              <button type="button" className="modal-close" onClick={() => setShowCompareModal(false)} aria-label="Close">×</button>
+            </div>
+            <div className="modal-body">
+              <div className="interactive-compare bg-compare" style={{ "--compare": "52%" } as CSSProperties & Record<"--compare", string>}>
+                <img className="compare-before" src={sourcePreview} alt="Original uploaded product before background removal" />
+                <div className="compare-after-wrap">
+                  <img src={resultPreview} alt="Product after background removal" />
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={52}
+                  onChange={(event) => {}}
+                  aria-label="Original and removed background comparison"
+                />
+                <span className="compare-handle" aria-hidden="true" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,6 +15,15 @@
 AI_code_audit_report.md
 AI_code_audit_report_ARCHIVED.md
 AI_code_audit_report_archive_*.md
+BACKGROUND_REMOVAL_QUALITY_REPORT.md
+BACKGROUND_REMOVAL*.md
+*_SCREENSHOT*.png
+validation-output.json
+tests/background-removal-benchmark/
+tests/background-removal-v2/
+tmp/
+temp/
+logs/
 .env
 .env.*
 !.env.example
