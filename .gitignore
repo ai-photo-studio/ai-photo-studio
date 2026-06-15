@@ -11,7 +11,6 @@
 !.docs/PUBLIC_LAUNCH_READINESS_REPORT.md
 !.docs/PERFORMANCE_BENCHMARK_REPORT.md
 .ai-project/*.md
-*.audit.md
 AI_code_audit_report.md
 AI_code_audit_report_ARCHIVED.md
 AI_code_audit_report_archive_*.md
@@ -24,6 +23,9 @@ tests/background-removal-v2/
 tmp/
 temp/
 logs/
+test images/
+.DS_Store
+Thumbs.db
 .env
 .env.*
 !.env.example

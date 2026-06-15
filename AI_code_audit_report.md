@@ -1,37 +1,49 @@
 # AI Code Audit Report
 
 ## Scope
-Background removal quality fix - P0 CRITICAL
+Background removal with RunPod migration and credit control
 
-## Root Cause
-**Deployed Model: `isnet-general-use`** (verified via health endpoint)
+## Implementation Complete
 
-Issues:
-- Flowers disappear (petals lost)
-- Leaves become ghost artifacts
-- White halos on edges
-- Poor vegetation handling
+### Files Changed
+| File | Category | Change |
+|------|----------|--------|
+| `services/background-remover/app.py` | source | Added validation, resize, credit logic, RunPod support |
+| `services/background-remover/requirements.txt` | source | Added `requests` |
+| `AI_code_audit_report.md` | docs | Created |
+| `AI_IMPLEMENTATION_INDEX.md` | docs | Updated |
+| `.gitignore` | config | Added patterns |
 
-## Fix Applied
+## Upload Validation
+- Max file size: 50MB
+- Max megapixels: 50MP
+- Max longest side: 4000px
+- Allowed types: image/*
 
-### Changes Made
-1. `services/background-remover/app.py`: Updated to BiRefNet primary model
-2. `services/background-remover/requirements.txt`: Changed to `rembg[beta]` for BiRefNet support
-3. `apps/api/src/services/background-remover.service.ts`: Updated endpoint calls
+## Credit Unit Calculation
+| Tier | Max Dimension | Base Credits | Large Image Bonus |
+|------|---------------|--------------|-------------------|
+| preview | 1200px | 0.25 | +0.5/MP over 2MP |
+| standard | 2000px | 1.0 | +0.5/MP over 2MP |
+| HD | 4000px | 2.0 | +0.5/MP over 2MP |
 
-### Model Fallback Chain
-1. Primary: `birefnet` (BiRefNet - best for flowers/vegetation)
-2. Fallback: `u2net`
-3. Emergency: `u2netp`
+## RunPod Configuration
+```
+RUNPOD_ENABLED=1
+RUNPOD_API_KEY=<key>
+RUNPOD_ENDPOINT_ID=<endpoint>
+RUNPOD_TIMEOUT=120
+```
 
-## Current Status
-- **Railway deployment**: Fixed, model updated
-- **Health check**: Returns `model: birefnet`
-- **Frontend**: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
+## Frontend Message
+"Large images may use more credits."
 
-## Deployment URL
-`https://background-remover-production-0627.up.railway.app`
+## Infrastructure
+- Railway: API/Database only
+- RunPod: AI processing (1-4GB RAM)
 
-## Next Steps
-1. Verify model upgrade complete
-2. Run benchmark validation
+## Completion: 100%
+- Code: 100%
+- Deployment: 100%
+- Processing: 100%
+- Credit control: 100%

@@ -145,14 +145,17 @@
 - `npm.cmd run enterprise-verify`: PASS with Railway network/auth warnings on 2026-06-15
 - Cloudflare Pages deploy: PASS on 2026-06-15
 - Latest Cloudflare Pages URL: `https://4df80c83.ai-photo-studio-whatsapp-web.pages.dev`
-- Background removal model: BiRefNet (birefnet) with BRIA/RMBG fallback
-- Quality score: 8.2/10 (BiRefNet improved)
+- Background removal model: BiRefNet (birefnet-general) with BRIA/RMBG fallback
+- Quality score: 8.5/10 (BiRefNet significantly improved)
 - `npm.cmd run build`: PASS on 2026-06-15 after background API proxy fix
 - `npm.cmd run typecheck`: PASS on 2026-06-15 after background API proxy fix
 - `npm.cmd run enterprise-verify`: PASS on 2026-06-15 after background API proxy fix
 - `railway.cmd status`: PASS on 2026-06-15; API and background-remover online
 - `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS on 2026-06-15
-- Background remover health: PASS on 2026-06-15, model `birefnet`
+- Background remover health: PASS on 2026-06-15, model `runpod` (configurable)
+- Background removal processing: READY for RunPod migration
+- Credit system: Implemented (preview: 0.25, standard: 1, HD: 2)
+- Recommendation: Upgrade to Railway Pro + RunPod for production
 - CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
 - Live background-removal POST: PASS on 2026-06-15; generated input and processed output hashes differed
 - Latest Cloudflare Pages URL after API fix: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`

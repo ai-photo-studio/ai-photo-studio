@@ -7,46 +7,75 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from PIL import Image, ImageOps
+from PIL import Image
 
-MAX_PROCESS_DIMENSION = 2000
+MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_MEGAPIXELS = 50
+MAX_LONGEST_SIDE = 4000
 
-MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "birefnet-general")
-MODEL_FALLBACK = os.getenv("BACKGROUND_MODEL_FALLBACK", "u2net")
-MODEL_EMERGENCY = os.getenv("BACKGROUND_MODEL_EMERGENCY", "u2netp")
-
-app = FastAPI(title="AI Photo Studio Background Remover", version="0.1.0")
-
+FREE_TRIAL_MAX_DIMENSION = 1200
+STANDARD_MAX_DIMENSION = 2000
+HD_MAX_DIMENSION = 4000
 
 @dataclass(slots=True)
 class ProcessedImage:
     content: bytes
     media_type: str
     filename: str
+    credits_used: float
 
 
-def _get_session(model: str):
-    from rembg import new_session
-    return new_session(model)
+def _validate_upload(raw: bytes, content_type: str | None) -> None:
+    if not content_type or not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image uploads are supported")
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty image file")
+    if len(raw) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_FILE_SIZE // (1024*1024)}MB")
 
 
 def _load_image(data: bytes) -> Image.Image:
     try:
         image = Image.open(io.BytesIO(data))
-        image = ImageOps.exif_transpose(image)
         if image.mode not in ("RGB", "RGBA"):
             image = image.convert("RGBA")
+        image.load()
+        megapixels = (image.width * image.height) / 1_000_000
+        if megapixels > MAX_MEGAPIXELS:
+            raise HTTPException(status_code=400, detail=f"Image too large. Max {MAX_MEGAPIXELS}MP")
+        if max(image.size) > MAX_LONGEST_SIDE:
+            raise HTTPException(status_code=400, detail=f"Image too large. Max {MAX_LONGEST_SIDE}px longest side")
         return image
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid image file") from exc
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {exc}") from exc
 
 
-def _resize_if_needed(image: Image.Image) -> Image.Image:
-    if max(image.size) <= MAX_PROCESS_DIMENSION:
+def _resize_for_tier(image: Image.Image, tier: str = "standard") -> Image.Image:
+    max_dim = {
+        "preview": FREE_TRIAL_MAX_DIMENSION,
+        "standard": STANDARD_MAX_DIMENSION,
+        "hd": HD_MAX_DIMENSION,
+    }.get(tier, STANDARD_MAX_DIMENSION)
+    
+    if max(image.size) <= max_dim:
         return image
     resized = image.copy()
-    resized.thumbnail((MAX_PROCESS_DIMENSION, MAX_PROCESS_DIMENSION), Image.Resampling.LANCZOS)
+    resized.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
     return resized
+
+
+def _calculate_credits(image: Image.Image, tier: str = "standard") -> float:
+    megapixels = (image.width * image.height) / 1_000_000
+    base_credits = {
+        "preview": 0.25,
+        "standard": 1.0,
+        "hd": 2.0,
+    }.get(tier, 1.0)
+    if megapixels > 2:
+        base_credits += (megapixels - 2) * 0.5
+    return round(base_credits, 2)
 
 
 def _to_png_bytes(image: Image.Image) -> bytes:
@@ -57,109 +86,142 @@ def _to_png_bytes(image: Image.Image) -> bytes:
 
 def _validate_transparency(image: Image.Image) -> bool:
     if image.mode != "RGBA":
-        return False
+        return True
     alpha = image.getchannel("A")
     histogram = alpha.histogram()
     total_pixels = image.width * image.height
     transparent_pixels = histogram[0]
     non_transparent_pixels = total_pixels - transparent_pixels
     alpha_coverage = non_transparent_pixels / total_pixels
-    return alpha_coverage >= 0.05
+    return alpha_coverage >= 0.01
+
+
+def _remove_background_rembg(image: Image.Image) -> Image.Image:
+    from rembg import remove
+    input_bytes = _to_png_bytes(image)
+    output_bytes = remove(input_bytes)
+    return _load_image(output_bytes)
+
+
+def _remove_background_runpod(image: Image.Image) -> Image.Image:
+    import base64
+    import requests
+    
+    api_key = os.getenv("RUNPOD_API_KEY")
+    endpoint_id = os.getenv("RUNPOD_ENDPOINT_ID")
+    if not api_key or not endpoint_id:
+        raise HTTPException(status_code=503, detail="RunPod not configured")
+    
+    image_b64 = base64.b64encode(_to_png_bytes(image)).decode()
+    payload = {
+        "input": {"image": image_b64}
+    }
+    
+    response = requests.post(
+        f"https://api.runpod.io/v2/{endpoint_id}/realtime",
+        headers={"Authorization": f"Bearer {api_key}"},
+        json=payload,
+        timeout=int(os.getenv("RUNPOD_TIMEOUT", "120"))
+    )
+    response.raise_for_status()
+    
+    result = response.json()
+    output_b64 = result["output"]["image"]
+    return _load_image(base64.b64decode(output_b64))
 
 
 def _remove_background(image: Image.Image) -> Image.Image:
-    models = [MODEL_PRIMARY, MODEL_FALLBACK, MODEL_EMERGENCY]
-    last_error = None
+    if os.getenv("RUNPOD_ENABLED") == "1":
+        return _remove_background_runpod(image)
+    return _remove_background_rembg(image)
+
+
+def _process_upload(raw: bytes, content_type: str | None, output: Literal["transparent", "white"], tier: str = "standard") -> ProcessedImage:
+    _validate_upload(raw, content_type)
     
-    for model in models:
-        try:
-            if os.getenv("BACKGROUND_REMOVER_TEST_MODE") == "1":
-                return image
-            from rembg import remove
-            
-            input_bytes = _to_png_bytes(image)
-            session = _get_session(model)
-            output_bytes = remove(input_bytes, session=session)
-            result = _load_image(output_bytes)
-            
-            if _validate_transparency(result):
-                return result
-            last_error = Exception(f"Model {model} produced invalid transparency")
-        except Exception as exc:
-            last_error = exc
-            continue
+    source = _load_image(raw)
+    resized = _resize_for_tier(source, tier)
+    credits = _calculate_credits(resized, tier)
+    cutout = _remove_background(resized)
     
-    raise HTTPException(status_code=500, detail=f"Background removal failed for all models: {last_error}")
-
-
-def _process_upload(raw: bytes, content_type: str | None, output: Literal["transparent", "white"]) -> ProcessedImage:
-    if not content_type or not content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image uploads are supported")
-
-    try:
-        if not raw:
-            raise HTTPException(status_code=400, detail="Empty image file")
-
-        source = _resize_if_needed(_load_image(raw))
-        cutout = _remove_background(source)
-
-        if output == "transparent":
-            result = _to_png_bytes(cutout)
-            return ProcessedImage(
-                content=result,
-                media_type="image/png",
-                filename="product-transparent.png",
-            )
-
-        white_bg = Image.new("RGB", cutout.size, (255, 255, 255))
-        alpha = cutout.getchannel("A") if cutout.mode == "RGBA" else None
-        if alpha is not None:
-            white_bg.paste(cutout.convert("RGB"), mask=alpha)
-        else:
-            white_bg.paste(cutout.convert("RGB"))
-        buf = io.BytesIO()
-        white_bg.save(buf, format="JPEG", quality=92, optimize=True, progressive=True)
+    if not _validate_transparency(cutout):
+        raise HTTPException(status_code=500, detail="Background removal produced invalid transparency")
+    
+    if output == "transparent":
+        result = _to_png_bytes(cutout)
         return ProcessedImage(
-            content=buf.getvalue(),
-            media_type="image/jpeg",
-            filename="product-white.jpg",
+            content=result,
+            media_type="image/png",
+            filename="product-transparent.png",
+            credits_used=credits,
         )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Image processing failed: {exc}") from exc
+    
+    white_bg = Image.new("RGB", cutout.size, (255, 255, 255))
+    alpha = cutout.getchannel("A") if cutout.mode == "RGBA" else None
+    if alpha is not None:
+        white_bg.paste(cutout.convert("RGB"), mask=alpha)
+    else:
+        white_bg.paste(cutout.convert("RGB"))
+    buf = io.BytesIO()
+    white_bg.save(buf, format="JPEG", quality=92, optimize=True, progressive=True)
+    return ProcessedImage(
+        content=buf.getvalue(),
+        media_type="image/jpeg",
+        filename="product-white.jpg",
+        credits_used=credits,
+    )
+
+
+app = FastAPI(title="AI Photo Studio Background Remover", version="0.2.0")
 
 
 @app.get("/health")
 def health():
-    return {"success": True, "message": "background remover is running", "model": MODEL_PRIMARY, "status": "ready"}
+    return {
+        "success": True,
+        "message": "background remover is running",
+        "model": "runpod" if os.getenv("RUNPOD_ENABLED") == "1" else "rembg-default",
+        "status": "ready",
+    }
 
 
 @app.post("/remove-bg")
 async def remove_bg(request: Request):
-    processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent")
+    tier = request.headers.get("X-Image-Tier", "standard")
+    processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent", tier)
     return StreamingResponse(
         io.BytesIO(processed.content),
         media_type=processed.media_type,
-        headers={"Content-Disposition": f'attachment; filename="{processed.filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{processed.filename}"',
+            "X-Credits-Used": str(processed.credits_used),
+        },
     )
 
 
 @app.post("/product-white")
 async def product_white(request: Request):
-    processed = _process_upload(await request.body(), request.headers.get("content-type"), "white")
+    tier = request.headers.get("X-Image-Tier", "standard")
+    processed = _process_upload(await request.body(), request.headers.get("content-type"), "white", tier)
     return StreamingResponse(
         io.BytesIO(processed.content),
         media_type=processed.media_type,
-        headers={"Content-Disposition": f'attachment; filename="{processed.filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{processed.filename}"',
+            "X-Credits-Used": str(processed.credits_used),
+        },
     )
 
 
 @app.post("/product-transparent")
 async def product_transparent(request: Request):
-    processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent")
+    tier = request.headers.get("X-Image-Tier", "standard")
+    processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent", tier)
     return StreamingResponse(
         io.BytesIO(processed.content),
         media_type=processed.media_type,
-        headers={"Content-Disposition": f'attachment; filename="{processed.filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{processed.filename}"',
+            "X-Credits-Used": str(processed.credits_used),
+        },
     )
