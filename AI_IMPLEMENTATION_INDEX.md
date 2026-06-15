@@ -152,6 +152,8 @@
 - `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS on 2026-06-15
 - Background remover health: PASS on 2026-06-15, model `isnet-general-use`
 - CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
+- Live background-removal POST: PASS on 2026-06-15; generated input and processed output hashes differed
+- Latest Cloudflare Pages URL after API fix: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
 - `VITE_DISABLE_PREVIEW_LIMIT=true npm.cmd run build -w apps/web`: PASS on 2026-06-14
 - Direct Cloudflare deploy: PASS on 2026-06-14
 - Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`

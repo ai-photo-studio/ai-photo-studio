@@ -38,6 +38,8 @@ Cloudflare Pages frontend -> Railway API -> Railway background-remover service.
 | Cloudflare deployment list | PASS |
 | API health | PASS: `/api/health` returned `200 OK` |
 | CORS preflight | PASS: `/api/previews/background-removal` returned `204` |
+| Live route registry | PASS: `previews-background-removal` route present |
+| Live background-removal POST | PASS: returned processed image bytes and a different SHA256 hash |
 
 ## Build Verification
 
@@ -51,3 +53,4 @@ Cloudflare Pages frontend -> Railway API -> Railway background-remover service.
 
 - The frontend build now contains assets `index-DrIR6fJD.css` and `index-0FRsnax4.js` before deployment.
 - `AI_code_audit_report.md` remains listed in `.gitignore`.
+- Live before/after proof: generated input image hash `D8BB1DD95B131E44491B8F5FAF96F2CBE66BCBBDA8A587CD5E63D75AC69C206C`; processed output hash `D6B4E124A74344DF3A4AEDE10C9EE78A16FEF50F44A4A2178723403F56FC7863`.

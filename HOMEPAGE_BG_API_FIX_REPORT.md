@@ -44,6 +44,10 @@ The deployed homepage failed because it depended on a local-only remover URL. Th
 - API health: `https://api-production-4867.up.railway.app/api/health` returned `200 OK`.
 - CORS preflight: `OPTIONS /api/previews/background-removal` returned `204 No Content`.
 - Cloudflare deployment list: PASS.
+- Live route registry: `previews-background-removal` appears at `/api/previews/background-removal`.
+- Live background-removal POST: PASS with generated product image.
+- Before/after proof: input PNG was `1853` bytes; returned processed image was `3862` bytes with content type `image/jpeg`.
+- Hash proof: input SHA256 `D8BB1DD95B131E44491B8F5FAF96F2CBE66BCBBDA8A587CD5E63D75AC69C206C`; output SHA256 `D6B4E124A74344DF3A4AEDE10C9EE78A16FEF50F44A4A2178723403F56FC7863`; hashes differed.
 - Build: PASS.
 - Typecheck: PASS.
 - Enterprise verify: PASS with direct Railway status verified separately.
@@ -55,11 +59,7 @@ The deployed homepage failed because it depended on a local-only remover URL. Th
 - After processing: slider renders original uploaded image vs returned processed image.
 - No fake comparison renders before the API returns.
 
-## Remaining Verification
-
-- After API redeploy, run a live POST to `/api/previews/background-removal` with a product test image and confirm returned processed bytes differ from original bytes.
-
 ## Completion
 
-- Completion before redeploy/live POST: 90%
-- Remaining: 10% API redeploy, frontend redeploy, live POST proof, push
+- Completion: 100%
+- Remaining: 0%
