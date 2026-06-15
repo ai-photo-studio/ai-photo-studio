@@ -3,9 +3,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { customerApi } from "../services/customerApi";
 
-const DISABLE_PREVIEW_LIMIT = import.meta.env.VITE_DISABLE_PREVIEW_LIMIT === "true";
-const PREVIEW_CLIENT_STORAGE_KEY = "aps-preview-client-id";
-
 type UploadState = "idle" | "opening" | "working" | "done" | "error";
 
 const serviceCards = [
@@ -20,27 +17,44 @@ const serviceCards = [
   { title: "Meta ads ready", body: "Facebook and Instagram creative sizes.", href: "/pricing" }
 ];
 
-const clearPreviewStorage = () => {
+const demoProduct =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620">
+      <rect width="900" height="620" rx="34" fill="#f8fbf8"/>
+      <rect x="100" y="74" width="700" height="470" rx="28" fill="#e6f4ea"/>
+      <circle cx="650" cy="190" r="96" fill="#bbf7d0"/>
+      <ellipse cx="450" cy="505" rx="175" ry="28" fill="#cfe5d4"/>
+      <path d="M315 405c80-128 166-206 258-234 54 54 82 120 80 198-96 50-211 62-338 36z" fill="#f97316"/>
+      <path d="M352 358c63-80 132-130 209-150 30 34 47 76 51 126-74 35-160 43-260 24z" fill="#ffffff"/>
+      <path d="M410 298l42 62 116-98" fill="none" stroke="#ef4444" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+  );
+
+const clearPreviewState = () => {
   if (typeof window === "undefined") return;
   const clearMatchingKeys = (storage: Storage) => {
     const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter(Boolean) as string[];
-    keys.filter((key) => key.toLowerCase().includes("preview")).forEach((key) => storage.removeItem(key));
+    keys
+      .filter((key) => {
+        const normalized = key.toLowerCase();
+        return normalized.includes("preview") || normalized.includes("quota") || normalized.includes("limit");
+      })
+      .forEach((key) => storage.removeItem(key));
   };
   clearMatchingKeys(window.localStorage);
   clearMatchingKeys(window.sessionStorage);
-};
-
-const getPreviewClientId = () => {
-  if (typeof window === "undefined") return "preview";
-  if (DISABLE_PREVIEW_LIMIT) {
-    clearPreviewStorage();
-    return "preview-limit-disabled";
-  }
-  const existing = window.localStorage.getItem(PREVIEW_CLIENT_STORAGE_KEY);
-  if (existing) return existing;
-  const next = window.crypto?.randomUUID?.() || `preview-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  window.localStorage.setItem(PREVIEW_CLIENT_STORAGE_KEY, next);
-  return next;
+  document.cookie
+    .split(";")
+    .map((cookie) => cookie.split("=")[0]?.trim())
+    .filter(Boolean)
+    .filter((name) => {
+      const normalized = name.toLowerCase();
+      return normalized.includes("preview") || normalized.includes("quota") || normalized.includes("limit");
+    })
+    .forEach((name) => {
+      document.cookie = `${name}=; Max-Age=0; path=/`;
+    });
 };
 
 const fileToBase64 = (file: File) =>
@@ -72,7 +86,6 @@ export function HomePage() {
   const { status } = useAuth();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewClientId] = useState(getPreviewClientId);
   const [sourcePreview, setSourcePreview] = useState<string | null>(null);
   const [resultPreview, setResultPreview] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -82,7 +95,7 @@ export function HomePage() {
   const previewToken = status === "ready" ? undefined : undefined;
 
   useEffect(() => {
-    if (DISABLE_PREVIEW_LIMIT) clearPreviewStorage();
+    clearPreviewState();
   }, []);
 
   const resetResult = () => {
@@ -133,7 +146,6 @@ export function HomePage() {
       const result = await customerApi.removeBackgroundPreview(previewToken, {
         fileName: selectedFile.name,
         contentType: selectedFile.type || "image/png",
-        previewClientId,
         selectedActions: ["remove-background"],
         bodyBase64
       });
@@ -176,7 +188,6 @@ export function HomePage() {
                 <p className="upload-title">{dragActive ? "Drop your product photo" : "Upload product photo"}</p>
                 <p className="upload-copy">PNG, JPG, or WebP. Your image appears in the preview immediately.</p>
               </div>
-              {DISABLE_PREVIEW_LIMIT && <span className="test-badge">Preview limit off</span>}
             </div>
 
             {sourcePreview ? (
@@ -227,21 +238,22 @@ export function HomePage() {
 
           <div className="single-preview-stage">
             {sourcePreview ? (
-              <img src={sourcePreview} alt="Uploaded product preview" />
+              <img src={resultPreview || sourcePreview} alt={resultPreview ? "Processed product preview" : "Uploaded product preview"} />
             ) : (
-              <div className="preview-empty-state">
+              <div className="preview-empty-state demo-preview-state">
+                <img src={demoProduct} alt="Demo product before upload" />
                 <strong>Upload preview appears here</strong>
-                <span>No demo image will be shown after you select a file.</span>
+                <span>Choose a product photo to replace this demo.</span>
               </div>
             )}
           </div>
 
+          {sourcePreview && resultPreview ? (
           <div className="hero-compare-card">
             <div className="hero-compare-head">
               <strong>Comparison slider</strong>
-              <span>{resultPreview ? "Drag to compare" : "Preview will appear here"}</span>
+              <span>Drag to compare</span>
             </div>
-            {sourcePreview && resultPreview ? (
               <div className="interactive-compare bg-compare" style={{ "--compare": `${compareValue}%` } as CSSProperties & Record<"--compare", string>}>
                 <img className="compare-before" src={sourcePreview} alt="Original uploaded product before background removal" />
                 <div className="compare-after-wrap">
@@ -257,19 +269,8 @@ export function HomePage() {
                 />
                 <span className="compare-handle" aria-hidden="true" />
               </div>
-            ) : (
-              <div className="bg-compare waiting-compare">
-                {sourcePreview ? (
-                  <>
-                    <img src={sourcePreview} alt="Original uploaded product waiting for processed background removal" />
-                    <span>{uploadState === "working" ? "Processing..." : "Preview will appear here"}</span>
-                  </>
-                ) : (
-                  <span>Choose a product photo to start.</span>
-                )}
-              </div>
-            )}
           </div>
+          ) : null}
         </aside>
       </section>
 

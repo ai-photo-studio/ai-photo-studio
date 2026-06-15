@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { BackgroundRemoverService } from "../services/background-remover.service";
-import { isPreviewLimitDisabled, PreviewQuotaService } from "../services/preview-quota.service";
+import { PreviewQuotaService } from "../services/preview-quota.service";
 import { verifyToken } from "../middleware/auth.middleware";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { prisma } from "../db/prisma";
@@ -25,24 +25,9 @@ export class PreviewController {
     this.backgroundRemover = new BackgroundRemoverService(config);
   }
 
-  claimWebPreview = async (req: Request, res: Response): Promise<void> => {
+  unlimitedWebPreview = async (req: Request, res: Response): Promise<void> => {
     try {
       const payload = (req.body || {}) as WebPreviewPayload;
-
-      if (isPreviewLimitDisabled()) {
-        res.status(201).json({
-          success: true,
-          data: {
-            scopeType: "guest",
-            limit: -1,
-            used: 0,
-            remaining: -1,
-            isTestAccount: false,
-            disabled: true
-          }
-        });
-        return;
-      }
 
       const user = this.resolveOptionalUser(req);
 
@@ -55,7 +40,7 @@ export class PreviewController {
         customerId = userWithCustomer?.customerId ?? undefined;
       }
 
-      const result = await this.previewQuotaService.claimWebPreview({
+      const result = await this.previewQuotaService.getUnlimitedWebPreview({
         userId: user?.sub,
         customerId,
         previewClientId: payload.previewClientId,
@@ -82,28 +67,6 @@ export class PreviewController {
         throw new AppError("Image bodyBase64 is required", 400, "IMAGE_REQUIRED");
       }
 
-      if (!isPreviewLimitDisabled()) {
-        const user = this.resolveOptionalUser(req);
-        let customerId: string | undefined;
-        if (user?.sub) {
-          const userWithCustomer = await prisma.user.findUnique({
-            where: { id: user.sub },
-            select: { customerId: true }
-          });
-          customerId = userWithCustomer?.customerId ?? undefined;
-        }
-
-        await this.previewQuotaService.claimWebPreview({
-          userId: user?.sub,
-          customerId,
-          previewClientId: payload.previewClientId,
-          ipAddress: this.getRequestIp(req),
-          userAgent: req.headers["user-agent"] ? String(req.headers["user-agent"]) : undefined,
-          fileName: payload.fileName,
-          contentType: payload.contentType
-        });
-      }
-
       const output = await this.backgroundRemover.productWhite({
         body: Buffer.from(payload.bodyBase64, "base64"),
         contentType: payload.contentType || "image/png",
@@ -116,7 +79,7 @@ export class PreviewController {
           fileName: output.fileName,
           contentType: output.contentType,
           bodyBase64: output.body.toString("base64"),
-          disabledPreviewLimit: isPreviewLimitDisabled()
+          disabledPreviewLimit: true
         }
       });
     } catch (error) {

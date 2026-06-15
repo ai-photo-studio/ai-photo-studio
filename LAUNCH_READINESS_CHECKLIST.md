@@ -12,13 +12,9 @@
 | FAQ | ✅ COMPLETE | Accordion format |
 | Footer | ✅ COMPLETE | Simple footer |
 
-## Preview Limit Status: DISABLED FOR TESTING
+## Preview Limit Status
 
-| Setting | Value |
-|---------|-------|
-| DISABLE_PREVIEW_LIMIT | true |
-| Unlimited previews | ENABLED |
-| Production | Will revert to false |
+Preview limits are removed from the testing preview workflow. Homepage previews use the live background-removal pipeline without device blocking.
 
 ## Deployment Status: LIVE
 

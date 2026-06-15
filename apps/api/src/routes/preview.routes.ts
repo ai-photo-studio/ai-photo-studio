@@ -6,7 +6,7 @@ export const createPreviewRouter = (config: AppConfig): Router => {
   const router = Router();
   const controller = new PreviewController(config);
 
-  router.post("/previews/web", controller.claimWebPreview);
+  router.post("/previews/web", controller.unlimitedWebPreview);
   router.post("/previews/background-removal", controller.removeBackgroundPreview);
 
   return router;

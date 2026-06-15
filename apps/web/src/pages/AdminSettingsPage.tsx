@@ -6,7 +6,7 @@ export function AdminSettingsPage() {
         <h1>System configuration.</h1>
       </div>
       <div className="card">
-        <p className="helper-text">Settings management. Configure credit limits, free preview rules, and system parameters.</p>
+        <p className="helper-text">Settings management. Configure credit bundles, export rules, and system parameters.</p>
       </div>
     </section>
   );

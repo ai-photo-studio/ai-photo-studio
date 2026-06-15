@@ -202,7 +202,7 @@ export function OrdersPage() {
           <p>Held for active processing jobs</p>
         </article>
         <article className="metric-card">
-          <span>Free preview</span>
+          <span>Trial upload</span>
           <strong>1 + 3</strong>
           <p>1 guest preview, 3 credits for new accounts</p>
         </article>
@@ -278,7 +278,7 @@ export function OrdersPage() {
         <form className="card stack" onSubmit={createOrder}>
           <div className="section-heading section-heading-tight">
             <p className="eyebrow">Credits</p>
-            <h2>Buy credits when the free quota runs out</h2>
+            <h2>Buy credits for full-resolution exports</h2>
           </div>
           <label className="field">
             <span>Customer number</span>

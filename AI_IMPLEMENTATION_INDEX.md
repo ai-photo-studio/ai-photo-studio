@@ -26,7 +26,7 @@
 
 ## Phase 1.5 Implementation Map
 
-- `apps/api/src/services/preview-quota.service.ts`: free preview quota enforcement
+- `apps/api/src/services/preview-quota.service.ts`: preview limit disabled/unlimited response path
 - `apps/api/src/controllers/preview.controller.ts`: public preview claim endpoint
 - `apps/api/src/routes/preview.routes.ts`: route registration for preview claims
 - `apps/api/src/controllers/order.controller.ts`: credit reservation at upload start and download gating
@@ -104,7 +104,7 @@
 
 ## Verified Behavior
 
-- Free preview claims are counted before local preview processing begins.
+- Preview limit enforcement is disabled for testing and returns an unlimited disabled response.
 - Web uploads reserve credits before the job is queued.
 - Successful processing settles the reservation instead of leaving credits dangling.
 - Full-resolution download is hidden unless the backend allows it.
@@ -127,7 +127,7 @@
 - Selected upload actions are sent through preview/upload request types and backend processing metadata.
 - Local processing only applies resize when Resize is selected and gates crop/center, background, and enhancement by selected actions.
 - Unsupported creative actions are labeled coming soon and use mock/placeholder preview treatment.
-- Preview quota is fully bypassed for testing when `DISABLE_PREVIEW_LIMIT=true` and `VITE_DISABLE_PREVIEW_LIMIT=true`.
+- Preview limit messaging and quota blocking are removed from the homepage preview workflow.
 - Product examples now reflect ecommerce categories instead of a generic mockup.
 - Local AI pipeline now stages detection, crop, center, background removal, enhancement, and quality comparison before export.
 - Product images are now classified before processing so category-specific routing can change the pipeline profile.
@@ -154,7 +154,6 @@
 - CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
 - Live background-removal POST: PASS on 2026-06-15; generated input and processed output hashes differed
 - Latest Cloudflare Pages URL after API fix: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
-- `VITE_DISABLE_PREVIEW_LIMIT=true npm.cmd run build -w apps/web`: PASS on 2026-06-14
 - Direct Cloudflare deploy: PASS on 2026-06-14
 - Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`
 - Live deployed screenshot: `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`
@@ -199,12 +198,12 @@
 
 - `apps/web/src/pages/HomePage.tsx`: hero, upload card, samples, marketplace badges, feature panel, before/after slider, export cards, PKR pricing
 - `apps/api/src/controllers/preview.controller.ts`: disabled preview limit early return
-- `apps/api/src/services/preview-quota.service.ts`: runtime `DISABLE_PREVIEW_LIMIT` helper
+- `apps/api/src/services/preview-quota.service.ts`: unlimited preview response helper
 - `apps/web/src/pages/FeaturePage.tsx`: public route content for background removal, enhancement, flat lay, lifestyle, virtual model, and videos
 - `apps/web/src/App.tsx`: verified routes for public features, pricing, login, register, and admin modules
 - `apps/web/src/components/PublicLayout.tsx`: duplicate homepage navbar removed
 - `apps/web/src/styles.css`: old homepage CSS replaced
-- `UI_REDESIGN_PHASE2_REPORT.md`: route matrices, changed files, deleted files, and completion status
+- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: current homepage acceptance report
 
 ## Final UI Polish Map
 
@@ -219,7 +218,7 @@
 - `apps/web/src/App.tsx`: admin logs and audit logs routes
 - `ADMIN_FEATURE_VERIFICATION_REPORT.md`: refreshed admin route matrix
 - `AI_code_audit_report.md`: refreshed preview-limit and homepage audit
-- `UI_UPLOAD_ACTIONS_FINAL_REPORT.md`: final upload-actions report
+- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: current homepage acceptance report
 - `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`: final deployed screenshot proof
 
 ## Homepage Final Polish Map
@@ -247,7 +246,15 @@
 - `apps/web/src/services/customerApi.ts`: `removeBackgroundPreview` client method
 - `apps/web/src/pages/HomePage.tsx`: frontend now calls Railway API preview proxy and no longer requires `VITE_LOCAL_REMOVER_URL`
 - `apps/web/src/styles.css`: contain-fit preview and slider clipping fixes
-- `HOMEPAGE_BG_API_FIX_REPORT.md`: root cause, proof, and deployment checklist
+- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: root cause, proof, and deployment checklist
+
+## Homepage Acceptance Fix Map
+
+- `apps/api/src/services/preview-quota.service.ts`: no blocking quota or device-limit error path remains
+- `apps/api/src/controllers/preview.controller.ts`: background-removal preview does not call quota before processing
+- `apps/web/src/pages/HomePage.tsx`: removal.ai-style hero, demo-before-upload, uploaded image after upload, processed image after result, slider gated by result
+- `apps/web/src/styles.css`: contain-fit preview image rules with centered positioning
+- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: fresh acceptance report replacing previous homepage reports
 
 ## Current Completion
 

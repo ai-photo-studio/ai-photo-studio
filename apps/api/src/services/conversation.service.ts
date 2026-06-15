@@ -1,5 +1,5 @@
 const WELCOME_WORDS = new Set(["hi", "hello", "start", "aoa", "assalamualaikum"]);
-const PACKAGE_WORDS = new Set(["free preview", "basic pack", "seller ready pack", "premium launch pack"]);
+const PACKAGE_WORDS = new Set(["trial upload", "basic pack", "seller ready pack", "premium launch pack"]);
 
 export const shouldSendWelcomeMenu = (text?: string): boolean => {
   if (!text) return false;

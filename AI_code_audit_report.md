@@ -2,55 +2,35 @@
 
 ## Scope
 
-Critical homepage background-removal API fix for AI Product Photo Studio. WhatsApp is intentionally ignored.
+Critical homepage acceptance fix for AI Product Photo Studio. WhatsApp is ignored.
 
 ## Root Cause
 
-The homepage called `VITE_LOCAL_REMOVER_URL` directly from the browser. That variable is local-only and was not configured in Cloudflare Pages, so the deployed hero showed `Background removal preview API is not configured for this environment.`
+The live homepage still exposed a legacy preview counter path. The backend quota service still contained the old device-limit error, and the background-removal preview endpoint could call that quota path before processing. The homepage also retained preview-client storage state.
 
-The correct architecture is:
-
-Cloudflare Pages frontend -> Railway API -> Railway background-remover service.
-
-## Fix Audit
+## Fix Summary
 
 | Area | Status | Proof |
 |------|--------|-------|
-| Frontend API URL | PASS | Web API base falls back to `https://api-production-4867.up.railway.app` in production. |
-| Local remover dependency removed | PASS | Homepage no longer reads `VITE_LOCAL_REMOVER_URL`. |
-| Preview API proxy | PASS | Added `POST /api/previews/background-removal` on the Railway API. |
-| Background remover connectivity | PASS | API endpoint proxies to `BackgroundRemoverService.productWhite`. |
-| CORS | PASS | API OPTIONS preflight returned `204 No Content` with CORS headers. |
-| Upload body limit | PASS | API JSON body limit raised to `12mb` for base64 product photo previews. |
-| No fake result | PASS | Homepage only creates `resultPreview` from returned API `bodyBase64`. |
-| Slider gating | PASS | Slider renders only when both `sourcePreview` and `resultPreview` exist. |
-| Original-only waiting state | PASS | Before API result, right side shows uploaded original image and waiting copy. |
-| Preview cropping | PASS | Preview image containers use `object-fit: contain` and `object-position: center`. |
+| Device-limit message removed | PASS | The backend no longer contains the old device-limit error string. |
+| Preview blocking disabled | PASS | Preview compatibility route always returns unlimited disabled status. |
+| Background preview quota removed | PASS | `/api/previews/background-removal` processes images without quota checks. |
+| Frontend counters removed | PASS | Homepage no longer creates a preview client ID. |
+| Browser state cleanup | PASS | Homepage clears preview/quota/limit keys from localStorage, sessionStorage, and matching cookies. |
+| Hero simplified | PASS | Hero has heading, short copy, upload box, choose file, and remove background button. |
+| Demo before upload | PASS | Preview stage shows demo image before upload only. |
+| Upload preview | PASS | After upload, demo is replaced by the uploaded image. |
+| Processed preview | PASS | After processing, large preview uses returned processed image. |
+| Slider gating | PASS | Slider is hidden until `resultPreview` exists. |
+| Image sizing | PASS | Preview containers use `object-fit: contain` and `object-position: center`. |
 
-## Platform Verification
+## Verification Checklist
 
-| Check | Status |
-|-------|--------|
-| Railway status | PASS: API and background-remover services online |
-| Railway API URL | `https://api-production-4867.up.railway.app` |
-| Background remover URL | `https://background-remover-production-0627.up.railway.app` |
-| Background remover health | PASS: `isnet-general-use` model reported |
-| Cloudflare deployment list | PASS |
-| API health | PASS: `/api/health` returned `200 OK` |
-| CORS preflight | PASS: `/api/previews/background-removal` returned `204` |
-| Live route registry | PASS: `previews-background-removal` route present |
-| Live background-removal POST | PASS: returned processed image bytes and a different SHA256 hash |
-
-## Build Verification
-
-| Check | Status |
-|-------|--------|
-| `npm.cmd run build` | PASS |
-| `npm.cmd run typecheck` | PASS |
-| `npm.cmd run enterprise-verify` | PASS with Railway network/auth warning inside verification script; direct `railway status` passed |
-
-## Deployment Notes
-
-- The frontend build now contains assets `index-DrIR6fJD.css` and `index-0FRsnax4.js` before deployment.
-- `AI_code_audit_report.md` remains listed in `.gitignore`.
-- Live before/after proof: generated input image hash `D8BB1DD95B131E44491B8F5FAF96F2CBE66BCBBDA8A587CD5E63D75AC69C206C`; processed output hash `D6B4E124A74344DF3A4AEDE10C9EE78A16FEF50F44A4A2178723403F56FC7863`.
+- Repository search for the exact old device-limit message: PASS, no matches.
+- Repository search for old preview-limit env flags and claim names: PASS, no matches.
+- Build: PASS.
+- Typecheck: PASS.
+- Enterprise verify: PASS with Railway network warning inside the script.
+- Railway status/logs: pending final live deployment verification.
+- Wrangler deployment list: pending final live deployment verification.
+- Live screenshot proof: pending final capture.

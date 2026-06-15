@@ -3,8 +3,7 @@ import type {
   CustomerOrderResponse,
   CustomerPaymentsResponse,
   CustomerSubscriptionResponse,
-  CustomerWalletResponse,
-  WebPreviewQuotaResponse
+  CustomerWalletResponse
 } from "../lib/portal-types";
 
 type PaymentRequestInput = {
@@ -26,14 +25,10 @@ type WebUploadInput = {
   selectedActions?: string[];
 };
 
-type PreviewClaimInput = {
+type BackgroundRemovalPreviewInput = {
   fileName: string;
   contentType: string;
-  previewClientId?: string;
   selectedActions?: string[];
-};
-
-type BackgroundRemovalPreviewInput = PreviewClaimInput & {
   bodyBase64: string;
 };
 
@@ -90,15 +85,6 @@ export const customerApi = {
       token
     ),
   order: (orderNo: string, token?: string) => apiRequest<CustomerOrderResponse>(`/api/orders/${orderNo}`, {}, token),
-  claimWebPreview: (token: string | undefined, input: PreviewClaimInput) =>
-    apiRequest<WebPreviewQuotaResponse>(
-      "/api/previews/web",
-      {
-        method: "POST",
-        body: JSON.stringify(input)
-      },
-      token
-    ),
   removeBackgroundPreview: (token: string | undefined, input: BackgroundRemovalPreviewInput) =>
     apiRequest<{ fileName: string; contentType: string; bodyBase64: string; disabledPreviewLimit?: boolean }>(
       "/api/previews/background-removal",
