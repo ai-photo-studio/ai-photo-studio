@@ -114,6 +114,13 @@
 - Homepage uses PKR pricing only and shows JazzCash and Bank Transfer payment options.
 - Homepage includes a working range-based before/after slider, immediate selected-file preview, and marketplace export section.
 - Homepage upload card now includes selectable service actions with defaults: remove background, auto crop, and auto center.
+- Homepage final polish now keeps upload and preview cards side by side with matching fixed desktop heights.
+- Uploaded product images now immediately populate the right preview panel and persist while switching service tabs.
+- Hero before/after comparison now uses the uploaded image state with a draggable range handle.
+- Homepage services now live in a dedicated section below the hero instead of crowding the hero preview.
+- Homepage background-remover final pass now removes hero checkboxes/service tabs and shows only upload, real API background removal, and an honest original/result comparison.
+- Homepage no longer fakes background removal with local canvas or frame changes; processed preview appears only from the remover API result.
+- Public navbar now includes a Services dropdown for non-hero product photo tools.
 - Selected upload actions are sent through preview/upload request types and backend processing metadata.
 - Local processing only applies resize when Resize is selected and gates crop/center, background, and enhancement by selected actions.
 - Unsupported creative actions are labeled coming soon and use mock/placeholder preview treatment.
@@ -130,6 +137,11 @@
 - `npm.cmd run build`: PASS on 2026-06-14
 - `npm.cmd run typecheck`: PASS on 2026-06-14
 - `npm.cmd run enterprise-verify`: PASS with Railway network warnings on 2026-06-14
+- `npm.cmd run build`: PASS on 2026-06-15
+- `npm.cmd run typecheck`: PASS on 2026-06-15
+- `npm.cmd run enterprise-verify`: PASS with Railway network/auth warnings on 2026-06-15
+- Cloudflare Pages deploy: PASS on 2026-06-15
+- Latest verified Cloudflare URL: `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev`
 - `VITE_DISABLE_PREVIEW_LIMIT=true npm.cmd run build -w apps/web`: PASS on 2026-06-14
 - Direct Cloudflare deploy: PASS on 2026-06-14
 - Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`
@@ -197,6 +209,23 @@
 - `AI_code_audit_report.md`: refreshed preview-limit and homepage audit
 - `UI_UPLOAD_ACTIONS_FINAL_REPORT.md`: final upload-actions report
 - `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`: final deployed screenshot proof
+
+## Homepage Final Polish Map
+
+- `apps/web/src/pages/HomePage.tsx`: fixed-height upload and preview hero, uploaded-image preview state, service tabs, product video motion card, and in-card before/after slider
+- `apps/web/src/styles.css`: final hero grid, fixed card heights, contain-fit preview imagery, service tabs, comparison card, and dedicated services section
+- `AI_code_audit_report.md`: refreshed final polish audit
+- `HOMEPAGE_FINAL_POLISH_REPORT.md`: final polish completion report
+- Screenshot proof: attempted from built local preview, blocked by local headless Edge not writing a PNG
+
+## Homepage Background Remover Final Map
+
+- `apps/web/src/pages/HomePage.tsx`: remove.bg-style hero with upload, real background-removal call, immediate original preview, honest waiting state, and original/result slider
+- `apps/web/src/components/PublicLayout.tsx`: Services dropdown in public navigation
+- `apps/web/src/styles.css`: fixed preview card, contain-fit image stages, Services dropdown, background-remover hero, and responsive preview behavior
+- `AI_code_audit_report.md`: refreshed background-remover final audit
+- `HOMEPAGE_BG_REMOVER_FINAL_REPORT.md`: final report with deployment and verification proof
+- Latest Cloudflare Pages URL: `https://43d4391a.ai-photo-studio-whatsapp-web.pages.dev`
 
 ## Current Completion
 

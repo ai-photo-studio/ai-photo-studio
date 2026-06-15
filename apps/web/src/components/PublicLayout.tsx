@@ -13,7 +13,19 @@ export function PublicLayout() {
         </Link>
         <nav className="site-nav">
           <NavLink to="/background-removal" className="nav-link">Remove BG</NavLink>
-          <NavLink to="/enhancement" className="nav-link">Enhance</NavLink>
+          <div className="nav-dropdown">
+            <button type="button" className="nav-link nav-menu-button">Services</button>
+            <div className="nav-dropdown-menu" aria-label="Services menu">
+              <NavLink to="/background-removal">Background Removal</NavLink>
+              <NavLink to="/enhancement">AI Enhancement</NavLink>
+              <NavLink to="/enhancement">Auto Crop & Center</NavLink>
+              <NavLink to="/flat-lay">Flat Lay</NavLink>
+              <NavLink to="/lifestyle">Lifestyle Scenes</NavLink>
+              <NavLink to="/virtual-model">Virtual Models</NavLink>
+              <NavLink to="/videos">Product Videos</NavLink>
+              <NavLink to="/pricing">Marketplace Ready Images</NavLink>
+            </div>
+          </div>
           <NavLink to="/pricing" className="nav-link">Pricing</NavLink>
           <NavLink to="/login" className="nav-link">Login</NavLink>
           <NavLink to="/register" className="button">Sign Up</NavLink>
