@@ -59,10 +59,11 @@ def _validate_transparency(image: Image.Image) -> bool:
     if image.mode != "RGBA":
         return False
     alpha = image.getchannel("A")
-    extrema = alpha.getextrema()
+    histogram = alpha.histogram()
     total_pixels = image.width * image.height
-    transparent_pixels = sum(1 for count in alpha.histogram() if count > 0)
-    alpha_coverage = extrema[1] / total_pixels if extrema[1] > 0 else 0
+    transparent_pixels = histogram[0]
+    non_transparent_pixels = total_pixels - transparent_pixels
+    alpha_coverage = non_transparent_pixels / total_pixels
     return alpha_coverage >= 0.05
 
 
@@ -83,6 +84,7 @@ def _remove_background(image: Image.Image) -> Image.Image:
             
             if _validate_transparency(result):
                 return result
+            last_error = Exception(f"Model {model} produced invalid transparency")
         except Exception as exc:
             last_error = exc
             continue
@@ -125,7 +127,7 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail="Image processing failed") from exc
+        raise HTTPException(status_code=500, detail=f"Image processing failed: {exc}") from exc
 
 
 @app.get("/health")
