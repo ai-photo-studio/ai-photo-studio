@@ -11,9 +11,9 @@ from PIL import Image, ImageOps
 
 MAX_PROCESS_DIMENSION = 2000
 
-MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "birefnet")
-MODEL_FALLBACK = os.getenv("BACKGROUND_MODEL_FALLBACK", "bria-rmbg-2.0")
-MODEL_EMERGENCY = os.getenv("BACKGROUND_MODEL_EMERGENCY", "rmbg-2.0")
+MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "isnet-general-use")
+MODEL_FALLBACK = os.getenv("BACKGROUND_MODEL_FALLBACK", "u2net")
+MODEL_EMERGENCY = os.getenv("BACKGROUND_MODEL_EMERGENCY", "u2netp")
 
 app = FastAPI(title="AI Photo Studio Background Remover", version="0.1.0")
 
