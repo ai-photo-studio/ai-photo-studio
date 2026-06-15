@@ -10,7 +10,10 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageOps
 
 MAX_PROCESS_DIMENSION = 2000
-DEFAULT_MODEL = "isnet-general-use"
+
+MODEL_PRIMARY = os.getenv("BACKGROUND_MODEL_PRIMARY", "birefnet")
+MODEL_FALLBACK = os.getenv("BACKGROUND_MODEL_FALLBACK", "bria-rmbg-2.0")
+MODEL_EMERGENCY = os.getenv("BACKGROUND_MODEL_EMERGENCY", "rmbg-2.0")
 
 app = FastAPI(title="AI Photo Studio Background Remover", version="0.1.0")
 
@@ -22,16 +25,9 @@ class ProcessedImage:
     filename: str
 
 
-_session = None
-
-
-def _get_session():
-    global _session
-    if _session is None:
-        from rembg import new_session
-
-        _session = new_session(DEFAULT_MODEL)
-    return _session
+def _get_session(model: str):
+    from rembg import new_session
+    return new_session(model)
 
 
 def _load_image(data: bytes) -> Image.Image:
@@ -41,7 +37,7 @@ def _load_image(data: bytes) -> Image.Image:
         if image.mode not in ("RGB", "RGBA"):
             image = image.convert("RGBA")
         return image
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=400, detail="Invalid image file") from exc
 
 
@@ -59,19 +55,39 @@ def _to_png_bytes(image: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def _remove_background(image: Image.Image) -> Image.Image:
-    try:
-        if os.getenv("BACKGROUND_REMOVER_TEST_MODE") == "1":
-            return image
-        from rembg import remove
+def _validate_transparency(image: Image.Image) -> bool:
+    if image.mode != "RGBA":
+        return False
+    alpha = image.getchannel("A")
+    extrema = alpha.getextrema()
+    total_pixels = image.width * image.height
+    transparent_pixels = sum(1 for count in alpha.histogram() if count > 0)
+    alpha_coverage = extrema[1] / total_pixels if extrema[1] > 0 else 0
+    return alpha_coverage >= 0.05
 
-        input_bytes = _to_png_bytes(image)
-        output_bytes = remove(input_bytes, session=_get_session())
-        return _load_image(output_bytes)
-    except HTTPException:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail="Background removal failed") from exc
+
+def _remove_background(image: Image.Image) -> Image.Image:
+    models = [MODEL_PRIMARY, MODEL_FALLBACK, MODEL_EMERGENCY]
+    last_error = None
+    
+    for model in models:
+        try:
+            if os.getenv("BACKGROUND_REMOVER_TEST_MODE") == "1":
+                return image
+            from rembg import remove
+            
+            input_bytes = _to_png_bytes(image)
+            session = _get_session(model)
+            output_bytes = remove(input_bytes, session=session)
+            result = _load_image(output_bytes)
+            
+            if _validate_transparency(result):
+                return result
+        except Exception as exc:
+            last_error = exc
+            continue
+    
+    raise HTTPException(status_code=500, detail=f"Background removal failed for all models: {last_error}")
 
 
 def _process_upload(raw: bytes, content_type: str | None, output: Literal["transparent", "white"]) -> ProcessedImage:
@@ -108,13 +124,13 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
         )
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=500, detail="Image processing failed") from exc
 
 
 @app.get("/health")
 def health():
-    return {"success": True, "message": "background remover is running", "model": DEFAULT_MODEL}
+    return {"success": True, "message": "background remover is running", "model": MODEL_PRIMARY}
 
 
 @app.post("/remove-bg")
@@ -130,6 +146,16 @@ async def remove_bg(request: Request):
 @app.post("/product-white")
 async def product_white(request: Request):
     processed = _process_upload(await request.body(), request.headers.get("content-type"), "white")
+    return StreamingResponse(
+        io.BytesIO(processed.content),
+        media_type=processed.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{processed.filename}"'},
+    )
+
+
+@app.post("/product-transparent")
+async def product_transparent(request: Request):
+    processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent")
     return StreamingResponse(
         io.BytesIO(processed.content),
         media_type=processed.media_type,
