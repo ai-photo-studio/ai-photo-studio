@@ -1,0 +1,25 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG']
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+  - 'run'
+  - 'deploy'
+  - '$SERVICE_NAME'
+  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG'
+  - '--region=$REGION'
+  - '--project=$PROJECT_ID'
+  - '--platform=managed'
+  - '--allow-unauthenticated'
+  - '--port=3000'
+  - '--cpu=1'
+  - '--memory=512Mi'
+  - '--min-instances=1'
+  - '--max-instances=10'
+images:
+- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG'
+options:
+  logging: CLOUD_LOGGING_ONLY

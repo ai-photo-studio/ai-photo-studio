@@ -1,0 +1,33 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ai-photo-studio-api
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cloudsql-instances: aistudio-ai-photo-studio:us-central1:ai-photo-studio-db
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      serviceAccountName: github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com
+      containers:
+      - image: us-central1-docker.pkg.dev/aistudio-ai-photo-studio/ai-photo-studio-api/ai-photo-studio-api:latest
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            cpu: "1"
+            memory: 512Mi
+        env:
+        - name: NODE_ENV
+          value: production
+        envFrom:
+        - secretRef:
+            name: cloudrun-secrets
+      timeoutSeconds: 300
+      containerConcurrency: 80

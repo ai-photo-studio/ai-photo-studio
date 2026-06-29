@@ -145,17 +145,17 @@
 - `npm.cmd run enterprise-verify`: PASS with Railway network/auth warnings on 2026-06-15
 - Cloudflare Pages deploy: PASS on 2026-06-15
 - Latest Cloudflare Pages URL: `https://4df80c83.ai-photo-studio-whatsapp-web.pages.dev`
-- Background removal model: BiRefNet (birefnet-general) with BRIA/RMBG fallback
+- Background removal model: BiRefNet (birefnet-general) via rembg[beta]
 - Quality score: 8.5/10 (BiRefNet significantly improved)
 - `npm.cmd run build`: PASS on 2026-06-15 after background API proxy fix
 - `npm.cmd run typecheck`: PASS on 2026-06-15 after background API proxy fix
 - `npm.cmd run enterprise-verify`: PASS on 2026-06-15 after background API proxy fix
 - `railway.cmd status`: PASS on 2026-06-15; API and background-remover online
 - `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS on 2026-06-15
-- Background remover health: PASS on 2026-06-15, model `runpod` (configurable)
-- Background removal processing: READY for RunPod migration
+- Background remover health: PASS on 2026-06-15, model `local` (BiRefNet via rembg[beta])
+- Background removal processing: READY for Modal deployment
 - Credit system: Implemented (preview: 0.25, standard: 1, HD: 2)
-- Recommendation: Upgrade to Railway Pro + RunPod for production
+- Modal deployment: BLOCKED by Windows CLI encoding issue
 - CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
 - Live background-removal POST: PASS on 2026-06-15; generated input and processed output hashes differed
 - Latest Cloudflare Pages URL after API fix: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
@@ -311,3 +311,39 @@
 - Enterprise Verify: PASS
 - Production URL: LIVE
 - Latest verified URL: https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev
+
+## Infrastructure Migration Status
+
+- Phase 0 (Inventory): COMPLETE
+- Phase 1 (Google Cloud Foundation): PARTIAL
+  - Google Cloud SDK: Installed on D drive (574.0.0)
+  - gcloud auth: COMPLETE (wpaistudio@gmail.com)
+  - Project: CREATED (aistudio-ai-photo-studio)
+  - APIs enabled: iam, logging, monitoring, sqladmin
+  - APIs pending billing: run, cloudbuild, artifactregistry, compute, secretmanager, containerregistry
+  - Deployment SA: CREATED (github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com)
+- Phase 2.0 (Deployment Preparation): IN PROGRESS
+  - Deployment files: PREPARED (Dockerfile, cloudbuild.yaml, service.yaml, deploy scripts)
+  - Secret mapping: DOCUMENTED (SECRET_MAPPING.md)
+  - Cloud SQL migration plan: DOCUMENTED (DEPLOYMENT_PREPARATION.md)
+  - Railway rollback: READY
+- Phase 2 (Git Migration): PARTIAL
+  - gh auth: ai-photo-studio account (missing admin:org)
+  - GitHub repo: EXISTS (ai-photo-studio/ai-photo-studio)
+  - Remote: NOT UPDATED (still gardenshop/ai-photo-studio-whatsapp.git)
+- Phase 3 (Cloudflare Migration): BLOCKED
+  - Target account: Wpaistudio@gmail.com (Account ID: 2eb5eadd4af6da3d3a5f6c61d92437e4)
+  - wrangler auth: gisupp@gmail.com (needs switch)
+  - Target Pages project: DOES NOT EXIST
+  - Target R2 bucket: DOES NOT EXIST
+- Railway: ONLINE (linked to AI Photo Studio WhatsApp, variables exported)
+- Feature development: PAUSED pending infrastructure foundation
+- Next: Complete billing, GitHub admin:org, Cloudflare account switch
+
+<environment_details>
+- Current time: 2026-06-30T00:56:00+05:00
+- Working directory: D:\AI Product Photo Studio on WhatsApp
+- Workspace root folder: D:\AI Product Photo Studio on WhatsApp
+- Active file: services\background-remover\app.py
+- Open tabs: docs/08-DEPLOYMENT-GUIDE.md, services\background-remover\app.py
+</environment_details>
