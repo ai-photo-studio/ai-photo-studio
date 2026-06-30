@@ -1,5 +1,5 @@
 param(
-    [string]$ProjectId = "aistudio-ai-photo-studio",
+    [string]$ProjectId = "project-9540c255-c960-4fa0-a91",
     [string]$Region = "us-central1",
     [string]$ServiceName = "ai-photo-studio-api",
     [string]$ImageTag = "latest"

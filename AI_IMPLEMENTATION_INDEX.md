@@ -315,33 +315,37 @@
 ## Infrastructure Migration Status
 
 - Phase 0 (Inventory): COMPLETE
-- Phase 1 (Google Cloud Foundation): PARTIAL
+- Phase 1 (Google Cloud Foundation): COMPLETE
   - Google Cloud SDK: Installed on D drive (574.0.0)
   - gcloud auth: COMPLETE (wpaistudio@gmail.com)
-  - Project: CREATED (aistudio-ai-photo-studio)
-  - APIs enabled: iam, logging, monitoring, sqladmin
-  - APIs pending billing: run, cloudbuild, artifactregistry, compute, secretmanager, containerregistry
-  - Deployment SA: CREATED (github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com)
-- Phase 2.0 (Deployment Preparation): IN PROGRESS
-  - Deployment files: PREPARED (Dockerfile, cloudbuild.yaml, service.yaml, deploy scripts)
-  - Secret mapping: DOCUMENTED (SECRET_MAPPING.md)
-  - Cloud SQL migration plan: DOCUMENTED (DEPLOYMENT_PREPARATION.md)
-  - Railway rollback: READY
+  - Project: project-9540c255-c960-4fa0-a91 (billing linked)
+  - APIs enabled: ALL required
+  - Deployment SA: github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com
+  - Workload Identity: CONFIGURED (pool github-pool, provider github-provider)
+  - Artifact Registry: CREATED (ai-photo-studio-api)
+  - Cloud SQL: CREATED (ai-photo-studio-db, POSTGRES_16, db-perf-optimized-N-2)
+  - Memorystore Redis: CREATED (ai-photo-studio-redis)
+  - Secret Manager: 7 secrets created
+- Phase 2.0 (Deployment Preparation): COMPLETE
+- Phase 2.1 (Infrastructure Provisioning): COMPLETE
+- Phase 2.2 (Cloud Run Deployment): IN PROGRESS
+  - Deployment files ready
+  - Cloud Run deployment blocked on GitHub + Cloudflare
 - Phase 2 (Git Migration): PARTIAL
   - gh auth: ai-photo-studio account (missing admin:org)
   - GitHub repo: EXISTS (ai-photo-studio/ai-photo-studio)
   - Remote: NOT UPDATED (still gardenshop/ai-photo-studio-whatsapp.git)
 - Phase 3 (Cloudflare Migration): BLOCKED
   - Target account: Wpaistudio@gmail.com (Account ID: 2eb5eadd4af6da3d3a5f6c61d92437e4)
-  - wrangler auth: gisupp@gmail.com (needs switch)
+  - wrangler auth: gisupp@gmail.com (needs token switch)
   - Target Pages project: DOES NOT EXIST
   - Target R2 bucket: DOES NOT EXIST
 - Railway: ONLINE (linked to AI Photo Studio WhatsApp, variables exported)
 - Feature development: PAUSED pending infrastructure foundation
-- Next: Complete billing, GitHub admin:org, Cloudflare account switch
+- Next: Complete GitHub admin:org, Cloudflare token switch, deploy Cloud Run
 
 <environment_details>
-- Current time: 2026-06-30T00:56:00+05:00
+- Current time: 2026-06-30T12:30:00+05:00
 - Working directory: D:\AI Product Photo Studio on WhatsApp
 - Workspace root folder: D:\AI Product Photo Studio on WhatsApp
 - Active file: services\background-remover\app.py

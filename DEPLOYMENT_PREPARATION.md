@@ -71,7 +71,7 @@ Write-Host "Deployment complete."
 - **Name**: ai-photo-studio-api
 - **Location**: us-central1
 - **Format**: docker
-- **Status**: NOT CREATED (blocked on billing)
+- **Status**: CREATED (2026-06-30)
 
 ### Image Naming
 ```
@@ -111,6 +111,17 @@ ai-photo-studio-api:commit-sha
 2. Point traffic back to Railway if needed
 3. Restore from backup
 
+### Current Instance
+- **Name**: ai-photo-studio-db
+- **Version**: POSTGRES_16
+- **Tier**: db-perf-optimized-N-2 (Enterprise Plus, org policy forced)
+- **Region**: us-central1-a
+- **IP**: 136.115.21.123
+- **Status**: RUNNABLE
+- **Database**: ai_photo_studio
+- **User**: app_user / AppUser2026!
+- **Connection**: postgresql://app_user:AppUser2026!@136.115.21.123:5432/ai_photo_studio
+
 ## Railway Rollback
 
 ### Current State
@@ -141,23 +152,21 @@ ai-photo-studio-api:commit-sha
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com compute.googleapis.com secretmanager.googleapis.com containerregistry.googleapis.com
 
 # Grant IAM roles
-gcloud projects add-iam-policy-binding aistudio-ai-photo-studio `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
+gcloud projects add-iam-policy-binding project-9540c255-c960-4fa0-a91 `
+  --member="serviceAccount:github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com" `
   --role="roles/run.admin"
-gcloud projects add-iam-policy-binding aistudio-ai-photo-studio `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
+gcloud projects add-iam-policy-binding project-9540c255-c960-4fa0-a91 `
+  --member="serviceAccount:github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com" `
   --role="roles/artifactregistry.admin"
 
 # Create Artifact Registry repo
 gcloud artifacts repositories create ai-photo-studio-api `
   --repository-format=docker `
   --location=us-central1 `
-  --project=aistudio-ai-photo-studio
+  --project=project-9540c255-c960-4fa0-a91
 
-# Generate SA key
-gcloud iam service-accounts keys create .gcp-service-account.json `
-  --iam-account=github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com
+# Workload Identity already configured — no SA key needed
 
 # Deploy
-.\deploy-cloudrun.ps1 -ProjectId aistudio-ai-photo-studio -Region us-central1
+.\deploy-cloudrun.ps1 -ProjectId project-9540c255-c960-4fa0-a91 -Region us-central1
 ```

@@ -10,13 +10,13 @@ spec:
       annotations:
         run.googleapis.com/cpu-throttling: "false"
         run.googleapis.com/execution-environment: gen2
-        run.googleapis.com/cloudsql-instances: aistudio-ai-photo-studio:us-central1:ai-photo-studio-db
+        run.googleapis.com/cloudsql-instances: project-9540c255-c960-4fa0-a91:us-central1:ai-photo-studio-db
         autoscaling.knative.dev/minScale: "1"
         autoscaling.knative.dev/maxScale: "10"
     spec:
-      serviceAccountName: github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com
+      serviceAccountName: github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com
       containers:
-      - image: us-central1-docker.pkg.dev/aistudio-ai-photo-studio/ai-photo-studio-api/ai-photo-studio-api:latest
+      - image: us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/ai-photo-studio-api:latest
         ports:
         - containerPort: 3000
         resources:

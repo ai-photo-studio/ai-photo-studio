@@ -1,6 +1,6 @@
 # Secret Manager Mapping
 
-## Phase 2.0 — Secret Inventory for Google Cloud Migration
+## Phase 2.1 — Secret Inventory for Google Cloud Migration
 
 Generated: 2026-06-30
 
@@ -10,121 +10,74 @@ This document maps all secrets required for the Google Cloud deployment. Secrets
 
 ## Google Cloud Secret Manager Mapping
 
-| GCP Secret Name | Environment Variable | Source | Rotation Policy |
-|-----------------|---------------------|--------|------------------|
-| DATABASE_URL | DATABASE_URL | Cloud SQL connection string | On credential rotation |
-| REDIS_URL | REDIS_URL | Memorystore connection string | On credential rotation |
-| JWT_SECRET | JWT_SECRET | Generated 256-bit secret | Quarterly |
-| R2_ACCESS_KEY | R2_ACCESS_KEY_ID | Cloudflare R2 | On credential rotation |
-| R2_SECRET_KEY | R2_SECRET_ACCESS_KEY | Cloudflare R2 | On credential rotation |
-| R2_BUCKET | R2_BUCKET_NAME | Static: ai-photo-studio-storage | Manual |
-| R2_ENDPOINT | R2_PUBLIC_BASE_URL | Static: https://account.r2.cloudflarestorage.com | Manual |
-| GOOGLE_APPLICATION_CREDENTIALS | GOOGLE_APPLICATION_CREDENTIALS | Service account JSON key | SA rotation |
+| GCP Secret Name | Environment Variable | Source | Rotation Policy | Status |
+|-----------------|---------------------|--------|------------------|--------|
+| DATABASE_URL | DATABASE_URL | Cloud SQL connection string | On credential rotation | CREATED (v2) |
+| REDIS_URL | REDIS_URL | Memorystore connection string | On credential rotation | CREATED |
+| JWT_SECRET | JWT_SECRET | Generated 256-bit secret | Quarterly | CREATED |
+| R2_ACCESS_KEY | R2_ACCESS_KEY_ID | Cloudflare R2 | On credential rotation | CREATED (placeholder) |
+| R2_SECRET_KEY | R2_SECRET_ACCESS_KEY | Cloudflare R2 | On credential rotation | CREATED (placeholder) |
+| R2_BUCKET | R2_BUCKET_NAME | Static: ai-photo-studio-storage | Manual | CREATED |
+| R2_ENDPOINT | R2_PUBLIC_BASE_URL | Static: https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com | Manual | CREATED |
 
-## Secret Manager Commands
+## Actual Secret Values (DO NOT COMMIT)
 
-### Create Secrets (after billing enabled)
+Project: project-9540c255-c960-4fa0-a91
 
-```powershell
-# DATABASE_URL
-gcloud secrets create DATABASE_URL --replication-policy="automatic"
-echo -n "postgresql://user:pass@host:5432/db" | gcloud secrets versions add DATABASE_URL --data-file=-
+- **DATABASE_URL**: postgresql://app_user:AppUser2026!@136.115.21.123:5432/ai_photo_studio
+- **REDIS_URL**: redis://10.74.177.27:6379
+- **JWT_SECRET**: [random 32-byte token - stored in Secret Manager]
+- **R2_ACCESS_KEY**: [placeholder - replace with actual key]
+- **R2_SECRET_KEY**: [placeholder - replace with actual key]
+- **R2_BUCKET**: ai-photo-studio-storage
+- **R2_ENDPOINT**: https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com
 
-# REDIS_URL
-gcloud secrets create REDIS_URL --replication-policy="automatic"
-echo -n "redis://host:6379" | gcloud secrets versions add REDIS_URL --data-file=-
+## Workload Identity
 
-# JWT_SECRET
-gcloud secrets create JWT_SECRET --replication-policy="automatic"
-echo -n "$(openssl rand -base64 32)" | gcloud secrets versions add JWT_SECRET --data-file=-
+Service account keys are NOT used. Authentication is handled via Workload Identity Federation:
 
-# R2_ACCESS_KEY
-gcloud secrets create R2_ACCESS_KEY --replication-policy="automatic"
-echo -n "ACCESS_KEY_ID" | gcloud secrets versions add R2_ACCESS_KEY --data-file=-
-
-# R2_SECRET_KEY
-gcloud secrets create R2_SECRET_KEY --replication-policy="automatic"
-echo -n "SECRET_ACCESS_KEY" | gcloud secrets versions add R2_SECRET_KEY --data-file=-
-
-# R2_BUCKET
-gcloud secrets create R2_BUCKET --replication-policy="automatic"
-echo -n "ai-photo-studio-storage" | gcloud secrets versions add R2_BUCKET --data-file=-
-
-# R2_ENDPOINT
-gcloud secrets create R2_ENDPOINT --replication-policy="automatic"
-echo -n "https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com" | gcloud secrets versions add R2_ENDPOINT --data-file=-
-
-# GOOGLE_APPLICATION_CREDENTIALS (JSON file)
-gcloud secrets create GOOGLE_APPLICATION_CREDENTIALS --replication-policy="automatic"
-gcloud secrets versions add GOOGLE_APPLICATION_CREDENTIALS --data-file=".gcp-service-account.json"
-```
+- **Pool**: github-pool (global)
+- **Provider**: github-provider (OIDC, issuer: https://token.actions.githubusercontent.com)
+- **Service Account**: github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com
+- **Role**: roles/iam.workloadIdentityUser
+- **GitHub Actions Config**:
+  ```yaml
+  permissions:
+    id-token: write
+    contents: read
+  steps:
+  - uses: google-github-actions/auth@v2
+    with:
+      workload_identity_provider: projects/9540c255-c960-4fa0-a91/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+      service_account: github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com
+  ```
 
 ## IAM Policy for Service Account
 
-Grant Cloud Run service account access to secrets:
-
 ```powershell
-gcloud secrets add-iam-policy-binding DATABASE_URL `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
+# Granted (2026-06-30):
+gcloud projects add-iam-policy-binding project-9540c255-c960-4fa0-a91 `
+  --member="serviceAccount:github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com" `
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding project-9540c255-c960-4fa0-a91 `
+  --member="serviceAccount:github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com" `
+  --role="roles/artifactregistry.admin"
+
+gcloud projects add-iam-policy-binding project-9540c255-c960-4fa0-a91 `
+  --member="serviceAccount:github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com" `
+  --role="roles/cloudsql.client"
+
+gcloud projects add-iam-policy-binding project-9540c255-c960-4fa0-a91 `
+  --member="serviceAccount:github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com" `
   --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding REDIS_URL `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding JWT_SECRET `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding R2_ACCESS_KEY `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding R2_SECRET_KEY `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding R2_BUCKET `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding R2_ENDPOINT `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud secrets add-iam-policy-binding GOOGLE_APPLICATION_CREDENTIALS `
-  --member="serviceAccount:github-actions-deploy@aistudio-ai-photo-studio.iam.gserviceaccount.com" `
-  --role="roles/secretmanager.secretAccessor"
-```
-
-## Environment Variable Reference
-
-### Cloud Run Environment Variables (via Secret Manager)
-
-```yaml
-env:
-- name: DATABASE_URL
-  secret: projects/aistudio-ai-photo-studio/secrets/DATABASE_URL/versions/latest
-- name: REDIS_URL
-  secret: projects/aistudio-ai-photo-studio/secrets/REDIS_URL/versions/latest
-- name: JWT_SECRET
-  secret: projects/aistudio-ai-photo-studio/secrets/JWT_SECRET/versions/latest
-- name: R2_ACCESS_KEY_ID
-  secret: projects/aistudio-ai-photo-studio/secrets/R2_ACCESS_KEY/versions/latest
-- name: R2_SECRET_ACCESS_KEY
-  secret: projects/aistudio-ai-photo-studio/secrets/R2_SECRET_KEY/versions/latest
-- name: R2_BUCKET_NAME
-  secret: projects/aistudio-ai-photo-studio/secrets/R2_BUCKET/versions/latest
-- name: R2_PUBLIC_BASE_URL
-  secret: projects/aistudio-ai-photo-studio/secrets/R2_ENDPOINT/versions/latest
-- name: GOOGLE_APPLICATION_CREDENTIALS
-  secret: projects/aistudio-ai-photo-studio/secrets/GOOGLE_APPLICATION_CREDENTIALS/versions/latest
 ```
 
 ## Security Notes
 
-- Never commit `.gcp-service-account.json` to Git
+- Never commit `.gcp-service-account.json` to Git (file is empty/blocked by org policy)
 - Rotate JWT_SECRET quarterly
 - Rotate R2 keys on credential rotation
 - Use Secret Manager versions for zero-downtime rotation
 - Grant least-privilege IAM roles
+- Workload Identity eliminates the need for long-lived service account keys
