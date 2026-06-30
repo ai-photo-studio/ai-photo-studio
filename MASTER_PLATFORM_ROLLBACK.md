@@ -103,8 +103,9 @@ Railway remains online. No deletion.
 
 ## Blockers
 
-1. **GitHub admin:org** — generate new device code: `gh auth refresh -h github.com -s admin:org`
-2. **Cloudflare account switch** — replace CLOUDFLARE_API_TOKEN with Wpaistudio@gmail.com token (Pages-Edit + R2-Edit)
+1. **GitHub admin:org** — complete device flow: `gh auth refresh -h github.com -s admin:org`
+2. **Cloudflare API token** — generate token from https://dash.cloudflare.com/profile/api-tokens (Wpaistudio@gmail.com) with Pages-Edit + R2-Edit
+   - Note: The R2 Access Key ID / Secret Access Key provided are for bucket object access only, not for Cloudflare account/API operations
 3. **Git remote** — update after GitHub admin:org is granted
 
 ## Deliverables
@@ -114,18 +115,18 @@ Railway remains online. No deletion.
 - GCP project: project-9540c255-c960-4fa0-a91 (billing linked)
 - APIs enabled: ALL required
 - Artifact Registry: CREATED (ai-photo-studio-api)
-- Cloud SQL: CREATED (ai-photo-studio-db)
+- Cloud SQL: CREATED (ai-photo-studio-db, POSTGRES_16, db-perf-optimized-N-2)
 - Memorystore Redis: CREATED (ai-photo-studio-redis)
-- Secret Manager: 7 secrets created
+- Secret Manager: 8 operations completed (7 secrets created, R2 keys updated to v2)
 - Workload Identity: CONFIGURED
-- Deployment files: PREPARED
+- Deployment files: READY
 - GitHub migration: PARTIAL (auth done, remote not updated)
-- Cloudflare migration: BLOCKED (account not switched)
-- Railway status: ONLINE (linked, variables exported)
-- Updated completion: Phase 2.2 at 60%, Overall ~48%
+- Cloudflare migration: BLOCKED (needs API token)
+- Railway status: ONLINE
+- Updated completion: Phase 2.3 blocked, Overall ~48%
 
 <environment_details>
-- Current time: 2026-06-29T23:30:00+05:00
+- Current time: 2026-06-30T13:02:00+05:00
 - Working directory: D:\AI Product Photo Studio on WhatsApp
 - Workspace root folder: D:\AI Product Photo Studio on WhatsApp
 </environment_details>
