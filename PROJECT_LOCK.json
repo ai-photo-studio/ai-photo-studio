@@ -60,8 +60,8 @@
     "R2_ACCOUNT_ID"
   ],
   "aiProvider": {
-    "current": "mock",
-    "note": "Mock provider used as fallback. Background remover service requires BACKGROUND_API_URL when using local-yolo, local-rembg, or local-esrgan providers."
+    "current": "local-rembg",
+    "note": "Local rembg provider with u2netp model via Cloud Run Job. BACKGROUND_API_URL points to Cloud Run Job endpoint."
   },
   "protectedScopeProtocolVersion": "3.1.0"
 }

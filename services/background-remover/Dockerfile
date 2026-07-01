@@ -1,16 +1,14 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV UVICORN_WORKERS=1
-ENV REMBG_MODEL=u2net
+ENV REMBG_MODEL=u2netp
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-    libffi \
-    libgl \
-    glew \
-    && pip install --no-cache-dir --upgrade pip
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
