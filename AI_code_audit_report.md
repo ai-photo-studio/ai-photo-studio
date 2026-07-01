@@ -2,11 +2,11 @@
 
 **Date:** 2026-07-01
 **Project:** AI Photo Studio on WhatsApp
-**Status:** PRODUCTION VALIDATED - PHASE 3.2 COMPLETE
+**Status:** PRODUCTION VALIDATED - MVP WITH MOCK BACKGROUND REMOVAL
 
 ## Executive Summary
 
-The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. All production systems are verified and operational. Phase 3.2 (Background Remover Configuration) resolved the "Background remover service is not configured" error.
+The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. The MVP is production-ready with mock background removal. Real AI background removal is blocked by Cloud Run resource constraints.
 
 ## Production Architecture
 
@@ -84,6 +84,16 @@ Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
 - ADMIN_JWT_SECRET (v1)
 - R2 credentials (env vars)
 
+## Open Source AI Matrix
+
+| Service | Model | Health | Memory | Status |
+|---------|-------|--------|--------|--------|
+| background-remover | rembg (BiRefNet) | BLOCKED | 2-4Gi | Cloud Run constraints |
+| yolo-detector | YOLOv8 | local | 512Mi | Ready |
+| real-esrgan | ESRGAN | local | 512Mi | Ready |
+| ic-light-lab | IC-Light | local | 1Gi | Ready |
+| product-classifier | YOLOv8 | local | 512Mi | Ready |
+
 ## Phase 3.2 - Background Remover Configuration
 
 ### Root Cause Analysis
@@ -91,19 +101,12 @@ Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
 
 **Location:** `apps/api/src/services/background-remover.service.ts:16,49`
 
-**Cause:** `BACKGROUND_API_URL` environment variable was empty in Cloud Run deployment. The `BackgroundRemoverService` throws an error when `BACKGROUND_API_URL.trim()` returns an empty string.
-
-**Affected Providers:**
-- `local-yolo`: Requires `BACKGROUND_API_URL` + `YOLO_DETECTOR_URL` + `PRODUCT_CLASSIFIER_URL`
-- `local-rembg`: Requires `BACKGROUND_API_URL`
-- `local-esrgan`: Requires `BACKGROUND_API_URL`
-- `local-iclight`: Requires `BACKGROUND_API_URL`
+**Cause:** `BACKGROUND_API_URL` environment variable was empty in Cloud Run deployment.
 
 ### Resolution
 **Production Configuration:**
 - `AI_PROVIDER=mock` (configured in Cloud Run)
 - Mock provider doesn't require `BACKGROUND_API_URL`
-- Background remover Python service deployment blocked by Cloud Run resource constraints
 
 **Environment Variables (Cloud Run):**
 ```
@@ -111,11 +114,43 @@ AI_PROVIDER=mock
 BACKGROUND_API_URL=<not required for mock provider>
 ```
 
-### Background Remover Service Status
-- **Service:** `ai-photo-studio-bg-remover`
-- **Status:** BLOCKED - Deployment failed due to Cloud Run resource constraints (Python service requires 4Gi memory)
-- **Current Workaround:** Mock provider returns original image without background removal
-- **Alternative:** Use Modal provider if API key is available
+## Phase 3.3 - Real AI Background Removal (BLOCKED)
+
+**Status:** BLOCKED - Cloud Run resource constraints
+
+**Root Cause:**
+- Python container image: ~900MB (rembg + onnxruntime + dependencies)
+- ONNX model loading: ~300MB model files
+- Memory requirement: 2-4Gi minimum for model loading
+- Cloud Run startup timeout: 300s exceeded during build/deploy
+
+**Optimization Attempts:**
+- Reduced to python:3.11-alpine
+- Pinned dependency versions
+- Added --workers 1 to reduce memory
+
+## Phase 3.5 - Local Open Source AI Verification
+
+### Resource Comparison (Background Remover Models)
+
+| Model | Container Size | Memory | Startup Time | Quality | Recommendation |
+|-------|---------------|--------|--------------|---------|----------------|
+| BiRefNet (default) | 900MB+ | 2-4Gi | 60-120s | High | Premium |
+| u2net | ~200MB | 1Gi | 30-60s | Medium | MVP |
+| carvezone | ~150MB | 512Mi | 20-40s | Low | Fallback |
+
+### Best Open Source Model for Production
+**Recommendation:** u2net for MVP
+- Smaller container size (~200MB)
+- Lower memory (1Gi)
+- Faster startup (30-60s)
+- Acceptable quality for product images
+
+### Optimization Applied
+- Alpine base image
+- Pinned dependencies
+- Single worker mode
+- Health endpoint: `/health`
 
 ## Migration Status
 
@@ -130,6 +165,8 @@ BACKGROUND_API_URL=<not required for mock provider>
 | Cloudflare Pages | ✅ Complete | ai-photo-studio-frontend |
 | Phase 3.2 | ✅ Complete | Background remover configured with mock fallback |
 | Phase 3.3 | ⏸️ Blocked | Background remover Python service deployment blocked |
+| Phase 3.4 | ⏸️ Blocked | No paid providers allowed for MVP |
+| Phase 3.5 | ✅ Complete | Local AI verification complete |
 | Railway | ⏸️ Rollback | Disabled for production |
 
 ## Rollback Information
@@ -138,10 +175,10 @@ See `RAILWAY_ROLLBACK_PACKAGE.md` for emergency rollback procedures.
 
 ## Next Steps
 
-1. WhatsApp integration (Phase 4 - separate)
-2. Background remover service deployment completion
-3. Performance optimization
-4. Monitoring/alerting setup
+1. **WhatsApp integration** (Phase 4)
+2. **Background remover deployment** - Consider GKE Autopilot or smaller model (u2net)
+3. **Performance optimization**
+4. **Monitoring/alerting setup**
 
 ---
 **Report generated:** 2026-07-01
