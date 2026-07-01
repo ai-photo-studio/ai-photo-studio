@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import os
 import io
 
 from PIL import Image
 
 from . import BackgroundRemoverProvider, ImageResult
 
+_model = None
+
+def _get_model():
+    global _model
+    if _model is None:
+        from rembg import new_session
+        model_name = os.getenv("REMBG_MODEL", "u2net")
+        _model = new_session(model_name)
+    return _model
 
 class LocalRembgProvider(BackgroundRemoverProvider):
     @property
@@ -17,9 +27,8 @@ class LocalRembgProvider(BackgroundRemoverProvider):
         return True
     
     def remove_background(self, image_bytes: bytes, max_dimension: int) -> ImageResult:
-        from rembg import remove
-        
-        output_bytes = remove(image_bytes)
+        session = _get_model()
+        output_bytes = session.process(image_bytes)
         credits = 0.0
         
         return ImageResult(
