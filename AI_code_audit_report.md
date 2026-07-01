@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. The MVP is production-ready with mock background removal. Real AI background removal is blocked by Cloud Run resource constraints.
+The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. The MVP is production-ready with mock background removal. Real AI background removal is blocked by Cloud Run resource constraints. All paid AI providers have been removed from MVP configuration.
 
 ## Production Architecture
 
@@ -69,88 +69,102 @@ Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
 - R2 Bucket: ai-photo-studio-storage
 - Endpoint: https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com
 
-## Security
+## Open Source AI Pipeline Audit
 
-### IAM Configuration
-- Service Account: 108335160641-compute@developer.gserviceaccount.com
-- Roles:
-  - roles/secretmanager.secretAccessor
-  - roles/cloudsql.client
+### Complete Execution Flow
 
-### Secrets (Secret Manager)
-- DATABASE_URL (v2)
-- REDIS_URL (latest)
-- JWT_SECRET (latest)
-- ADMIN_JWT_SECRET (v1)
-- R2 credentials (env vars)
+```
+Upload (Cloudflare Pages)
+    ↓
+PreviewController.removeBackgroundPreview()
+    ↓
+BackgroundRemoverService.productTransparent()
+    ↓
+AI_PROVIDER=mock → MockImageProvider.processProductImage()
+    ↓
+Returns original image (no processing)
+    ↓
+Storage.uploadProcessed()
+    ↓
+Export (R2 Storage)
+```
 
-## Open Source AI Matrix
+### Provider Selection Analysis
+
+| Provider | Enabled | Requires | Status |
+|----------|---------|----------|--------|
+| mock | ✅ | No | Working (MVP) |
+| local-yolo | ✅ | BACKGROUND_API_URL + YOLO + Classifier | Blocked |
+| local-rembg | ✅ | BACKGROUND_API_URL | Blocked |
+| local-esrgan | ✅ | BACKGROUND_API_URL | Blocked |
+| local-iclight | ✅ | BACKGROUND_API_URL | Blocked |
+| photoroom | ❌ | PHOTOROOM_API_KEY | Deprecated |
+| fal | ❌ | FAL_API_KEY | Deprecated |
+| modal | ❌ | MODAL_API_KEY | Deprecated |
+| replicate | ❌ | - | Deprecated |
+
+### Local AI Services Status
 
 | Service | Model | Health | Memory | Status |
 |---------|-------|--------|--------|--------|
 | background-remover | rembg (BiRefNet) | BLOCKED | 2-4Gi | Cloud Run constraints |
 | yolo-detector | YOLOv8 | local | 512Mi | Ready |
+| product-classifier | YOLOv8 | local | 512Mi | Ready |
 | real-esrgan | ESRGAN | local | 512Mi | Ready |
 | ic-light-lab | IC-Light | local | 1Gi | Ready |
-| product-classifier | YOLOv8 | local | 512Mi | Ready |
 
-## Phase 3.2 - Background Remover Configuration
+## Google Cloud Architecture Recommendation
 
-### Root Cause Analysis
-**Error:** "Background remover service is not configured."
+### Cost Comparison
 
-**Location:** `apps/api/src/services/background-remover.service.ts:16,49`
+| Service | Monthly Cost (Est.) | Notes |
+|---------|---------------------|-------|
+| Cloud Run | ~$5-50/month | Scales to zero |
+| Cloud Run GPU | ~$200-500/month | Always on GPU |
+| Compute Engine Spot | ~$100-300/month | 80% discount |
+| GKE Autopilot | ~$150-400/month | Managed Kubernetes |
+| Vertex AI | ~$500+/month | Managed AI platform |
 
-**Cause:** `BACKGROUND_API_URL` environment variable was empty in Cloud Run deployment.
+### Recommended Architecture (Lowest Cost)
 
-### Resolution
-**Production Configuration:**
-- `AI_PROVIDER=mock` (configured in Cloud Run)
-- Mock provider doesn't require `BACKGROUND_API_URL`
+**Option 1: Cloud Run + Cloud Run Jobs (Recommended)**
+- API: Cloud Run (scales to zero)
+- Background Remover: Cloud Run Job (triggered on demand)
+- Cost: ~$10-100/month
 
-**Environment Variables (Cloud Run):**
-```
-AI_PROVIDER=mock
-BACKGROUND_API_URL=<not required for mock provider>
-```
+**Option 2: GKE Autopilot**
+- All services: GKE Autopilot
+- GPU nodes for background remover
+- Cost: ~$200-400/month
 
-## Phase 3.3 - Real AI Background Removal (BLOCKED)
+**Option 3: Compute Engine Spot VM**
+- Background remover on Spot VM
+- API on Cloud Run
+- Cost: ~$100-250/month
 
-**Status:** BLOCKED - Cloud Run resource constraints
+## Railway vs Google Cloud Gap Report
 
-**Root Cause:**
-- Python container image: ~900MB (rembg + onnxruntime + dependencies)
-- ONNX model loading: ~300MB model files
-- Memory requirement: 2-4Gi minimum for model loading
-- Cloud Run startup timeout: 300s exceeded during build/deploy
+| Component | Railway | Google Cloud | Gap |
+|-----------|---------|--------------|-----|
+| API | railway.app | Cloud Run | ✅ Migrated |
+| Frontend | railway.app | Cloudflare Pages | ✅ Migrated |
+| Database | Railway PG | Cloud SQL | ✅ Migrated |
+| Cache | Railway Redis | Memorystore | ✅ Migrated |
+| Storage | Railway | Cloudflare R2 | ✅ Migrated |
+| Background Remover | Railway | Cloud Run | ⚠️ Blocked |
+| Queue | Railway Redis | Cloud Run Redis | ✅ Migrated |
 
-**Optimization Attempts:**
-- Reduced to python:3.11-alpine
-- Pinned dependency versions
-- Added --workers 1 to reduce memory
+## Remaining Blockers
 
-## Phase 3.5 - Local Open Source AI Verification
+1. **Background Remover Deployment**
+   - Python container requires 2-4Gi memory
+   - Cloud Run startup timeout exceeded
+   - Recommendation: Use Cloud Run Jobs or GKE Autopilot
 
-### Resource Comparison (Background Remover Models)
-
-| Model | Container Size | Memory | Startup Time | Quality | Recommendation |
-|-------|---------------|--------|--------------|---------|----------------|
-| BiRefNet (default) | 900MB+ | 2-4Gi | 60-120s | High | Premium |
-| u2net | ~200MB | 1Gi | 30-60s | Medium | MVP |
-| carvezone | ~150MB | 512Mi | 20-40s | Low | Fallback |
-
-### Best Open Source Model for Production
-**Recommendation:** u2net for MVP
-- Smaller container size (~200MB)
-- Lower memory (1Gi)
-- Faster startup (30-60s)
-- Acceptable quality for product images
-
-### Optimization Applied
-- Alpine base image
-- Pinned dependencies
-- Single worker mode
-- Health endpoint: `/health`
+2. **MVP Workaround**
+   - AI_PROVIDER=mock returns original image
+   - No background removal in MVP
+   - Real removal planned for Premium tier
 
 ## Migration Status
 
@@ -163,11 +177,8 @@ BACKGROUND_API_URL=<not required for mock provider>
 | Workload Identity | ✅ Complete | github-pool/provider |
 | Cloud Run | ✅ Complete | ai-photo-studio-api |
 | Cloudflare Pages | ✅ Complete | ai-photo-studio-frontend |
-| Phase 3.2 | ✅ Complete | Background remover configured with mock fallback |
-| Phase 3.3 | ⏸️ Blocked | Background remover Python service deployment blocked |
-| Phase 3.4 | ⏸️ Blocked | No paid providers allowed for MVP |
-| Phase 3.5 | ✅ Complete | Local AI verification complete |
-| Railway | ⏸️ Rollback | Disabled for production |
+| Railway Retirement | ✅ Complete | Disabled for production |
+| Paid Providers | ✅ Removed | photoroom, fal, modal, replicate |
 
 ## Rollback Information
 
@@ -176,10 +187,11 @@ See `RAILWAY_ROLLBACK_PACKAGE.md` for emergency rollback procedures.
 ## Next Steps
 
 1. **WhatsApp integration** (Phase 4)
-2. **Background remover deployment** - Consider GKE Autopilot or smaller model (u2net)
+2. **Background remover deployment** - Use Cloud Run Jobs or GKE Autopilot
 3. **Performance optimization**
 4. **Monitoring/alerting setup**
 
 ---
 **Report generated:** 2026-07-01
 **Verified by:** Automated validation
+**Commit:** aa93058
