@@ -49,10 +49,10 @@ const bootstrap = async () => {
   const config = loadConfig();
   const isRailwayProduction =
     process.env.RAILWAY_ENVIRONMENT === "production" ||
-    process.env.RAILWAY_ENVIRONMENT_NAME === "production" ||
-    config.NODE_ENV === "production";
+    process.env.RAILWAY_ENVIRONMENT_NAME === "production";
+  const isCloudRunProduction = process.env.SKIP_MIGRATIONS === "true";
 
-  if (isRailwayProduction) {
+  if (isRailwayProduction && !isCloudRunProduction) {
     await applyPendingMigrations();
   }
   const adminAuth = new AdminAuthService(config);

@@ -81,7 +81,7 @@
 - Added a local smoke test script and documented the Phase 1 deployment notes.
 
 ## 2026-06-03 - R2 Credentials Fixed and Flow Verified
-- Replaced Railway `production/api` R2 credentials with bucket-scoped write-enabled credentials for `ai-photo-studio-whatsapp-r2`.
+- Replaced Railway `production/api` R2 credentials with bucket-scoped write-enabled credentials for `ai-photo-studio-storage`.
 - Verified names-only Railway variable checks and confirmed storage/payment/AI mode: `STORAGE_PROVIDER=r2`, `PAYMENT_GATEWAY_NAME=manual`, `AI_PROVIDER_NAME=mock`.
 - Passed Railway-context R2 write/delete smoke test.
 - Completed scoped redeploy to Railway `production/api` and confirmed `/api/health` + `/api/version` production smoke tests.

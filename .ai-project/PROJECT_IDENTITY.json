@@ -8,6 +8,6 @@
   "expectedRailwayProjectName": "AI Photo Studio WhatsApp",
   "expectedRailwayEnvironment": "production",
   "expectedRailwayService": "api",
-  "expectedCloudflareAccountId": "85f6a6181b4653c2a45e69cb7ce8a474",
-  "expectedR2BucketName": "ai-photo-studio-whatsapp-r2"
+  "expectedCloudflareAccountId": "2eb5eadd4af6da3d3a5f6c61d92437e4",
+  "expectedR2BucketName": "ai-photo-studio-storage"
 }

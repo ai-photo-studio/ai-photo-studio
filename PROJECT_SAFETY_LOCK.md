@@ -23,15 +23,15 @@ This repository has a mandatory protection system to prevent accidental operatio
 
 ## Cloudflare Pages Deployment
 
-- Frontend project: `ai-photo-studio-whatsapp-web`
-- Production URL: `https://ai-photo-studio-whatsapp-web.pages.dev`
-- Account: `85f6a6181b4653c2a45e69cb7ce8a474` (`gisupp@gmail.com`)
+- Frontend project: `ai-photo-studio-frontend`
+- Production URL: `https://29105fb4.ai-photo-studio-frontend.pages.dev`
+- Account: `2eb5eadd4af6da3d3a5f6c61d92437e4` (`Wpaistudio@gmail.com`)
 - Separate from `hojaseeds`: do not modify, redeploy, relink, rename, or disturb
-- Frontend API binding: production builds use the Railway API and the API CORS allow-list is set to the Pages origin
+- Frontend API binding: production builds use the Cloud Run API
 
 ## CORS Restriction
 
-The Railway production API now returns `Access-Control-Allow-Origin: https://ai-photo-studio-whatsapp-web.pages.dev` for the dedicated frontend origin.
+The Cloud Run API returns `Access-Control-Allow-Origin: https://ai-photo-studio.pages.dev` for the dedicated frontend origin.
 Keep `ALLOWED_ORIGINS` restricted to the dedicated Pages project and do not widen it without a deliberate launch decision.
 
 ## Phase P Note

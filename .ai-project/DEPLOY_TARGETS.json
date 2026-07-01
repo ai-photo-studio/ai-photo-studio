@@ -12,9 +12,9 @@
     ]
   },
   "cloudflare": {
-    "accountId": "85f6a6181b4653c2a45e69cb7ce8a474",
-    "r2BucketName": "ai-photo-studio-whatsapp-r2",
-    "publicBaseUrl": "https://85f6a6181b4653c2a45e69cb7ce8a474.r2.cloudflarestorage.com"
+    "accountId": "2eb5eadd4af6da3d3a5f6c61d92437e4",
+    "r2BucketName": "ai-photo-studio-storage",
+    "publicBaseUrl": "https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com"
   },
   "git": {
     "remote": "https://github.com/gardenshop/ai-photo-studio-whatsapp.git",

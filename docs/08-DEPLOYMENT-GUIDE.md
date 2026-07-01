@@ -1,7 +1,7 @@
 # Deployment Guide
 
 ## Target Platform
-Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is the home for the public web frontend.
+Cloud Run for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is the home for the public web frontend.
 
 ## Services
 - API service from `apps/api`
@@ -17,7 +17,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
   - WhatsApp webhook credentials
   - payment provider credentials
   - Cloudflare R2 credentials
-  - `R2_BUCKET_NAME` for the `ai-photo-studio-whatsapp-r2` bucket
+  - `R2_BUCKET_NAME` for the `ai-photo-studio-storage` bucket
   - background remover API URL for Phase 2 image intake
   - AI provider credentials (optional for placeholder mode)
   - `JWT_SECRET`: secret key for web user JWT tokens
@@ -41,7 +41,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 - If `/api/packages` returns a database column error in production, verify that the live database has the current `Package` migration applied before changing the route contract.
 - During the 2026-06-12 recovery, production was missing `JWT_SECRET`; restoring that variable allowed the api service to start and expose the live routes again.
 - The API CORS allow-list is now locked to the dedicated Pages origin:
-  - `https://ai-photo-studio-whatsapp-web.pages.dev`
+  - `https://ai-photo-studio.pages.dev`
 - The live api service now also exposes the safe route registry and the route surfaces that were previously reported as missing:
   - `GET /api/version/routes`
   - `GET /api/packages`
@@ -115,7 +115,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 ## Production Manual Approval Note
 - Manual payment approval is now available via the admin-only route `POST /api/admin/orders/:id/approve-manual-payment`.
 - The route is guarded by the configured admin token and only accepts approvals in manual payment mode.
-- Production redeploy and live approval smoke testing are completed on Railway `production/api`.
+- Production redeploy and live approval smoke testing are completed on Cloud Run `ai-photo-studio-api`.
 
 # R2 Storage Notes
 - Real R2 storage is wired into the API code path and uses the Cloudflare R2 S3-compatible client.
@@ -126,7 +126,7 @@ Railway for the API, PostgreSQL, Redis, and Cloudflare R2. Cloudflare Pages is t
 
 The web frontend is fully deployed to Cloudflare Pages:
 
-**Production URL**: `https://ai-photo-studio-whatsapp-web.pages.dev`
+**Production URL**: `https://ai-photo-studio.pages.dev`
 
 **Web customer flow**:
 1. Create an account at `/signup`

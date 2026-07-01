@@ -1,17 +1,17 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG', '.']
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/latest', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG']
+  args: ['push', 'us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/latest']
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args:
   - 'run'
   - 'deploy'
-  - '$SERVICE_NAME'
-  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG'
-  - '--region=$REGION'
-  - '--project=$PROJECT_ID'
+  - 'ai-photo-studio-api'
+  - '--image=us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/latest'
+  - '--region=us-central1'
+  - '--project=project-9540c255-c960-4fa0-a91'
   - '--platform=managed'
   - '--allow-unauthenticated'
   - '--port=3000'
@@ -20,6 +20,6 @@ steps:
   - '--min-instances=1'
   - '--max-instances=10'
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/$SERVICE_NAME:$IMAGE_TAG'
+- 'us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/latest'
 options:
   logging: CLOUD_LOGGING_ONLY

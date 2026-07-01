@@ -96,44 +96,22 @@ def _validate_transparency(image: Image.Image) -> bool:
     return alpha_coverage >= 0.01
 
 
-def _remove_background_rembg(image: Image.Image) -> Image.Image:
-    from rembg import remove
+def _remove_background(image: Image.Image, tier: str = "standard") -> Image.Image:
+    provider = _get_provider()
     input_bytes = _to_png_bytes(image)
-    output_bytes = remove(input_bytes)
-    return _load_image(output_bytes)
+    result = provider.remove_background(input_bytes, image.width)
+    
+    if result.media_type == "image/png":
+        return _load_image(result.content)
+    raise HTTPException(status_code=500, detail="Provider returned invalid format")
 
 
-def _remove_background_runpod(image: Image.Image) -> Image.Image:
-    import base64
-    import requests
-    
-    api_key = os.getenv("RUNPOD_API_KEY")
-    endpoint_id = os.getenv("RUNPOD_ENDPOINT_ID")
-    if not api_key or not endpoint_id:
-        raise HTTPException(status_code=503, detail="RunPod not configured")
-    
-    image_b64 = base64.b64encode(_to_png_bytes(image)).decode()
-    payload = {
-        "input": {"image": image_b64}
-    }
-    
-    response = requests.post(
-        f"https://api.runpod.io/v2/{endpoint_id}/realtime",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json=payload,
-        timeout=int(os.getenv("RUNPOD_TIMEOUT", "120"))
-    )
-    response.raise_for_status()
-    
-    result = response.json()
-    output_b64 = result["output"]["image"]
-    return _load_image(base64.b64decode(output_b64))
-
-
-def _remove_background(image: Image.Image) -> Image.Image:
-    if os.getenv("RUNPOD_ENABLED") == "1":
-        return _remove_background_runpod(image)
-    return _remove_background_rembg(image)
+def _get_provider():
+    if os.getenv("MODAL_ENABLED") == "1":
+        from providers.modal import ModalProvider
+        return ModalProvider()
+    from providers.local import LocalRembgProvider
+    return LocalRembgProvider()
 
 
 def _process_upload(raw: bytes, content_type: str | None, output: Literal["transparent", "white"], tier: str = "standard") -> ProcessedImage:
@@ -142,7 +120,7 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
     source = _load_image(raw)
     resized = _resize_for_tier(source, tier)
     credits = _calculate_credits(resized, tier)
-    cutout = _remove_background(resized)
+    cutout = _remove_background(resized, tier)
     
     if not _validate_transparency(cutout):
         raise HTTPException(status_code=500, detail="Background removal produced invalid transparency")
@@ -172,15 +150,16 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
     )
 
 
-app = FastAPI(title="AI Photo Studio Background Remover", version="0.2.0")
+app = FastAPI(title="AI Photo Studio Background Remover", version="0.3.0")
 
 
 @app.get("/health")
 def health():
+    provider = _get_provider()
     return {
         "success": True,
         "message": "background remover is running",
-        "model": "runpod" if os.getenv("RUNPOD_ENABLED") == "1" else "rembg-default",
+        "model": provider.name,
         "status": "ready",
     }
 

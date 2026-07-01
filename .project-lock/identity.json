@@ -2,7 +2,7 @@
   "projectName": "AI Photo Studio WhatsApp",
   "safeProjectCode": "AI_PHOTO_STUDIO_WHATSAPP__GARDENSHOP__MAIN",
   "git": {
-    "expectedRemoteContains": "github.com/gardenshop/ai-photo-studio-whatsapp",
+    "expectedRemoteContains": "github.com/ai-photo-studio/ai-photo-studio",
     "expectedBranch": "main"
   },
   "railway": {
@@ -12,8 +12,8 @@
   },
   "cloudflare": {
     "enabled": true,
-    "expectedAccountHint": "gisupp@gmail.com",
-    "expectedR2Bucket": "ai-photo-studio-whatsapp-r2",
+    "expectedAccountHint": "Wpaistudio@gmail.com",
+    "expectedR2Bucket": "ai-photo-studio-storage",
     "expectedWranglerConfig": "apps/web/wrangler.toml"
   },
   "protectedScopes": [

@@ -1,6 +1,6 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 
-const DEFAULT_PRODUCTION_API_URL = "https://api-production-4867.up.railway.app";
+const DEFAULT_PRODUCTION_API_URL = "https://ai-photo-studio-api-108335160641.us-central1.run.app";
 const resolvedApiUrl =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||

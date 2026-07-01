@@ -1,15 +1,14 @@
 {
   "projectName": "AI Photo Studio WhatsApp",
   "safeProjectCode": "AI_PHOTO_STUDIO_WHATSAPP__GARDENSHOP__MAIN",
-  "repositoryId": "gardenshop/ai-photo-studio-whatsapp",
-  "githubOwner": "gardenshop",
-  "expectedGitHubRepositoryUrl": "https://github.com/gardenshop/ai-photo-studio-whatsapp.git",
+  "repositoryId": "ai-photo-studio/ai-photo-studio",
+  "githubOwner": "ai-photo-studio",
+  "expectedGitHubRepositoryUrl": "https://github.com/ai-photo-studio/ai-photo-studio.git",
   "expectedBranch": "main",
   "expectedRailwayProjectId": "ad62f340-fcfd-4989-b5bb-18753b28d8c8",
   "expectedRailwayProjectName": "AI Photo Studio WhatsApp",
   "expectedRailwayEnvironment": "production",
   "expectedRailwayService": "api",
-  "expectedDeploymentUrl": "https://api-production-4867.up.railway.app",
   "railwayWorkspaceVerification": "skip",
   "productionLock": false,
   "databaseProtection": {
@@ -19,11 +18,11 @@
     "requireUnlock": true
   },
   "cloudflare": {
-    "accountEmail": "gisupp@gmail.com",
-    "accountId": "85f6a6181b4653c2a45e69cb7ce8a474",
-    "accountName": "Gisupp@gmail.com's Account",
-    "r2BucketName": "ai-photo-studio-whatsapp-r2",
-    "pagesProjectName": "ai-photo-studio-whatsapp-web"
+    "accountEmail": "Wpaistudio@gmail.com",
+    "accountId": "2eb5eadd4af6da3d3a5f6c61d92437e4",
+    "accountName": "Wpaistudio@gmail.com's Account",
+    "r2BucketName": "ai-photo-studio-storage",
+    "pagesProjectName": "ai-photo-studio-frontend"
   },
   "protectedFiles": [
     "PROJECT_LOCK.json",

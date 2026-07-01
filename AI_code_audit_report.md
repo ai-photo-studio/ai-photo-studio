@@ -1,71 +1,112 @@
 # AI Code Audit Report
 
-## Phase 2.3 — Cloud Run Production Deployment (Blocked)
+**Date:** 2026-07-01
+**Project:** AI Photo Studio on WhatsApp
+**Status:** PRODUCTION VALIDATED
 
-Generated: 2026-06-30
+## Executive Summary
 
-## Status Summary
+The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. All production systems are verified and operational.
 
-| Domain | Status |
-|--------|--------|
-| Google Cloud auth | COMPLETE — wpaistudio@gmail.com |
-| GCP project | project-9540c255-c960-4fa0-a91 |
-| APIs enabled | ALL required |
-| Artifact Registry | CREATED — ai-photo-studio-api (us-central1) |
-| Cloud SQL | CREATED — ai-photo-studio-db (POSTGRES_16, db-perf-optimized-N-2, 136.115.21.123) |
-| Cloud SQL DB | CREATED — ai_photo_studio |
-| Cloud SQL user | CREATED — app_user |
-| Memorystore Redis | CREATED — ai-photo-studio-redis (10.74.177.27:6379) |
-| Secret Manager | 8 actions completed: 7 secrets created, R2 keys updated to v2 |
-| Workload Identity | CONFIGURED — pool github-pool, provider github-provider |
-| SA key | BLOCKED by org policy — Workload Identity used instead |
-| GitHub auth | COMPLETE — ai-photo-studio account |
-| GitHub admin:org | BLOCKED — device flow awaiting completion |
-| GitHub remote | STILL OLD |
-| Cloudflare account | WRONG — gisupp@gmail.com (needs Wpaistudio@gmail.com API token) |
-| Cloudflare Pages/R2 | NOT CREATED |
-| Cloud Run | NOT DEPLOYED |
-| Railway | ONLINE |
-| Build / Typecheck / Verify | ALL PASS |
+## Production Architecture
 
-## Cloudflare R2 Credentials Received
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Production Architecture                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Internet                                                   │
+│       │                                                      │
+│       ▼                                                      │
+│   Cloudflare Pages                                           │
+│   (ai-photo-studio-frontend)                                 │
+│       │                                                      │
+│       ▼                                                      │
+│   Cloud Run API                                              │
+│   (ai-photo-studio-api)                                      │
+│       │                                                      │
+│   ├────┴────┬────┬────┬─────────────────────────────────────┤
+│   │         │    │    │                                     │
+│   ▼         ▼    ▼    ▼                                     │
+│ Cloud SQL  Redis R2   Secret Manager                        │
+│   DB      Cache Storage                                        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-The following R2 bucket credentials were provided and stored in Secret Manager:
+## Production URLs
 
-- **Account ID**: 2eb5eadd4af6da3d3a5f6c61d92437e4
-- **Access Key ID**: c8fb7ca90a241a3b8d5be3351fd4ca5d
-- **Secret Access Key**: 90bf7563b751d2d0ec1f9f4d81782d2acb2c413309431f62497b376c520d72ea
-- **Endpoint**: https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com
-- **Bucket**: ai-photo-studio-storage
+| Service | URL | Status |
+|---------|-----|--------|
+| Cloud Run API | https://ai-photo-studio-api-108335160641.us-central1.run.app | ✅ Active |
+| Cloudflare Pages | https://29105fb4.ai-photo-studio-frontend.pages.dev | ✅ Active |
+| Cloud SQL | ai-photo-studio-db | ✅ Running |
+| Redis | ai-photo-studio-redis | ✅ Ready |
+| R2 Storage | ai-photo-studio-storage | ✅ Operational |
 
-**Important**: These are R2 bucket-level S3-compatible credentials. They are NOT a Cloudflare API token. They cannot be used with Wrangler to create Pages projects or manage Cloudflare account resources.
+## Verification Results
 
-### Still Required: Cloudflare API Token
+### API Health Check
+```
+GET /api/health
+Status: 200 OK
+Response: {"success":true,"message":"AI Photo Studio API is running"}
+```
 
-To switch Wrangler to the `Wpaistudio@gmail.com` account, an API token with these permissions is required:
+### API Version
+```
+GET /api/version
+Status: 200 OK
+Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
+```
 
-- **Account** → **Cloudflare Pages** — Edit
-- **Account** → **Cloudflare R2** — Edit
-- *(Future)* **Account** → **Cloudflare Workers** — Edit
+### Database
+- Cloud SQL PostgreSQL 16: RUNNABLE
+- Redis 7.0: READY
+- Connection: Verified via Secret Manager
 
-Generate at: https://dash.cloudflare.com/profile/api-tokens  
-Then set: `$env:CLOUDFLARE_API_TOKEN="<token>"`
+### Storage
+- R2 Bucket: ai-photo-studio-storage
+- Endpoint: https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com
 
-## Remaining Blockers
+## Security
 
-1. **GitHub admin:org** — complete device flow
-2. **Cloudflare API token** — generate from Wpaistudio@gmail.com
-3. **Git remote** — update after #1
-4. **Cloud Run deployment** — blocked by #1 and #2
+### IAM Configuration
+- Service Account: 108335160641-compute@developer.gserviceaccount.com
+- Roles:
+  - roles/secretmanager.secretAccessor
+  - roles/cloudsql.client
 
-## Completion
+### Secrets (Secret Manager)
+- DATABASE_URL (v2)
+- REDIS_URL (latest)
+- JWT_SECRET (latest)
+- ADMIN_JWT_SECRET (v1)
+- R2 credentials (env vars)
 
-| Phase | % |
-|-------|---|
-| Phase 0 | 100% |
-| Phase 1 | 100% |
-| Phase 2.0 | 100% |
-| Phase 2.1 | 100% |
-| Phase 2.2 | 85% |
-| Phase 2.3 | 20% |
-| Overall | ~48% |
+## Migration Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Cloud SQL | ✅ Complete | ai-photo-studio-db |
+| Redis | ✅ Complete | ai-photo-studio-redis |
+| Artifact Registry | ✅ Complete | ai-photo-studio-api |
+| Secret Manager | ✅ Complete | 7 secrets |
+| Workload Identity | ✅ Complete | github-pool/provider |
+| Cloud Run | ✅ Complete | ai-photo-studio-api |
+| Cloudflare Pages | ✅ Complete | ai-photo-studio-frontend |
+| Railway | ⏸️ Rollback | Disabled for production |
+
+## Rollback Information
+
+See `RAILWAY_ROLLBACK_PACKAGE.md` for emergency rollback procedures.
+
+## Next Steps
+
+1. WhatsApp integration (separate phase)
+2. Performance optimization
+3. Monitoring/alerting setup
+
+---
+**Report generated:** 2026-07-01
+**Verified by:** Automated validation

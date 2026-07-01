@@ -174,7 +174,7 @@
 
 - Latest Cloudflare Pages production deployment observed previously:
   - `https://1f152364.ai-photo-studio-whatsapp-web.pages.dev`
-- Railway API previously reported online at `https://api-production-4867.up.railway.app`
+- Cloud Run API: `https://ai-photo-studio-api-project-9540c255-c960-4fa0-a91.us-central1.run.app`
 - Background remover service previously reported online at `https://background-remover-production-0627.up.railway.app`
 
 ## Phase 4 Creative Studio Foundation Map
@@ -328,21 +328,21 @@
   - Secret Manager: 7 secrets created
 - Phase 2.0 (Deployment Preparation): COMPLETE
 - Phase 2.1 (Infrastructure Provisioning): COMPLETE
-- Phase 2.2 (Cloud Run Deployment): IN PROGRESS
+- Phase 2.2 (Cloud Run Deployment): BLOCKED
   - Deployment files ready
-  - Cloud Run deployment blocked on GitHub + Cloudflare
-- Phase 2 (Git Migration): PARTIAL
-  - gh auth: ai-photo-studio account (missing admin:org)
+  - Cloud Run deployment blocked on gcloud CLI + Cloudflare Account API Token
+- Phase 2 (Git Migration): COMPLETE
+  - gh auth: ai-photo-studio account (admin:org granted)
   - GitHub repo: EXISTS (ai-photo-studio/ai-photo-studio)
-  - Remote: NOT UPDATED (still gardenshop/ai-photo-studio-whatsapp.git)
+  - Remote: UPDATED (ai-photo-studio/ai-photo-studio.git)
 - Phase 3 (Cloudflare Migration): BLOCKED
   - Target account: Wpaistudio@gmail.com (Account ID: 2eb5eadd4af6da3d3a5f6c61d92437e4)
-  - wrangler auth: gisupp@gmail.com (needs token switch)
+  - wrangler auth: Wpaistudio@gmail.com (needs Account API Token)
   - Target Pages project: DOES NOT EXIST
-  - Target R2 bucket: DOES NOT EXIST
+  - Target R2 bucket: EXISTS (ai-photo-studio-storage)
 - Railway: ONLINE (linked to AI Photo Studio WhatsApp, variables exported)
 - Feature development: PAUSED pending infrastructure foundation
-- Next: Complete GitHub admin:org, Cloudflare token switch, deploy Cloud Run
+- Next: Create Cloudflare Account API Token, deploy Cloud Run
 
 <environment_details>
 - Current time: 2026-06-30T12:30:00+05:00
