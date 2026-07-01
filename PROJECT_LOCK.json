@@ -63,5 +63,11 @@
     "current": "local-rembg",
     "note": "Local rembg provider with u2netp model via Cloud Run Job. BACKGROUND_API_URL points to Cloud Run Job endpoint."
   },
+  "backgroundRemover": {
+    "model": "u2netp",
+    "status": "configured",
+    "memory": "512MB",
+    "processingTimeMs": "1000-5000"
+  },
   "protectedScopeProtocolVersion": "3.1.0"
 }
