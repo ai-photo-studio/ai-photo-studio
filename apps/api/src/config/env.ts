@@ -120,14 +120,12 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
       }
     }
 
-    if (selectedAiProvider === "photoroom" || selectedAiProvider === "fal") {
-      if (!providerKey) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: selectedAiProvider === "photoroom" ? ["PHOTOROOM_API_KEY"] : ["FAL_API_KEY"],
-          message: `${selectedAiProvider === "photoroom" ? "PHOTOROOM_API_KEY" : "FAL_API_KEY"} is required when AI_PROVIDER=${selectedAiProvider}`
-        });
-      }
+    if (selectedAiProvider === "photoroom" || selectedAiProvider === "fal" || selectedAiProvider === "future-photoroom" || selectedAiProvider === "future-falai" || selectedAiProvider === "future-replicate") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AI_PROVIDER"],
+        message: `AI_PROVIDER ${selectedAiProvider} is disabled for MVP. Use mock, local-yolo, local-rembg, local-esrgan, or local-iclight`
+      });
     }
 
     if (selectedAiProvider === "local-yolo" || selectedAiProvider === "local-rembg") {

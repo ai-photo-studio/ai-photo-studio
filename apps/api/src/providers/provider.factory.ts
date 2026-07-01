@@ -6,17 +6,14 @@ import { LocalRembgImageProvider } from "./local-rembg.provider";
 import { LocalYoloImageProvider } from "./local-yolo.provider";
 import { LocalEsrganImageProvider } from "./local-esrgan.provider";
 import { LocalIclightImageProvider } from "./local-iclight.provider";
-import { FalImageProvider } from "./fal.provider";
 
 const LOCAL_PROVIDERS: AIProviderName[] = ["mock", "local-rembg", "local-yolo", "local-esrgan", "local-iclight"];
 
-const FUTURE_PROVIDERS: AIProviderName[] = ["future-photoroom", "future-falai", "future-replicate"];
-
-const VALID_PROVIDERS: AIProviderName[] = [...LOCAL_PROVIDERS, ...FUTURE_PROVIDERS, "photoroom", "fal"];
+const DEPRECATED_PROVIDERS: AIProviderName[] = ["photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"];
 
 export const resolveProviderName = (config: Pick<AppConfig, "aiProvider">): AIProviderName => {
   const selected = (config.aiProvider || "mock").trim().toLowerCase();
-  if (VALID_PROVIDERS.includes(selected as AIProviderName)) {
+  if (LOCAL_PROVIDERS.includes(selected as AIProviderName)) {
     return selected as AIProviderName;
   }
   return "mock";
@@ -68,27 +65,10 @@ export const getProviderSelection = (config: AppConfig): {
 export const createImageProvider = (config: AppConfig): ImageProvider => {
   const providerName = resolveProviderName(config);
 
-  if (providerName === "photoroom") {
-    throw new AppError("Provider photoroom is disabled", 500, "PROVIDER_DISABLED");
-  }
-
-  if (providerName === "fal") {
-    if (!config.FAL_API_KEY) {
-      throw new AppError("FAL_API_KEY is required for fal provider", 500, "CONFIG_ERROR");
+  for (const deprecated of DEPRECATED_PROVIDERS) {
+    if (providerName === deprecated) {
+      throw new AppError(`Provider ${deprecated} is disabled (deprecated for MVP)`, 500, "PROVIDER_DISABLED");
     }
-    return new FalImageProvider(config.FAL_API_KEY);
-  }
-
-  if (providerName === "future-photoroom") {
-    throw new AppError("Provider future-photoroom is disabled", 500, "PROVIDER_DISABLED");
-  }
-
-  if (providerName === "future-falai") {
-    throw new AppError("Provider future-falai is disabled", 500, "PROVIDER_DISABLED");
-  }
-
-  if (providerName === "future-replicate") {
-    throw new AppError("Provider future-replicate is disabled", 500, "PROVIDER_DISABLED");
   }
 
   if (providerName === "local-yolo") {

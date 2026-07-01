@@ -12,10 +12,10 @@
 !.docs/PERFORMANCE_BENCHMARK_REPORT.md
 .ai-project/*.md
 *.audit.md
-*.report.md
 AI_code_audit_report.md
 AI_code_audit_report_ARCHIVED.md
 AI_code_audit_report_archive_*.md
+AI_code_audit_report_v2.md
 .gcp-service-account.json
 *_SCREENSHOT*.png
 validation-output.json
