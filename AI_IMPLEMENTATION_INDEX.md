@@ -194,7 +194,7 @@ Cloud SQL
 - **Available:** local-rembg, local-yolo, local-esrgan, local-iclight
 - **Requirement:** BACKGROUND_API_URL for local providers
 - **Optimization:** u2netp model (512MB RAM, 1-3s latency)
-- **Deployment:** Cloud Run Jobs configured, deployment pending
+- **Deployment:** ❌ Blocked by GCP Artifact Registry permissions
 
 ## Production URLs
 

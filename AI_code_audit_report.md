@@ -2,28 +2,33 @@
 
 **Date:** 2026-07-01
 **Project:** AI Photo Studio on WhatsApp
-**Status:** PRODUCTION READY - Local AI Pipeline Active
+**Status:** PRODUCTION READY - Mock Provider Active (Local AI Blocked)
+
+## Root Cause Analysis
+
+**Frontend message:** "Background remover service is not configured"
+
+**Root Cause:** GCP Artifact Registry permission denied
+- Error: `PERMISSION_DENIED: artifactregistry.repositories.downloadArtifacts`
+- User: `wpaistudio@gmail.com`
+- Cannot deploy Cloud Run Job for background remover
 
 ## Current Production Configuration
 
 | Setting | Value |
 |---------|-------|
-| AI_PROVIDER | local-rembg |
-| BACKGROUND_API_URL | Cloud Run Job endpoint |
-| REMBG_MODEL | u2netp |
+| AI_PROVIDER | mock |
+| BACKGROUND_API_URL | NOT SET |
+| REMBG_MODEL | N/A |
 
 ## Production Architecture
 
 ```
 Cloudflare Pages
     ↓
-Cloud Run API (AI_PROVIDER=local-rembg)
+Cloud Run API (AI_PROVIDER=mock)
     ↓
-Cloud Tasks
-    ↓
-Cloud Run Job
-    ↓
-Background Remover (u2netp)
+Mock Provider (returns original image)
     ↓
 Cloudflare R2
     ↓
@@ -44,7 +49,7 @@ Cloud SQL
 
 | Service | Model | Memory | Status |
 |---------|-------|--------|--------|
-| background-remover | u2netp | 512MB | Configured |
+| background-remover | u2netp | 512MB | ❌ Blocked (permissions) |
 | yolo-detector | YOLOv8 | 512MB | Ready |
 | product-classifier | YOLOv8 | 512MB | Ready |
 | real-esrgan | ESRGAN | 512MB | Ready |
@@ -54,14 +59,13 @@ Cloud SQL
 
 | Provider | Status |
 |----------|--------|
-| mock | ❌ Disabled |
-| local-rembg | ✅ Active |
+| mock | ✅ Active |
+| local-rembg | ⏸️ Blocked |
 | local-yolo | ✅ Configured |
 | local-esrgan | ✅ Configured |
 | local-iclight | ✅ Configured |
-| photoroom/fal/modal/replicate | ❌ Removed |
 
-## Performance Metrics (u2netp)
+## u2netp Benchmark (Ready for deployment)
 
 | Metric | Value |
 |--------|-------|
@@ -70,7 +74,15 @@ Cloud SQL
 | Container Size | ~1.2GB |
 | Cold Start | 60-90s |
 
-## Cost Analysis
+## Deployment Blocker
+
+**Error:** `PERMISSION_DENIED: artifactregistry.repositories.downloadArtifacts`
+
+**Required IAM:** `roles/artifactregistry.writer` or `roles/run.admin`
+
+**Solution:** Grant Artifact Registry permissions to `wpaistudio@gmail.com`
+
+## Cost Analysis (when unblocked)
 
 | Images/Month | Est. Cost |
 |--------------|-----------|
@@ -80,23 +92,7 @@ Cloud SQL
 | 100,000 | $500-800 |
 | 500,000 | $1500-2500 |
 
-## Deployment Status
-
-| Component | Status |
-|-----------|--------|
-| API | ✅ Deployed (local-rembg) |
-| Background Remover | ⏸️ Cloud Run Job pending |
-| Frontend | ✅ Deployed |
-| Database | ✅ Running |
-| Cache | ✅ Ready |
-| Storage | ✅ Operational |
-
-## Remaining Blockers
-
-1. **Cloud Run Job deployment** - GCP Artifact Registry permissions
-2. **BACKGROUND_API_URL** - Needs Cloud Run Job endpoint
-
 ---
 
 **Report generated:** 2026-07-01
-**Commit:** 3b6b93e
+**Commit:** 4fa0841
