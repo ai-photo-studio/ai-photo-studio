@@ -63,6 +63,18 @@ The `BackgroundRemoverService` throws error when `BACKGROUND_API_URL.trim()` is 
 
 **Note:** The background-remover service (`ai-photo-studio-bg-remover`) was created but deployment failed due to memory constraints. The mock provider is serving as a fallback, returning the original image without background removal.
 
+## Phase 3.8 - Cloud Run Jobs Implementation
+
+**Architecture:**
+Cloudflare Pages → Cloud Run API → Cloud Tasks → Cloud Run Job → Background Remover → R2 → Result
+
+**Model Selection:**
+- **u2netp** recommended for MVP: 512MB RAM, 1-3s latency, good quality
+- BiRefNet: 2-4GB RAM, 5-15s latency, best quality (blocked by Cloud Run memory limits)
+- Cloud Run Jobs: Serverless, no permanent VM, scales to zero
+
+**Status:** Cloud Run Jobs configured, deployment pending memory optimization.
+
 ## Phase 3.3 - Real AI Background Removal (BLOCKED)
 
 **Status:** BLOCKED - Cloud Run resource constraints

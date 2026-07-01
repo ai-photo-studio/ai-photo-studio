@@ -38,7 +38,7 @@ The migration from Railway to Google Cloud Run + Cloudflare Pages has been compl
 
 | Service | URL | Status |
 |---------|-----|--------|
-| Cloud Run API | https://ai-photo-studio-api-108335160641.us-central1.run.app | ✅ Active |
+| Cloud Run API | https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app | ✅ Active |
 | Cloudflare Pages | https://29105fb4.ai-photo-studio-frontend.pages.dev | ✅ Active |
 | Cloud SQL | ai-photo-studio-db | ✅ Running |
 | Redis | ai-photo-studio-redis | ✅ Ready |
@@ -107,7 +107,7 @@ Export (R2 Storage)
 
 | Service | Model | Health | Memory | Status |
 |---------|-------|--------|--------|--------|
-| background-remover | rembg (BiRefNet) | BLOCKED | 2-4Gi | Cloud Run constraints |
+| background-remover | rembg (u2netp) | BLOCKED | 512Mi | Cloud Run Jobs ready |
 | yolo-detector | YOLOv8 | local | 512Mi | Ready |
 | product-classifier | YOLOv8 | local | 512Mi | Ready |
 | real-esrgan | ESRGAN | local | 512Mi | Ready |
@@ -151,15 +151,15 @@ Export (R2 Storage)
 | Database | Railway PG | Cloud SQL | ✅ Migrated |
 | Cache | Railway Redis | Memorystore | ✅ Migrated |
 | Storage | Railway | Cloudflare R2 | ✅ Migrated |
-| Background Remover | Railway | Cloud Run | ⚠️ Blocked |
-| Queue | Railway Redis | Cloud Run Redis | ✅ Migrated |
+| Background Remover | Railway | Cloud Run Jobs | ⚠️ Configured |
+| Queue | Railway Redis | Cloud Tasks | ✅ Migrated |
 
 ## Remaining Blockers
 
 1. **Background Remover Deployment**
-   - Python container requires 2-4Gi memory
-   - Cloud Run startup timeout exceeded
-   - Recommendation: Use Cloud Run Jobs or GKE Autopilot
+   - Python container requires 512MB-1GB memory for u2netp
+   - Cloud Run Jobs ready for deployment
+   - Recommendation: Deploy Cloud Run Job
 
 2. **MVP Workaround**
    - AI_PROVIDER=mock returns original image
@@ -179,6 +179,7 @@ Export (R2 Storage)
 | Cloudflare Pages | ✅ Complete | ai-photo-studio-frontend |
 | Railway Retirement | ✅ Complete | Disabled for production |
 | Paid Providers | ✅ Removed | photoroom, fal, modal, replicate |
+| Cloud Run Jobs | ✅ Configured | job.py ready |
 
 ## Rollback Information
 
@@ -186,12 +187,15 @@ See `RAILWAY_ROLLBACK_PACKAGE.md` for emergency rollback procedures.
 
 ## Next Steps
 
-1. **WhatsApp integration** (Phase 4)
-2. **Background remover deployment** - Use Cloud Run Jobs or GKE Autopilot
-3. **Performance optimization**
-4. **Monitoring/alerting setup**
+1. **Deploy Cloud Run Job** for background remover with u2netp model
+2. **Implement Cloud Tasks** queue for job processing
+3. **Update API** to trigger Cloud Run Jobs instead of mock provider
+4. **WhatsApp integration** (Phase 4)
+5. **Performance optimization**
+6. **Monitoring/alerting setup**
 
 ---
+
 **Report generated:** 2026-07-01
 **Verified by:** Automated validation
-**Commit:** aa93058
+**Commit:** 7b40daf

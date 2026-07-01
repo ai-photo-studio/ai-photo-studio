@@ -47,12 +47,9 @@ const applyPendingMigrations = async () => {
 
 const bootstrap = async () => {
   const config = loadConfig();
-  const isRailwayProduction =
-    process.env.RAILWAY_ENVIRONMENT === "production" ||
-    process.env.RAILWAY_ENVIRONMENT_NAME === "production";
   const isCloudRunProduction = process.env.SKIP_MIGRATIONS === "true";
 
-  if (isRailwayProduction && !isCloudRunProduction) {
+  if (!isCloudRunProduction) {
     await applyPendingMigrations();
   }
   const adminAuth = new AdminAuthService(config);

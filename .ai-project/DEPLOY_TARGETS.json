@@ -1,23 +1,19 @@
 {
-  "railway": {
-    "projectId": "ad62f340-fcfd-4989-b5bb-18753b28d8c8",
-    "projectName": "AI Photo Studio WhatsApp",
-    "environment": "production",
-    "environmentId": "13228f5e-8af5-4f5e-b57e-b1dfccd567ec",
-    "service": "api",
-    "requiredServices": [
-      "api",
-      "postgres",
-      "redis"
-    ]
-  },
   "cloudflare": {
     "accountId": "2eb5eadd4af6da3d3a5f6c61d92437e4",
     "r2BucketName": "ai-photo-studio-storage",
     "publicBaseUrl": "https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com"
   },
+  "gcp": {
+    "project_id": "project-9540c255-c960-4fa0-a91",
+    "region": "us-central1",
+    "cloudrun_service": "ai-photo-studio-api",
+    "cloudsql_instance": "ai-photo-studio-db",
+    "redis_instance": "ai-photo-studio-redis",
+    "secret_manager_project": "project-9540c255-c960-4fa0-a91"
+  },
   "git": {
-    "remote": "https://github.com/gardenshop/ai-photo-studio-whatsapp.git",
+    "remote": "https://github.com/ai-photo-studio/ai-photo-studio.git",
     "branch": "main"
   }
 }
