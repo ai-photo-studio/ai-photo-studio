@@ -65,24 +65,3 @@
   },
   "protectedScopeProtocolVersion": "3.1.0"
 }
-  },
-  "protectedFiles": [
-    "PROJECT_LOCK.json",
-    "PROJECT_SAFETY_LOCK.md",
-    "AI_PROJECT_RULES.md"
-  ],
-  "requiredSecrets": [
-    "DATABASE_URL",
-    "REDIS_URL",
-    "JWT_SECRET",
-    "ADMIN_JWT_SECRET",
-    "R2_ACCESS_KEY_ID",
-    "R2_SECRET_ACCESS_KEY",
-    "R2_ACCOUNT_ID"
-  ],
-  "aiProvider": {
-    "current": "mock",
-    "note": "local-rembg configured but Cloud Run Job deployment blocked by GCP permissions. BACKGROUND_API_URL not set."
-  },,
-  "protectedScopeProtocolVersion": "3.1.0"
-}
