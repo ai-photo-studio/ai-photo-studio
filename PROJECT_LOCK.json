@@ -34,8 +34,8 @@
     "artifactRegistry": "ai-photo-studio-api",
     "backgroundRemover": {
       "service": "ai-photo-studio-bg-remover",
-      "status": "deploying",
-      "note": "Background remover service deployment in progress. API configured with AI_PROVIDER=mock as fallback."
+      "status": "blocked",
+      "note": "Deployment blocked by Cloud Run resource constraints. API using AI_PROVIDER=mock as fallback."
     }
   },
   "protectedFiles": [

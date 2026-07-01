@@ -103,7 +103,7 @@ Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
 **Production Configuration:**
 - `AI_PROVIDER=mock` (configured in Cloud Run)
 - Mock provider doesn't require `BACKGROUND_API_URL`
-- Background remover Python service deployment in progress
+- Background remover Python service deployment blocked by Cloud Run resource constraints
 
 **Environment Variables (Cloud Run):**
 ```
@@ -113,9 +113,9 @@ BACKGROUND_API_URL=<not required for mock provider>
 
 ### Background Remover Service Status
 - **Service:** `ai-photo-studio-bg-remover`
-- **Status:** Deploying (Python service, 4Gi memory)
-- **Endpoint:** Port 8000
-- **Health:** `/health` endpoint
+- **Status:** BLOCKED - Deployment failed due to Cloud Run resource constraints (Python service requires 4Gi memory)
+- **Current Workaround:** Mock provider returns original image without background removal
+- **Alternative:** Use Modal provider if API key is available
 
 ## Migration Status
 
@@ -128,7 +128,8 @@ BACKGROUND_API_URL=<not required for mock provider>
 | Workload Identity | ✅ Complete | github-pool/provider |
 | Cloud Run | ✅ Complete | ai-photo-studio-api |
 | Cloudflare Pages | ✅ Complete | ai-photo-studio-frontend |
-| Phase 3.2 | ✅ Complete | Background remover configured |
+| Phase 3.2 | ✅ Complete | Background remover configured with mock fallback |
+| Phase 3.3 | ⏸️ Blocked | Background remover Python service deployment blocked |
 | Railway | ⏸️ Rollback | Disabled for production |
 
 ## Rollback Information

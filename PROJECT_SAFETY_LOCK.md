@@ -55,11 +55,22 @@ The `BackgroundRemoverService` throws error when `BACKGROUND_API_URL.trim()` is 
 
 **Resolution:** 
 - API deployed with `AI_PROVIDER=mock` as fallback (mock provider doesn't require BACKGROUND_API_URL)
-- Background remover service deployment in progress (Python service requires 4Gi memory)
+- Background remover Python service deployment blocked by Cloud Run resource constraints (requires 4Gi memory)
 
 **Environment Variables:**
 - `AI_PROVIDER=mock` (configured in Cloud Run)
 - `BACKGROUND_API_URL` - not required for mock provider
+
+**Note:** The background-remover service (`ai-photo-studio-bg-remover`) was created but deployment failed due to memory constraints. The mock provider is serving as a fallback, returning the original image without background removal.
+
+## Phase 3.3 - Real AI Background Removal (BLOCKED)
+
+**Status:** BLOCKED - Cloud Run resource constraints
+
+**Required Action:** Deploy Python background-remover service with sufficient memory (4Gi).
+**Alternative:** Use Modal provider if API key is available.
+
+**Current Provider:** `mock` (returns original image without processing)
 
 ## Phase P Note
 
