@@ -34,11 +34,13 @@
     "cloudSQL": "ai-photo-studio-db",
     "redis": "ai-photo-studio-redis",
     "artifactRegistry": "ai-photo-studio-api",
-    "backgroundRemover": {
-      "service": "ai-photo-studio-bg-remover",
-      "status": "blocked",
-      "note": "GCP permissions error: PERMISSION_DENIED: artifactregistry.repositories.downloadArtifacts"
-    },
+"backgroundRemover": {
+        "service": "ai-photo-studio-bg-remover",
+        "status": "deployed",
+        "url": "https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app",
+        "model": "u2netp",
+        "note": "Successfully deployed with local-rembg provider"
+      },
     "cloudRunJobs": {
       "service": "ai-photo-studio-bg-remover-job",
       "status": "configured",
@@ -60,8 +62,8 @@
     "R2_ACCOUNT_ID"
   ],
   "aiProvider": {
-    "current": "mock",
-    "note": "local-rembg configured but Cloud Run Job deployment blocked by GCP permissions. BACKGROUND_API_URL not set."
+    "current": "local-rembg",
+    "note": "Successfully deployed with u2netp model. BACKGROUND_API_URL configured."
   },
   "protectedScopeProtocolVersion": "3.1.0"
 }

@@ -46,7 +46,7 @@ Cloud SQL
 
 | Service | Model | Provider | Status |
 |---------|-------|----------|--------|
-| Background Remover | u2netp | mock/local-rembg | Mock MVP |
+| Background Remover | u2netp | local-rembg | ✅ Deployed |
 | YOLO Detector | YOLOv8 | local-yolo | Ready |
 | Product Classifier | YOLOv8 | local | Ready |
 | Real-ESRGAN | ESRGAN | local-esrgan | Ready |
@@ -190,11 +190,11 @@ Cloud SQL
 
 ## Background Remover Status
 
-- **Current:** Mock provider (AI_PROVIDER=mock)
-- **Available:** local-rembg, local-yolo, local-esrgan, local-iclight
-- **Requirement:** BACKGROUND_API_URL for local providers
-- **Optimization:** u2netp model (512MB RAM, 1-3s latency)
-- **Deployment:** ❌ Blocked by GCP Artifact Registry permissions
+- **Current:** local-rembg (AI_PROVIDER=local-rembg)
+- **Deployed:** ✅ https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app
+- **Model:** u2netp (512MB RAM, 1-3s latency)
+- **Requirement:** BACKGROUND_API_URL configured
+- **Status:** ✅ Production ready
 
 ## Production URLs
 

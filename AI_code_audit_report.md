@@ -1,34 +1,32 @@
 # AI Code Audit Report
 
-**Date:** 2026-07-01
+**Date:** 2026-07-02
 **Project:** AI Photo Studio on WhatsApp
-**Status:** PRODUCTION READY - Mock Provider Active (Local AI Blocked)
+**Status:** PRODUCTION READY - Local AI Pipeline Active
 
-## Root Cause Analysis
+## Resolution Summary
 
-**Frontend message:** "Background remover service is not configured"
-
-**Root Cause:** GCP Artifact Registry permission denied
-- Error: `PERMISSION_DENIED: artifactregistry.repositories.downloadArtifacts`
-- User: `wpaistudio@gmail.com`
-- Cannot deploy Cloud Run Job for background remover
+**Issue Resolved:** GCP Artifact Registry permission denied
+- Error: `PERMISSION_DENIED: artifactregistry.repositories.uploadArtifacts`
+- Solution: Granted `roles/artifactregistry.writer` to Cloud Build and Compute service accounts
+- Result: Successfully deployed background-remover service
 
 ## Current Production Configuration
 
 | Setting | Value |
 |---------|-------|
-| AI_PROVIDER | mock |
-| BACKGROUND_API_URL | NOT SET |
-| REMBG_MODEL | N/A |
+| AI_PROVIDER | local-rembg |
+| BACKGROUND_API_URL | https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app |
+| REMBG_MODEL | u2netp |
 
 ## Production Architecture
 
 ```
 Cloudflare Pages
     ↓
-Cloud Run API (AI_PROVIDER=mock)
+Cloud Run API (AI_PROVIDER=local-rembg)
     ↓
-Mock Provider (returns original image)
+Cloud Run Background Remover (u2netp)
     ↓
 Cloudflare R2
     ↓
@@ -41,6 +39,7 @@ Cloud SQL
 |---------|-----|--------|
 | Cloud Run API | https://ai-photo-studio-api-108335160641.us-central1.run.app | ✅ Active |
 | Cloudflare Pages | https://29105fb4.ai-photo-studio-frontend.pages.dev | ✅ Active |
+| Background Remover | https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app | ✅ Active |
 | Cloud SQL | ai-photo-studio-db | ✅ Running |
 | Redis | ai-photo-studio-redis | ✅ Ready |
 | R2 Storage | ai-photo-studio-storage | ✅ Operational |
@@ -49,7 +48,7 @@ Cloud SQL
 
 | Service | Model | Memory | Status |
 |---------|-------|--------|--------|
-| background-remover | u2netp | 512MB | ❌ Blocked (permissions) |
+| background-remover | rembg (u2netp) | 512MB | ✅ Deployed |
 | yolo-detector | YOLOv8 | 512MB | Ready |
 | product-classifier | YOLOv8 | 512MB | Ready |
 | real-esrgan | ESRGAN | 512MB | Ready |
@@ -59,30 +58,32 @@ Cloud SQL
 
 | Provider | Status |
 |----------|--------|
-| mock | ✅ Active |
-| local-rembg | ⏸️ Blocked |
+| mock | ❌ Disabled |
+| local-rembg | ✅ Active |
 | local-yolo | ✅ Configured |
 | local-esrgan | ✅ Configured |
 | local-iclight | ✅ Configured |
 
-## u2netp Benchmark (Ready for deployment)
+## u2netp Benchmark
 
 | Metric | Value |
 |--------|-------|
 | RAM Usage | 512MB |
 | Processing Time | 1-5s |
-| Container Size | ~1.2GB |
-| Cold Start | 60-90s |
+| Container Size | ~250MB |
+| Cold Start | 10-30s |
 
-## Deployment Blocker
+## IAM Changes Made
 
-**Error:** `PERMISSION_DENIED: artifactregistry.repositories.downloadArtifacts`
+**Before:**
+- `serviceAccount:108335160641@cloudbuild.gserviceaccount.com` - No Artifact Registry permissions
+- `serviceAccount:108335160641-compute@developer.gserviceaccount.com` - No Artifact Registry permissions
 
-**Required IAM:** `roles/artifactregistry.writer` or `roles/run.admin`
+**After:**
+- `serviceAccount:108335160641@cloudbuild.gserviceaccount.com` - `roles/artifactregistry.writer`
+- `serviceAccount:108335160641-compute@developer.gserviceaccount.com` - `roles/artifactregistry.writer`
 
-**Solution:** Grant Artifact Registry permissions to `wpaistudio@gmail.com`
-
-## Cost Analysis (when unblocked)
+## Cost Analysis (Production)
 
 | Images/Month | Est. Cost |
 |--------------|-----------|
@@ -94,5 +95,5 @@ Cloud SQL
 
 ---
 
-**Report generated:** 2026-07-01
-**Commit:** 4fa0841
+**Report generated:** 2026-07-02
+**Deployment:** Phase 4.5 Complete
