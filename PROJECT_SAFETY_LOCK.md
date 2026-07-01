@@ -67,8 +67,52 @@ The `BackgroundRemoverService` throws error when `BACKGROUND_API_URL.trim()` is 
 
 **Status:** BLOCKED - Cloud Run resource constraints
 
-**Required Action:** Deploy Python background-remover service with sufficient memory (4Gi).
-**Alternative:** Use Modal provider if API key is available.
+**Root Cause Analysis:**
+- Python container image: ~900MB (rembg + onnxruntime + dependencies)
+- ONNX model loading: ~300MB model files
+- Memory requirement: 2-4Gi minimum for model loading
+- Cloud Run startup timeout: 300s exceeded during build/deploy
+- Alpine Linux missing libGL dependencies for ONNX runtime
+
+**Optimization Attempts:**
+- Reduced to python:3.11-alpine
+- Pinned dependency versions
+- Added --workers 1 to reduce memory
+
+**Recommendation:**
+1. **Short-term:** Keep `AI_PROVIDER=mock` for MVP
+2. **Long-term:** Deploy to GKE Autopilot or Cloud Run Jobs with 4Gi memory
+3. **Alternative:** Use Modal.com for serverless GPU (requires paid account)
+
+## Phase 3.5 - Local Open Source AI Verification
+
+**Open Source AI Matrix:**
+
+| Service | Model | Health | Memory | Status |
+|---------|-------|--------|--------|--------|
+| background-remover | rembg (BiRefNet) | BLOCKED | 2-4Gi | Cloud Run constraints |
+| yolo-detector | YOLOv8 | local | 512Mi | Ready |
+| real-esrgan | ESRGAN | local | 512Mi | Ready |
+| ic-light-lab | IC-Light | local | 1Gi | Ready |
+| product-classifier | YOLOv8 | local | 512Mi | Ready |
+
+**Resource Comparison (Background Remover):**
+- Model: BiRefNet (default in rembg)
+- Container size: 900MB+
+- Memory: 2-4Gi
+- Startup time: 60-120s (model loading)
+- Alternative: u2net (~200MB, 1Gi memory)
+
+**Best Open Source Model for Production:**
+1. **u2net** - Smaller, faster, lower memory
+2. **BiRefNet** - Higher quality, higher resource usage
+3. **Recommendation:** Use u2net for MVP, BiRefNet for premium
+
+**Optimization Applied:**
+- Alpine base image
+- Pinned dependencies
+- Single worker
+- Health endpoint: `/health`
 
 **Current Provider:** `mock` (returns original image without processing)
 

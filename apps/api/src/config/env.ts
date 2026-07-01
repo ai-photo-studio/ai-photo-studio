@@ -120,12 +120,14 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
       }
     }
 
-    if (["photoroom", "fal"].includes(selectedAiProvider) && !providerKey) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: selectedAiProvider === "photoroom" ? ["PHOTOROOM_API_KEY"] : ["FAL_API_KEY"],
-        message: `${selectedAiProvider === "photoroom" ? "PHOTOROOM_API_KEY" : "FAL_API_KEY"} is required when AI_PROVIDER=${selectedAiProvider}`
-      });
+    if (selectedAiProvider === "photoroom" || selectedAiProvider === "fal") {
+      if (!providerKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: selectedAiProvider === "photoroom" ? ["PHOTOROOM_API_KEY"] : ["FAL_API_KEY"],
+          message: `${selectedAiProvider === "photoroom" ? "PHOTOROOM_API_KEY" : "FAL_API_KEY"} is required when AI_PROVIDER=${selectedAiProvider}`
+        });
+      }
     }
 
     if (selectedAiProvider === "local-yolo" || selectedAiProvider === "local-rembg") {

@@ -6,6 +6,7 @@ import { LocalRembgImageProvider } from "./local-rembg.provider";
 import { LocalYoloImageProvider } from "./local-yolo.provider";
 import { LocalEsrganImageProvider } from "./local-esrgan.provider";
 import { LocalIclightImageProvider } from "./local-iclight.provider";
+import { FalImageProvider } from "./fal.provider";
 
 const LOCAL_PROVIDERS: AIProviderName[] = ["mock", "local-rembg", "local-yolo", "local-esrgan", "local-iclight"];
 
@@ -72,7 +73,10 @@ export const createImageProvider = (config: AppConfig): ImageProvider => {
   }
 
   if (providerName === "fal") {
-    throw new AppError("Provider fal is disabled", 500, "PROVIDER_DISABLED");
+    if (!config.FAL_API_KEY) {
+      throw new AppError("FAL_API_KEY is required for fal provider", 500, "CONFIG_ERROR");
+    }
+    return new FalImageProvider(config.FAL_API_KEY);
   }
 
   if (providerName === "future-photoroom") {
