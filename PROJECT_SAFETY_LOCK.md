@@ -7,15 +7,27 @@ This repository has a mandatory protection system to prevent accidental operatio
 ### Protection Rules
 
 1. Verify repository ID matches `ai-photo-studio/ai-photo-studio`.
-2. Railway is **DISABLED** for production - use Cloud Run only.
-3. Verify GCP project ID matches `project-9540c255-c960-4fa0-a91`.
-4. Verify Cloudflare account ID and name match the locked identity.
-5. Verify required secrets exist without printing them.
-6. Ensure protected files exist.
-7. Block migrations and schema changes unless the database lock is explicitly unlocked.
-8. Run build and typecheck before push or deploy.
-9. Require a fresh `AI_code_audit_report.md` after changes.
-10. AI_PROVIDER must be configured - `BACKGROUND_API_URL` required for local providers.
+2. Verify GCP project ID matches `project-9540c255-c960-4fa0-a91`.
+3. Verify Cloudflare account ID and name match the locked identity.
+4. Verify required secrets exist without printing them.
+5. Ensure protected files exist.
+6. Block migrations and schema changes unless the database lock is explicitly unlocked.
+7. Run build and typecheck before push or deploy.
+8. Require a fresh `AI_code_audit_report.md` after changes.
+9. AI_PROVIDER must be configured - `BACKGROUND_API_URL` required for local providers.
+
+### Protected Services
+
+- Cloud Run API
+- Cloud Run Jobs
+- Cloud SQL
+- Redis
+- Cloudflare Pages
+- Cloudflare R2
+
+### Verification Files
+
+`PROJECT_LOCK.json` contains the protection configuration.
 
 ### Verification Files
 
@@ -37,7 +49,7 @@ Keep `ALLOWED_ORIGINS` restricted to the dedicated Pages project and do not wide
 ## Phase 3.0 - Infrastructure Migration
 
 Cloud Run is the production platform. Cloudflare Pages is production frontend.
-Railway is rollback only. Protected Scope Protocol v3.2.0 applies.
+Railway has been completely removed. Protected Scope Protocol v3.2.0 applies.
 
 ## Phase 3.1 - Cloud Run Foundation
 

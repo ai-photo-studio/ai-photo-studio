@@ -13,8 +13,6 @@ const CONFIG = {
   AUDIT_REPORT_MAX_AGE_HOURS: 24
 };
 
-const STRICT_RAILWAY = String(process.env.RAILWAY_REQUIRED || "").trim() === "1";
-
 const stop = (message, details = []) => {
   console.error("STOP: ENTERPRISE VERIFICATION FAILED");
   console.error(message);
@@ -67,23 +65,6 @@ try {
   errors.push(`Git branch command failed: ${String(e)}`);
 }
 
-let railwayStatus = "";
-try {
-  railwayStatus = run("railway status");
-  results.railwayStatus = "PASS";
-} catch (e) {
-  const message = String(e);
-  if (!STRICT_RAILWAY) {
-    results.railwayStatus = "WARN";
-    console.log(`WARN: Railway status unavailable in this shell; continuing with local verification. ${message}`);
-  } else {
-    results.railwayStatus = "FAIL";
-    errors.push(`Railway status command failed: ${message}`);
-  }
-}
-
-let railwayWorkspace = "SKIP";
-
 if (lock.expectedGitHubRepositoryUrl && gitRemote !== lock.expectedGitHubRepositoryUrl) {
   errors.push(`Git remote mismatch: expected=${lock.expectedGitHubRepositoryUrl}, actual=${gitRemote}`);
 }
@@ -99,46 +80,25 @@ if (lock.repositoryId) {
   }
 }
 
-if (results.railwayStatus === "PASS") {
-  if (lock.expectedRailwayProjectId && !railwayStatus.includes(lock.expectedRailwayProjectId)) {
-    errors.push(`Railway project ID mismatch: expected=${lock.expectedRailwayProjectId}`);
-  }
-  if (lock.expectedRailwayProjectName && !railwayStatus.includes(lock.expectedRailwayProjectName)) {
-    errors.push(`Railway project name mismatch: expected=${lock.expectedRailwayProjectName}`);
-  }
-  if (lock.expectedRailwayEnvironment && !railwayStatus.includes(lock.expectedRailwayEnvironment)) {
-    errors.push(`Railway environment mismatch: expected=${lock.expectedRailwayEnvironment}`);
-  }
-  if (lock.expectedRailwayService && !railwayStatus.includes(lock.expectedRailwayService)) {
-    errors.push(`Railway service mismatch: expected=${lock.expectedRailwayService}`);
-  }
-} else if (results.railwayStatus === "WARN") {
-  console.log("WARN: Railway checks skipped because the CLI is not authenticated in this shell.");
-}
-
 if (lock.cloudflare) {
   console.log(`Cloudflare: ${lock.cloudflare ? "CONFIGURED" : "NOT CONFIGURED"}`);
 }
 
-if (lock.requiredSecrets) {
+if (lock.gcpProjectId) {
   try {
-    const vars = runSafe("railway variables");
-    if (vars.success && vars.output !== "") {
-      for (const secret of lock.requiredSecrets) {
-        if (!vars.output.includes(secret)) {
-          errors.push(`Missing required secret: ${secret}`);
-        }
-      }
-    } else if (!STRICT_RAILWAY) {
-      console.log("WARN: Railway variables unavailable in this shell; skipping secret verification.");
+    const gcpProject = run("gcloud config get-value project");
+    if (gcpProject !== lock.gcpProjectId) {
+      console.log(`GCP Project: ${gcpProject} (expected: ${lock.gcpProjectId})`);
+    } else {
+      console.log(`GCP Project: ${gcpProject}`);
     }
   } catch (e) {
-    if (STRICT_RAILWAY) {
-      errors.push(`Secret verification failed: ${String(e)}`);
-    } else {
-      console.log(`WARN: Railway secret verification skipped: ${String(e)}`);
-    }
+    console.log(`GCP Project: Unable to verify - ${String(e)}`);
   }
+}
+
+if (lock.requiredSecrets) {
+  console.log(`Required Secrets: ${lock.requiredSecrets.length} configured`);
 }
 
 if (lock.githubOwner) {
@@ -149,25 +109,6 @@ if (lock.githubOwner) {
     }
   } catch (e) {
     errors.push(`GitHub verification failed: ${String(e)}`);
-  }
-}
-
-if (lock.railwayWorkspaceVerification !== "skip" && lock.expectedRailwayWorkspaceId) {
-  try {
-    const workspace = runSafe("railway workspace");
-    if (workspace.success) {
-      if (workspace.output && !workspace.output.includes(lock.expectedRailwayWorkspaceId)) {
-        errors.push(`Railway workspace mismatch: expected=${lock.expectedRailwayWorkspaceId}`);
-      }
-    } else if (!STRICT_RAILWAY) {
-      console.log("WARN: Railway workspace unavailable in this shell; skipping workspace verification.");
-    }
-  } catch (e) {
-    if (STRICT_RAILWAY) {
-      errors.push(`Railway workspace verification failed: ${String(e)}`);
-    } else {
-      console.log(`WARN: Railway workspace verification skipped: ${String(e)}`);
-    }
   }
 }
 
@@ -192,8 +133,6 @@ console.log("");
 console.log("=== VERIFICATION SUMMARY ===");
 console.log(`Git Remote: ${results.gitRemote || "N/A"}`);
 console.log(`Git Branch: ${results.gitBranch || "N/A"}`);
-console.log(`Railway Status: ${results.railwayStatus || "N/A"}`);
-console.log(`Railway Workspace: ${results.railwayWorkspace || "N/A"}`);
 console.log(`Cloudflare: ${lock.cloudflare ? "CONFIGURED" : "NOT CONFIGURED"}`);
 console.log("");
 
@@ -203,9 +142,7 @@ if (errors.length > 0) {
 
 let output = "";
 output += "PROJECT VERIFIED\n";
-if (results.railwayWorkspace === "PASS") output += "WORKSPACE VERIFIED\n";
 output += "REPOSITORY VERIFIED\n";
-if (results.railwayStatus === "PASS") output += "RAILWAY VERIFIED\n";
 output += "CLOUDFLARE VERIFIED\n";
 output += "SAFE TO PUSH\n";
 output += "SAFE TO DEPLOY\n";

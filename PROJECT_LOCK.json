@@ -8,6 +8,8 @@
   "cloudProvider": "gcp",
   "gcpProjectId": "project-9540c255-c960-4fa0-a91",
   "productionLock": true,
+  "migrationComplete": true,
+  "railwayRemoved": true,
   "databaseProtection": {
     "enabled": true,
     "blockMigrations": true,

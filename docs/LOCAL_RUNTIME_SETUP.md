@@ -16,12 +16,6 @@
 1. Install from nodejs.org (LTS version)
 2. Verify: `node --version` and `npm --version`
 
-### Railway CLI
-```bash
-npm install -g @railway/cli
-railway --version
-```
-
 ### Wrangler CLI
 ```bash
 npm install -g wrangler

@@ -24,6 +24,44 @@
 - Roadmap: flat lay, lifestyle scenes, virtual models, product video, and WhatsApp remain approved priorities.
 - WhatsApp remains the final roadmap phase.
 
+## Production Architecture
+
+```
+Cloudflare Pages
+    ↓
+Cloud Run API
+    ↓
+Cloud Tasks
+    ↓
+Cloud Run Job
+    ↓
+Background Remover (u2netp)
+    ↓
+Cloudflare R2
+    ↓
+Cloud SQL
+```
+
+## Current AI Pipeline
+
+| Service | Model | Provider | Status |
+|---------|-------|----------|--------|
+| Background Remover | u2netp | mock/local-rembg | Mock MVP |
+| YOLO Detector | YOLOv8 | local-yolo | Ready |
+| Product Classifier | YOLOv8 | local | Ready |
+| Real-ESRGAN | ESRGAN | local-esrgan | Ready |
+| IC-Light | IC-Light | local-iclight | Ready |
+
+## Current Deployment Flow
+
+1. User uploads via Cloudflare Pages
+2. API validates and queues job
+3. Cloud Tasks triggers Cloud Run Job
+4. Background remover processes image
+5. Result stored in R2
+6. Database updated
+7. Result returned to user
+
 ## Phase 1.5 Implementation Map
 
 - `apps/api/src/services/preview-quota.service.ts`: preview limit disabled/unlimited response path
@@ -102,81 +140,6 @@
 - `apps/api/src/services/product-classifier.service.ts`: health endpoint and fallback classifier
 - `apps/api/src/services/service-health.types.ts`: health status types
 
-## Verified Behavior
-
-- Preview limit enforcement is disabled for testing and returns an unlimited disabled response.
-- Web uploads reserve credits before the job is queued.
-- Successful processing settles the reservation instead of leaving credits dangling.
-- Full-resolution download is hidden unless the backend allows it.
-- Homepage shows the upload action in the first viewport with a single public navbar.
-- Homepage now uses a premium removal.ai-style layout with compact hero copy, left upload flow, and right rotating feature showcase.
-- Homepage explicitly targets Daraz, Shopify, WooCommerce, Facebook, and Instagram sellers.
-- Homepage uses PKR pricing only and shows JazzCash and Bank Transfer payment options.
-- Homepage includes a working range-based before/after slider, immediate selected-file preview, and marketplace export section.
-- Homepage upload card now includes selectable service actions with defaults: remove background, auto crop, and auto center.
-- Homepage final polish now keeps upload and preview cards side by side with matching fixed desktop heights.
-- Uploaded product images now immediately populate the right preview panel and persist while switching service tabs.
-- Hero before/after comparison now uses the uploaded image state with a draggable range handle.
-- Homepage services now live in a dedicated section below the hero instead of crowding the hero preview.
-- Homepage background-remover final pass now removes hero checkboxes/service tabs and shows only upload, real API background removal, and an honest original/result comparison.
-- Homepage no longer fakes background removal with local canvas or frame changes; processed preview appears only from the remover API result.
-- Public navbar now includes a Services dropdown for non-hero product photo tools.
-- Critical API fix: homepage background removal now calls Railway API `POST /api/previews/background-removal` instead of a local-only browser remover URL.
-- Preview pipeline now returns a real processed image from the background-remover service before showing the before/after slider.
-- API JSON limit increased to `12mb` so base64 product preview uploads can reach the remover pipeline.
-- Selected upload actions are sent through preview/upload request types and backend processing metadata.
-- Local processing only applies resize when Resize is selected and gates crop/center, background, and enhancement by selected actions.
-- Unsupported creative actions are labeled coming soon and use mock/placeholder preview treatment.
-- Preview limit messaging and quota blocking are removed from the homepage preview workflow.
-- Product examples now reflect ecommerce categories instead of a generic mockup.
-- Local AI pipeline now stages detection, crop, center, background removal, enhancement, and quality comparison before export.
-- Product images are now classified before processing so category-specific routing can change the pipeline profile.
-- Quality metrics are persisted for completed jobs.
-
-## Verification Status
-
-- `npm.cmd run build -w apps/web`: PASS on 2026-06-14
-- `npm.cmd run typecheck -w apps/web`: PASS on 2026-06-14
-- `npm.cmd run build`: PASS on 2026-06-14
-- `npm.cmd run typecheck`: PASS on 2026-06-14
-- `npm.cmd run enterprise-verify`: PASS with Railway network warnings on 2026-06-14
-- `npm.cmd run build`: PASS on 2026-06-15
-- `npm.cmd run typecheck`: PASS on 2026-06-15
-- `npm.cmd run enterprise-verify`: PASS with Railway network/auth warnings on 2026-06-15
-- Cloudflare Pages deploy: PASS on 2026-06-15
-- Latest Cloudflare Pages URL: `https://4df80c83.ai-photo-studio-whatsapp-web.pages.dev`
-- Background removal model: BiRefNet (birefnet-general) via rembg[beta]
-- Quality score: 8.5/10 (BiRefNet significantly improved)
-- `npm.cmd run build`: PASS on 2026-06-15 after background API proxy fix
-- `npm.cmd run typecheck`: PASS on 2026-06-15 after background API proxy fix
-- `npm.cmd run enterprise-verify`: PASS on 2026-06-15 after background API proxy fix
-- `railway.cmd status`: PASS on 2026-06-15; API and background-remover online
-- `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS on 2026-06-15
-- Background remover health: PASS on 2026-06-15, model `local` (BiRefNet via rembg[beta])
-- Background removal processing: READY for Modal deployment
-- Credit system: Implemented (preview: 0.25, standard: 1, HD: 2)
-- Modal deployment: BLOCKED by Windows CLI encoding issue
-- CORS preflight for `/api/previews/background-removal`: PASS on 2026-06-15
-- Live background-removal POST: PASS on 2026-06-15; generated input and processed output hashes differed
-- Latest Cloudflare Pages URL after API fix: `https://206aa7f3.ai-photo-studio-whatsapp-web.pages.dev`
-- Direct Cloudflare deploy: PASS on 2026-06-14
-- Live Cloudflare URL: `https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev`
-- `railway whoami`: unauthorized in this shell
-- `railway status`: PASS
-- `railway logs --service api --tail 300`: PASS
-- `railway logs --service background-remover --tail 50`: PASS
-- `wrangler whoami`: PASS
-- `wrangler pages deployment list --project-name ai-photo-studio-whatsapp-web`: PASS
-- Live local Bash/Python verification: blocked by shell runtime limitations in this session
-- Live runtime validation: blocked by shell runtime limitations in this session
-
-## Deployment Snapshot
-
-- Latest Cloudflare Pages production deployment observed previously:
-  - `https://1f152364.ai-photo-studio-whatsapp-web.pages.dev`
-- Cloud Run API: `https://ai-photo-studio-api-project-9540c255-c960-4fa0-a91.us-central1.run.app`
-- Background remover service previously reported online at `https://background-remover-production-0627.up.railway.app`
-
 ## Phase 4 Creative Studio Foundation Map
 
 - `apps/api/prisma/schema.prisma`: `CreativeType`, `CreativeSceneType`, `CreativeGenerationStatus` enums; `CreativeStudioJob` model
@@ -199,70 +162,6 @@
 - `apps/web/src/components/PublicLayout.tsx`: single public navbar
 - `apps/web/src/styles.css`: rebuilt public/admin visual system
 
-## Phase 2 UI Redesign Map
-
-- `apps/web/src/pages/HomePage.tsx`: hero, upload card, samples, marketplace badges, feature panel, before/after slider, export cards, PKR pricing
-- `apps/api/src/controllers/preview.controller.ts`: disabled preview limit early return
-- `apps/api/src/services/preview-quota.service.ts`: unlimited preview response helper
-- `apps/web/src/pages/FeaturePage.tsx`: public route content for background removal, enhancement, flat lay, lifestyle, virtual model, and videos
-- `apps/web/src/App.tsx`: verified routes for public features, pricing, login, register, and admin modules
-- `apps/web/src/components/PublicLayout.tsx`: duplicate homepage navbar removed
-- `apps/web/src/styles.css`: old homepage CSS replaced
-- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: current homepage acceptance report
-
-## Final UI Polish Map
-
-- `apps/web/src/pages/HomePage.tsx`: premium hero, selected upload preview, rotating services, and interactive before/after slider
-- `apps/web/src/services/customerApi.ts`: selected action request typing
-- `apps/api/src/controllers/order.controller.ts`: selected action normalization, workflow mapping, metadata persistence, and queue payload
-- `apps/api/src/queues/phase-c-image-processing.queue.ts`: selected action queue payload
-- `apps/api/src/workers/image-processing.worker.ts`: action-aware route metadata and provider input
-- `apps/api/src/providers/provider.interface.ts`: selected action provider input
-- `apps/api/src/providers/local-yolo.provider.ts`: action-gated crop/center, background, and enhancement execution
-- `apps/web/src/styles.css`: final premium homepage styles and responsive slider/upload states
-- `apps/web/src/App.tsx`: admin logs and audit logs routes
-- `ADMIN_FEATURE_VERIFICATION_REPORT.md`: refreshed admin route matrix
-- `AI_code_audit_report.md`: refreshed preview-limit and homepage audit
-- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: current homepage acceptance report
-- `UI_UPLOAD_ACTIONS_FINAL_DEPLOYED_SCREENSHOT.png`: final deployed screenshot proof
-
-## Homepage Final Polish Map
-
-- `apps/web/src/pages/HomePage.tsx`: fixed-height upload and preview hero cards (min-height desktop), single preview card with checkerboard, dimension detection, modal comparison
-- `apps/web/src/styles.css`: hero alignment, checkerboard pattern, preview sizing with contain, mobile responsive
-- `apps/api/src/services/background-remover.service.ts`: added productTransparent() method for transparent PNG output
-- `apps/api/src/controllers/preview.controller.ts`: updated to call product-transparent endpoint
-- `services/background-remover/app.py`: model configurable via BACKGROUND_MODEL env var
-- `AI_code_audit_report.md`: refreshed final audit with quality notes
-- `BACKGROUND_REMOVAL_QUALITY_REPORT.md`: quality audit and upgrade recommendations
-
-## Homepage Background Remover Final Map
-
-- `apps/web/src/pages/HomePage.tsx`: remove.bg-style hero with upload, real background-removal call, immediate original preview, honest waiting state, and original/result slider
-- `apps/web/src/components/PublicLayout.tsx`: Services dropdown in public navigation
-- `apps/web/src/styles.css`: fixed preview card, contain-fit image stages, Services dropdown, background-remover hero, and responsive preview behavior
-- `AI_code_audit_report.md`: refreshed background-remover final audit
-- `HOMEPAGE_BG_REMOVER_FINAL_REPORT.md`: final report with deployment and verification proof
-- Latest Cloudflare Pages URL: `https://1a4b677a.ai-photo-studio-whatsapp-web.pages.dev`
-
-## Homepage Background API Fix Map
-
-- `apps/api/src/controllers/preview.controller.ts`: `removeBackgroundPreview` endpoint for base64 product-photo previews
-- `apps/api/src/routes/preview.routes.ts`: registered `POST /previews/background-removal`
-- `apps/api/src/index.ts`: route registry update and `12mb` JSON body limit
-- `apps/web/src/services/customerApi.ts`: `removeBackgroundPreview` client method
-- `apps/web/src/pages/HomePage.tsx`: frontend now calls Railway API preview proxy and no longer requires `VITE_LOCAL_REMOVER_URL`
-- `apps/web/src/styles.css`: contain-fit preview and slider clipping fixes
-- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: root cause, proof, and deployment checklist
-
-## Homepage Acceptance Fix Map
-
-- `apps/api/src/services/preview-quota.service.ts`: no blocking quota or device-limit error path remains
-- `apps/api/src/controllers/preview.controller.ts`: background-removal preview does not call quota before processing
-- `apps/web/src/pages/HomePage.tsx`: removal.ai-style hero, demo-before-upload, uploaded image after upload, processed image after result, slider gated by result
-- `apps/web/src/styles.css`: contain-fit preview image rules with centered positioning
-- `HOMEPAGE_ACCEPTANCE_FIX_REPORT.md`: fresh acceptance report replacing previous homepage reports
-
 ## Current Completion
 
 - Phase 1: 100%
@@ -280,7 +179,7 @@
 
 ## Remaining Work
 
-- Enable paid AI providers (photoroom, fal, replicate) - feature flagged, **REMOVED from MVP**
+- Enable paid AI providers (photoroom, fal, replicate) - feature flagged, REMOVED from MVP
 - Configure credit pricing in admin - packages are database-driven
 - Activate webhook notifications - framework exists
 - WhatsApp integration (Phase 6) - deferred per roadmap
@@ -295,51 +194,14 @@
 - **Available:** local-rembg, local-yolo, local-esrgan, local-iclight
 - **Requirement:** BACKGROUND_API_URL for local providers
 - **Optimization:** u2netp model (512MB RAM, 1-3s latency)
-- **Deployment:** Blocked by Cloud Run memory constraints (2-4Gi required)
+- **Deployment:** Cloud Run Jobs configured, deployment pending
 
-## Next Coding Phase
+## Production URLs
 
-- Phase 6 WhatsApp integration (deferred per roadmap)
-
-## Phase 5 AI Validation Script
-
-- `scripts/validate-ai.py`: test harness for local AI services
-- Tests classifier and YOLO detection quality
-- Generates `scripts/validation-output.json` with results
-
-## Launch Readiness
-
-- All verification commands: PASS
-- Web platform: 100% READY
-- AI pipeline: CODE-COMPLETE
-- Runtime validation: BLOCKED (shell limitations)
-- Deployment status: LIVE (https://acf8f811.ai-photo-studio-whatsapp-web.pages.dev)
-- Preview limit: DISABLED for testing
-
-## Deployment Verification
-
-- Build: PASS
-- Typecheck: PASS
-- Enterprise Verify: PASS
-- Production URL: LIVE
-- Cloud Run API: https://ai-photo-studio-api-108335160641.us-central1.run.app
-- Cloudflare Pages: https://29105fb4.ai-photo-studio-frontend.pages.dev
-
-## Infrastructure Migration Status
-
-- Phase 0 (Inventory): COMPLETE
-- Phase 1 (Google Cloud Foundation): COMPLETE
-- Phase 2.0 (Deployment Preparation): COMPLETE
-- Phase 2.1 (Infrastructure Provisioning): COMPLETE
-- Phase 2.2 (Cloud Run Deployment): COMPLETE
-- Phase 2 (Git Migration): COMPLETE
-- Phase 3 (Cloudflare Migration): COMPLETE
-- Railway: ROLLBACK ONLY (disabled for production)
-
-<environment_details>
-- Current time: 2026-06-30T12:30:00+05:00
-- Working directory: D:\AI Product Photo Studio on WhatsApp
-- Workspace root folder: D:\AI Product Photo Studio on WhatsApp
-- Active file: services\background-remover\app.py
-- Open tabs: docs/08-DEPLOYMENT-GUIDE.md, services\background-remover\app.py
-</environment_details>
+| Service | URL |
+|---------|-----|
+| API | https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app |
+| Frontend | https://29105fb4.ai-photo-studio-frontend.pages.dev |
+| Database | ai-photo-studio-db |
+| Redis | ai-photo-studio-redis |
+| R2 | ai-photo-studio-storage |
