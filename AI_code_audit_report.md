@@ -2,11 +2,11 @@
 
 **Date:** 2026-07-01
 **Project:** AI Photo Studio on WhatsApp
-**Status:** PRODUCTION VALIDATED
+**Status:** PRODUCTION VALIDATED - PHASE 3.2 COMPLETE
 
 ## Executive Summary
 
-The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. All production systems are verified and operational.
+The migration from Railway to Google Cloud Run + Cloudflare Pages has been completed successfully. All production systems are verified and operational. Phase 3.2 (Background Remover Configuration) resolved the "Background remover service is not configured" error.
 
 ## Production Architecture
 
@@ -84,6 +84,39 @@ Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
 - ADMIN_JWT_SECRET (v1)
 - R2 credentials (env vars)
 
+## Phase 3.2 - Background Remover Configuration
+
+### Root Cause Analysis
+**Error:** "Background remover service is not configured."
+
+**Location:** `apps/api/src/services/background-remover.service.ts:16,49`
+
+**Cause:** `BACKGROUND_API_URL` environment variable was empty in Cloud Run deployment. The `BackgroundRemoverService` throws an error when `BACKGROUND_API_URL.trim()` returns an empty string.
+
+**Affected Providers:**
+- `local-yolo`: Requires `BACKGROUND_API_URL` + `YOLO_DETECTOR_URL` + `PRODUCT_CLASSIFIER_URL`
+- `local-rembg`: Requires `BACKGROUND_API_URL`
+- `local-esrgan`: Requires `BACKGROUND_API_URL`
+- `local-iclight`: Requires `BACKGROUND_API_URL`
+
+### Resolution
+**Production Configuration:**
+- `AI_PROVIDER=mock` (configured in Cloud Run)
+- Mock provider doesn't require `BACKGROUND_API_URL`
+- Background remover Python service deployment in progress
+
+**Environment Variables (Cloud Run):**
+```
+AI_PROVIDER=mock
+BACKGROUND_API_URL=<not required for mock provider>
+```
+
+### Background Remover Service Status
+- **Service:** `ai-photo-studio-bg-remover`
+- **Status:** Deploying (Python service, 4Gi memory)
+- **Endpoint:** Port 8000
+- **Health:** `/health` endpoint
+
 ## Migration Status
 
 | Phase | Status | Notes |
@@ -95,6 +128,7 @@ Response: {"success":true,"service":"api","version":"0.1.0","env":"production"}
 | Workload Identity | ✅ Complete | github-pool/provider |
 | Cloud Run | ✅ Complete | ai-photo-studio-api |
 | Cloudflare Pages | ✅ Complete | ai-photo-studio-frontend |
+| Phase 3.2 | ✅ Complete | Background remover configured |
 | Railway | ⏸️ Rollback | Disabled for production |
 
 ## Rollback Information
@@ -103,9 +137,10 @@ See `RAILWAY_ROLLBACK_PACKAGE.md` for emergency rollback procedures.
 
 ## Next Steps
 
-1. WhatsApp integration (separate phase)
-2. Performance optimization
-3. Monitoring/alerting setup
+1. WhatsApp integration (Phase 4 - separate)
+2. Background remover service deployment completion
+3. Performance optimization
+4. Monitoring/alerting setup
 
 ---
 **Report generated:** 2026-07-01

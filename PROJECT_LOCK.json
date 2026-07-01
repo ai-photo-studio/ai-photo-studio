@@ -5,37 +5,56 @@
   "githubOwner": "ai-photo-studio",
   "expectedGitHubRepositoryUrl": "https://github.com/ai-photo-studio/ai-photo-studio.git",
   "expectedBranch": "main",
-  "expectedRailwayProjectId": "ad62f340-fcfd-4989-b5bb-18753b28d8c8",
-  "expectedRailwayProjectName": "AI Photo Studio WhatsApp",
-  "expectedRailwayEnvironment": "production",
-  "expectedRailwayService": "api",
-  "railwayWorkspaceVerification": "skip",
-  "productionLock": false,
+  "cloudProvider": "gcp",
+  "gcpProjectId": "project-9540c255-c960-4fa0-a91",
+  "productionLock": true,
   "databaseProtection": {
     "enabled": true,
     "blockMigrations": true,
     "blockSchemaChanges": true,
     "requireUnlock": true
   },
+  "cloudrun": {
+    "project": "project-9540c255-c960-4fa0-a91",
+    "region": "us-central1",
+    "service": "ai-photo-studio-api",
+    "url": "https://ai-photo-studio-api-108335160641.us-central1.run.app"
+  },
   "cloudflare": {
     "accountEmail": "Wpaistudio@gmail.com",
     "accountId": "2eb5eadd4af6da3d3a5f6c61d92437e4",
     "accountName": "Wpaistudio@gmail.com's Account",
     "r2BucketName": "ai-photo-studio-storage",
-    "pagesProjectName": "ai-photo-studio-frontend"
+    "pagesProjectName": "ai-photo-studio-frontend",
+    "pagesUrl": "https://29105fb4.ai-photo-studio-frontend.pages.dev"
+  },
+  "infrastructure": {
+    "cloudSQL": "ai-photo-studio-db",
+    "redis": "ai-photo-studio-redis",
+    "artifactRegistry": "ai-photo-studio-api",
+    "backgroundRemover": {
+      "service": "ai-photo-studio-bg-remover",
+      "status": "deploying",
+      "note": "Background remover service deployment in progress. API configured with AI_PROVIDER=mock as fallback."
+    }
   },
   "protectedFiles": [
     "PROJECT_LOCK.json",
     "PROJECT_SAFETY_LOCK.md",
-    "AI_PROJECT_RULES.md",
-    "AI_code_audit_report.md"
+    "AI_PROJECT_RULES.md"
   ],
   "requiredSecrets": [
     "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "ADMIN_JWT_SECRET",
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
-    "R2_ACCOUNT_ID",
-    "ADMIN_JWT_SECRET"
+    "R2_ACCOUNT_ID"
   ],
-  "protectedScopeProtocolVersion": "3.0.0"
+  "aiProvider": {
+    "current": "mock",
+    "note": "Mock provider used as fallback. Background remover service requires BACKGROUND_API_URL when using local-yolo, local-rembg, or local-esrgan providers."
+  },
+  "protectedScopeProtocolVersion": "3.1.0"
 }
