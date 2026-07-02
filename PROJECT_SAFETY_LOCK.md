@@ -73,6 +73,10 @@ Railway has been completely removed. Protected Scope Protocol v3.2.0 applies.
 - `AI_PROVIDER=local-rembg` (configured in Cloud Run API)
 - `BACKGROUND_API_URL=https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app`
 
+**Deployment Status:**
+- API: `https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app` (deployed 2026-07-02)
+- Background Remover: `https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app` (deployed 2026-07-02)
+
 **Model:** u2netp (512MB RAM, 1-5s processing)
 
 ## Phase 3.8 - Cloud Run Jobs Implementation
