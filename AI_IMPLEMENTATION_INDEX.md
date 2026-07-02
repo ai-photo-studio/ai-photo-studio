@@ -192,7 +192,10 @@ Cloud SQL
 
 - **Current:** local-rembg (AI_PROVIDER=local-rembg)
 - **Deployed:** ✅ https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app
+- **API URL:** https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app
 - **Model:** u2netp (512MB RAM, 1-3s latency)
+- **Image:** bg-remover:v6 (revision 00007-cgh)
+- **Fix:** rembg 2.0.62 API changed - use session.predict(pil_image) instead of session.process()
 - **Requirement:** BACKGROUND_API_URL configured
 - **Status:** ✅ Production ready
 

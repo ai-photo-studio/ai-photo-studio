@@ -28,7 +28,12 @@ class LocalRembgProvider(BackgroundRemoverProvider):
     
     def remove_background(self, image_bytes: bytes, max_dimension: int) -> ImageResult:
         session = _get_model()
-        output_bytes = session.process(image_bytes)
+        pil_image = Image.open(io.BytesIO(image_bytes))
+        results = session.predict(pil_image)
+        result_image = results[0] if results else pil_image
+        buf = io.BytesIO()
+        result_image.save(buf, format="PNG")
+        output_bytes = buf.getvalue()
         credits = 0.0
         
         return ImageResult(

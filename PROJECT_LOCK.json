@@ -34,13 +34,15 @@
     "cloudSQL": "ai-photo-studio-db",
     "redis": "ai-photo-studio-redis",
     "artifactRegistry": "ai-photo-studio-api",
-"backgroundRemover": {
-        "service": "ai-photo-studio-bg-remover",
-        "status": "deployed",
-        "url": "https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app",
-        "model": "u2netp",
-        "note": "Successfully deployed with local-rembg provider"
-      },
+  "backgroundRemover": {
+      "service": "ai-photo-studio-bg-remover",
+      "status": "deployed",
+      "url": "https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app",
+      "model": "u2netp",
+      "image": "bg-remover:v6",
+      "revision": "ai-photo-studio-bg-remover-00007-cgh",
+      "fix": "rembg 2.0.62 API: session.predict(pil_image) instead of session.process()"
+    },
     "cloudRunJobs": {
       "service": "ai-photo-studio-bg-remover-job",
       "status": "configured",

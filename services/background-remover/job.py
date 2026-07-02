@@ -36,7 +36,12 @@ def upload_image(url: str, data: bytes, content_type: str) -> str:
 
 def remove_background(image_bytes: bytes) -> bytes:
     session = get_session()
-    return session.process(image_bytes)
+    pil_image = Image.open(io.BytesIO(image_bytes))
+    results = session.predict(pil_image)
+    result_image = results[0] if results else pil_image
+    buf = io.BytesIO()
+    result_image.save(buf, format="PNG")
+    return buf.getvalue()
 
 def process_job(job_data: dict) -> dict:
     storage_key = job_data["storageKey"]
