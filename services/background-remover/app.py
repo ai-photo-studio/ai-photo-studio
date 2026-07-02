@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import io
+import math
 import os
 from dataclasses import dataclass
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from PIL import Image
+from PIL import Image, ImageFilter
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
 MAX_MEGAPIXELS = 50
@@ -16,6 +17,12 @@ MAX_LONGEST_SIDE = 4000
 FREE_TRIAL_MAX_DIMENSION = 1200
 STANDARD_MAX_DIMENSION = 2000
 HD_MAX_DIMENSION = 4000
+
+QUALITY_MIN_FOREGROUND_COVERAGE = 0.08
+QUALITY_MIN_EDGE_CONFIDENCE = 40.0
+QUALITY_MIN_BRIGHTNESS = 20.0
+QUALITY_MAX_BACKGROUND_LEAKAGE = 0.35
+QUALITY_MIN_OVERALL_SCORE = 35.0
 
 @dataclass(slots=True)
 class ProcessedImage:
@@ -96,14 +103,92 @@ def _validate_transparency(image: Image.Image) -> bool:
     return alpha_coverage >= 0.01
 
 
+def _refine_edges(image: Image.Image, radius: int = 1) -> Image.Image:
+    if image.mode != "RGBA":
+        return image
+    alpha = image.getchannel("A")
+    alpha = alpha.filter(ImageFilter.GaussianBlur(radius=radius))
+    result = image.copy()
+    result.putalpha(alpha)
+    return result
+
+
+def _validate_segmentation_quality(image: Image.Image) -> dict:
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+    alpha = image.getchannel("A")
+    pixels = list(alpha.getdata())
+    total_pixels = image.width * image.height
+    foreground_pixels = sum(1 for p in pixels if p > 128)
+    foreground_coverage = foreground_pixels / max(1, total_pixels)
+
+    alpha_tensor = list(alpha.getdata())
+    edge_pixels = []
+    width, height = image.size
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            idx = y * width + x
+            if not (128 <= alpha_tensor[idx] <= 255):
+                continue
+            neighbors = [
+                alpha_tensor[idx - 1], alpha_tensor[idx + 1],
+                alpha_tensor[idx - width], alpha_tensor[idx + width]
+            ]
+            gradient = max(abs(alpha_tensor[idx] - n) for n in neighbors)
+            edge_pixels.append(gradient)
+    edge_confidence = sum(edge_pixels) / max(1, len(edge_pixels))
+
+    luminance = image.convert("L")
+    lum_pixels = list(luminance.getdata())
+    brightness = sum(lum_pixels) / max(1, len(lum_pixels))
+
+    semi_transparent = sum(1 for p in pixels if 1 <= p <= 127)
+    background_leakage = semi_transparent / max(1, total_pixels)
+
+    blur_score = 100.0
+    if edge_pixels:
+        variance = sum((e - edge_confidence) ** 2 for e in edge_pixels) / max(1, len(edge_pixels))
+        blur_score = max(0.0, 100.0 - math.sqrt(variance) * 2)
+
+    overall = (
+        min(foreground_coverage * 400, 100.0) * 0.25
+        + min(edge_confidence * 1.5, 100.0) * 0.25
+        + min(brightness * 0.8, 100.0) * 0.20
+        + max(0.0, 100.0 - background_leakage * 300) * 0.30
+    )
+
+    return {
+        "foregroundCoverage": round(float(foreground_coverage), 4),
+        "edgeConfidence": round(float(edge_confidence), 2),
+        "blurScore": round(float(blur_score), 2),
+        "brightnessScore": round(float(brightness), 2),
+        "backgroundLeakage": round(float(background_leakage), 4),
+        "overallScore": round(float(overall), 2),
+    }
+
+
 def _remove_background(image: Image.Image, tier: str = "standard") -> Image.Image:
     provider = _get_provider()
     input_bytes = _to_png_bytes(image)
     result = provider.remove_background(input_bytes, image.width)
     
     if result.media_type == "image/png":
-        return _load_image(result.content)
-    raise HTTPException(status_code=500, detail="Provider returned invalid format")
+        cutout = _load_image(result.content)
+    else:
+        raise HTTPException(status_code=500, detail="Provider returned invalid format")
+
+    cutout = _refine_edges(cutout, radius=1)
+
+    quality = _validate_segmentation_quality(cutout)
+    if quality["overallScore"] < QUALITY_MIN_OVERALL_SCORE:
+        detail = (
+            f"Segmentation quality too low (score={quality['overallScore']}). "
+            f"Please upload a closer product photo with better lighting. "
+            f"Metrics: {quality}"
+        )
+        raise HTTPException(status_code=422, detail=detail)
+
+    return cutout
 
 
 def _get_provider():
@@ -124,6 +209,8 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
     
     if not _validate_transparency(cutout):
         raise HTTPException(status_code=500, detail="Background removal produced invalid transparency")
+    
+    quality = _validate_segmentation_quality(cutout)
     
     if output == "transparent":
         result = _to_png_bytes(cutout)

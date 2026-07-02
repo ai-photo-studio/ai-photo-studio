@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AppConfig } from "../config/env";
+import { AppError } from "../utils/errors";
 import { BackgroundRemoverService } from "../services/background-remover.service";
 import { RealEsrganService } from "../services/real-esrgan.service";
 import { YoloDetectorService, toImageAnalysis } from "../services/yolo-detector.service";
@@ -59,6 +60,8 @@ const buildOutput = (
   analysis,
   enhancement
 });
+
+const QUALITY_MIN_OVERALL_SCORE = 35;
 
 export class LocalYoloImageProvider implements ImageProvider {
   readonly name = "local-yolo" as const;
@@ -122,6 +125,7 @@ export class LocalYoloImageProvider implements ImageProvider {
       );
     }
 
+    const t0 = Date.now();
     const before = await this.yolo.detect({
       body: input.buffer,
       contentType: input.contentType,
@@ -130,6 +134,7 @@ export class LocalYoloImageProvider implements ImageProvider {
       canvasWidth: routing?.canvasWidth,
       canvasHeight: routing?.canvasHeight
     });
+    const yoloBeforeMs = Date.now() - t0;
 
     const centeredOutput = wantsCropCenter
       ? {
@@ -143,14 +148,23 @@ export class LocalYoloImageProvider implements ImageProvider {
           fileName: input.fileName
         };
 
-    const rembgOutput = wantsBackground
-      ? await this.backgroundRemover.productWhite({
-          body: centeredOutput.body,
-          contentType: centeredOutput.contentType,
-          fileName: centeredOutput.fileName
-        })
-      : centeredOutput;
+    const rembgT0 = Date.now();
+    let rembgOutput;
+    try {
+      rembgOutput = wantsBackground
+        ? await this.backgroundRemover.productWhite({
+            body: centeredOutput.body,
+            contentType: centeredOutput.contentType,
+            fileName: centeredOutput.fileName
+          })
+        : centeredOutput;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new AppError("Background removal quality validation failed: " + reason, 422, "BACKGROUND_REMOVAL_REJECTED");
+    }
+    const rembgMs = Date.now() - rembgT0;
 
+    const enhanceT0 = Date.now();
     const enhancedOutput = wantsEnhancement
       ? await this.enhancement.enhance({
           body: rembgOutput.body,
@@ -161,18 +175,42 @@ export class LocalYoloImageProvider implements ImageProvider {
           denoise: routing?.enhancementDenoise || 0.3
         })
       : rembgOutput;
+    const enhanceMs = Date.now() - enhanceT0;
 
+    const yoloAfterT0 = Date.now();
     const after = await this.yolo.detect({
       body: enhancedOutput.body,
       contentType: enhancedOutput.contentType,
       fileName: enhancedOutput.fileName
     });
+    const yoloAfterMs = Date.now() - yoloAfterT0;
+
+    const analysis = {
+      requestId: after.requestId,
+      label: before.detection.label,
+      productDetected: before.detection.productDetected,
+      confidence: before.detection.confidence,
+      boundingBox: before.detection.boundingBox,
+      cropCoordinates: before.detection.cropCoordinates,
+      sourceDimensions: before.detection.sourceDimensions,
+      canvasDimensions: before.detection.canvasDimensions,
+      quality: after.quality,
+      diagnostics: {
+        yoloBeforeMs,
+        cropMs: 0,
+        rembgMs,
+        enhanceMs,
+        yoloAfterMs,
+        totalMs: Date.now() - t0,
+        rejectionReason: undefined as string | undefined,
+      }
+    };
 
     return buildOutput(
       workflowType,
       workflowMode,
       enhancedOutput,
-      toImageAnalysis(after),
+      analysis,
       wantsEnhancement ? buildEnhancementComparison(before.quality, after.quality) : undefined
     );
   }

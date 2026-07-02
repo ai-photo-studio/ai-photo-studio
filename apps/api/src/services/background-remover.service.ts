@@ -27,7 +27,9 @@ export class BackgroundRemoverService {
     if (!response.ok) {
       const body = await response.text();
       logger.warn("Background remover request failed", { status: response.status });
-      throw new AppError(`Background remover failed: ${body.slice(0, 200)}`, 502, "BACKGROUND_API_FAILED");
+      const statusCode = response.status === 422 ? 422 : 502;
+      const code = response.status === 422 ? "BACKGROUND_REMOVAL_REJECTED" : "BACKGROUND_API_FAILED";
+      throw new AppError(`Background remover failed: ${body.slice(0, 200)}`, statusCode, code);
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -60,7 +62,9 @@ export class BackgroundRemoverService {
     if (!response.ok) {
       const body = await response.text();
       logger.warn("Background remover request failed", { status: response.status });
-      throw new AppError(`Background remover failed: ${body.slice(0, 200)}`, 502, "BACKGROUND_API_FAILED");
+      const statusCode = response.status === 422 ? 422 : 502;
+      const code = response.status === 422 ? "BACKGROUND_REMOVAL_REJECTED" : "BACKGROUND_API_FAILED";
+      throw new AppError(`Background remover failed: ${body.slice(0, 200)}`, statusCode, code);
     }
 
     const arrayBuffer = await response.arrayBuffer();
