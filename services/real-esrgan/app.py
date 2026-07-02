@@ -61,12 +61,19 @@ def _enhance(image: Image.Image, scale: float, sharpen: float, denoise: float) -
     if target_size != working.size:
         working = working.resize(target_size, Image.Resampling.LANCZOS)
 
+    alpha = working.split()[-1] if working.mode == "RGBA" else None
+    
     rgb = working.convert("RGB")
     rgb = ImageOps.autocontrast(rgb, cutoff=int(round(denoise * 8)))
     rgb = ImageEnhance.Sharpness(rgb).enhance(1.0 + sharpen * 1.8)
     rgb = ImageEnhance.Contrast(rgb).enhance(1.0 + sharpen * 0.25)
     rgb = ImageEnhance.Color(rgb).enhance(1.0 + sharpen * 0.08)
-    return rgb.convert("RGBA")
+    
+    if alpha is not None:
+        r, g, b = rgb.split()
+        rgb = Image.merge("RGBA", (r, g, b, alpha))
+    
+    return rgb.convert("RGBA") if rgb.mode != "RGBA" else rgb
 
 
 def _process_upload(raw: bytes, content_type: str | None, file_name: str | None, scale: float, sharpen: float, denoise: float) -> EnhancedImage:

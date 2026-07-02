@@ -16,7 +16,7 @@ export class BackgroundRemoverService {
       throw new AppError("Background remover service is not configured", 503, "BACKGROUND_API_UNAVAILABLE");
     }
 
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/product-white`, {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/product-transparent`, {
       method: "POST",
       headers: {
         "Content-Type": input.contentType || "application/octet-stream"

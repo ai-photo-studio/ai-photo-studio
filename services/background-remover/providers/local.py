@@ -31,6 +31,12 @@ class LocalRembgProvider(BackgroundRemoverProvider):
         pil_image = Image.open(io.BytesIO(image_bytes))
         results = session.predict(pil_image)
         result_image = results[0] if results else pil_image
+        if result_image.mode == "L":
+            rgba = pil_image.convert("RGBA")
+            r, g, b = rgba.split()[:3]
+            result_image = Image.merge("RGBA", (r, g, b, result_image))
+        elif result_image.mode != "RGBA":
+            result_image = result_image.convert("RGBA")
         buf = io.BytesIO()
         result_image.save(buf, format="PNG")
         output_bytes = buf.getvalue()
