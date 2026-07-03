@@ -10,10 +10,8 @@
 !.docs/WEB_PRODUCTION_GAP_REPORT.md
 !.docs/PUBLIC_LAUNCH_READINESS_REPORT.md
 !.docs/PERFORMANCE_BENCHMARK_REPORT.md
-.ai-project/*.md
 *.audit.md
-AI_code_audit_report.md
-AI_code_audit_report_ARCHIVED.md
+.ai-project/*.md
 .gcp-service-account.json
 *_SCREENSHOT*.png
 validation-output.json
