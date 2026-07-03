@@ -28,26 +28,28 @@
     "accountName": "Wpaistudio@gmail.com's Account",
     "r2BucketName": "ai-photo-studio-storage",
     "pagesProjectName": "ai-photo-studio-frontend",
-    "pagesUrl": "https://29105fb4.ai-photo-studio-frontend.pages.dev"
+    "pagesUrl": "https://ai-photo-studio-frontend.pages.dev"
   },
   "infrastructure": {
     "cloudSQL": "ai-photo-studio-db",
     "redis": "ai-photo-studio-redis",
-    "artifactRegistry": "ai-photo-studio-api",
+    "artifactRegistry": "ai-photo-studio-api"
+  },
   "backgroundRemover": {
-      "service": "ai-photo-studio-bg-remover",
-      "status": "deployed",
-      "url": "https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app",
-      "model": "u2netp",
-      "image": "bg-remover:v6",
-      "revision": "ai-photo-studio-bg-remover-00007-cgh",
-      "fix": "rembg 2.0.62 API: session.predict(pil_image) instead of session.process()"
-    },
-    "cloudRunJobs": {
-      "service": "ai-photo-studio-bg-remover-job",
-      "status": "configured",
-      "note": "Python Cloud Run Job for background removal with u2netp model"
-    }
+    "service": "ai-photo-studio-bg-remover",
+    "status": "deployed",
+    "url": "https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app",
+    "model": "u2netp",
+    "image": "bg-remover:v8",
+    "revision": "ai-photo-studio-bg-remover-00011-x6z",
+    "fix": "rembg 2.0.62 API: session.predict(pil_image) instead of session.process()",
+    "memory": "2Gi",
+    "cpu": "2"
+  },
+  "cloudRunJobs": {
+    "service": "ai-photo-studio-bg-remover-job",
+    "status": "configured",
+    "note": "Python Cloud Run Job for background removal with u2netp model"
   },
   "protectedFiles": [
     "PROJECT_LOCK.json",
@@ -64,8 +66,8 @@
     "R2_ACCOUNT_ID"
   ],
   "aiProvider": {
-    "current": "local-rembg",
-    "note": "Successfully deployed with u2netp model. BACKGROUND_API_URL configured."
+    "current": "local-yolo",
+    "note": "Active provider uses local pipeline: YOLO detector + background remover + Real-ESRGAN. BACKGROUND_API_URL configured."
   },
   "protectedScopeProtocolVersion": "3.1.0"
 }
