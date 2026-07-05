@@ -14,7 +14,10 @@ def _get_model():
     if _model is None:
         from rembg import new_session
         model_name = os.getenv("REMBG_MODEL", "u2net")
-        _model = new_session(model_name)
+        _model = new_session(
+            model_name,
+            providers=["CPUExecutionProvider"],
+        )
     return _model
 
 class LocalRembgProvider(BackgroundRemoverProvider):
