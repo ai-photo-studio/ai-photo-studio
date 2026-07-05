@@ -31,8 +31,21 @@ class BackgroundRemoverProvider(ABC):
 
 
 def get_provider() -> BackgroundRemoverProvider:
+    routing = os.getenv("SEGMENTATION_ROUTING", "hybrid")
+    
+    if routing == "gpu":
+        from providers.gpu_provider import GPUSAM2Provider
+        provider = GPUSAM2Provider()
+        if provider.is_enabled:
+            return provider
+    
+    if routing == "cpu":
+        from providers.local import LocalRembgProvider
+        return LocalRembgProvider()
+    
     if os.getenv("MODAL_ENABLED") == "1":
         from providers.modal import ModalProvider
         return ModalProvider()
-    from local import LocalRembgProvider
+    
+    from providers.local import LocalRembgProvider
     return LocalRembgProvider()
