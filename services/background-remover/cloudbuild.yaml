@@ -1,6 +1,6 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-f', 'services/background-remover/Dockerfile.gpu', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v10-gpu', 'services/background-remover']
+  args: ['build', '-f', 'Dockerfile.gpu', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v10-gpu', '.']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v10-gpu']
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
