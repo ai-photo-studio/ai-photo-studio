@@ -208,7 +208,7 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             logger.info(f"MARKER 117: masks shape={masks.shape}")
 
         logger.info("MARKER 118: extracting mask")
-        mask = (masks[0].cpu().numpy() * 255).astype("uint8")
+        mask = (masks[0, 0].cpu().numpy() * 255).astype("uint8")
         logger.info(f"MARKER 119: mask extracted shape={mask.shape}")
         
         logger.info("MARKER 120: converting mask to PIL RGBA")
