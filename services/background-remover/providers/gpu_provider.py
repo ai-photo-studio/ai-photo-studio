@@ -185,8 +185,14 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         logger.info("MARKER 113: encoding prompts")
         with torch.no_grad():
+            # Generate a center point prompt to guide SAM2
+            # Without any prompt, SAM2 produces unreliable masks
+            h, w = orig_hw
+            center_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
+            center_label = torch.tensor([[1]], device=device)  # 1 = foreground
+            
             sparse_embeddings, dense_embeddings = self._model.sam_prompt_encoder(
-                points=None, boxes=None, masks=None,
+                points=(center_point, center_label), boxes=None, masks=None,
             )
             image_pe = self._model.sam_prompt_encoder.get_dense_pe()
             logger.info(f"MARKER 114: sparse_embeddings shape={sparse_embeddings.shape}")
@@ -208,7 +214,17 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             logger.info(f"MARKER 117: masks shape={masks.shape}")
 
         logger.info("MARKER 118: extracting mask")
-        mask = (masks[0, 0].cpu().numpy() * 255).astype("uint8")
+        mask_np = masks[0, 0].cpu().numpy()
+        foreground_ratio = mask_np.mean()
+        logger.info(f"MARKER 118b: foreground ratio={foreground_ratio:.4f}")
+        
+        # If mask is nearly empty (<1% foreground), invert it
+        # SAM2 without prompts can produce inverted masks
+        if foreground_ratio < 0.01:
+            logger.info("MARKER 118c: mask near-empty, inverting")
+            mask_np = ~mask_np.astype(bool)
+        
+        mask = (mask_np * 255).astype("uint8")
         logger.info(f"MARKER 119: mask extracted shape={mask.shape}")
         
         logger.info("MARKER 120: converting mask to PIL RGBA")
