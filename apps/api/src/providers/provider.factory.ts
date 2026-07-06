@@ -6,17 +6,29 @@ import { LocalRembgImageProvider } from "./local-rembg.provider";
 import { LocalYoloImageProvider } from "./local-yolo.provider";
 import { LocalEsrganImageProvider } from "./local-esrgan.provider";
 import { LocalIclightImageProvider } from "./local-iclight.provider";
+import { GPUSAM2ImageProvider } from "./gpu-sam2.provider";
 
-const LOCAL_PROVIDERS: AIProviderName[] = ["mock", "local-rembg", "local-yolo", "local-esrgan", "local-iclight"];
+const LOCAL_PROVIDERS: AIProviderName[] = ["mock", "local-rembg", "local-yolo", "local-esrgan", "local-iclight", "gpu-sam2"];
 
 const DEPRECATED_PROVIDERS: AIProviderName[] = ["photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"];
 
 export const resolveProviderName = (config: Pick<AppConfig, "aiProvider">): AIProviderName => {
-  const selected = (config.aiProvider || "mock").trim().toLowerCase();
+  const selected = (config.aiProvider || "").trim().toLowerCase();
+  if (!selected) {
+    throw new AppError(
+      "AI_PROVIDER environment variable must be set. Valid values: mock, local-rembg, local-yolo, local-esrgan, local-iclight, gpu-sam2",
+      500,
+      "AI_PROVIDER_NOT_SET"
+    );
+  }
   if (LOCAL_PROVIDERS.includes(selected as AIProviderName)) {
     return selected as AIProviderName;
   }
-  return "mock";
+  throw new AppError(
+    `Invalid AI_PROVIDER: ${selected}. Valid values: mock, local-rembg, local-yolo, local-esrgan, local-iclight, gpu-sam2`,
+    500,
+    "INVALID_AI_PROVIDER"
+  );
 };
 
 export const isProviderEnabled = (providerName: AIProviderName): boolean => {
@@ -34,7 +46,7 @@ export const getProviderChain = (config: AppConfig): AIProviderName[] => {
   const selected = isProviderEnabled(primary) ? primary : "local-yolo";
   const chain: AIProviderName[] = [];
 
-  for (const providerName of [selected, "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "mock"] as AIProviderName[]) {
+  for (const providerName of [selected, "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "gpu-sam2", "mock"] as AIProviderName[]) {
     if (!chain.includes(providerName) && isProviderEnabled(providerName)) {
       chain.push(providerName);
     }
@@ -85,6 +97,10 @@ export const createImageProvider = (config: AppConfig): ImageProvider => {
 
   if (providerName === "local-iclight") {
     return new LocalIclightImageProvider(config);
+  }
+
+  if (providerName === "gpu-sam2") {
+    return new GPUSAM2ImageProvider(config);
   }
 
   return new MockImageProvider();

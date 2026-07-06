@@ -4,6 +4,7 @@ export type AIProviderName =
   | "local-yolo"
   | "local-esrgan"
   | "local-iclight"
+  | "gpu-sam2"
   | "photoroom"
   | "fal"
   | "future-photoroom"
@@ -322,6 +323,29 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
       { capability: "video-generation", enabled: false }
     ],
     costPerOperation: { operation: "relighting", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT", "VEHICLE"],
+    supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "gpu-sam2": {
+    name: "gpu-sam2",
+    displayName: "GPU SAM2",
+    description: "GPU-accelerated background removal using Segment Anything Model 2",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "background-removal", enabled: true },
+      { capability: "classification", enabled: true },
+      { capability: "crop-center", enabled: true },
+      { capability: "enhancement", enabled: true },
+      { capability: "relighting", enabled: false },
+      { capability: "shadow-generation", enabled: false },
+      { capability: "flat-lay", enabled: false },
+      { capability: "lifestyle-scene", enabled: false },
+      { capability: "virtual-model", enabled: false },
+      { capability: "video-generation", enabled: false }
+    ],
+    costPerOperation: { operation: "background-removal", estimatedCost: 0.005 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
     supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
   },
