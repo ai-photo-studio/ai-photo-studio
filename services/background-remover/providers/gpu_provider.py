@@ -87,6 +87,7 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         logger.info("MARKER 011: importing build_sam2")
         from sam2.build_sam import build_sam2
+        from sam2.sam2_image_predictor import SAM2ImagePredictor
         logger.info("MARKER 012: build_sam2 imported")
 
         device = self._get_device()
@@ -114,18 +115,19 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         logger.info("MARKER 017: calling build_sam2")
         try:
-            self._model = build_sam2(
+            sam_model = build_sam2(
                 config_file=self._model_name,
-                checkpoint=self._checkpoint_path,
+                ckpt_path=self._checkpoint_path,
                 device=device,
             )
             logger.info("MARKER 022: build_sam2 completed")
+            logger.info("MARKER 022a: creating SAM2ImagePredictor")
+            self._model = SAM2ImagePredictor(sam_model)
+            logger.info("MARKER 022b: SAM2ImagePredictor created")
         except Exception as e:
             logger.error(f"MARKER 022x: build_sam2 failed with error: {e}")
             raise
         
-        logger.info("MARKER 023: setting model to eval mode")
-        self._model.eval()
         logger.info("MARKER 024: _load_model complete")
 
         return self._model
@@ -156,37 +158,26 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             pil_image = pil_image.resize(new_size, Image.Resampling.LANCZOS)
             logger.info(f"MARKER 108: image resized to {new_size}")
 
-        logger.info("MARKER 109: converting image to tensor")
-        image_tensor_data = self._image_to_tensor(pil_image)
-        logger.info(f"MARKER 110: tensor data shape={len(image_tensor_data)}x{len(image_tensor_data[0])}x{len(image_tensor_data[0][0])}")
-        
-        logger.info("MARKER 111: creating torch tensor on device")
-        image_tensor = torch.tensor(
-            image_tensor_data,
-            device=device,
-        )
-        logger.info(f"MARKER 112: tensor created shape={image_tensor.shape}")
-
-        logger.info("MARKER 113: unsqueezing tensor")
-        image_tensor = image_tensor.unsqueeze(0)
-        logger.info(f"MARKER 114: tensor unsqueezed shape={image_tensor.shape}")
+        logger.info("MARKER 109: setting image on predictor")
+        model.set_image(pil_image)
+        logger.info("MARKER 110: image set on predictor")
 
         logger.info("MARKER 115: entering torch.no_grad() context")
         with torch.no_grad():
-            logger.info("MARKER 116: calling model.predict()")
+            logger.info("MARKER 116: calling predictor.predict()")
             try:
-                masks, _, _ = model.predict(
-                    image_tensor,
+                masks, scores, logits = model.predict(
                     point_coords=None,
                     point_labels=None,
+                    multimask_output=False,
                 )
-                logger.info(f"MARKER 117: predict completed, masks shape={masks.shape}")
+                logger.info(f"MARKER 117: predict completed, masks shape={masks.shape}, scores={scores}")
             except Exception as e:
                 logger.error(f"MARKER 117x: predict failed with error: {type(e).__name__}: {e}")
                 raise
 
         logger.info("MARKER 118: extracting mask")
-        mask = masks[0, 0].cpu().numpy().astype("uint8") * 255
+        mask = (masks[0] * 255).astype("uint8")
         logger.info(f"MARKER 119: mask extracted shape={mask.shape}")
         
         logger.info("MARKER 120: converting mask to PIL RGBA")
@@ -235,15 +226,6 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             media_type="image/png",
             credits_used=credits,
         )
-
-    def _image_to_tensor(self, image: Image.Image) -> list:
-        logger.info("MARKER 200: _image_to_tensor start")
-        import numpy as np
-        img_array = np.array(image)
-        img_normalized = img_array.astype("float32") / 255.0
-        result = img_normalized.transpose(2, 0, 1).tolist()
-        logger.info("MARKER 201: _image_to_tensor complete")
-        return result
 
     def get_metrics(self) -> GPUMetrics | None:
         return getattr(self, '_metrics', None)
