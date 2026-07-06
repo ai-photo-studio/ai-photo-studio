@@ -23,6 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 import torch
+import torch.nn.functional as F
 from PIL import Image
 
 from . import BackgroundRemoverProvider, ImageResult
@@ -50,6 +51,9 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         if model_name == "sam2_hiera_base_plus":
             model_name = "sam2_hiera_b+"
         self._model_name = model_name
+        self._mean = [0.485, 0.456, 0.406]
+        self._std = [0.229, 0.224, 0.225]
+        self._bb_feat_sizes = [(256, 256), (128, 128), (64, 64)]
         logger.info("MARKER 002: __init__ complete")
 
     @property
@@ -87,7 +91,6 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         logger.info("MARKER 011: importing build_sam2")
         from sam2.build_sam import build_sam2
-        from sam2.sam2_image_predictor import SAM2ImagePredictor
         logger.info("MARKER 012: build_sam2 imported")
 
         device = self._get_device()
@@ -115,19 +118,18 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         logger.info("MARKER 017: calling build_sam2")
         try:
-            sam_model = build_sam2(
+            self._model = build_sam2(
                 config_file=self._model_name,
                 ckpt_path=self._checkpoint_path,
                 device=device,
             )
             logger.info("MARKER 022: build_sam2 completed")
-            logger.info("MARKER 022a: creating SAM2ImagePredictor")
-            self._model = SAM2ImagePredictor(sam_model)
-            logger.info("MARKER 022b: SAM2ImagePredictor created")
         except Exception as e:
             logger.error(f"MARKER 022x: build_sam2 failed with error: {e}")
             raise
         
+        logger.info("MARKER 023: setting model to eval mode")
+        self._model.eval()
         logger.info("MARKER 024: _load_model complete")
 
         return self._model
@@ -158,26 +160,55 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             pil_image = pil_image.resize(new_size, Image.Resampling.LANCZOS)
             logger.info(f"MARKER 108: image resized to {new_size}")
 
-        logger.info("MARKER 109: setting image on predictor")
-        model.set_image(pil_image)
-        logger.info("MARKER 110: image set on predictor")
+        logger.info("MARKER 109: preprocessing image")
+        import torchvision.transforms as T
+        target_size = self._model.image_size
+        resize = T.Resize((target_size, target_size), interpolation=T.InterpolationMode.BILINEAR)
+        to_tensor = T.ToTensor()
+        normalize = T.Normalize(mean=self._mean, std=self._std)
+        input_tensor = normalize(to_tensor(resize(pil_image))).unsqueeze(0).to(device)
+        orig_hw = (pil_image.height, pil_image.width)
+        logger.info(f"MARKER 110: input tensor shape={input_tensor.shape}")
 
-        logger.info("MARKER 115: entering torch.no_grad() context")
+        logger.info("MARKER 111: computing image embeddings")
+        backbone_out = self._model.forward_image(input_tensor)
+        _, vision_feats, _, _ = self._model._prepare_backbone_features(backbone_out)
+        if self._model.directly_add_no_mem_embed:
+            vision_feats[-1] = vision_feats[-1] + self._model.no_mem_embed
+        feats = [
+            feat.permute(1, 2, 0).view(1, -1, *feat_size)
+            for feat, feat_size in zip(vision_feats[::-1], self._bb_feat_sizes[::-1])
+        ][::-1]
+        image_embed = feats[-1]
+        high_res_feats = feats[:-1]
+        logger.info(f"MARKER 112: image_embed shape={image_embed.shape}")
+
+        logger.info("MARKER 113: encoding prompts")
         with torch.no_grad():
-            logger.info("MARKER 116: calling predictor.predict()")
-            try:
-                masks, scores, logits = model.predict(
-                    point_coords=None,
-                    point_labels=None,
-                    multimask_output=False,
-                )
-                logger.info(f"MARKER 117: predict completed, masks shape={masks.shape}, scores={scores}")
-            except Exception as e:
-                logger.error(f"MARKER 117x: predict failed with error: {type(e).__name__}: {e}")
-                raise
+            sparse_embeddings, dense_embeddings = self._model.sam_prompt_encoder(
+                points=None, boxes=None, masks=None,
+            )
+            image_pe = self._model.sam_prompt_encoder.get_dense_pe()
+            logger.info(f"MARKER 114: sparse_embeddings shape={sparse_embeddings.shape}")
+
+            logger.info("MARKER 115: decoding masks")
+            low_res_masks, iou_predictions, _, _ = self._model.sam_mask_decoder(
+                image_embeddings=image_embed,
+                image_pe=image_pe,
+                sparse_prompt_embeddings=sparse_embeddings,
+                dense_prompt_embeddings=dense_embeddings,
+                multimask_output=False,
+                repeat_image=False,
+                high_res_features=high_res_feats,
+            )
+            logger.info(f"MARKER 116: low_res_masks shape={low_res_masks.shape}")
+
+            masks = F.interpolate(low_res_masks, orig_hw, mode="bilinear", align_corners=False)
+            masks = masks > 0.0
+            logger.info(f"MARKER 117: masks shape={masks.shape}")
 
         logger.info("MARKER 118: extracting mask")
-        mask = (masks[0] * 255).astype("uint8")
+        mask = (masks[0].cpu().numpy() * 255).astype("uint8")
         logger.info(f"MARKER 119: mask extracted shape={mask.shape}")
         
         logger.info("MARKER 120: converting mask to PIL RGBA")
