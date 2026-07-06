@@ -112,29 +112,10 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             )
         logger.info("MARKER 016: checkpoint file exists")
 
-        logger.info("MARKER 017: loading SAM2 model")
-        if not os.path.exists(config_path):
-            logger.error(f"MARKER 013b: config NOT found at {config_path}")
-            available_configs = []
-            if os.path.exists(self._config_dir):
-                available_configs = [f for f in os.listdir(self._config_dir) if f.endswith('.yaml')]
-            raise FileNotFoundError(
-                f"SAM2 config not found: {config_path}. "
-                f"Available configs: {available_configs}"
-            )
-        logger.info("MARKER 014: config file exists")
-
-        if not os.path.exists(self._checkpoint_path):
-            logger.error(f"MARKER 015: checkpoint NOT found at {self._checkpoint_path}")
-            raise FileNotFoundError(
-                f"SAM2 checkpoint not found: {self._checkpoint_path}"
-            )
-        logger.info("MARKER 016: checkpoint file exists")
-
         logger.info("MARKER 017: calling build_sam2")
         try:
             self._model = build_sam2(
-                config_file=config_path,
+                config_file=self._model_name,
                 checkpoint=self._checkpoint_path,
                 device=device,
             )
