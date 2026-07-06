@@ -24,8 +24,6 @@ logger = logging.getLogger(__name__)
 
 import torch
 from PIL import Image
-from hydra import compose, initialize_config_dir
-from hydra.core.global_hydra import GlobalHydra
 
 from . import BackgroundRemoverProvider, ImageResult
 
@@ -112,18 +110,29 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             )
         logger.info("MARKER 016: checkpoint file exists")
 
-        logger.info("MARKER 017: clearing GlobalHydra")
-        GlobalHydra.instance().clear()
-        logger.info("MARKER 018: initializing config_dir with Hydra")
-        with initialize_config_dir(config_dir=self._config_dir, version_base="1.1"):
-            logger.info("MARKER 019: composing config")
-            cfg = compose(config_name=f"{self._model_name}")
-            logger.info(f"MARKER 020: config composed cfg={cfg}")
+        logger.info("MARKER 017: loading SAM2 model")
+        if not os.path.exists(config_path):
+            logger.error(f"MARKER 013b: config NOT found at {config_path}")
+            available_configs = []
+            if os.path.exists(self._config_dir):
+                available_configs = [f for f in os.listdir(self._config_dir) if f.endswith('.yaml')]
+            raise FileNotFoundError(
+                f"SAM2 config not found: {config_path}. "
+                f"Available configs: {available_configs}"
+            )
+        logger.info("MARKER 014: config file exists")
 
-        logger.info("MARKER 021: calling build_sam2 start")
+        if not os.path.exists(self._checkpoint_path):
+            logger.error(f"MARKER 015: checkpoint NOT found at {self._checkpoint_path}")
+            raise FileNotFoundError(
+                f"SAM2 checkpoint not found: {self._checkpoint_path}"
+            )
+        logger.info("MARKER 016: checkpoint file exists")
+
+        logger.info("MARKER 017: calling build_sam2")
         try:
             self._model = build_sam2(
-                model_cfg=cfg,
+                config_file=config_path,
                 checkpoint=self._checkpoint_path,
                 device=device,
             )
