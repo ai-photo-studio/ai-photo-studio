@@ -14,7 +14,7 @@ steps:
   - '--project=project-9540c255-c960-4fa0-a91'
   - '--platform=managed'
   - '--allow-unauthenticated'
-  - '--port=3000'
+  - '--port=8080'
   - '--cpu=1'
   - '--memory=512Mi'
   - '--min-instances=1'
