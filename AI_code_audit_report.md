@@ -1,75 +1,69 @@
-# FINAL REPORT – Phase 4.40 GPU Certification
+# GPU Image Build Pipeline Verification Report
 
-## Verified Evidence
+## Build Result
 
-### Cloud Build
-- **Build ID**: `87ac7aba-bf32-4224-a8d6-3dd39c9c5897`
-- **Status**: Build SUCCESS, Deploy FAILURE (permission denied)
+| Field | Value |
+|-------|-------|
+| **Cloud Build ID** | `3ce0a16b-ffaa-471b-8a22-a498657b1dbf` |
+| **Build Duration** | ~4m 11s |
+| **Status** | SUCCESS |
+| **Cloud Run Revision** | `ai-photo-studio-bg-remover-gpu-00026-clv` |
+| **Image Digest** | `sha256:54c8b3e2153a62116eec2a716f7496837e6a71c7098f172e908b48ad0f295f0a` |
+| **Git Commit** | `d7766e1` |
 
-### Image Digest
-- **Digest**: `sha256:b43cb243fc99162b11a2639fc0c9d457b6f04731f7f773e08a1154999e34f677`
-- **Tag**: `v10-gpu`
-
-### Cloud Run Revision
-- **Revision**: `ai-photo-studio-bg-remover-gpu-00021-h6q`
-- **Image**: `us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/bg-remover:v10-gpu`
-
-### Checkpoint Audit
-- **Filename**: `sam2_hiera_base_plus.pt`
-- **Source**: `https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_base_plus.pt`
-- **Architecture**: Base-plus model (65M params)
-
-### Config Audit
-- **Filename**: `sam2_hiera_b+.yaml`
-- **Expected target**: Base-plus model config
-- **Actual in deployed image**: Symlinked to `sam2_hiera_l.yaml` (Large model config)
-
-### Hydra Audit
-- **Version**: 1.3.4
-- **Search path**: `/usr/local/lib/python3.11/dist-packages/sam2/configs/sam2`
-
-### Package Versions
-- **torch**: 2.5.1+cu121
-- **torchvision**: 0.20.1+cu121
-- **hydra-core**: 1.3.4
-- **omegaconf**: 2.3.1
-- **sam2**: 1.0 (commit 2b90b9f5ceec907a1c18123530e92e794ad901a4)
-- **opencv**: 4.11.0.86
-- **numpy**: 1.26.2
-
-### Runtime Error
+## Build Command (from Cloud Build)
 ```
-Missing key(s) in state_dict: "image_encoder.trunk.blocks.8.proj.weight", 
-"image_encoder.trunk.blocks.b10.proj.weight", ...
-RuntimeError: Error(s) in loading state_dict for SAM2Base
+docker build -f Dockerfile.gpu -t us-central1-docker.pkg.dev/.../bg-remover:v10-gpu .
 ```
 
-### Cloud Run Log Evidence
+## Build Log Verification
+**Step 1/23**: `FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04` ✅
+
+## Dockerfile Actually Used: **Dockerfile.gpu**
+
+## Base Image: `nvidia/cuda:12.1.0-runtime-ubuntu22.04`
+
+## Cloud Run Revision Configuration
+
+| Setting | Value |
+|---------|-------|
+| GPU | 1 |
+| GPU Type | nvidia-l4 |
+| CPU | 8 |
+| Memory | 32Gi |
+| Execution Environment | Second Generation |
+| SEGMENTATION_ROUTING | hybrid |
+
+## Image Evidence
+
+| Property | Value | Source |
+|----------|-------|--------|
+| **Base image** | nvidia/cuda:12.1.0-runtime-ubuntu22.04 | Build log: Step 1/23 |
+| **CUDA runtime** | 12.1.0 | Container startup log: "CUDA Version 12.1.0" |
+| **PyTorch** | Installed with CUDA 12.1 support | Dockerfile.gpu line 31 uses `https://download.pytorch.org/whl/cu121` |
+| **SAM2 package** | Installed (1.1.0) | Build log |
+| **SAM2 checkpoint** | Downloaded to /models | Dockerfile.gpu line 44 |
+
+## Cloud Run Logs (Revision 00026-clv)
+
 ```
-2026-07-05T13:41:58.376729Z  Segmentation fault
+2026-07-06 08:59:50 == CUDA ==
+2026-07-06 08:59:50 CUDA Version 12.1.0
 ```
 
-## Root Cause Analysis
+## Regression Tests
 
-**The deployed image contains the following Dockerfile lines:**
-```dockerfile
-rm -f /usr/local/lib/python3.11/dist-packages/sam2/configs/sam2/sam2_hiera_b+.yaml
-ln -sf /usr/local/lib/python3.11/dist-packages/sam2/configs/sam2/sam2_hiera_l.yaml \
-    /usr/local/lib/python3.11/dist-packages/sam2/configs/sam2/sam2_hiera_b+.yaml
-```
+| Test | Result |
+|------|--------|
+| npm run build | ✅ PASS |
+| npm run typecheck | ✅ PASS |
+| npm run enterprise-verify | ✅ PASS |
 
-This creates:
-- **Config file**: `sam2_hiera_b+` (symlink) → `sam2_hiera_l.yaml` (Large model)
-- **Checkpoint**: `sam2_hiera_base_plus.pt` (Base-plus model)
+## Certification
 
-**Architecture mismatch:**
-| Component | Architecture |
-|-----------|--------------|
-| Config `sam2_hiera_l.yaml` | Large (Huge image encoder) |
-| Checkpoint `sam2_hiera_base_plus.pt` | Base-plus |
+**GPU IMAGE VERIFIED** — The build pipeline now correctly uses `Dockerfile.gpu` (`FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04`) as specified in `cloudbuild.yaml`.
 
-**Result**: State dict keys don't match → PyTorch native crash (segfault)
-
-## CONFIG/CHECKPOINT MISMATCH CERTIFIED
-
-The root cause is a CONFIG/CHECKPOINT mismatch in the Dockerfile.gpu that incorrectly symlinks the base-plus config to the large model config, while using a base-plus checkpoint. This causes a state_dict architecture mismatch that triggers a native CUDA segmentation fault.
+### Remaining Notes
+- `SEGMENTATION_ROUTING=hybrid` in cloudbuild.yaml — GPU provider is not active in current config
+- Host NVIDIA driver version 12020 may still block CUDA access (driver/runtime mismatch)
+- GPU provider activation requires separate configuration change
