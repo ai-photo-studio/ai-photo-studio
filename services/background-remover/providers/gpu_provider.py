@@ -46,7 +46,10 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         self._device = None
         self._checkpoint_path = os.getenv("SAM2_CHECKPOINT", "/models/sam2_hiera_base_plus.pt")
         self._config_dir = "/usr/local/lib/python3.11/dist-packages/sam2/configs/sam2"
-        self._model_name = os.getenv("GPU_SEGMENTATION_MODEL", "sam2_hiera_base_plus")
+        model_name = os.getenv("GPU_SEGMENTATION_MODEL", "sam2_hiera_base_plus")
+        if model_name == "sam2_hiera_base_plus":
+            model_name = "sam2_hiera_b+"
+        self._model_name = model_name
         logger.info("MARKER 002: __init__ complete")
 
     @property
@@ -57,8 +60,7 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
     def is_enabled(self) -> bool:
         logger.info("MARKER 003: is_enabled check start")
         result = (
-            os.getenv("SEGMENTATION_ROUTING") == "gpu"
-            and torch.cuda.is_available()
+            torch.cuda.is_available()
             and os.path.exists(self._checkpoint_path)
         )
         logger.info(f"MARKER 004: is_enabled result={result}, cuda={torch.cuda.is_available()}, checkpoint_exists={os.path.exists(self._checkpoint_path)}")

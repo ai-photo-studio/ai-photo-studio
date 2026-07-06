@@ -43,6 +43,12 @@ def get_provider() -> BackgroundRemoverProvider:
         from providers.local import LocalRembgProvider
         return LocalRembgProvider()
     
+    if routing == "hybrid":
+        from providers.gpu_provider import GPUSAM2Provider
+        gpu_provider = GPUSAM2Provider()
+        if gpu_provider.is_enabled:
+            return gpu_provider
+    
     if os.getenv("MODAL_ENABLED") == "1":
         from providers.modal import ModalProvider
         return ModalProvider()
