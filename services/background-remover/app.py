@@ -192,11 +192,8 @@ def _remove_background(image: Image.Image, tier: str = "standard") -> Image.Imag
 
 
 def _get_provider():
-    if os.getenv("MODAL_ENABLED") == "1":
-        from providers.modal import ModalProvider
-        return ModalProvider()
-    from providers.local import LocalRembgProvider
-    return LocalRembgProvider()
+    from providers import get_provider
+    return get_provider()
 
 
 def _process_upload(raw: bytes, content_type: str | None, output: Literal["transparent", "white"], tier: str = "standard") -> ProcessedImage:
