@@ -180,6 +180,20 @@ def _remove_background(image: Image.Image, tier: str = "standard") -> Image.Imag
     cutout = _refine_edges(cutout, radius=1)
 
     quality = _validate_segmentation_quality(cutout)
+    if quality["foregroundCoverage"] < QUALITY_MIN_FOREGROUND_COVERAGE:
+        detail = (
+            f"Foreground coverage too low (coverage={quality['foregroundCoverage']:.4f}). "
+            f"Please upload a clearer product photo with the object filling more of the frame. "
+            f"Metrics: {quality}"
+        )
+        raise HTTPException(status_code=422, detail=detail)
+    if quality["edgeConfidence"] < QUALITY_MIN_EDGE_CONFIDENCE:
+        detail = (
+            f"Edge confidence too low (confidence={quality['edgeConfidence']:.2f}). "
+            f"Please upload a clearer product photo with better lighting. "
+            f"Metrics: {quality}"
+        )
+        raise HTTPException(status_code=422, detail=detail)
     if quality["overallScore"] < QUALITY_MIN_OVERALL_SCORE:
         detail = (
             f"Segmentation quality too low (score={quality['overallScore']}). "
