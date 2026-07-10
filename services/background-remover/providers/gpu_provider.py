@@ -24,9 +24,12 @@ logger = logging.getLogger(__name__)
 
 import torch
 import torch.nn.functional as F
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageFilter
 
 from . import BackgroundRemoverProvider, ImageResult
+
+OBJECT_AWARE_PROMPTS = os.getenv("OBJECT_AWARE_PROMPTS", "false").lower() == "true"
 
 
 @dataclass
@@ -185,14 +188,75 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         logger.info("MARKER 113: encoding prompts")
         with torch.no_grad():
-            # Generate a center point prompt to guide SAM2
-            # Without any prompt, SAM2 produces unreliable masks
             h, w = orig_hw
-            center_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
-            center_label = torch.tensor([[1]], device=device)  # 1 = foreground
+            
+            if OBJECT_AWARE_PROMPTS:
+                # Object-aware prompt: find all significant components and use their centroids
+                logger.info("MARKER 113a: Using object-aware prompts")
+                
+                # Use saliency-based approach to find foreground regions
+                input_img = input_tensor.cpu()
+                input_img = (input_img * torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1) + 
+                            torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)).clamp(0, 1)
+                input_img = (input_img.permute(0, 2, 3, 1) * 255).byte().numpy()[0]
+                
+                # Simple luminance saliency
+                luminance = np.array(Image.fromarray(input_img).convert('L'))
+                
+                # Find connected components in saliency
+                from scipy import ndimage
+                binary = (luminance > 128).astype(np.uint8)
+                labeled, num_features = ndimage.label(binary)
+                
+                if num_features > 0:
+                    # Find all components and their centroids
+                    component_areas = [np.sum(labeled == i) for i in range(1, num_features + 1)]
+                    
+                    # Get centroids for significant components (area > 1% of image)
+                    min_area = target_size * target_size * 0.01
+                    significant_centroids = []
+                    
+                    for i, area in enumerate(component_areas):
+                        if area > min_area:
+                            coords = np.where(labeled == (i + 1))
+                            centroid_y = int(np.mean(coords[0]))
+                            centroid_x = int(np.mean(coords[1]))
+                            significant_centroids.append((centroid_x, centroid_y))
+                    
+                    if significant_centroids:
+                        # Scale centroids to original image size
+                        scale_y = h / target_size
+                        scale_x = w / target_size
+                        prompt_points = []
+                        
+                        for cx, cy in significant_centroids:
+                            prompt_points.append([int(cx * scale_x), int(cy * scale_y)])
+                        
+                        logger.info(f"MARKER 113b: Found {len(significant_centroids)} significant components")
+                        
+                        # Use multiple points
+                        prompt_point = torch.tensor([[[p[0], p[1]] for p in prompt_points]], 
+                                                   device=device, dtype=torch.float)
+                        prompt_label = torch.tensor([[1] * len(prompt_points)], device=device)
+                    else:
+                        # Fallback to center point
+                        prompt_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
+                        prompt_label = torch.tensor([[1]], device=device)
+                        logger.info("MARKER 113c: No significant components, using center point")
+                else:
+                    # Fallback to center point
+                    prompt_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
+                    prompt_label = torch.tensor([[1]], device=device)
+                    logger.info("MARKER 113c: No components found, using center point")
+            
+            else:
+                # Original center point prompt
+                logger.info("MARKER 113d: Using center point prompt (default)")
+                prompt_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
+                prompt_label = torch.tensor([[1]], device=device)
             
             sparse_embeddings, dense_embeddings = self._model.sam_prompt_encoder(
-                points=(center_point, center_label), boxes=None, masks=None,
+                points=(prompt_point, prompt_label), boxes=None, masks=None,
             )
             image_pe = self._model.sam_prompt_encoder.get_dense_pe()
             logger.info(f"MARKER 114: sparse_embeddings shape={sparse_embeddings.shape}")
