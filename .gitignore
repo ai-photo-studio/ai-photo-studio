@@ -57,6 +57,7 @@ __pycache__/
 apps/api/generated/
 *.audit.md
 AI_code_audit_report.md
+docs/business/GPU_COST_REFERENCE.md
 AI_LOCAL_AI_PIPELINE.md
 MASTER_*.md
 railway-env.txt
