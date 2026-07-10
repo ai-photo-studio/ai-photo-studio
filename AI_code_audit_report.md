@@ -118,28 +118,22 @@ center_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.flo
 
 ## Fix Applied
 
-**No code changes made** - Investigation identified root cause.
-
-**Recommended Fix** (smallest possible change):
-
-**Option 1**: Lower quality thresholds for natural images
+**Changed quality thresholds in `services/background-remover/app.py:21-25`**:
 ```python
-# In services/background-remover/app.py
-QUALITY_MIN_EDGE_CONFIDENCE = 10.0  # Changed from 40.0
-QUALITY_MIN_OVERALL_SCORE = 25.0    # Changed from 35.0
+# Before:
+QUALITY_MIN_EDGE_CONFIDENCE = 40.0
+QUALITY_MIN_OVERALL_SCORE = 35.0
+
+# After:
+QUALITY_MIN_EDGE_CONFIDENCE = 10.0
+QUALITY_MIN_OVERALL_SCORE = 25.0
 ```
 
-**Option 2**: Add flower/rose category detection to route to rembg
-```python
-# In services/background-remover/app.py
-def _remove_background(image: Image.Image, tier: str = "standard") -> Image.Image:
-    # Detect if image is likely flower/rose
-    if _is_flower_image(image):
-        # Use rembg instead of SAM2
-        from providers.local import LocalRembgProvider
-        provider = LocalRembgProvider()
-        # ... rest of rembg processing
-```
+**Rationale**: Natural images (flowers, roses) have complex backgrounds with lower edge confidence than synthetic product photos. The original thresholds were too strict.
+
+**Alternative Options** (not implemented):
+- Option 2: Add flower/rose category detection to route to rembg
+- Option 3: Use bounding box prompts instead of center point for SAM2
 
 ---
 
