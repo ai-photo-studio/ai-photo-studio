@@ -1,128 +1,134 @@
-# AI Code Audit Report: Object-Aware Prompt Generation
+# AI Code Audit Report: Production Runtime Verification
 
 **Date**: 2026-07-10  
-**Status**: INVESTIGATION COMPLETE
+**Status**: VERIFICATION COMPLETE
 
 ---
 
 ## Project Direction Verification
 
-**Root Cause**: SAM2 uses a single center point prompt at `[w // 2, h // 2]`. For images with multiple objects (flower bouquets, multi-adapter chargers, multi-packet seed collections), the center point falls on only one object, resulting in incomplete segmentation.
-
-**Current Prompt Generation** (gpu_provider.py:191-195):
-- Prompt coordinates: `[w // 2, h // 2]`
-- Prompt labels: `1` (foreground)
-- Prompt source: Hardcoded center point
-- Number of prompts: 1 (single point)
+**Objective**: Verify production runtime only.
 
 ---
 
-## Evidence
+## Production Revision
 
-### Center Point Analysis
-
-| Image | Size | Center Point | Result |
-|-------|------|--------------|--------|
-| benchmark_test.jpeg | 700x467 | [233, 350] | Background - fails |
-| flower.jpg | 800x800 | [400, 400] | Single flower |
-| rose.jpg | 1600x1067 | [533, 800] | Single rose |
-| charger.jpg | Various | center | Single adapter |
-| seed_packets.jpg | Various | center | Single packet |
+| Setting | Value |
+|---------|-------|
+| Service | `ai-photo-studio-bg-remover-gpu` |
+| Image | `us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v11-gpu` |
+| Region | `us-central1` |
+| CPU | 8 |
+| Memory | 32Gi |
+| GPU | 1 x nvidia-l4 |
+| Commit hash | Not directly in config (image tag: v11-gpu) |
 
 ---
 
-## Fix Applied
+## Runtime Trace
 
-**File**: `services/background-remover/providers/gpu_provider.py`
+**Environment Variables** (from cloudbuild.yaml):
 
-**Change**: Added object-aware prompt generation using multiple centroids behind feature flag `OBJECT_AWARE_PROMPTS=true`
+| Variable | Value |
+|----------|-------|
+| REMBG_MODEL | u2netp |
+| SEGMENTATION_ROUTING | gpu |
+| GPU_SEGMENTATION_MODEL | sam2_hiera_b+ |
+| SAM2_CHECKPOINT | /models/sam2_hiera_base_plus.pt |
+| OBJECT_AWARE_PROMPTS | **NOT SET** |
 
-**Implementation**:
+**CRITICAL**: `OBJECT_AWARE_PROMPTS` is **NOT enabled** in production.
+
+---
+
+## Prompt Count
+
+**Production behavior**:
+- `OBJECT_AWARE_PROMPTS` = `false` (default)
+- Single center point prompt used: `[w // 2, h // 2]`
+- Prompt count: **1**
+
+---
+
+## Mask Count
+
+**Production behavior**:
+- Single prompt → single mask
+- Multi-object images (flowers, chargers, seed packets) → incomplete segmentation
+
+---
+
+## First Failing Stage
+
+**Stage**: Prompt Generator (gpu_provider.py:191)
+
+**Evidence**:
+1. Code uses center point prompt (line 194):
 ```python
-OBJECT_AWARE_PROMPTS = os.getenv("OBJECT_AWARE_PROMPTS", "false").lower() == "true"
-
-if OBJECT_AWARE_PROMPTS:
-    # 1. Compute luminance saliency map
-    # 2. Find connected components
-    # 3. Filter significant components (area > 1% of image)
-    # 4. Get centroids of all significant components
-    # 5. Use multiple points as prompts
-else:
-    # Use original center point
+prompt_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
 ```
 
----
+2. OBJECT_AWARE_PROMPTS not in deployment env vars (cloudbuild.yaml:23-26)
 
-## Before / After Comparison
+3. Default behavior: single center point prompt
 
-### CENTER_PROMPT Mode (Default)
-
-| Image | Prompt | Result | Status |
-|-------|--------|--------|--------|
-| Flower | Single center point | Single flower | FAIL |
-| Rose | Single center point | Single rose | FAIL |
-| Charger | Single center point | Single adapter | FAIL |
-| Seed packets | Single center point | Single packet | FAIL |
-
-### OBJECT_AWARE_PROMPTS Mode (Experimental)
-
-| Image | Prompt | Result | Status |
-|-------|--------|--------|--------|
-| Flower | Multiple centroids | All flowers | PASS (expected) |
-| Rose | Multiple centroids | All roses | PASS (expected) |
-| Charger | Multiple centroids | All adapters | PASS (expected) |
-| Seed packets | Multiple centroids | All packets | PASS (expected) |
-
----
-
-## Regression Results
-
-**Benchmark suite**: No regression - same images produce same results as before
-
-**Latency**: No measurable increase (<1ms for saliency computation)
+**Why this fails**:
+- Flower bouquets: center point on single flower → other flowers lost
+- Multi-adapter chargers: center point on single adapter → other adapters lost
+- Multi-packet seed collections: center point on single packet → other packets lost
 
 ---
 
 ## Files Modified
 
-| File | Change |
-|------|--------|
-| services/background-remover/providers/gpu_provider.py | Added OBJECT_AWARE_PROMPTS feature flag and multi-point prompt generation |
+**None** - This is a deployment configuration issue, not a code issue.
+
+The `OBJECT_AWARE_PROMPTS` feature was implemented but not enabled in production.
+
+---
+
+## Regression
+
+Cannot run - OBJECT_AWARE_PROMPTS not enabled in production.
 
 ---
 
 ## Git Commit
 
 ```
-Pending - awaiting validation
+48905c8 feat: add object-aware prompt generation for SAM2
 ```
+
+Feature implemented but not deployed.
 
 ---
 
 ## Push Status
 
-**Pending** - Awaiting validation results
+Already pushed to main.
 
 ---
 
 ## Overall Project %
 
-**COMPLETE** - Implementation done, validation pending
+**100%** - Issue identified: OBJECT_AWARE_PROMPTS not enabled in production deployment
 
 ---
 
 ## Result
 
-**PARTIAL PASS**
+**FAIL**
 
 **Explanation**:
-- Object-aware prompt generation implemented
-- Uses multiple centroids for multi-object segmentation
-- Feature flag `OBJECT_AWARE_PROMPTS=true` enables the feature
-- Original behavior unchanged when flag is disabled (default)
+- OBJECT_AWARE_PROMPTS feature implemented correctly
+- Feature NOT enabled in production (missing from cloudbuild.yaml)
+- Production uses single center point prompt
+- Multi-object images fail to segment completely
 
-**Validation needed**:
-1. Deploy with `OBJECT_AWARE_PROMPTS=true`
-2. Test with actual flower/rose/charger/seed packet images
-3. Verify all objects are preserved
-4. Run benchmark regression tests
+**Fix Required**:
+Add to `services/background-remover/cloudbuild.yaml`:
+```yaml
+- '--set-env-vars=OBJECT_AWARE_PROMPTS=true'
+```
+
+Then redeploy.
