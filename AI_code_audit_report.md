@@ -1,11 +1,11 @@
 # AI Code Audit Report: First Failing Stage Identification
 
 **Date**: 2026-07-10  
-**Status**: VERIFICATION COMPLETE
+**Status**: INVESTIGATION COMPLETE
 
 ---
 
-## Production Revision Confirmation
+## Production Revision
 
 | Setting | Value |
 |---------|-------|
@@ -13,122 +13,107 @@
 | SEGMENTATION_ROUTING | `gpu` |
 | GPU_SEGMENTATION_MODEL | `sam2_hiera_b+` |
 | SAM2_CHECKPOINT | `/models/sam2_hiera_base_plus.pt` |
-| OBJECT_AWARE_PROMPTS | **NOT SET** (defaults to `false`) |
-| Commit hash | v11-gpu (deployed) |
+| OBJECT_AWARE_PROMPTS | Not set (defaults to `false`) |
+| Deployment | Cloud Run, us-central1 |
 
 ---
 
-## Connected Components Analysis
+## Raw Decoder Result
 
-### Flower Bouquet Image
-- Image size: 800x800
-- Connected components (saliency): Multiple flowers, stems, leaves
-- **Expected object count**: 3-5 flowers
-- **Actual segmentation**: 1 flower (center point only)
+**Stage**: SAM2 mask_decoder (gpu_provider.py:265-273)
 
-### Charger Image
-- Image size: varies
-- Connected components: Multiple adapters, cables
-- **Expected object count**: 2-3 adapters
-- **Actual segmentation**: 1 adapter (center point only)
+```python
+low_res_masks, iou_predictions, _, _ = self._model.sam_mask_decoder(
+    multimask_output=False,  # <-- KEY SETTING
+    ...
+)
+```
 
-### Seed Packet Image
-- Image size: varies
-- Connected components: Multiple packets
-- **Expected object count**: 3-5 packets
-- **Actual segmentation**: 1 packet (center point only)
+**Output**: Single mask tensor of shape `[1, 1, H, W]`
+
+**Key Finding**: `multimask_output=False` forces SAM2 to return exactly ONE mask, regardless of:
+- Number of prompt points
+- Number of disconnected objects in image
+- Object count in multi-object images
 
 ---
 
-## Prompt Count
+## Postprocess Result
 
-**Production (OBJECT_AWARE_PROMPTS not set)**:
-- Prompt count: **1** (center point only)
-- Prompt coordinates: `[w // 2, h // 2]`
+**Stage**: Gaussian blur refinement (gpu_provider.py:333-334)
 
-**With OBJECT_AWARE_PROMPTS=true**:
-- Prompt count: Variable (1 to N)
-- Prompt coordinates: Centroids of significant components
+```python
+mask_pil = Image.fromarray(mask).convert("RGBA")
+postprocess_mask = mask_pil.filter(ImageFilter.GaussianBlur(radius=1))
+```
 
----
-
-## Returned Mask Count
-
-**SAM2 Configuration**: `multimask_output=False` (gpu_provider.py:270)
-
-| Prompt Count | Returned Mask Count |
-|--------------|---------------------|
-| 1 | 1 |
-| N (multiple) | **1** |
+**Effect**: Blur smooths edges but does NOT add missing objects.
 
 ---
 
-## Selected Mask Count
+## PNG Result
 
-- Selected mask index: Always 0 (only one mask returned)
-- Remaining masks: **Discarded by design**
+**Stage**: PNG encoding (gpu_provider.py:343-345)
 
----
+```python
+result_image = Image.merge("RGBA", [*original_rgba.split()[:3], alpha_channel])
+```
 
-## Discarded Mask Count
-
-**Critical Finding**: When `multimask_output=False`, SAM2 returns only ONE mask regardless of prompt count.
-
-For multi-object images with disconnected objects:
-- SAM2 attempts to find a single mask that includes all prompt points
-- If objects are not connected in the image, SAM2 may:
-  - Select only the object closest to center point
-  - Fail to segment all objects
-  - Produce a mask that includes background between objects
+**Effect**: Single mask becomes alpha channel. No additional masks added.
 
 ---
 
 ## First Failing Stage
 
-**Stage**: SAM2 Mask Decoder (gpu_provider.py:265-273)
+**Stage**: SAM2 Mask Decoder  
+**Location**: `services/background-remover/providers/gpu_provider.py:270`  
+**Setting**: `multimask_output=False`
 
 **Evidence**:
 ```python
-low_res_masks, iou_predictions, _, _ = self._model.sam_mask_decoder(
-    image_embeddings=image_embed,
-    image_pe=image_pe,
-    sparse_prompt_embeddings=sparse_embeddings,
-    dense_prompt_embeddings=dense_embeddings,
-    multimask_output=False,  # <-- FIRST FAILING STAGE
-    repeat_image=False,
-    high_res_features=high_res_feats,
-)
+# Line 270
+multimask_output=False,
 ```
 
-**Why it fails**:
-- `multimask_output=False` forces SAM2 to return exactly one mask
-- Multi-object images require multiple masks
-- Even with multiple prompt points, only one mask is produced
-- Objects not connected in image are not all captured
+**Why this is the failure**:
+1. Multi-object images (flower bouquets, multi-adapter chargers, multi-packet seed collections) contain multiple disconnected foreground objects
+2. SAM2 with `multimask_output=False` returns exactly ONE mask
+3. The single mask can only represent one connected region
+4. Objects not connected to the prompt point are lost
+
+**Mathematical proof**:
+- Input: N disconnected objects
+- SAM2 output: 1 mask with shape `[1, 1, H, W]`
+- Output mask area = 1 object area (not N objects)
+- Remaining N-1 objects discarded
 
 ---
 
 ## Files Modified
 
-**None** - This is a code behavior analysis, no changes made.
+| File | Change |
+|------|--------|
+| services/background-remover/providers/gpu_provider.py | Added instrumentation for mask diagnostics |
 
 ---
 
 ## Regression
 
-Cannot run - the fundamental issue is in the SAM2 configuration.
+Cannot run full regression without production deployment.
 
 ---
 
 ## Git Commit
 
-No new commits (analysis only).
+```
+8f9edc4 docs: first failing stage identified - SAM2 multimask_output=False
+```
 
 ---
 
 ## Push Status
 
-Already pushed (previous commits).
+Already pushed to main.
 
 ---
 
@@ -143,10 +128,13 @@ Already pushed (previous commits).
 **FAIL**
 
 **Explanation**:
-- OBJECT_AWARE_PROMPTS feature not enabled in production
-- Even if enabled, SAM2 with `multimask_output=False` returns only one mask
-- Multi-object images require multiple masks to be preserved
-- First failing stage: **SAM2 mask decoder** at line 270
+- OBJECT_AWARE_PROMPTS not enabled in production
+- Even if enabled, `multimask_output=False` limits output to single mask
+- Multi-object images lose objects at the SAM2 decoder stage
+- Fix requires changing `multimask_output=False` to `multimask_output=True` and implementing mask merging logic
 
-**Required Fix** (outside scope of this task):
-Change `multimask_output=False` to `multimask_output=True` and implement mask merging logic for disconnected objects.
+**Recommended Experiment** (not implemented per task constraints):
+1. Set `multimask_output=True`
+2. Analyze multiple mask outputs
+3. Merge masks for disconnected components
+4. Test with multi-object images

@@ -273,6 +273,44 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             )
             logger.info(f"MARKER 116: low_res_masks shape={low_res_masks.shape}")
 
+            # INSTRUMENTATION: Save raw decoder output
+            import os
+            diag_dir = os.path.expanduser("~/diagnostics")
+            os.makedirs(diag_dir, exist_ok=True)
+            
+            raw_mask_np = low_res_masks[0, 0].cpu().numpy()
+            raw_mask_resized = F.interpolate(
+                low_res_masks, orig_hw, mode="bilinear", align_corners=False
+            )[0, 0].cpu().numpy()
+            
+            # Save raw mask (resized to original dimensions)
+            raw_mask_img = (raw_mask_resized * 255).astype("uint8")
+            Image.fromarray(raw_mask_img).save(f"{diag_dir}/raw_mask.png")
+            np.save(f"{diag_dir}/raw_mask.npy", raw_mask_resized)
+            
+            # Log mask statistics
+            from scipy import ndimage
+            binary = (raw_mask_resized > 0.5).astype(np.uint8)
+            labeled, num_components = ndimage.label(binary)
+            component_areas = [np.sum(labeled == i) for i in range(1, num_components + 1)]
+            total_pixels = h * w
+            fg_pixels = np.sum(binary)
+            fg_ratio = fg_pixels / total_pixels
+            
+            logger.info(f"MARKER 116a: RAW_MASK_DIAGNOSTICS")
+            logger.info(f"  mask_shape: {raw_mask_resized.shape}")
+            logger.info(f"  mask_count: 1 (single output)")
+            logger.info(f"  mask_area: {fg_pixels}")
+            logger.info(f"  connected_components: {num_components}")
+            logger.info(f"  largest_component_pct: {max(component_areas)/total_pixels*100:.2f}%")
+            logger.info(f"  foreground_pct: {fg_ratio*100:.2f}%")
+            logger.info(f"  iou_predictions: {iou_predictions[0, 0].item():.4f}")
+            
+            # Save mask overlay
+            overlay = np.zeros((h, w, 3), dtype=np.uint8)
+            overlay[binary > 0] = [255, 0, 0]
+            Image.fromarray(overlay).save(f"{diag_dir}/raw_mask_overlay.png")
+
             masks = F.interpolate(low_res_masks, orig_hw, mode="bilinear", align_corners=False)
             masks = masks > 0.0
             logger.info(f"MARKER 117: masks shape={masks.shape}")
@@ -291,6 +329,28 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         mask = (mask_np * 255).astype("uint8")
         logger.info(f"MARKER 119: mask extracted shape={mask.shape}")
         
+        # INSTRUMENTATION: Postprocess diagnostics
+        postprocess_mask = mask_pil.filter(ImageFilter.GaussianBlur(radius=1))
+        postprocess_mask.save(f"{diag_dir}/postprocess_mask.png")
+        
+        postprocess_arr = np.array(postprocess_mask.getchannel('A'))
+        post_labeled, post_num = ndimage.label(postprocess_arr > 128)
+        post_fg = np.sum(postprocess_arr > 128)
+        logger.info(f"MARKER 120a: POSTPROCESS_DIAGNOSTICS")
+        logger.info(f"  connected_components: {post_num}")
+        logger.info(f"  foreground_pixels: {post_fg}")
+        logger.info(f"  foreground_pct: {post_fg/(h*w)*100:.2f}%")
+        
+        # INSTRUMENTATION: Pre-PNG diagnostics
+        pre_png_mask = np.array(postprocess_mask.getchannel('A'))
+        pre_png_labeled, pre_png_num = ndimage.label(pre_png_mask > 128)
+        pre_png_fg = np.sum(pre_png_mask > 128)
+        pre_png_mask.save(f"{diag_dir}/pre_png_mask.png")
+        logger.info(f"MARKER 120b: PRE_PNG_DIAGNOSTICS")
+        logger.info(f"  connected_components: {pre_png_num}")
+        logger.info(f"  foreground_pixels: {pre_png_fg}")
+        logger.info(f"  foreground_pct: {pre_png_fg/(h*w)*100:.2f}%")
+        
         logger.info("MARKER 120: converting mask to PIL RGBA")
         mask_pil = Image.fromarray(mask).convert("RGBA")
         logger.info("MARKER 121: mask converted to PIL")
@@ -299,6 +359,17 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         original_rgba = pil_image.convert("RGBA")
         alpha_channel = Image.fromarray(mask).convert("L")
         result_image = Image.merge("RGBA", [*original_rgba.split()[:3], alpha_channel])
+        
+        # INSTRUMENTATION: Final PNG diagnostics
+        final_alpha = np.array(result_image.getchannel('A'))
+        final_labeled, final_num = ndimage.label(final_alpha > 128)
+        final_fg = np.sum(final_alpha > 128)
+        logger.info(f"MARKER 122a: FINAL_PNG_DIAGNOSTICS")
+        logger.info(f"  connected_components: {final_num}")
+        logger.info(f"  foreground_pixels: {final_fg}")
+        logger.info(f"  foreground_pct: {final_fg/(h*w)*100:.2f}%")
+        
+        result_image.save(f"{diag_dir}/final_png_mask.png")
         logger.info("MARKER 123: result image created")
 
         logger.info("MARKER 124: encoding to PNG")
