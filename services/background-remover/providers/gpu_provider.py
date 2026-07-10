@@ -30,6 +30,7 @@ from PIL import Image, ImageFilter
 from . import BackgroundRemoverProvider, ImageResult
 
 OBJECT_AWARE_PROMPTS = os.getenv("OBJECT_AWARE_PROMPTS", "false").lower() == "true"
+DEBUG_MASK_DIAGNOSTICS = os.getenv("DEBUG_MASK_DIAGNOSTICS", "false").lower() == "true"
 
 
 @dataclass
@@ -41,6 +42,54 @@ class GPUMetrics:
     latency_ms: float
     checkpoint_path: str
     config_path: str
+
+
+@dataclass
+class MaskDiagnostics:
+    prompt_count: int
+    prompt_coordinates: list
+    returned_mask_count: int
+    connected_component_count: int
+    bounding_boxes: list
+    centroids: list
+    foreground_pct: float
+    largest_component_pct: float
+    raw_mask_stats: dict
+    postprocess_mask_stats: dict
+    final_png_mask_stats: dict
+
+
+def _compute_mask_diagnostics(mask_array: np.ndarray, threshold: float = 0.5) -> dict:
+    from scipy import ndimage
+    binary = mask_array > threshold
+    labeled, num_components = ndimage.label(binary)
+    component_areas = [np.sum(labeled == i) for i in range(1, num_components + 1)]
+    total_pixels = mask_array.shape[0] * mask_array.shape[1]
+    fg_pixels = int(np.sum(binary))
+    fg_pct = fg_pixels / max(1, total_pixels)
+    
+    bounding_boxes = []
+    centroids = []
+    for i in range(1, num_components + 1):
+        coords = np.where(labeled == i)
+        min_y, max_y = int(coords[0].min()), int(coords[0].max())
+        min_x, max_x = int(coords[1].min()), int(coords[1].max())
+        centroid_y = float(np.mean(coords[0]))
+        centroid_x = float(np.mean(coords[1]))
+        bounding_boxes.append([min_x, min_y, max_x, max_y])
+        centroids.append([centroid_x, centroid_y])
+    
+    largest_pct = max(component_areas) / max(1, total_pixels) if component_areas else 0.0
+    
+    return {
+        "connected_component_count": num_components,
+        "foreground_pixels": fg_pixels,
+        "foreground_pct": round(fg_pct, 6),
+        "largest_component_pct": round(largest_pct, 6),
+        "component_areas": [int(a) for a in component_areas],
+        "bounding_boxes": bounding_boxes,
+        "centroids": centroids,
+    }
 
 
 class GPUSAM2Provider(BackgroundRemoverProvider):
@@ -288,13 +337,17 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             Image.fromarray(raw_mask_img).save(f"{diag_dir}/raw_mask.png")
             np.save(f"{diag_dir}/raw_mask.npy", raw_mask_resized)
             
+            # Save binary mask
+            binary = (raw_mask_resized > 0.5).astype(np.uint8) * 255
+            Image.fromarray(binary).save(f"{diag_dir}/raw_mask_binary.png")
+            
             # Log mask statistics
             from scipy import ndimage
-            binary = (raw_mask_resized > 0.5).astype(np.uint8)
-            labeled, num_components = ndimage.label(binary)
+            binary_bool = raw_mask_resized > 0.5
+            labeled, num_components = ndimage.label(binary_bool)
             component_areas = [np.sum(labeled == i) for i in range(1, num_components + 1)]
             total_pixels = h * w
-            fg_pixels = np.sum(binary)
+            fg_pixels = np.sum(binary_bool)
             fg_ratio = fg_pixels / total_pixels
             
             logger.info(f"MARKER 116a: RAW_MASK_DIAGNOSTICS")
@@ -306,9 +359,19 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             logger.info(f"  foreground_pct: {fg_ratio*100:.2f}%")
             logger.info(f"  iou_predictions: {iou_predictions[0, 0].item():.4f}")
             
+            # Log component details
+            logger.info(f"MARKER 116b: COMPONENT_DETAILS")
+            for i, area in enumerate(component_areas):
+                coords = np.where(labeled == (i + 1))
+                min_y, max_y = coords[0].min(), coords[0].max()
+                min_x, max_x = coords[1].min(), coords[1].max()
+                centroid_y = int(np.mean(coords[0]))
+                centroid_x = int(np.mean(coords[1]))
+                logger.info(f"  Component {i+1}: area={area}, bbox=[{min_x},{min_y},{max_x},{max_y}], centroid=[{centroid_x},{centroid_y}]")
+            
             # Save mask overlay
             overlay = np.zeros((h, w, 3), dtype=np.uint8)
-            overlay[binary > 0] = [255, 0, 0]
+            overlay[binary_bool] = [255, 0, 0]
             Image.fromarray(overlay).save(f"{diag_dir}/raw_mask_overlay.png")
 
             masks = F.interpolate(low_res_masks, orig_hw, mode="bilinear", align_corners=False)
@@ -401,6 +464,14 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         self._metrics = metrics
         self._last_mask_size = mask.shape if hasattr(mask, 'shape') else None
 
+        if DEBUG_MASK_DIAGNOSTICS:
+            self._last_diagnostics = self._compute_diagnostics(
+                raw_mask_resized, postprocess_arr, final_alpha,
+                prompt_point, prompt_label, iou_predictions, h, w
+            )
+        else:
+            self._last_diagnostics = None
+
         credits = 0.0
         logger.info("MARKER 128: returning ImageResult")
         return ImageResult(
@@ -411,3 +482,45 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
     def get_metrics(self) -> GPUMetrics | None:
         return getattr(self, '_metrics', None)
+
+    def get_diagnostics(self) -> MaskDiagnostics | None:
+        return getattr(self, '_last_diagnostics', None)
+
+    def _compute_diagnostics(self, raw_mask: np.ndarray, postprocess_mask: np.ndarray,
+                            final_mask: np.ndarray, prompt_point: torch.Tensor,
+                            prompt_label: torch.Tensor, iou_predictions: torch.Tensor,
+                            h: int, w: int) -> MaskDiagnostics | None:
+        if not DEBUG_MASK_DIAGNOSTICS:
+            return None
+        
+        prompt_coords = prompt_point.cpu().numpy().flatten().tolist()
+        prompt_count = len(prompt_coords) // 2
+        
+        raw_diag = _compute_mask_diagnostics(raw_mask)
+        postprocess_diag = _compute_mask_diagnostics(postprocess_mask / 255.0 if postprocess_mask.max() > 1 else postprocess_mask)
+        final_diag = _compute_mask_diagnostics(final_mask / 255.0 if final_mask.max() > 1 else final_mask)
+        
+        logger.info("DEBUG_MASK_DIAGNOSTICS")
+        logger.info(f"  prompt_count: {prompt_count}")
+        logger.info(f"  prompt_coordinates: {prompt_coords}")
+        logger.info(f"  returned_mask_count: 1")
+        logger.info(f"  raw_mask_connected_components: {raw_diag['connected_component_count']}")
+        logger.info(f"  raw_mask_foreground_pct: {raw_diag['foreground_pct']}")
+        logger.info(f"  postprocess_mask_connected_components: {postprocess_diag['connected_component_count']}")
+        logger.info(f"  postprocess_mask_foreground_pct: {postprocess_diag['foreground_pct']}")
+        logger.info(f"  final_png_mask_connected_components: {final_diag['connected_component_count']}")
+        logger.info(f"  final_png_mask_foreground_pct: {final_diag['foreground_pct']}")
+        
+        return MaskDiagnostics(
+            prompt_count=prompt_count,
+            prompt_coordinates=prompt_coords,
+            returned_mask_count=1,
+            connected_component_count=final_diag['connected_component_count'],
+            bounding_boxes=final_diag['bounding_boxes'],
+            centroids=final_diag['centroids'],
+            foreground_pct=final_diag['foreground_pct'],
+            largest_component_pct=final_diag['largest_component_pct'],
+            raw_mask_stats=raw_diag,
+            postprocess_mask_stats=postprocess_diag,
+            final_png_mask_stats=final_diag,
+        )

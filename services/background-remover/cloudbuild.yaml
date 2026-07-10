@@ -1,15 +1,15 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-f', 'Dockerfile.gpu', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v11-gpu', '.']
+  args: ['build', '-f', 'Dockerfile.gpu', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v12-dbg', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v11-gpu']
+  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v12-dbg']
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args:
   - 'run'
   - 'deploy'
-  - 'ai-photo-studio-bg-remover-gpu'
-  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v11-gpu'
+  - 'ai-photo-studio-bg-remover-gpu-dbg'
+  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v12-dbg'
   - '--region=us-central1'
   - '--project=$PROJECT_ID'
   - '--platform=managed'
@@ -24,5 +24,6 @@ steps:
   - '--set-env-vars=SEGMENTATION_ROUTING=gpu'
   - '--set-env-vars=GPU_SEGMENTATION_MODEL=sam2_hiera_b+'
   - '--set-env-vars=SAM2_CHECKPOINT=/models/sam2_hiera_base_plus.pt'
+  - '--set-env-vars=DEBUG_MASK_DIAGNOSTICS=true'
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v11-gpu'
+- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v12-dbg'

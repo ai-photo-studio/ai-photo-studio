@@ -288,3 +288,68 @@ async def product_transparent(request: Request):
             "X-Credits-Used": str(processed.credits_used),
         },
     )
+
+
+@app.get("/debug/runtime")
+def debug_runtime():
+    import os
+    debug_enabled = os.getenv("DEBUG_MASK_DIAGNOSTICS", "false").lower() == "true"
+    if not debug_enabled:
+        raise HTTPException(status_code=404, detail="Debug endpoint not available")
+    
+    provider = _get_provider()
+    metrics = provider.get_metrics()
+    
+    return {
+        "debug_enabled": debug_enabled,
+        "model": provider.name,
+        "cuda_available": metrics.cuda_available if metrics else False,
+        "device_name": metrics.device_name if metrics else None,
+        "vram_allocated_mb": metrics.vram_allocated_mb if metrics else 0,
+        "vram_reserved_mb": metrics.vram_reserved_mb if metrics else 0,
+        "checkpoint_path": metrics.checkpoint_path if metrics else None,
+        "config_path": metrics.config_path if metrics else None,
+    }
+
+
+@app.get("/debug/mask")
+def debug_mask():
+    debug_enabled = os.getenv("DEBUG_MASK_DIAGNOSTICS", "false").lower() == "true"
+    if not debug_enabled:
+        raise HTTPException(status_code=404, detail="Debug endpoint not available")
+    
+    provider = _get_provider()
+    diagnostics = provider.get_diagnostics()
+    
+    if not diagnostics:
+        raise HTTPException(status_code=404, detail="No diagnostics available. Process an image first.")
+    
+    return {
+        "prompt_count": diagnostics.prompt_count,
+        "prompt_coordinates": diagnostics.prompt_coordinates,
+        "returned_mask_count": diagnostics.returned_mask_count,
+        "raw_mask": diagnostics.raw_mask_stats,
+        "postprocess_mask": diagnostics.postprocess_mask_stats,
+        "final_png_mask": diagnostics.final_png_mask_stats,
+    }
+
+
+@app.get("/debug/components")
+def debug_components():
+    debug_enabled = os.getenv("DEBUG_MASK_DIAGNOSTICS", "false").lower() == "true"
+    if not debug_enabled:
+        raise HTTPException(status_code=404, detail="Debug endpoint not available")
+    
+    provider = _get_provider()
+    diagnostics = provider.get_diagnostics()
+    
+    if not diagnostics:
+        raise HTTPException(status_code=404, detail="No diagnostics available. Process an image first.")
+    
+    return {
+        "connected_component_count": diagnostics.connected_component_count,
+        "bounding_boxes": diagnostics.bounding_boxes,
+        "centroids": diagnostics.centroids,
+        "foreground_pct": diagnostics.foreground_pct,
+        "largest_component_pct": diagnostics.largest_component_pct,
+    }
