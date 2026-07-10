@@ -1,4 +1,4 @@
-# AI Code Audit Report: Runtime Verification
+# AI Code Audit Report: Production Runtime Evidence
 
 **Date**: 2026-07-10  
 **Status**: INVESTIGATION COMPLETE
@@ -10,97 +10,87 @@
 | Setting | Value |
 |---------|-------|
 | Service | `ai-photo-studio-bg-remover-gpu` |
+| Revision | `ai-photo-studio-bg-remover-gpu-00038-59s` |
+| URL | `https://ai-photo-studio-bg-remover-gpu-108335160641.us-central1.run.app` |
 | SEGMENTATION_ROUTING | `gpu` |
 | GPU_SEGMENTATION_MODEL | `sam2_hiera_b+` |
 | SAM2_CHECKPOINT | `/models/sam2_hiera_base_plus.pt` |
-| OBJECT_AWARE_PROMPTS | Not set (defaults to `false`) |
+| OBJECT_AWARE_PROMPTS | **NOT SET** |
 | Deployment | Cloud Run, us-central1 |
+| Commit | `1d1838b` |
 
 ---
 
-## Prompt Count
+## Runtime Evidence
 
-**Production (OBJECT_AWARE_PROMPTS not set)**:
-- Prompt count: **1**
-- Prompt coordinates: `[w // 2, h // 2]`
-- Prompt labels: `1` (foreground)
+### Image 1: Flower Bouquet
+- **File**: `WhatsApp Image 2024-04-16 at 14.16.09.jpeg`
+- **Size**: 800x800
+- **HTTP Status**: 200 OK
+- **Foreground Coverage**: 63.40%
+- **Response Size**: 541,422 bytes
 
----
+### Image 2: Rose
+- **File**: `WhatsApp Image 2025-07-29 at 14.59.21 (1).jpeg`
+- **Size**: 1600x1067
+- **HTTP Status**: 200 OK
+- **Foreground Coverage**: 27.83%
+- **Response Size**: 1,917,897 bytes
 
-## Returned Mask Count
-
-**SAM2 Configuration**: `multimask_output=False` (gpu_provider.py:270)
-
-| Setting | Value |
-|---------|-------|
-| multimask_output | False |
-| Returned mask count | **1** |
-| Mask shape | `[1, 1, H, W]` |
-
----
-
-## Raw Connected Components
-
-**Instrumentation**: Added after `sam_mask_decoder(...)` in gpu_provider.py:276-312
-
-**Diagnostics saved**:
-- `diagnostics/raw_mask.png`
-- `diagnostics/raw_mask_binary.png`
-- `diagnostics/raw_mask_overlay.png`
-
-**Metrics logged**:
-- Connected component count
-- Largest component area
-- Total foreground area
-- Bounding box of every component
-- Component centroid
+### Image 3: Electronics (Benchmark)
+- **File**: `0edaa9fa4d67ab7482a9f10c49d8fcbe.jpeg`
+- **Size**: 700x467
+- **HTTP Status**: 200 OK
+- **Foreground Coverage**: 3.42%
+- **Response Size**: 658,846 bytes
 
 ---
 
-## Postprocess Connected Components
+## Comparison Table
 
-**Stage**: Gaussian blur (gpu_provider.py:333-334)
+| Image | Prompt Count | Returned Mask Count | Raw Components | Postprocess Components | PNG Components | First Stage Losing Components |
+|-------|--------------|---------------------|----------------|------------------------|----------------|------------------------------|
+| Flower | 1 | 1 | Unknown* | Unknown* | Unknown* | Unknown* |
+| Rose | 1 | 1 | Unknown* | Unknown* | Unknown* | Unknown* |
+| Electronics | 1 | 1 | Unknown* | Unknown* | Unknown* | Unknown* |
 
-**Metrics logged**:
-- Component count after blur
-- Foreground pixel count
-
----
-
-## PNG Connected Components
-
-**Stage**: PNG encoding (gpu_provider.py:343-345)
-
-**Metrics logged**:
-- Component count in final PNG
-- Foreground pixel count
+*Raw mask diagnostics saved to production server ~/diagnostics/ but not accessible
 
 ---
 
 ## First Proven Failing Stage
 
-**Stage**: SAM2 Mask Decoder  
-**Location**: `services/background-remover/providers/gpu_provider.py:270`  
-**Setting**: `multimask_output=False`
+**Cannot be proven without production diagnostics access**
 
 **Evidence**:
-```python
-# Line 270
-multimask_output=False,
-```
+- Instrumentation added to gpu_provider.py saves diagnostics to `~/diagnostics/` on production server
+- These files are not accessible from the client environment
+- Without raw mask data, cannot determine if:
+  - SAM2 decoder returns 1 component (decoder failure)
+  - SAM2 decoder returns multiple components but postprocessing merges them (postprocess failure)
+  - PNG generation loses components (PNG failure)
 
-**Why this is the first failing stage**:
-1. Single center point prompt generated
-2. SAM2 receives exactly one prompt point
-3. SAM2 with `multimask_output=False` returns exactly ONE mask
-4. The single mask contains only the object at/near the center point
-5. Other objects in multi-object images are not included in the mask
+**Confirmed facts**:
+1. `multimask_output=False` in production code (gpu_provider.py:270)
+2. Single center point prompt in production (gpu_provider.py:191)
+3. Electronics image shows only 3.42% foreground coverage
+4. All images return HTTP 200 (quality validation passes with new thresholds)
 
-**Verification needed**:
-- Deploy instrumentation to production
-- Run with flower bouquet, chargers, seed packets
-- Check `diagnostics/raw_mask.png` for component count
-- If component count = 1, SAM2 decoder is confirmed as first failing stage
+---
+
+## Evidence Files
+
+**Local diagnostics**:
+- `diagnostics/WhatsApp Image 2024-04-16 at 14_16_09_jpeg_production_result.png`
+- `diagnostics/WhatsApp Image 2025-07-29 at 14_59_21 (1)_jpeg_production_result.png`
+- `diagnostics/0edaa9fa4d67ab7482a9f10c49d8fcbe_jpeg_production_result.png`
+
+**Production server diagnostics** (inaccessible):
+- `~/diagnostics/raw_mask.png`
+- `~/diagnostics/raw_mask_binary.png`
+- `~/diagnostics/raw_mask_overlay.png`
+- `~/diagnostics/postprocess_mask.png`
+- `~/diagnostics/final_png_mask.png`
 
 ---
 
@@ -114,14 +104,14 @@ multimask_output=False,
 
 ## Regression
 
-Cannot run without production deployment.
+Cannot run full regression without access to production diagnostics.
 
 ---
 
 ## Git Commit
 
 ```
-8a45f64 chore: add mask diagnostics instrumentation for runtime verification
+1d1838b docs: add runtime verification report with instrumentation details
 ```
 
 ---
@@ -134,7 +124,7 @@ Cannot run without production deployment.
 
 ## Overall Project %
 
-**100%** - Instrumentation added, awaiting production validation
+**60%** - Deployment successful, tests run, but cannot access production diagnostics
 
 ---
 
@@ -143,12 +133,13 @@ Cannot run without production deployment.
 **PARTIAL PASS**
 
 **Explanation**:
-- Instrumentation added to capture raw decoder output
-- Component counts and bounding boxes logged at each stage
-- First failing stage identified as SAM2 mask decoder with `multimask_output=False`
-- Requires production deployment to verify with actual multi-object images
+- Production deployment confirmed
+- Instrumentation deployed and running
+- Test images processed successfully (HTTP 200)
+- Cannot access production server diagnostics to determine exact failing stage
+- Evidence suggests `multimask_output=False` is the root cause, but cannot prove without raw mask data
 
-**Next Steps** (if raw mask contains only 1 component):
-1. Enable `multimask_output=True` experiment
-2. Analyze multiple mask outputs
-3. Implement mask merging for disconnected components
+**Recommended Next Steps**:
+1. Access production server diagnostics via SSH or Cloud Logging
+2. Analyze raw_mask.png for connected component count
+3. Determine if failure is at decoder, postprocess, or PNG stage
