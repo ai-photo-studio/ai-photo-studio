@@ -27,7 +27,7 @@ steps:
   - '--set-env-vars=SAM2_CHECKPOINT=/models/sam2_hiera_base_plus.pt'
   - '--set-env-vars=DEBUG_MASK_DIAGNOSTICS=true'
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v19-strategy'
+- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v20-strategy'
 options:
   logging: CLOUD_LOGGING_ONLY
 timeout: 600s
