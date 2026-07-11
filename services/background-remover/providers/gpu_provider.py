@@ -28,7 +28,9 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 from . import BackgroundRemoverProvider, ImageResult
+from .prompt_strategies import get_prompt_points, STRATEGIES
 
+PROMPT_STRATEGY = os.getenv("PROMPT_STRATEGY", "strategy_7")
 OBJECT_AWARE_PROMPTS = os.getenv("OBJECT_AWARE_PROMPTS", "false").lower() == "true"
 DEBUG_MASK_DIAGNOSTICS = os.getenv("DEBUG_MASK_DIAGNOSTICS", "false").lower() == "true"
 
@@ -240,64 +242,21 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             h, w = orig_hw
             
             if OBJECT_AWARE_PROMPTS:
-                logger.info("MARKER 113a: Using object-aware prompts")
+                logger.info(f"MARKER 113a: Using object-aware prompts (strategy={PROMPT_STRATEGY})")
                 
-                input_img = input_tensor.cpu()
-                input_img = (input_img * torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1) + 
-                            torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)).clamp(0, 1)
-                input_img = (input_img.permute(0, 2, 3, 1) * 255).byte().numpy()[0]
+                prompt_points = get_prompt_points(input_tensor, target_size, (h, w))
                 
-                gray = np.array(Image.fromarray(input_img).convert('L'))
-                
-                from scipy import ndimage
-                from scipy.ndimage import sobel
-                
-                edge_mag = np.hypot(sobel(gray, axis=0), sobel(gray, axis=1))
-                edge_binary = (edge_mag > np.mean(edge_mag) * 1.5).astype(np.uint8)
-                edge_dilated = ndimage.binary_dilation(edge_binary, iterations=3).astype(np.uint8)
-                edge_filled = ndimage.binary_fill_holes(edge_dilated).astype(np.uint8)
-                
-                labeled, num_features = ndimage.label(edge_filled)
-                component_areas = [int(np.sum(labeled == i)) for i in range(1, num_features + 1)]
-                
-                total_area = target_size * target_size
-                min_area = total_area * 0.02
-                significant_centroids = []
-                
-                for i, area in enumerate(component_areas):
-                    if area > min_area:
-                        coords = np.where(labeled == (i + 1))
-                        centroid_y = int(np.mean(coords[0]))
-                        centroid_x = int(np.mean(coords[1]))
-                        significant_centroids.append((centroid_x, centroid_y))
-                
-                sorted_areas = sorted(component_areas, reverse=True)
-                largest_ratio = sorted_areas[0] / total_area if sorted_areas else 0
-                
-                if significant_centroids and len(significant_centroids) > 0:
-                    scale_y = h / target_size
-                    scale_x = w / target_size
-                    prompt_points = []
-                    
-                    for cx, cy in significant_centroids:
-                        px = int(cx * scale_x)
-                        py = int(cy * scale_y)
-                        px = max(0, min(w - 1, px))
-                        py = max(0, min(h - 1, py))
-                        prompt_points.append([px, py])
-                    
-                    logger.info(f"MARKER 113b: Found {len(significant_centroids)} significant components (largest={largest_ratio:.2%})")
-                    
+                if prompt_points:
+                    logger.info(f"MARKER 113b: Found {len(prompt_points)} prompt points")
                     prompt_point = torch.tensor([[[p[0], p[1]] for p in prompt_points]], 
                                                device=device, dtype=torch.float)
                     prompt_label = torch.tensor([[1] * len(prompt_points)], device=device)
                 else:
                     prompt_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
                     prompt_label = torch.tensor([[1]], device=device)
-                    logger.info("MARKER 113c: No significant components, using center point")
+                    logger.info("MARKER 113c: No prompt points, using center point")
             
             else:
-                # Original center point prompt
                 logger.info("MARKER 113d: Using center point prompt (default)")
                 prompt_point = torch.tensor([[[w // 2, h // 2]]], device=device, dtype=torch.float)
                 prompt_label = torch.tensor([[1]], device=device)

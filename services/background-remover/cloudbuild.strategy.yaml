@@ -1,0 +1,30 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-f', 'Dockerfile.deploy', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy']
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+  - 'run'
+  - 'deploy'
+  - 'ai-photo-studio-bg-remover-gpu'
+  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy'
+  - '--region=us-central1'
+  - '--project=$PROJECT_ID'
+  - '--platform=managed'
+  - '--allow-unauthenticated'
+  - '--port=8000'
+  - '--cpu=8'
+  - '--memory=32Gi'
+  - '--timeout=300s'
+  - '--gpu=1'
+  - '--gpu-type=nvidia-l4'
+  - '--set-env-vars=PROMPT_STRATEGY=strategy_7'
+  - '--set-env-vars=OBJECT_AWARE_PROMPTS=true'
+  - '--set-env-vars=SEGMENTATION_ROUTING=gpu'
+  - '--set-env-vars=GPU_SEGMENTATION_MODEL=sam2_hiera_b+'
+  - '--set-env-vars=SAM2_CHECKPOINT=/models/sam2_hiera_base_plus.pt'
+  - '--set-env-vars=DEBUG_MASK_DIAGNOSTICS=true'
+images:
+- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy'
