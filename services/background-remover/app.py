@@ -250,6 +250,8 @@ def _process_upload(raw: bytes, content_type: str | None, output: Literal["trans
 
 app = FastAPI(title="AI Photo Studio Background Remover", version="0.3.0")
 
+_request_traces: dict[str, dict] = {}
+
 
 @app.get("/health")
 def health():
@@ -262,9 +264,29 @@ def health():
     }
 
 
+@app.get("/debug/provider")
+def debug_provider():
+    provider = _get_provider()
+    cuda_available = getattr(provider, '_device', None) is not None
+    metrics = provider.get_metrics() if hasattr(provider, 'get_metrics') else None
+    return {
+        "provider_class": type(provider).__name__,
+        "provider_name": provider.name,
+        "cuda_available": cuda_available,
+        "device_name": getattr(metrics, 'device_name', None) if metrics else None,
+        "checkpoint_path": getattr(metrics, 'checkpoint_path', None) if metrics else None,
+        "object_aware_prompts": os.getenv("OBJECT_AWARE_PROMPTS", "false"),
+        "segmentation_routing": os.getenv("SEGMENTATION_ROUTING", "not-set"),
+        "gpu_segmentation_model": os.getenv("GPU_SEGMENTATION_MODEL", "not-set"),
+        "sam2_checkpoint": os.getenv("SAM2_CHECKPOINT", "not-set"),
+        "debug_mask_diagnostics": os.getenv("DEBUG_MASK_DIAGNOSTICS", "false"),
+    }
+
+
 @app.post("/remove-bg")
 async def remove_bg(request: Request):
     tier = request.headers.get("X-Image-Tier", "standard")
+    request_id = request.headers.get("X-Request-ID", f"req-{os.urandom(4).hex()}")
     processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent", tier)
     return StreamingResponse(
         io.BytesIO(processed.content),
@@ -272,6 +294,7 @@ async def remove_bg(request: Request):
         headers={
             "Content-Disposition": f'attachment; filename="{processed.filename}"',
             "X-Credits-Used": str(processed.credits_used),
+            "X-Request-ID": request_id,
         },
     )
 
@@ -279,6 +302,7 @@ async def remove_bg(request: Request):
 @app.post("/product-white")
 async def product_white(request: Request):
     tier = request.headers.get("X-Image-Tier", "standard")
+    request_id = request.headers.get("X-Request-ID", f"req-{os.urandom(4).hex()}")
     processed = _process_upload(await request.body(), request.headers.get("content-type"), "white", tier)
     return StreamingResponse(
         io.BytesIO(processed.content),
@@ -286,6 +310,7 @@ async def product_white(request: Request):
         headers={
             "Content-Disposition": f'attachment; filename="{processed.filename}"',
             "X-Credits-Used": str(processed.credits_used),
+            "X-Request-ID": request_id,
         },
     )
 
@@ -293,6 +318,7 @@ async def product_white(request: Request):
 @app.post("/product-transparent")
 async def product_transparent(request: Request):
     tier = request.headers.get("X-Image-Tier", "standard")
+    request_id = request.headers.get("X-Request-ID", f"req-{os.urandom(4).hex()}")
     processed = _process_upload(await request.body(), request.headers.get("content-type"), "transparent", tier)
     return StreamingResponse(
         io.BytesIO(processed.content),
@@ -300,6 +326,7 @@ async def product_transparent(request: Request):
         headers={
             "Content-Disposition": f'attachment; filename="{processed.filename}"',
             "X-Credits-Used": str(processed.credits_used),
+            "X-Request-ID": request_id,
         },
     )
 
@@ -367,3 +394,11 @@ def debug_components():
         "foreground_pct": diagnostics.foreground_pct,
         "largest_component_pct": diagnostics.largest_component_pct,
     }
+
+
+@app.get("/debug/request/{request_id}")
+def debug_request(request_id: str):
+    trace = _request_traces.get(request_id)
+    if not trace:
+        raise HTTPException(status_code=404, detail=f"No trace found for request {request_id}")
+    return trace
