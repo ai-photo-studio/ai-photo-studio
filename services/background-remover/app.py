@@ -135,7 +135,8 @@ def _validate_segmentation_quality(image: Image.Image) -> dict:
                 alpha_tensor[idx - width], alpha_tensor[idx + width]
             ]
             gradient = max(abs(alpha_tensor[idx] - n) for n in neighbors)
-            edge_pixels.append(gradient)
+            if gradient > 0:
+                edge_pixels.append(gradient)
     edge_confidence = sum(edge_pixels) / max(1, len(edge_pixels))
 
     luminance = image.convert("L")
