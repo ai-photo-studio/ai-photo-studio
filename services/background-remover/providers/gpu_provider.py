@@ -33,6 +33,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image, ImageFilter
 from scipy import ndimage
+from scipy.ndimage import gaussian_filter
 
 from . import BackgroundRemoverProvider, ImageResult
 from .prompt_strategies import get_prompt_points, STRATEGIES
@@ -231,12 +232,18 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             mask_np = (mask_np * 255).astype(np.uint8)
 
         if self._multi_object:
+            import logging
+            logger = logging.getLogger(__name__)
             masks_list = self._infer_multiple_objects(
                 pil_image, input_tensor, image_embed, image_pe,
                 sparse_embeddings, dense_embeddings, high_res_feats, orig_hw
             )
+            logger.info(f"MULTIOBJ_INFERENCE: mask_count={len(masks_list)}, multi_object_enabled={self._multi_object}")
+            logger.info(f"MULTIOBJ_INFERENCE: first_mask_shape={masks_list[0].shape if masks_list else 'N/A'}")
+            logger.info(f"MULTIOBJ_INFERENCE: first_mask_mean={masks_list[0].mean() if masks_list else 'N/A'}")
             if len(masks_list) > 1:
                 weights = [float(iou_predictions[0, 0].item())] * len(masks_list)
+                logger.info(f"MERGE_MASKS_CALL: weights_sum={sum(weights)}, num_masks={len(masks_list)}")
                 mask_np = self._merge_masks(masks_list, weights)
 
         if self._preserve_labels:
@@ -245,8 +252,9 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         if self._enhance_thin:
             mask_np = self._enhance_thin_structures(mask_np, pil_image)
 
-        alpha = Image.fromarray(mask_np).convert("L")
-        alpha = alpha.filter(ImageFilter.GaussianBlur(radius=1))
+        alpha = mask_np.astype(np.float32) / 255.0
+        alpha = gaussian_filter(alpha, sigma=1.0)
+        alpha = np.clip(alpha * 255, 0, 255).astype(np.uint8)
         
         result_image = pil_image.copy()
         result_image.putalpha(alpha)
@@ -285,6 +293,9 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
                                  image_embed, image_pe, sparse_embeddings,
                                  dense_embeddings, high_res_feats, orig_hw) -> list:
         """Generate masks for multiple objects using different prompt strategies."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         masks = []
         h, w = orig_hw
         
@@ -315,10 +326,13 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
                     prompt_points_sets.append([
                         [int(edge_coords[1][idx]), int(edge_coords[0][idx])]
                     ])
-        except:
+        except Exception as e:
+            logger.info(f"MULTIOBJ_EDGE_DETECTION_ERROR: {e}")
             pass
 
-        for prompt_points in prompt_points_sets:
+        logger.info(f"MULTIOBJ_PROMPT_SETS: count={len(prompt_points_sets)}")
+        
+        for prompt_idx, prompt_points in enumerate(prompt_points_sets):
             if len(masks) >= 3:
                 break
                 
@@ -345,27 +359,42 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             
             for mask in decoded_masks:
                 mask_np = mask[0].cpu().numpy()
-                if mask_np.mean() > 0.01:
+                mean_val = mask_np.mean()
+                if mean_val > 0.01:
                     masks.append(mask_np)
+                    logger.info(f"MULTIOBJ_MASK_ADDED: prompt_idx={prompt_idx}, mask_idx={len(masks)-1}, mean={mean_val:.4f}")
+                else:
+                    logger.info(f"MULTIOBJ_MASK_FILTERED: prompt_idx={prompt_idx}, mean={mean_val:.4f}, reason=below_threshold")
         
+        logger.info(f"MULTIOBJ_FINAL: mask_count={len(masks)}")
         return masks
 
     def _merge_masks(self, masks: list, weights: list) -> np.ndarray:
         """Merge multiple masks using weighted average."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         if not masks:
+            logger.info(f"MERGE_MASK_EMPTY: mask_count=0, returned_shape=(512, 512), reason=empty_masks_list")
             return np.zeros((512, 512), dtype=np.uint8)
         
         if len(masks) == 1:
+            logger.info(f"MERGE_MASK_SINGLE: mask_count=1, returned_shape={masks[0].shape}, reason=single_mask")
             return (masks[0] * 255).astype(np.uint8)
         
         h, w = masks[0].shape
+        logger.info(f"MERGE_MASK_MULTI: mask_count={len(masks)}, returned_shape=({h}, {w}), reason=merged_multiple")
         combined = np.zeros((h, w), dtype=np.float32)
         
         for mask, weight in zip(masks, weights[:len(masks)]):
             combined += mask.astype(np.float32) * weight
         
-        combined = combined / len(masks)
-        return (combined * 255).astype(np.uint8)
+        weight_sum = sum(weights[:len(masks)])
+        if weight_sum > 0:
+            combined = (combined / weight_sum * 255).astype(np.uint8)
+        else:
+            combined = (combined / len(masks) * 255).astype(np.uint8)
+        return combined
 
     def _preserve_text_regions(self, mask: np.ndarray, original: Image.Image) -> np.ndarray:
         """Expand mask to preserve detected text regions."""
