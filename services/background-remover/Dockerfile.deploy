@@ -1,11 +1,11 @@
-FROM us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/bg-remover:v18-gpu
+FROM us-central1-docker.pkg.dev/project-9540c255-c960-4fa0/ai-photo-studio-api/bg-remover:v18-gpu
 ENV PROMPT_STRATEGY=strategy_7
 ENV OBJECT_AWARE_PROMPTS=true
+ENV MULTI_OBJECT_INFERENCE=true
+ENV PRESERVE_LABELS=true
+ENV ENHANCE_THIN_STRUCTURES=true
 COPY app.py .
 COPY providers/ ./providers/
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

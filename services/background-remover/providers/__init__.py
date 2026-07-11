@@ -30,28 +30,40 @@ class BackgroundRemoverProvider(ABC):
         pass
 
 
+_gpu_provider = None
+_cpu_provider = None
+
+
 def get_provider() -> BackgroundRemoverProvider:
+    global _gpu_provider, _cpu_provider
+    
     routing = os.getenv("SEGMENTATION_ROUTING", "hybrid")
     
     if routing == "gpu":
-        from providers.gpu_provider import GPUSAM2Provider
-        provider = GPUSAM2Provider()
-        if provider.is_enabled:
-            return provider
+        if _gpu_provider is None:
+            from providers.gpu_provider import GPUSAM2Provider
+            _gpu_provider = GPUSAM2Provider()
+        if _gpu_provider.is_enabled:
+            return _gpu_provider
     
     if routing == "cpu":
-        from providers.local import LocalRembgProvider
-        return LocalRembgProvider()
+        if _cpu_provider is None:
+            from providers.local import LocalRembgProvider
+            _cpu_provider = LocalRembgProvider()
+        return _cpu_provider
     
     if routing == "hybrid":
-        from providers.gpu_provider import GPUSAM2Provider
-        gpu_provider = GPUSAM2Provider()
-        if gpu_provider.is_enabled:
-            return gpu_provider
+        if _gpu_provider is None:
+            from providers.gpu_provider import GPUSAM2Provider
+            _gpu_provider = GPUSAM2Provider()
+        if _gpu_provider.is_enabled:
+            return _gpu_provider
     
     if os.getenv("MODAL_ENABLED") == "1":
         from providers.modal import ModalProvider
         return ModalProvider()
     
-    from providers.local import LocalRembgProvider
-    return LocalRembgProvider()
+    if _cpu_provider is None:
+        from providers.local import LocalRembgProvider
+        _cpu_provider = LocalRembgProvider()
+    return _cpu_provider

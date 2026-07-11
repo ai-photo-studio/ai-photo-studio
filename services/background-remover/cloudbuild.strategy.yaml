@@ -1,15 +1,15 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-f', 'services/background-remover/Dockerfile.deploy', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v21-edgefix', 'services/background-remover/']
+  args: ['build', '-f', 'services/background-remover/Dockerfile.deploy', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v22-enhanced', 'services/background-remover/']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v21-edgefix']
+  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v22-enhanced']
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args:
   - 'run'
   - 'deploy'
   - 'ai-photo-studio-bg-remover-gpu'
-  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v21-edgefix'
+  - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v22-enhanced'
   - '--region=us-central1'
   - '--project=$PROJECT_ID'
   - '--platform=managed'
@@ -26,8 +26,11 @@ steps:
   - '--set-env-vars=GPU_SEGMENTATION_MODEL=sam2_hiera_b+'
   - '--set-env-vars=SAM2_CHECKPOINT=/models/sam2_hiera_base_plus.pt'
   - '--set-env-vars=DEBUG_MASK_DIAGNOSTICS=true'
+  - '--set-env-vars=MULTI_OBJECT_INFERENCE=true'
+  - '--set-env-vars=PRESERVE_LABELS=true'
+  - '--set-env-vars=ENHANCE_THIN_STRUCTURES=true'
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v21-edgefix'
+- 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v22-enhanced'
 options:
   logging: CLOUD_LOGGING_ONLY
 timeout: 600s

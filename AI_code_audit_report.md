@@ -1,115 +1,116 @@
 # AI Code Audit Report: Project Direction Verification
 
 **Date**: 2026-07-11  
-**Status**: COMPLETE  
+**Status**: REASSESSMENT REQUIRED  
 
 ---
 
-## Production Pipeline Verification
+## Current Status
 
-### Cloud Run Services
+**IMPORTANT**: The validation metrics show 35/35 PASS, but this is misleading. The actual production validation shows:
 
-| Service | Revision | Status |
-|---------|----------|--------|
-| ai-photo-studio-api | 00028-5ff | Active - receives frontend traffic |
-| ai-photo-studio-bg-remover | 00011-x6z | Active - UNUSED (bg-remover:v8, no GPU) |
-| ai-photo-studio-bg-remover-gpu | 00055-zkg | Active - receives API traffic, GPU enabled, SAM2 |
-
-### Provider Runtime Evidence
-
-| Metric | Value |
-|--------|-------|
-| Provider Selected | GPUSAM2Provider |
-| Model | gpu-sam2 |
-| CUDA Available | YES |
-| SEGMENTATION_ROUTING | gpu |
-| OBJECT_AWARE_PROMPTS | true (env var set) |
-| GPU_SEGMENTATION_MODEL | sam2_hiera_b+ |
-| SAM2_CHECKPOINT | /models/sam2_hiera_base_plus.pt |
-
-### Request Flow
-
-```
-Browser
-  ↓ https://ai-photo-studio-frontend.pages.dev
-Cloudflare Pages (VITE_API_URL)
-  ↓ https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app
-API (AI_PROVIDER=local-rembg)
-  ↓ BACKGROUND_API_URL=https://ai-photo-studio-bg-remover-gpu-108335160641.us-central1.run.app
-GPU Service (GPUSAM2Provider, SEGMENTATION_ROUTING=gpu)
-  ↓ SAM2 with center point prompt
-PNG Response
-```
+- **33/35 PASS** (94.3%)
+- **2/35 FAIL** with HTTP 422 errors (low edge confidence)
+- **Average Latency**: ~10,770ms (target: ≤3000ms)
 
 ---
 
-## Deployment Drift Found
+## Reported vs Actual
 
-| Location | Expected | Actual | Impact |
-|----------|----------|--------|--------|
-| cloudbuild.yaml service name | ai-photo-studio-bg-remover-gpu | ai-photo-studio-bg-remover-gpu-dbg | Deployed to wrong service |
-| cloudbuild.yaml missing OBJECT_AWARE_PROMPTS | true | not set | Only center point prompt used |
-| Old bg-remover service | unused | deployed | No production impact (0% traffic) |
-
----
-
-## Root Cause Analysis
-
-### First Failing Stage: Prompt Generation
-
-The GPU service uses SAM2 with **single center point prompt** because:
-1. `OBJECT_AWARE_PROMPTS` env var was not set (defaults to false)
-2. Even when enabled, luminance-based saliency detection (threshold > 128) cannot identify individual flowers in multi-object arrangements
-
-**Evidence**: Flower bouquet image produces 6340 foreground coverage with exactly 1 connected component, regardless of OBJECT_AWARE_PROMPTS setting.
-
-### Validation Results
-
-| Metric | Value |
-|--------|-------|
-| Images Tested | 35 |
-| Visual PASS | 33 |
-| Visual FAIL | 2 |
-| Visual Accuracy | 94.3% |
-| Average Latency | 10,528ms |
-
-### Failing Images
-
-| Image | Issue |
-|-------|-------|
-| flower bouquet | 1 component instead of multiple flowers |
-| market spices | 1 component instead of multiple spice packets |
+| Metric | Reported | Actual |
+|--------|----------|--------|
+| Images Tested | 35 | 35 |
+| PASS | 35 | 33 |
+| FAIL | 0 | 2 |
+| Accuracy | 100.0% | 94.3% |
+| Avg Latency | ~10,770ms | ~10,770ms |
 
 ---
 
-## Files Modified
+## Root Cause: Metric-Only Validation
 
-**services/background-remover/providers/gpu_provider.py**
-- Improved object-aware prompt detection using edge detection (Sobel) instead of luminance threshold
-- Better filtering of significant components (2% min area, edge-dilation, hole-filling)
+The current validation approach has critical flaws:
 
-**services/background-remover/app.py**
-- Added /debug/provider endpoint for runtime verification
-- Added request ID header propagation
-- Added /debug/request/{requestId} trace storage
+1. **Edge Confidence Bug Fixed**: The edge confidence metric was mathematically incorrect - it averaged gradients over all foreground pixels instead of just edge pixels. This has been fixed.
 
-**services/background-remover/cloudbuild.yaml**
-- Deploys to correct service: ai-photo-studio-bg-remover-gpu (not -dbg)
-- Added OBJECT_AWARE_PROMPTS=true env var
-- Added LOG_LEVEL=info for diagnostics
+2. **Visual Quality Not Verified**: The validation only checks HTTP status codes and basic quality scores, not actual visual output quality.
+
+3. **Real Issues Not Captured**:
+   - Flower bouquet: Background fragments still present
+   - Seed packets: Multiple packets lost
+   - Paint bottles: Label information lost
+   - Rose: Most branches lost
 
 ---
 
-## Cloud Run Revision
+## Pipeline Analysis
 
-**Revision**: ai-photo-studio-bg-remover-gpu-00055-zkg  
-**Artifact Digest**: bg-remover@sha256:da1871e12b185e9b18ffac08ef30ef59ba8bdae2564c6d8e70ea6a6870dc2136  
-**Frontend Revision**: 8df5839f (Cloudflare Pages)  
+### Latency Breakdown (Estimated)
+- Image decode: ~50ms
+- Preprocessing: ~100ms
+- SAM2 Encoder: ~2,000ms
+- Prompt generation: ~50ms
+- SAM2 Decoder: ~8,000ms
+- Post-processing: ~100ms
+- PNG creation: ~50ms
+- **Total**: ~10,350ms
+
+### Primary Bottleneck
+- **SAM2 Decoder**: ~80% of latency
+
+### Potential Optimizations
+1. Encoder caching (model loaded once, reused)
+2. Half precision inference
+3. Torch compile
+4. Reduced resolution for simple images
+5. Async processing
+
+---
+
+## Quality Issues
+
+### 1. Multi-Object Handling
+Current implementation uses single prompt point. Need:
+- Automatic bounding box detection
+- Multi-region proposals
+- Per-component SAM2 prediction
+- Union of masks with confidence weighting
+
+### 2. Label Preservation
+Need to detect and preserve:
+- Printed labels
+- Logos
+- Text
+- Packaging
+
+### 3. Thin Structure Preservation
+Need to enhance:
+- Leaves
+- Flower stems
+- Bottle handles
+- Packet edges
+- Thin wires
+
+---
+
+## Fixes Applied
+
+1. **services/background-remover/app.py** - Edge confidence metric: only average over pixels with gradient>0
+2. **services/background-remover/providers/gpu_provider.py** - Added multi-object inference, label preservation, thin structure enhancement
+3. **services/background-remover/providers/__init__.py** - Singleton pattern for model caching
+4. **services/background-remover/providers/enhancement.py** - New module for quality improvements
+
+---
+
+## Next Steps
+
+1. **Deploy updated code to production**
+2. **Run full visual validation with IoU metrics**
+3. **Implement latency optimizations**
+4. **Verify visual quality improvements**
 
 ---
 
 ## Result
 
-**PARTIAL PASS** (94.3% accuracy)
-
-The GPU service is correctly configured with GPUSAM2Provider, but the prompt detection needs improved edge-based detection to identify individual objects in multi-object images. The code changes are ready but require a GPU Docker image rebuild (PyTorch+SAM2) to deploy.
+**REASSESSMENT REQUIRED** - Need to verify actual visual quality, not just metric scores.
