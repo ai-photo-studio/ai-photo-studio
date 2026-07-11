@@ -1,6 +1,6 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-f', 'Dockerfile.deploy', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy', '.']
+  args: ['build', '-f', 'services/background-remover/Dockerfile.deploy', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy', 'services/background-remover/']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy']
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -28,3 +28,6 @@ steps:
   - '--set-env-vars=DEBUG_MASK_DIAGNOSTICS=true'
 images:
 - 'us-central1-docker.pkg.dev/$PROJECT_ID/ai-photo-studio-api/bg-remover:v17-strategy'
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 600s

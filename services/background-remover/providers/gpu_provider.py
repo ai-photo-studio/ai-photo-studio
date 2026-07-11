@@ -349,6 +349,9 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         mask = (mask_np * 255).astype("uint8")
         logger.info(f"MARKER 119: mask extracted shape={mask.shape}")
         
+        mask_pil = Image.fromarray(mask).convert("RGBA")
+        logger.info("MARKER 121: mask converted to PIL")
+        
         # INSTRUMENTATION: Postprocess diagnostics
         postprocess_mask = mask_pil.filter(ImageFilter.GaussianBlur(radius=1))
         postprocess_mask.save(f"{diag_dir}/postprocess_mask.png")
@@ -372,7 +375,6 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         logger.info(f"  foreground_pct: {pre_png_fg/(h*w)*100:.2f}%")
         
         logger.info("MARKER 120: converting mask to PIL RGBA")
-        mask_pil = Image.fromarray(mask).convert("RGBA")
         logger.info("MARKER 121: mask converted to PIL")
 
         logger.info("MARKER 122: creating result image")
