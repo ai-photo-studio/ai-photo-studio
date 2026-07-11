@@ -368,7 +368,7 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         pre_png_mask = np.array(postprocess_mask.getchannel('A'))
         pre_png_labeled, pre_png_num = ndimage.label(pre_png_mask > 128)
         pre_png_fg = np.sum(pre_png_mask > 128)
-        pre_png_mask.save(f"{diag_dir}/pre_png_mask.png")
+        Image.fromarray(pre_png_mask).save(f"{diag_dir}/pre_png_mask.png")
         logger.info(f"MARKER 120b: PRE_PNG_DIAGNOSTICS")
         logger.info(f"  connected_components: {pre_png_num}")
         logger.info(f"  foreground_pixels: {pre_png_fg}")
