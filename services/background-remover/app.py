@@ -6,7 +6,38 @@ import os
 from dataclasses import dataclass
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request
+
+import sys
+from pathlib import Path
+import subprocess
+
+def get_git_info():
+    """Get Git information from the running container."""
+    try:
+        for alt_path in ['/app', '/workspace', '/source']:
+            alt_dir = Path(alt_path)
+            if alt_dir.exists():
+                try:
+                    sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=alt_dir, stderr=subprocess.PIPE).decode().strip()
+                    short_sha = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=alt_dir, stderr=subprocess.PIPE).decode().strip()
+                    return {'full_sha': sha, 'short_sha': short_sha}
+                except:
+                    pass
+    except:
+        pass
+    return None
+
+_RUNTIME_DIAGNOSTICS = {
+    'git_info': get_git_info(),
+    'build_time': datetime.utcnow().isoformat(),
+    'provider': os.environ.get('SEGMENTATION_ROUTING', 'unknown'),
+    'sam2_model': os.environ.get('GPU_SEGMENTATION_MODEL', 'unknown'),
+    'prompt_strategy': os.environ.get('PROMPT_STRATEGY', 'unknown'),
+}
+
+def get_diagnostics():
+    return _RUNTIME_DIAGNOSTICS
+\nfrom fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from PIL import Image, ImageFilter
 
