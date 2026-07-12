@@ -261,7 +261,6 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             mask_np = self._enhance_thin_structures(mask_np, pil_image)
 
         alpha = mask_np.astype(np.float32) / 255.0
-        alpha = gaussian_filter(alpha, sigma=1.0)
         alpha = np.clip(alpha * 255, 0, 255).astype(np.uint8)
         
         result_image = pil_image.copy()

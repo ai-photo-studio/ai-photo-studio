@@ -37,7 +37,8 @@ _RUNTIME_DIAGNOSTICS = {
 
 def get_diagnostics():
     return _RUNTIME_DIAGNOSTICS
-\nfrom fastapi import FastAPI, HTTPException, Request
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from PIL import Image, ImageFilter
 
@@ -209,7 +210,7 @@ def _remove_background(image: Image.Image, tier: str = "standard") -> Image.Imag
     else:
         raise HTTPException(status_code=500, detail="Provider returned invalid format")
 
-    cutout = _refine_edges(cutout, radius=1)
+    cutout = _refine_edges(cutout, radius=0)
 
     quality = _validate_segmentation_quality(cutout)
     if quality["foregroundCoverage"] < QUALITY_MIN_FOREGROUND_COVERAGE:
