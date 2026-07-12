@@ -23,11 +23,15 @@ import io
 import time
 import logging
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from dataclasses import dataclass
 from typing import Optional
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 import torch
 import torch.nn.functional as F
@@ -39,17 +43,33 @@ from . import BackgroundRemoverProvider, ImageResult
 from .prompt_strategies import get_prompt_points, STRATEGIES
 
 MODEL_INSTANCE = None
-MODEL_LOCK = None
+MODEL_LOCK = threading.Lock()
+MODEL_LOAD_TIME = 0.0
+
+# Pre-create preprocessing transform to avoid recreation on every call
+from torchvision.transforms import Compose, Resize, ToTensor, Normalize
+from torch.nn import functional as F
+
+_PREPROCESS_PIPELINE = {
+    'custom': Compose([
+        Resize((256, 256), interpolation=F.InterpolationMode.BILINEAR),
+        ToTensor(),
+        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+}
 
 def get_model_instance():
-    global MODEL_INSTANCE, MODEL_LOCK
+    global MODEL_INSTANCE, MODEL_LOCK, MODEL_LOAD_TIME
     if MODEL_INSTANCE is None:
         if MODEL_LOCK is None:
             import threading
             MODEL_LOCK = threading.Lock()
         with MODEL_LOCK:
             if MODEL_INSTANCE is None:
+                start_time = time.time()
                 MODEL_INSTANCE = _create_model()
+                MODEL_LOAD_TIME = time.time() - start_time
+                logger.info(f"Model loaded successfully in {MODEL_LOAD_TIME:.2f} seconds")
     return MODEL_INSTANCE
 
 def _create_model():
@@ -75,7 +95,8 @@ class GPUMetrics:
     cuda_available: bool
     device_name: str | None
     vram_allocated_mb: float
-    vram_reserved_mb: float
+    vram_peak_mb: float
+    vram_start_mb: float
     latency_ms: float
     checkpoint_path: str
     config_path: str
@@ -138,12 +159,10 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         if model_name == "sam2_hiera_base_plus":
             model_name = "sam2_hiera_b+"
         self._model_name = model_name
-        self._mean = [0.485, 0.456, 0.406]
-        self._std = [0.229, 0.224, 0.225]
         self._bb_feat_sizes = [(256, 256), (128, 128), (64, 64)]
         self._model = get_model_instance()
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
+
         self._multi_object = os.getenv("MULTI_OBJECT_INFERENCE", "true").lower() == "true"
         self._preserve_labels = os.getenv("PRESERVE_LABELS", "true").lower() == "true"
         self._enhance_thin = os.getenv("ENHANCE_THIN_STRUCTURES", "true").lower() == "true"
@@ -161,9 +180,9 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
     def remove_background(self, image_bytes: bytes, max_dimension: int) -> ImageResult:
         start_time = time.time()
-        
+
         pil_image = Image.open(io.BytesIO(image_bytes))
-        
+
         if pil_image.mode != "RGB":
             pil_image = pil_image.convert("RGB")
 
@@ -174,12 +193,12 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
 
         orig_hw = (pil_image.height, pil_image.width)
         target_size = self._model.image_size
-        
-        import torchvision.transforms as T
-        resize = T.Resize((target_size, target_size), interpolation=T.InterpolationMode.BILINEAR)
-        to_tensor = T.ToTensor()
-        normalize = T.Normalize(mean=self._mean, std=self._std)
-        input_tensor = normalize(to_tensor(resize(pil_image))).unsqueeze(0).to(self._device)
+
+        if self._device.type == "cuda":
+            torch.cuda.synchronize()
+
+        # Use pre-created transform for better performance
+        input_tensor = _PREPROCESS_PIPELINE['custom'](pil_image).unsqueeze(0).to(self._device)
 
         with torch.no_grad():
             backbone_out = self._model.forward_image(input_tensor)
@@ -232,18 +251,11 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             mask_np = (mask_np * 255).astype(np.uint8)
 
         if self._multi_object:
-            import logging
-            logger = logging.getLogger(__name__)
-            masks_list = self._infer_multiple_objects(
-                pil_image, input_tensor, image_embed, image_pe,
-                sparse_embeddings, dense_embeddings, high_res_feats, orig_hw
-            )
-            logger.info(f"MULTIOBJ_INFERENCE: mask_count={len(masks_list)}, multi_object_enabled={self._multi_object}")
-            logger.info(f"MULTIOBJ_INFERENCE: first_mask_shape={masks_list[0].shape if masks_list else 'N/A'}")
-            logger.info(f"MULTIOBJ_INFERENCE: first_mask_mean={masks_list[0].mean() if masks_list else 'N/A'}")
+            logger.warning(f"MULTIOBJ_INFERENCE: mask_count={len(masks_list)}, multi_object_enabled={self._multi_object}")
+
             if len(masks_list) > 1:
                 weights = [float(iou_predictions[0, 0].item())] * len(masks_list)
-                logger.info(f"MERGE_MASKS_CALL: weights_sum={sum(weights)}, num_masks={len(masks_list)}")
+                logger.warning(f"MERGE_MASKS_CALL: weights_sum={sum(weights)}, num_masks={len(masks_list)}")
                 mask_np = self._merge_masks(masks_list, weights)
 
         if self._preserve_labels:
@@ -260,18 +272,23 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         result_image.putalpha(alpha)
 
         latency_ms = (time.time() - start_time) * 1000
-        
-        vram_allocated = 0
-        vram_reserved = 0
+
+        vram_start = 0
+        vram_end = 0
+        vram_peak = 0
         if self._device.type == "cuda":
-            vram_allocated = torch.cuda.memory_allocated(self._device) / 1024 / 1024
-            vram_reserved = torch.cuda.memory_reserved(self._device) / 1024 / 1024
+            vram_start = torch.cuda.memory_allocated(self._device) / 1024 / 1024
+            vram_end = torch.cuda.memory_allocated(self._device) / 1024 / 1024
+            vram_peak = torch.cuda.max_memory_allocated(self._device) / 1024 / 1024
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
 
         metrics = GPUMetrics(
             cuda_available=torch.cuda.is_available(),
             device_name=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
-            vram_allocated_mb=vram_allocated,
-            vram_reserved_mb=vram_reserved,
+            vram_allocated_mb=vram_end,
+            vram_peak_mb=vram_peak,
+            vram_start_mb=vram_start,
             latency_ms=latency_ms,
             checkpoint_path=self._checkpoint_path,
             config_path=os.path.join(self._config_dir, f"{self._model_name}.yaml"),
@@ -327,10 +344,11 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
                         [int(edge_coords[1][idx]), int(edge_coords[0][idx])]
                     ])
         except Exception as e:
-            logger.info(f"MULTIOBJ_EDGE_DETECTION_ERROR: {e}")
+            logger.warning(f"_preserve_text_regions_ERROR: {e}")
             pass
 
-        logger.info(f"MULTIOBJ_PROMPT_SETS: count={len(prompt_points_sets)}")
+        if len(prompt_points_sets) > 1:
+            logger.warning(f"MULTIOBJ_PROMPT_SETS: count={len(prompt_points_sets)}")
         
         for prompt_idx, prompt_points in enumerate(prompt_points_sets):
             if len(masks) >= 3:
@@ -383,7 +401,8 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             return (masks[0] * 255).astype(np.uint8)
         
         h, w = masks[0].shape
-        logger.info(f"MERGE_MASK_MULTI: mask_count={len(masks)}, returned_shape=({h}, {w}), reason=merged_multiple")
+        if len(masks) > 1:
+            logger.warning(f"MERGE_MASK_MULTI: mask_count={len(masks)}, returned_shape=({h}, {w}), reason=merged_multiple")
         combined = np.zeros((h, w), dtype=np.float32)
         
         for mask, weight in zip(masks, weights[:len(masks)]):
