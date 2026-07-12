@@ -67,3 +67,4 @@ deploy.bat
 deployment_snapshot.json
 validation_output/
 validate_production.py
+IQS.md
