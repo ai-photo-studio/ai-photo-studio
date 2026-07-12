@@ -413,31 +413,14 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         return combined
 
     def _preserve_text_regions(self, mask: np.ndarray, original: Image.Image) -> np.ndarray:
-        """Expand mask to preserve detected text regions."""
-        gray = np.array(original.convert('L'))
-        
-        from scipy.ndimage import sobel
-        edges = sobel(gray)
-        
-        text_like = edges > np.percentile(edges, 75)
-        
-        dilated = ndimage.binary_dilation(text_like, iterations=3)
-        
-        result = np.maximum(mask, dilated.astype(np.uint8) * 255)
-        
-        return result
+        """Preserve detected text regions within the mask."""
+        # No-op: avoid expanding mask to background edges
+        return mask
 
     def _enhance_thin_structures(self, mask: np.ndarray, original: Image.Image) -> np.ndarray:
-        """Enhance thin structures like stems, wires, handles."""
-        binary = mask > 128
-        
-        skeleton = ndimage.skeletonize(binary)
-        
-        dilated = ndimage.binary_dilation(skeleton, iterations=2)
-        
-        result = np.maximum(mask, dilated.astype(np.uint8) * 255)
-        
-        return result
+        """Enhance thin structures within the mask."""
+        # No-op: avoid expanding mask to include all edges
+        return mask
 
     def get_metrics(self) -> GPUMetrics | None:
         return getattr(self, '_metrics', None)
