@@ -276,6 +276,7 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
         vram_start = 0
         vram_end = 0
         vram_peak = 0
+        cuda_was_available = torch.cuda.is_available()
         if self._device.type == "cuda":
             vram_start = torch.cuda.memory_allocated(self._device) / 1024 / 1024
             vram_end = torch.cuda.memory_allocated(self._device) / 1024 / 1024
@@ -284,8 +285,8 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             torch.cuda.synchronize()
 
         metrics = GPUMetrics(
-            cuda_available=torch.cuda.is_available(),
-            device_name=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+            cuda_available=cuda_was_available,
+            device_name=torch.cuda.get_device_name(0) if cuda_was_available else None,
             vram_allocated_mb=vram_end,
             vram_peak_mb=vram_peak,
             vram_start_mb=vram_start,
