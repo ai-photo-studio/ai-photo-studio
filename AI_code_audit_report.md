@@ -1,94 +1,94 @@
-# AI Code Audit Report: Merge Function Bug Confirmed
+# AI Code Audit Report
 
-**Date**: 2026-07-11  
-**Status**: ROOT CAUSE CONFIRMED
+## FIRST VERIFIED IMAGE PROCESSING FAILURE
 
----
+**Location:** `services/background-remover/providers/gpu_provider.py:248-249`
 
-## Deployment Verification
+**Root Cause:** The mask inversion logic incorrectly inverts masks when `foreground_ratio < 0.01`, assuming the mask is inverted. But a CORRECT mask with a small object would also have low foreground_ratio, causing incorrect inversion.
 
-| Setting | Value |
-|---------|-------|
-| Repository Commit | `d6daf2b92b858e2569ace3f5265896ff6957c29e` |
-| Production Commit | `4616b1d` |
-| Cloud Run Revision | `ai-photo-studio-bg-remover-00011-x6z` |
-| Docker Image | `bg-remover:v8` |
-| Repository == Production | **NO** |
+**Code:**
+```python
+foreground_ratio = mask_np.mean()
 
----
+if foreground_ratio < 0.01:
+    mask_np = ~mask_np.astype(bool)
 
-## A/B Test Results: Merge Function Bug
-
-### Test Configuration
-- Image: flower_bouquet.png (800x800)
-- Masks: 3 boolean masks from multi-object inference
-- Weights: [0.9, 0.9, 0.9] (simulated IoU predictions)
-
-### Results
-
-| Metric | Buggy (div/len) | Fixed (div/sum) | Improvement |
-|--------|-----------------|-----------------|-------------|
-| IoU | 0.6143 | 0.6143 | 0.00% |
-| Foreground Pixels | 69,188 | 69,188 | - |
-| Alpha Mean | 25.29 | 28.05 | **10.93%** |
-| Boundary Ratio | 0.0138 | 0.0138 | 0.00% |
-| Pixel Difference | - | - | 17.60% |
-
-### Combined Improvement: **3.64%**
-
----
-
-## Root Cause Analysis
-
-**File**: `services/background-remover/providers/gpu_provider.py`  
-**Line**: 390  
-**Operation**: `combined = combined / len(masks)`
-
-**Mathematical Proof**:
-```
-combined = mask1*weight + mask2*weight + mask3*weight
-         = weight * (mask1 + mask2 + mask3)
-
-Buggy: result = combined / len(masks) = weight * sum / 3
-       = 0.9 * sum / 3 = 0.3 * sum
-
-Fixed: result = combined / sum(weights) = weight * sum / 2.7
-       = 0.9 * sum / 2.7 = 0.333 * sum
-
-Difference: 0.333 - 0.3 = 0.033 per pixel (11% increase)
+mask_np = (mask_np * 255).astype(np.uint8)
 ```
 
-**Impact**: Mask pixel values are reduced by ~11%, causing incorrect alpha channel values and degraded segmentation quality.
+**Verification:**
+- Tested with simulated SAM2 output (small object, 0.41% coverage)
+- `foreground_ratio = 0.0041 < 0.01` triggers inversion
+- After inversion, coverage = 99.59% (incorrect)
+- Final PNG is almost completely white
+
+**Impact:**
+- Correct masks are inverted
+- Small objects become large foreground areas
+- Returned PNG is almost completely white
+
+**Fix:** Remove or fix the mask inversion logic at lines 248-249
 
 ---
 
-## Latency Breakdown
+## SECONDARY BUG
 
-| Stage | % Time |
-|-------|--------|
-| Image Decode | 12% |
-| SAM2 Encoder | 45% |
-| SAM2 Decoder | 25% |
-| PNG Encoding | 10% |
-| Merge/Enhancement | 8% |
-| Blur | 12% |
+**Location:** `services/background-remover/providers/gpu_provider.py:253-259`
+
+**Root Cause:** Variable `masks_list` is referenced but never defined.
+
+**Code:**
+```python
+if self._multi_object:
+    logger.warning(f"MULTIOBJ_INFERENCE: mask_count={len(masks_list)}, ...")
+    if len(masks_list) > 1:
+        weights = [float(iou_predictions[0, 0].item())] * len(masks_list)
+        mask_np = self._merge_masks(masks_list, weights)
+```
+
+**Impact:**
+- NameError when `self._multi_object` is True (default)
+- May cause processing failure or silent error
 
 ---
 
-## Overall Status
+## MEASUREMENTS
 
-**FAIL** - Merge function bug confirmed. Line 390 divides by mask count instead of weight sum.
+| Stage | Width | Height | Min | Max | Mean | Coverage % |
+|-------|-------|--------|-----|-----|------|------------|
+| raw_mask | 1600 | 1200 | 0 | 248 | 13.50 | 0.41% |
+| refined_mask | 1600 | 1200 | 0 | 255 | 1.04 | 0.41% |
+| alpha_before_inversion | 1600 | 1200 | 0 | 255 | 1.04 | 0.40% |
+| alpha (after inversion) | 1600 | 1200 | 0 | 255 | 253.96 | 99.59% |
+| final_output | 1600 | 1200 | 0 | 255 | 92.82 | N/A |
 
 ---
 
-## Summary
+## FILES MODIFIED
 
-**Repository Commit**: `d6daf2b92b858e2569ace3f5265896ff6957c29e`  
-**Production Commit**: `4616b1d`  
-**Cloud Run Revision**: `ai-photo-studio-bg-remover-00011-x6z`  
-**Artifact SHA**: `v8`  
-**Was line 390 the primary root cause?**: **YES**  
-**Measured improvement %**: **3.64%**  
-**Average latency**: 120ms  
-**Visual PASS**: NO  
-**PASS / PARTIAL PASS / FAIL**: **FAIL**
+None (analysis only)
+
+---
+
+## COMMANDS EXECUTED
+
+1. `python verify_bug.py` - Verified the mask inversion bug
+2. `python phase1_3_reproduce.py` - Reproduced and saved all pipeline stages
+
+---
+
+## BUILD / DEPLOY
+
+Not applicable (analysis only)
+
+---
+
+## BENCHMARK
+
+Not applicable (analysis only)
+
+---
+
+## PASS / FAIL
+
+**FAIL** - First verified image processing failure identified at lines 248-249

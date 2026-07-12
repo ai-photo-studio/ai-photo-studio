@@ -243,13 +243,9 @@ class GPUSAM2Provider(BackgroundRemoverProvider):
             masks = masks > 0.0
             mask_np = masks[0, 0].cpu().numpy()
 
-            foreground_ratio = mask_np.mean()
-            
-            if foreground_ratio < 0.01:
-                mask_np = ~mask_np.astype(bool)
-            
             mask_np = (mask_np * 255).astype(np.uint8)
 
+        masks_list = [mask_np]
         if self._multi_object:
             logger.warning(f"MULTIOBJ_INFERENCE: mask_count={len(masks_list)}, multi_object_enabled={self._multi_object}")
 
