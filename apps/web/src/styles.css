@@ -1828,6 +1828,51 @@ img {
     height: 240px;
   }
 
+  .restore-compare {
+    height: 300px !important;
+  }
+}
+
+.restore-dropzone-active {
+  border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+}
+
+.restore-progress {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+}
+
+.restore-stage {
+  transition: opacity 0.3s ease;
+}
+
+.card-selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.restore-compare input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  outline: none;
+}
+
+.restore-compare input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: ew-resize;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
   .marketplace-mini-row {
     justify-content: flex-start;
   }

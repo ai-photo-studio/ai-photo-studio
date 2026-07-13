@@ -9,11 +9,16 @@ import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { AdminOrders } from "./pages/AdminOrders";
 import { AdminProvidersPage } from "./pages/AdminProvidersPage";
 import { AdminSystemPage } from "./pages/AdminSystemPage";
+import { AdminRestorationsPage } from "./pages/AdminRestorationsPage";
+import { AdminRestorationDetailPage } from "./pages/AdminRestorationDetailPage";
 import { FeaturePage } from "./pages/FeaturePage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PricingPage } from "./pages/PricingPage";
 import { SignupPage } from "./pages/SignupPage";
+import { RestoreNewPage } from "./pages/RestoreNewPage";
+import { RestoreOrderPage } from "./pages/RestoreOrderPage";
+import { RestorationHistoryPage } from "./pages/RestorationHistoryPage";
 
 export function App() {
   return (
@@ -30,6 +35,10 @@ export function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<SignupPage />} />
         <Route path="signup" element={<SignupPage />} />
+        <Route path="restore" element={<RestorationHistoryPage />} />
+        <Route path="restore/new" element={<RestoreNewPage />} />
+        <Route path="restore/:orderId" element={<RestoreOrderPage />} />
+        <Route path="history/restorations" element={<RestorationHistoryPage />} />
       </Route>
       <Route path="admin/login" element={<AdminLoginPage />} />
       <Route
@@ -50,6 +59,8 @@ export function App() {
         <Route path="logs" element={<AdminLogsPage />} />
         <Route path="audit-logs" element={<AdminLogsPage />} />
         <Route path="system" element={<AdminSystemPage />} />
+        <Route path="restorations" element={<AdminRestorationsPage />} />
+        <Route path="restorations/:id" element={<AdminRestorationDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

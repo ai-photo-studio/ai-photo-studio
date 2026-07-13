@@ -385,3 +385,45 @@ export type AdminCustomerRecord = {
   walletBalance: number;
   createdAt: string;
 };
+
+export type RestorationOrderSummary = {
+  id: string;
+  orderNo: string;
+  title: string | null;
+  status: string;
+  totalItems: number;
+  completedItems: number;
+  failedItems: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RestorationItemRecord = {
+  id: string;
+  restorationOrderId: string;
+  originalStorageKey: string;
+  previewStorageKey: string | null;
+  finalStorageKey: string | null;
+  status: string;
+  damageSeverity: string;
+  imageCategory: string;
+  damageScore: number | null;
+  qualityScore: number | null;
+  beforeQualityScore: number | null;
+  afterQualityScore: number | null;
+  processingStage: string | null;
+  providerUsed: string | null;
+  totalDurationMs: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RestoreUploadResult = {
+  item: RestorationItemRecord;
+  upload: {
+    storageKey: string;
+    url: string;
+    expiresAt: string;
+  };
+};

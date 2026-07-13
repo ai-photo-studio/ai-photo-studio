@@ -3,7 +3,10 @@ import type {
   CustomerOrderResponse,
   CustomerPaymentsResponse,
   CustomerSubscriptionResponse,
-  CustomerWalletResponse
+  CustomerWalletResponse,
+  RestorationOrderSummary,
+  RestorationItemRecord,
+  RestoreUploadResult
 } from "../lib/portal-types";
 
 type PaymentRequestInput = {
@@ -134,5 +137,65 @@ export const customerApi = {
     apiRequest<Omit<AuthSession, "user">>("/api/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refreshToken })
-    })
+    }),
+
+  createRestorationOrder: (token: string, title?: string) =>
+    apiRequest<{ id: string; orderNo: string; status: string; title: string | null; createdAt: string }>(
+      "/api/restorations",
+      { method: "POST", body: JSON.stringify({ title: title || "Photo Restoration" }) },
+      token
+    ),
+
+  getRestorationOrder: (token: string, id: string) =>
+    apiRequest<{ id: string; orderNo: string; title: string | null; status: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] }>(
+      `/api/restorations/${id}`, {}, token
+    ),
+
+  listRestorationOrders: (token: string) =>
+    apiRequest<RestorationOrderSummary[]>("/api/restorations", {}, token),
+
+  addRestorationItem: (token: string, orderId: string, fileName: string, contentType: string, bodyBase64: string) =>
+    apiRequest<RestoreUploadResult>(
+      `/api/restorations/${orderId}/items`,
+      {
+        method: "POST",
+        body: JSON.stringify({ fileName, contentType, bodyBase64 })
+      },
+      token
+    ),
+
+  processRestorationItem: (token: string, orderId: string, itemId: string) =>
+    apiRequest<{ message: string }>(
+      `/api/restorations/${orderId}/items/${itemId}/process`,
+      { method: "POST", body: "{}" },
+      token
+    ),
+
+  getRestorationPreview: (token: string, orderId: string, itemId: string) =>
+    apiRequest<{ previewKey: string; previewUrl: string }>(
+      `/api/restorations/${orderId}/items/${itemId}/preview`,
+      { method: "POST", body: "{}" },
+      token
+    ),
+
+  approveRestorationItem: (token: string, orderId: string, itemId: string, approved: boolean) =>
+    apiRequest<{ approved: boolean }>(
+      `/api/restorations/${orderId}/items/${itemId}/approve`,
+      { method: "POST", body: JSON.stringify({ approved }) },
+      token
+    ),
+
+  getRestorationDownload: (token: string, orderId: string, itemId: string) =>
+    apiRequest<{ downloadUrl: string }>(
+      `/api/restorations/${orderId}/items/${itemId}/download`,
+      { method: "POST", body: "{}" },
+      token
+    ),
+
+  runQualityAnalysis: (token: string, orderId: string, itemId: string) =>
+    apiRequest<{ quality: Record<string, number>; damage: Record<string, unknown> }>(
+      `/api/restorations/${orderId}/items/${itemId}/quality-analysis`,
+      { method: "POST", body: "{}" },
+      token
+    )
 };

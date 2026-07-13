@@ -1,5 +1,5 @@
 import { API_BASE_URL, type PaginatedResponse } from "../lib/api";
-import type { AdminDashboardResponse, AdminPaymentRecord, AdminStatsResponse, AdminSubscriptionRecord, AdminWalletRecord } from "../lib/portal-types";
+import type { AdminDashboardResponse, AdminPaymentRecord, AdminStatsResponse, AdminSubscriptionRecord, AdminWalletRecord, RestorationOrderSummary, RestorationItemRecord } from "../lib/portal-types";
 import type { PackageSummary } from "../lib/api";
 
 const ADMIN_TOKEN_KEY = "ai-photo-studio-admin-access-token";
@@ -113,5 +113,11 @@ export const adminApi = {
     request<any>("/api/admin/packages", {
       method: "POST",
       body: JSON.stringify(payload)
-    })
+    }),
+
+  restorationOrders: (query = "") => request<PaginatedResponse<RestorationOrderSummary>>(`/api/admin/restorations${query ? `?${query}` : ""}`),
+  restorationDetail: (id: string) => request<RestorationOrderSummary & { items: RestorationItemRecord[] }>(`/api/admin/restorations/${id}`),
+  restorationStats: () => request<{ total: number; completed: number; processing: number; failed: number; pending: number }>("/api/admin/restoration-stats"),
+  retryRestorationOrder: (id: string) => request<any>(`/api/admin/restorations/${id}/retry`, { method: "POST" }),
+  retryRestorationItem: (id: string) => request<any>(`/api/admin/restoration-items/${id}/retry`, { method: "POST" })
 };

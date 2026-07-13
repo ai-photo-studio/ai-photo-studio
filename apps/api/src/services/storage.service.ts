@@ -57,16 +57,18 @@ const buildRetentionDate = (keyPrefix: UploadFileInput["keyPrefix"]) =>
 
 const buildPublicUrl = (baseUrl: string, key: string) => `${baseUrl.replace(/\/$/, "")}/${key}`;
 
-const buildR2Client = (config: AppConfig) =>
-  new S3Client({
+const buildR2Client = (config: AppConfig) => {
+  const endpoint = config.R2_ENDPOINT || `https://${config.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+  return new S3Client({
     region: "auto",
-    endpoint: `https://${config.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    endpoint,
     credentials: {
       accessKeyId: config.R2_ACCESS_KEY_ID,
       secretAccessKey: config.R2_SECRET_ACCESS_KEY
     },
     forcePathStyle: true
   });
+};
 
 const toStorageError = (action: string, error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

@@ -27,8 +27,13 @@ const envSchema = z
     R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
     R2_BUCKET_NAME: z.string().optional().default(""),
     R2_PUBLIC_BASE_URL: z.string().optional().default(""),
-AI_PROVIDER_API_KEY: z.string().optional().default(""),
-  ADMIN_JWT_SECRET: z.string().min(1),
+    R2_ENDPOINT: z.string().optional().default(""),
+    AI_PROVIDER_API_KEY: z.string().optional().default(""),
+    RESTORATION_LAMA_URL: z.string().optional().default(""),
+    RESTORATION_GFPGAN_URL: z.string().optional().default(""),
+    RESTORATION_CODEFORMER_URL: z.string().optional().default(""),
+    RESTORATION_DDCOLOR_URL: z.string().optional().default(""),
+    ADMIN_JWT_SECRET: z.string().min(1),
     JWT_SECRET: z.string().min(1),
     DELIVERY_MODE: z.enum(["LOG_ONLY", "WHATSAPP"]).default("LOG_ONLY"),
     ALLOWED_ORIGINS: z.string().optional().default("")
@@ -44,7 +49,7 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
         ? cfg.FAL_API_KEY || cfg.AI_PROVIDER_API_KEY
         : "";
 
-    if (!["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"].includes(selectedAiProvider)) {
+    if (!["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "local-lama", "local-gfpgan", "local-codeformer", "local-ddcolor", "photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"].includes(selectedAiProvider)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["AI_PROVIDER"],
@@ -186,7 +191,7 @@ AI_PROVIDER_API_KEY: z.string().optional().default(""),
   });
 
 export type AppConfig = z.infer<typeof envSchema> & {
-  aiProvider: "mock" | "local-yolo" | "local-rembg" | "local-esrgan" | "local-iclight" | "photoroom" | "fal" | "future-photoroom" | "future-falai" | "future-replicate";
+  aiProvider: "mock" | "local-yolo" | "local-rembg" | "local-esrgan" | "local-iclight" | "local-lama" | "local-gfpgan" | "local-codeformer" | "local-ddcolor" | "photoroom" | "fal" | "future-photoroom" | "future-falai" | "future-replicate";
   paymentProvider: "jazzcash" | "easypaisa" | "manual";
   whatsappDryRun: boolean;
   storageDryRun: boolean;
@@ -209,12 +214,12 @@ export const loadConfig = (): AppConfig => {
   const cfg = parsed.data;
   const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
   const paymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
-  const validAiProviders = ["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"];
+  const validAiProviders = ["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "local-lama", "local-gfpgan", "local-codeformer", "local-ddcolor", "photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"];
   return {
     ...cfg,
     aiProvider: (validAiProviders.includes(selectedAiProvider)
       ? selectedAiProvider
-      : "mock") as "mock" | "local-yolo" | "local-rembg" | "local-esrgan" | "local-iclight" | "photoroom" | "fal" | "future-photoroom" | "future-falai" | "future-replicate",
+      : "mock") as "mock" | "local-yolo" | "local-rembg" | "local-esrgan" | "local-iclight" | "local-lama" | "local-gfpgan" | "local-codeformer" | "local-ddcolor" | "photoroom" | "fal" | "future-photoroom" | "future-falai" | "future-replicate",
     paymentProvider: (["jazzcash", "easypaisa", "manual"].includes(paymentProvider) ? paymentProvider : "manual") as
       | "jazzcash"
       | "easypaisa"

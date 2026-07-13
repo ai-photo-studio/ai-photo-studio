@@ -63,6 +63,9 @@ export function AdminLayout() {
         <NavLink to="/admin/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
           Orders
         </NavLink>
+        <NavLink to="/admin/restorations" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Restorations
+        </NavLink>
         <NavLink to="/admin/failed-jobs" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
           Failed Jobs
         </NavLink>
