@@ -93,12 +93,19 @@ const bodyToBuffer = async (body: unknown): Promise<Buffer> => {
 };
 
 class MockStorageProvider implements StorageProvider {
+  private static readonly sharedStore = new Map<string, Buffer>();
+
   constructor(private readonly config: AppConfig) {}
 
   async uploadFile(params: UploadFileInput): Promise<UploadFileResult> {
     const key = buildStorageKey(params);
     const url = this.getPublicUrl(key);
     const expiresAt = buildRetentionDate(params.keyPrefix);
+    if (typeof params.body === "string") {
+      MockStorageProvider.sharedStore.set(key, Buffer.from(params.body));
+    } else {
+      MockStorageProvider.sharedStore.set(key, params.body);
+    }
     logger.info("Mock storage upload", { keyPrefix: params.keyPrefix, key });
     return { key, url, expiresAt };
   }
@@ -108,6 +115,7 @@ class MockStorageProvider implements StorageProvider {
   }
 
   async deleteFile(key: string): Promise<void> {
+    MockStorageProvider.sharedStore.delete(key);
     logger.info("Mock storage delete", { key });
   }
 
@@ -116,8 +124,12 @@ class MockStorageProvider implements StorageProvider {
     return { deleted: 0 };
   }
 
-  async downloadFile(_key: string): Promise<DownloadFileResult> {
-    throw new AppError("Mock storage download is not supported", 501, "STORAGE_DOWNLOAD_UNSUPPORTED");
+  async downloadFile(key: string): Promise<DownloadFileResult> {
+    const body = MockStorageProvider.sharedStore.get(key);
+    if (!body) {
+      throw new AppError(`Mock storage: file not found: ${key}`, 404, "STORAGE_FILE_NOT_FOUND");
+    }
+    return { body, contentType: "image/png" };
   }
 
   uploadOriginal(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {
