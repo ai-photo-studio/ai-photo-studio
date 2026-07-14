@@ -1,131 +1,116 @@
-# AI Code Audit Report - Phase R7 Production Hardening
+# AI Code Audit Report - Phase R8 Frontend Deployment Verification
 
 **Date:** 2026-07-14  
-**Phase:** R7 Production Hardening & Technical Debt Elimination  
-**Model:** Poolside Laguna X 2.1  
+**Phase:** R8 Frontend Deployment Verification & Production Release  
 
 ---
 
-## Repository Audit Summary
+## Task 1: Git Commit Verification
 
-### Files Removed
-| File | Reason |
-|------|--------|
-| `apps/api/src/workers/image.worker.ts` | Dead code - `startImageWorker` never imported or started |
-
-### Files Modified
-| File | Changes |
-|------|---------|
-| `apps/api/src/queues/image.queue.ts` | Updated to create `processingJob` records for all enqueued jobs |
-| `apps/api/src/workers/image-processing.worker.ts` | Added handling for delivery, cleanup, and legacy queue payloads |
-
-### Dead Code Removed
-- `startImageWorker` export from `image.worker.ts` - never imported anywhere
-- `ImageQueueService` imports in test scripts (non-production)
-
-### Legacy Migration
-- `ImageQueueService.enqueueOrderProcessing()` - now creates processingJob + enqueues with proper payload
-- `ImageQueueService.enqueueImageProcessing()` - now creates processingJob + enqueues with proper payload
-- `ImageQueueService.enqueueWhatsAppImageProcessing()` - now creates processingJob + enqueues with proper payload
+| Check | Value | Status |
+|-------|-------|--------|
+| HEAD commit | `3a2e8cc` | ✅ Phase R7 |
+| origin/main | `3a2e8cc` | ✅ Synced |
+| Cloudflare Pages deployment commit | Cannot verify (token lacks Pages read permission) | ⚠️ Blocked |
 
 ---
 
-## Repository Consistency Audit
+## Task 2: Wrangler CLI Verification
 
-| Component | Status | Details |
-|-----------|--------|---------|
-| Queue Implementation | ✅ CONSISTENT | Single `ImageQueueService` + `PhaseCImageProcessingQueue` |
-| Worker Implementation | ✅ CONSISTENT | Single `startImageProcessingWorker` in `index.ts:168` |
-| Storage Implementation | ✅ CONSISTENT | Single `StorageService` implementing `StorageProvider` |
-| Provider Factory | ✅ CONSISTENT | Single `createImageProvider` in `provider.factory.ts` |
-| Payment Factory | ✅ CONSISTENT | Single `createPaymentProvider` in `payments/payment.factory.ts` |
-| Processing Pipeline | ✅ CONSISTENT | Unified through `ImageProcessingService` |
-| Production Path | ✅ VERIFIED | WhatsApp webhook → PhaseCOrderPipelineService → PhaseCImageProcessingQueue |
+| Check | Result |
+|-------|--------|
+| Project listing | ❌ Authentication error - token lacks Pages permissions |
+| Production deployment | ❌ Cannot list |
+| Preview deployments | ❌ Cannot list |
+| Environment variables | ❌ Cannot read |
+| Build configuration | From `apps/web/wrangler.toml` - output dir: `dist` |
+| Output directory | `apps/web/dist` - contains `index.html`, `_redirects`, CSS, JS |
 
----
-
-## Production Baseline Verification
-
-### 12 Production Services (Active)
-| Service | Region | State |
-|---------|--------|-------|
-| ai-photo-studio-api | us-central1 | ACTIVE |
-| ai-photo-studio-bg-remover | us-central1 | ACTIVE |
-| ai-photo-studio-bg-remover-gpu | us-central1 | ACTIVE |
-| ai-photo-studio-bg-remover-gpu-us-east4 | us-east4 | ACTIVE |
-| ai-photo-studio-real-esrgan | us-central1 | ACTIVE |
-| ai-photo-studio-yolo-detector | us-central1 | ACTIVE |
-| ai-photo-studio-codeformer | us-central1 | ACTIVE |
-| ai-photo-studio-ddcolor | us-central1 | ACTIVE |
-| ai-photo-studio-gfpgan | us-central1 | ACTIVE |
-| ai-photo-studio-lama | us-central1 | ACTIVE |
-| gpu-research-sam2 | us-central1 | ACTIVE |
-| gpu-research-service | us-east4 | ACTIVE |
-
-### 5-Model Restoration Pipeline
-- **codeformer** - Face restoration
-- **ddcolor** - Colorization
-- **gfpgan** - Face enhancement
-- **lama** - Inpainting
-- **yolo-detector** - Image classification
-
-### R2 Production Storage
-- Bucket: `ai-photo-studio-storage`
-- Account: `2eb5eadd4af6da3d3a5f6c61d92437e4`
-- Endpoint: `https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com`
-- Status: ✅ OPERATIONAL
-
-### Supported Workflows
-1. WhatsApp image processing
-2. Web upload processing
-3. Order processing (payment approval → queue)
-4. Image retry (admin)
-5. Delivery notifications
-
-### Deprecated Components
-- None in production. Legacy code removed.
+**Wrangler Bug:** Account ID resolution issue - sends requests to `85f6a6181b4653c2a45e69cb7ce8a474` instead of `2eb5eadd4af6da3d3a5f6c61d92437e4`. Fixable with `CLOUDFLARE_ACCOUNT_ID` env var, but token still lacks Pages API permissions.
 
 ---
 
-## Build Results
+## Task 3: Frontend Build
 
 | Check | Status |
 |-------|--------|
-| Prisma generate | ✅ v5.22.0 |
-| API TypeScript | ✅ Passed |
-| Web TypeScript | ✅ Passed |
-| Git status | ✅ Clean |
+| npm install | ✅ Completed |
+| TypeScript check | ✅ Passed |
+| Vite build | ✅ Built in 3.23s (61 modules) |
+| Output | `index.html`, `index-BcZYZg25.css` (24.73 kB), `index-DBgLwQro.js` (237.98 kB), `_redirects` |
 
 ---
 
-## Production Score
+## Task 4: Deployment Status
 
-| Category | Score |
-|----------|-------|
-| Repository Cleanup | ✅ 100% |
-| Dead Code Removal | ✅ Complete |
-| Queue Consistency | ✅ Single implementation |
-| Worker Consistency | ✅ Single implementation |
-| Storage Consistency | ✅ Single implementation |
-| Provider Consistency | ✅ Single implementation |
-| Build Status | ✅ Passing |
-| R2 Storage | ✅ Operational |
-| Cloud Run Services | ✅ 12 Active |
+Current production frontend asset hashes: `index-D3ZWKl50.js`, `index-Do8VLRn4.css`
+Newly built asset hashes: `index-DBgLwQro.js`, `index-BcZYZg25.css`
 
-**FINAL PRODUCTION SCORE: 100%**
+**Production is serving an older commit than HEAD (3a2e8cc).**
+**Deployment blocked:** `CLOUDFLARE_API_TOKEN` lacks Cloudflare Pages write permissions.
 
 ---
 
-## Deployment Policy Status
+## Task 5: Route Verification
 
-- ✅ Traffic rule: Only latest revision receives traffic
-- ✅ Revision retention: MAX 2 rollback revisions
-- ✅ Build artifact retention: 30 days lifecycle
-- ✅ Docker image retention: Auto-delete superseded
-- ✅ Bucket lifecycle: Active
-- ✅ Post-deploy cleanup: Script configured
-- ✅ Protected scope: Intact
+| Route | HTTP Status | Assets | React Routing |
+|-------|-------------|--------|---------------|
+| `/` | 200 | ✅ Loads JS + CSS | ✅ SPA |
+| `/restore/new` | 200 | ✅ Loads JS + CSS | ✅ Client-side routing |
+| `/history/restorations` | 200 | ✅ Loads JS + CSS | ✅ Client-side routing |
+| `/admin/restorations` | 200 | ✅ Loads JS + CSS | ✅ Client-side routing |
+| JS asset (`index-D3ZWKl50.js`) | 200 | 215,368 bytes | ✅ Loads correctly |
+| CSS asset (`index-Do8VLRn4.css`) | 200 | Loaded | ✅ Loads correctly |
 
 ---
 
-**End of file — Phase R7 Production Hardening Complete**
+## Task 6: API Connectivity
+
+| Endpoint | Status | Response |
+|----------|--------|----------|
+| `/api/health` | ✅ 200 | `{"success":true,"message":"AI Photo Studio API is running"}` |
+| `/api/version` | ✅ 200 | `{"success":true,"service":"api","version":"0.1.0","env":"production"}` |
+| Restoration endpoints | ✅ Available via frontend routing | Serves SPA |
+
+---
+
+## Task 7: Documentation Updates
+
+- `cleanup/Production_Baseline_v3.md` - Updated with Phase R8 frontend verification
+- `AI_code_audit_report_RI.md` - Updated with Phase R8 findings (kept in .gitignore)
+- `AI_code_audit_report.md` - Updated with Phase R8 findings
+
+---
+
+## Task 8: Git Status
+
+```
+Changes not staged for commit:
+  modified:   AI_code_audit_report.md
+  modified:   cleanup/Production_Baseline_v3.md
+```
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Production deployment commit | Unknown (older than HEAD `3a2e8cc`) |
+| Cloudflare Pages deployment ID | Unknown (token lacks permissions) |
+| Frontend URL | `https://ai-photo-studio-frontend.pages.dev` |
+| Routes verified | 4/4 - all 200 |
+| API connectivity | 2/2 - healthy |
+| Frontend build | ✅ Passes - 61 modules, 238 kB JS |
+| Deployment status | **BLOCKED** - Wrangler token lacks Pages API permissions |
+
+## Go / No-Go: **NO-GO — Deployment requires Cloudflare API token with Pages write permissions**
+
+### Action Required
+1. Create a new Cloudflare API token with `Cloudflare Pages:Edit` permission for account `2eb5eadd4af6da3d3a5f6c61d92437e4`
+2. Set as `CLOUDFLARE_API_TOKEN` environment variable
+3. Run: `npx wrangler pages deploy apps/web/dist --project-name=ai-photo-studio-frontend --branch=main`
+
+---
+
+**End of file — Phase R8 Frontend Deployment Verification**
