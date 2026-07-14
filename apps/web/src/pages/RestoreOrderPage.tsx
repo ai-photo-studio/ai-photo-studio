@@ -107,7 +107,8 @@ export function RestoreOrderPage() {
   if (error) return <section className="page-stack"><div className="state-panel state-panel-error"><p>{error}</p></div></section>;
   if (!order) return <section className="page-stack"><div className="state-panel"><p>Order not found.</p></div></section>;
 
-  const isProcessing = order.items.some((i) => i.status === "PROCESSING" || i.status === "QUEUED" || i.status === "ANALYZING");
+  const isTerminal = (status: string) => ["COMPLETED", "FAILED", "APPROVED", "REJECTED", "DEAD_LETTER"].includes(status);
+  const canProcess = (status: string) => !isTerminal(status) && !["PROCESSING", "QUEUED", "ANALYZING"].includes(status);
   const currentItem = selectedItem || order.items[0];
 
   return (
@@ -125,7 +126,7 @@ export function RestoreOrderPage() {
         <article className="card"><div><p className="eyebrow">Failed</p><h3>{order.failedItems}</h3></div></article>
       </div>
 
-      {isProcessing && currentItem && currentItem.status === "PROCESSING" && (
+      {currentItem.status === "PROCESSING" && currentItem && (
         <div className="restore-progress" style={{ marginTop: "1rem" }}>
           <h3>Processing Pipeline</h3>
           {STAGES.map((stage) => {
@@ -181,7 +182,7 @@ export function RestoreOrderPage() {
                     {item.providerUsed && <div><dt>Providers</dt><dd>{item.providerUsed}</dd></div>}
                   </dl>
                   <div className="button-row">
-                    {item.status === "PENDING" && (
+                    {!isTerminal(item.status) && !["PROCESSING", "QUEUED", "ANALYZING"].includes(item.status) && (
                       <button type="button" className="button button-small" disabled={processing} onClick={(e) => { e.stopPropagation(); setSelectedItem(item); handleProcess(); }}>
                         {processing ? "Starting..." : "Process"}
                       </button>
