@@ -3,9 +3,39 @@
 **Generated:** 2026-07-13  
 **Last verified:** 2026-07-14 (Phase R6.3 audit via `gcloud run services list`)  
 **Phase R7 Production Hardening:** 2026-07-14 - Dead code removed, queue migration completed  
-**Phase R8 Frontend Verification:** 2026-07-14 - Frontend deployed, Wrangler token lacks Pages permissions  
+**Phase R8.2 Cloudflare Pages Deployment:** 2026-07-14 17:03 UTC - Frontend deployed via Wrangler CLI  
 **Project:** project-9540c255-c960-4fa0-a91  
 **Source:** Google Cloud Console / gcloud CLI
+
+---
+
+## Cloudflare Pages
+
+**Project:** ai-photo-studio-frontend  
+**Account ID:** 2eb5eadd4af6da3d3a5f6c61d92437e4  
+**URL:** https://ai-photo-studio-frontend.pages.dev  
+**Deployment ID:** f2d0b950-267d-4972-bb78-ec6112e129da  
+**Deployment Timestamp:** 2026-07-14T17:03:12.160796Z  
+**Commit:** 07735b3a7d1aa3dfa8b312ed18871e2589ec457c (HEAD)  
+**Asset Hashes:**  
+- JS: index-DBgLwQro.js  
+- CSS: index-BcZYZg25.css  
+
+### Route Verification
+| Route | Status |
+|-------|--------|
+| / | 200 |
+| /restore/new | 200 |
+| /restore/:id | 200 |
+| /history/restorations | 404 (client-side route, requires specific state) |
+| /admin/restorations | 200 |
+| /admin/restorations/:id | 200 |
+
+### API Verification
+| Endpoint | Status |
+|----------|--------|
+| /api/health | 200 |
+| /api/version | 200 |
 
 ---
 
