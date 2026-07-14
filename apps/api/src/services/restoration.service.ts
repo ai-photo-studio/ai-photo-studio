@@ -7,6 +7,9 @@ import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
 import { RestorationInpaintService, RestorationGfpganService, RestorationCodeformerService, RestorationDdcolorService } from "./restoration-provider.service";
 import { RealEsrganService } from "./real-esrgan.service";
+import { SubscriptionService } from "./subscription.service";
+
+const RESTORATION_CREDIT_COST = 1;
 
 export type DamageSeverity = "LIGHT" | "MEDIUM" | "HEAVY" | "UNKNOWN";
 export type ImageCategory = "FACE" | "DOCUMENT" | "LANDSCAPE" | "PORTRAIT" | "BLACK_WHITE" | "COLOR" | "WEDDING" | "GROUP_PHOTO" | "GENERAL";
@@ -64,6 +67,7 @@ export class RestorationService {
   private readonly codeformerService: RestorationCodeformerService;
   private readonly ddcolorService: RestorationDdcolorService;
   private readonly esrganService: RealEsrganService;
+  private readonly subscriptionService: SubscriptionService;
 
   constructor(private readonly config: AppConfig) {
     this.storage = new StorageService(config);
@@ -73,6 +77,7 @@ export class RestorationService {
     this.codeformerService = new RestorationCodeformerService(config);
     this.ddcolorService = new RestorationDdcolorService(config);
     this.esrganService = new RealEsrganService(config);
+    this.subscriptionService = new SubscriptionService();
   }
 
   async createOrder(input: { userId: string; title?: string; notes?: string; totalItems?: number }) {
@@ -230,6 +235,25 @@ export class RestorationService {
       }
     });
 
+    const order = await prisma.restorationOrder.findUnique({ where: { id: item.restorationOrderId } });
+    let walletReservation: { walletId: string; amount: number; transactionId: string } | null = null;
+
+    if (order?.userId) {
+      try {
+        const { WalletService } = await import("../services/wallet.service");
+        const walletService = new WalletService();
+        const wallet = await walletService.getOrCreateWallet(order.userId);
+        if (wallet.balance >= RESTORATION_CREDIT_COST) {
+          const reserved = await walletService.reserveCredits({
+            walletId: wallet.id, amount: RESTORATION_CREDIT_COST, referenceType: "restoration_item", referenceId: itemId
+          });
+          walletReservation = { walletId: wallet.id, amount: reserved.amount, transactionId: reserved.transactionId };
+        }
+      } catch (err) {
+        logger.warn("Credit reservation failed, proceeding without billing", { itemId, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
     const original = await this.storage.downloadFile(item.originalStorageKey);
     const input = {
       body: original.body,
@@ -263,23 +287,17 @@ export class RestorationService {
     };
 
     await runStage("lama", "RESTORATION_INPAINT", async () => this.inpaintService.inpaint(input));
-
     await runStage("gfpgan", "RESTORATION_FACE", async () => this.gfpganService.enhance({
       ...input, body: processedBuffer, contentType: processedContentType
     }));
-
     await runStage("codeformer", "RESTORATION_FACE", async () => this.codeformerService.enhance({
       ...input, body: processedBuffer, contentType: processedContentType
     }));
-
     await runStage("ddcolor", "RESTORATION_COLORIZE", async () => this.ddcolorService.colorize({
       ...input, body: processedBuffer, contentType: processedContentType
     }));
-
     await runStage("real-esrgan", "RESTORATION_UPSCALE", async () => this.esrganService.enhance({
-      body: processedBuffer,
-      contentType: processedContentType,
-      fileName: input.fileName
+      body: processedBuffer, contentType: processedContentType, fileName: input.fileName
     }));
 
     const processedUpload = await this.storage.uploadFile({
@@ -291,31 +309,63 @@ export class RestorationService {
 
     const afterQuality = quality.overallScore < 50 ? quality.overallScore + 30 : Math.min(100, quality.overallScore + 10);
 
+    const succeeded = providersUsed.length > 0;
+
+    if (succeeded && walletReservation) {
+      try {
+        const { WalletService } = await import("../services/wallet.service");
+        const walletService = new WalletService();
+        await walletService.settleReservedCredits({
+          walletId: walletReservation.walletId, amount: walletReservation.amount, referenceType: "restoration_item", referenceId: itemId
+        });
+      } catch (err) {
+        logger.error("Failed to settle wallet reservation", { itemId, error: err instanceof Error ? err.message : String(err) });
+      }
+    } else if (!succeeded && walletReservation) {
+      try {
+        const { WalletService } = await import("../services/wallet.service");
+        const walletService = new WalletService();
+        await walletService.releaseReservedCredits({
+          walletId: walletReservation.walletId, amount: walletReservation.amount, referenceType: "restoration_item", referenceId: itemId
+        });
+      } catch { /* non-critical */ }
+    }
+
+    for (const [name, elapsed] of Object.entries(stageTimings)) {
+      const costTypeMap: Record<string, string> = { lama: "RESTORATION_INPAINT", gfpgan: "RESTORATION_FACE", codeformer: "RESTORATION_FACE", ddcolor: "RESTORATION_COLORIZE", "real-esrgan": "RESTORATION_UPSCALE" };
+      try {
+        await prisma.providerCostLog.create({
+          data: {
+            provider: name, operation: name, costType: costTypeMap[name] as any, durationMs: elapsed,
+            estimatedCost: 0, restorationItemId: itemId
+          }
+        });
+      } catch { /* non-critical */ }
+    }
+
     await prisma.restorationItem.update({
       where: { id: itemId },
       data: {
-        status: providersUsed.length > 0 ? "COMPLETED" : "FAILED",
+        status: succeeded ? "COMPLETED" : "FAILED",
         finalStorageKey: processedUpload.key,
         afterQualityScore: afterQuality,
         providerUsed: providersUsed.join(",") || "none",
-        processingStage: providersUsed.length > 0 ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
+        processingStage: succeeded ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
         totalDurationMs
       }
     });
 
-    if (providersUsed.length > 0) {
+    if (succeeded) {
       await this.generatePreview(processedUpload.key, itemId);
     }
 
-    const order = await prisma.restorationOrder.findUnique({ where: { id: item.restorationOrderId } });
     if (order) {
-      const itemStatus = providersUsed.length > 0 ? "COMPLETED" : "FAILED";
       await prisma.restorationOrder.update({
         where: { id: order.id },
         data: {
-          completedItems: { increment: providersUsed.length > 0 ? 1 : 0 },
-          failedItems: { increment: providersUsed.length > 0 ? 0 : 1 },
-          status: itemStatus as any
+          completedItems: { increment: succeeded ? 1 : 0 },
+          failedItems: { increment: succeeded ? 0 : 1 },
+          status: (succeeded ? "COMPLETED" : "FAILED") as any
         }
       });
     }
