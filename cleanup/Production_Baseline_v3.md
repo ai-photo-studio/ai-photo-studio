@@ -2,8 +2,27 @@
 
 **Generated:** 2026-07-13  
 **Last verified:** 2026-07-14 (Phase R6.3 audit via `gcloud run services list`)  
+**Phase R7 Production Hardening:** 2026-07-14 - Dead code removed, queue migration completed  
 **Project:** project-9540c255-c960-4fa0-a91  
 **Source:** Google Cloud Console / gcloud CLI
+
+---
+
+## Repository Audit (Phase R7)
+
+### Files Removed
+- `apps/api/src/workers/image.worker.ts` - Dead code (never imported)
+
+### Files Modified
+- `apps/api/src/queues/image.queue.ts` - Updated to create `processingJob` records
+- `apps/api/src/workers/image-processing.worker.ts` - Updated to handle legacy queue payloads
+
+### Dead Code Removed
+- `startImageWorker` export from `image.worker.ts` - never imported anywhere
+
+### Legacy Migration
+- `ImageQueueService` now creates `processingJob` records for all enqueued jobs
+- Worker handles both PhaseC-style jobs (with processingJob) and legacy-style jobs (creates on-the-fly)
 
 ---
 

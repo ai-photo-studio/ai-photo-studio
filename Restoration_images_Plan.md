@@ -1,5 +1,13 @@
 # Restoration Images Plan
 
+**Phase R7 Production Hardening Status:** COMPLETE
+- 12 production services active (8 original + 4 restoration services)
+- 5-model restoration pipeline: codeformer, ddcolor, gfpgan, lama, yolo-detector
+- R2 storage operational in production
+- Queue/worker consistency verified
+- Dead code removed (image.worker.ts)
+- ImageQueueService updated to create processingJob records
+
 ## Executive Summary
 - This plan defines the implementation blueprint for an AI Memory Restoration Platform that extends the existing AI Product Photo Studio platform into restoration, enhancement, print fulfillment, and album creation services.
 - The platform will initially target Pakistan and later expand globally.
