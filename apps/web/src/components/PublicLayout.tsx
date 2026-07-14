@@ -27,6 +27,13 @@ export function PublicLayout() {
             </div>
           </div>
           <NavLink to="/pricing" className="nav-link">Pricing</NavLink>
+          <div className="nav-dropdown">
+            <button type="button" className="nav-link nav-menu-button">Restore Photos</button>
+            <div className="nav-dropdown-menu" aria-label="Restore Photos menu">
+              <NavLink to="/restore/new">New Restoration</NavLink>
+              <NavLink to="/history/restorations">Order History</NavLink>
+            </div>
+          </div>
           <NavLink to="/login" className="nav-link">Login</NavLink>
           <NavLink to="/register" className="button">Sign Up</NavLink>
         </nav>
