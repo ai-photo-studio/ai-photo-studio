@@ -5,6 +5,10 @@ export type AIProviderName =
   | "local-esrgan"
   | "local-iclight"
   | "gpu-sam2"
+  | "local-lama"
+  | "local-gfpgan"
+  | "local-codeformer"
+  | "local-ddcolor"
   | "photoroom"
   | "fal"
   | "future-photoroom"
@@ -107,7 +111,13 @@ export type ProcessingStage =
   | "REAL_ESRGAN"
   | "CREATIVE_STUDIO"
   | "EXPORT"
-  | "IC_LIGHT_LAB";
+  | "IC_LIGHT_LAB"
+  | "RESTORATION_ANALYSIS"
+  | "RESTORATION_INPAINT"
+  | "RESTORATION_FACE"
+  | "RESTORATION_COLORIZE"
+  | "RESTORATION_UPSCALE"
+  | "RESTORATION_PREVIEW";
 
 export type EnhancementComparison = {
   before: QualityScores;
@@ -185,7 +195,12 @@ export type CapabilityName =
   | "flat-lay"
   | "lifestyle-scene"
   | "virtual-model"
-  | "video-generation";
+  | "video-generation"
+  | "restoration-inpaint"
+  | "restoration-face"
+  | "restoration-colorize"
+  | "restoration-upscale"
+  | "restoration-analysis";
 
 export type ProviderCapability = {
   capability: CapabilityName;
@@ -463,5 +478,62 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
     costPerOperation: { operation: "all", estimatedCost: 0.08 },
     supportedWorkflows: ["PRODUCT", "VEHICLE"],
     supportedModes: ["WHITE_BACKGROUND", "SOLID_COLOR_BACKGROUND", "SHADOW_ENHANCEMENT", "PRODUCT_STUDIO", "SHOWROOM", "PREMIUM_ROAD", "DARK_STUDIO", "PLATE_BLUR"]
+  },
+  "local-lama": {
+    name: "local-lama",
+    displayName: "Local LaMa",
+    description: "Local inpainting using LaMa for scratch and damage removal",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "restoration-inpaint", enabled: true },
+      { capability: "enhancement", enabled: false }
+    ],
+    costPerOperation: { operation: "restoration-inpaint", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT"],
+    supportedModes: ["WHITE_BACKGROUND"]
+  },
+  "local-gfpgan": {
+    name: "local-gfpgan",
+    displayName: "Local GFPGAN",
+    description: "Local face restoration using GFPGAN",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "restoration-face", enabled: true }
+    ],
+    costPerOperation: { operation: "restoration-face", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT"],
+    supportedModes: ["WHITE_BACKGROUND"]
+  },
+  "local-codeformer": {
+    name: "local-codeformer",
+    displayName: "Local CodeFormer",
+    description: "Local face restoration using CodeFormer",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "restoration-face", enabled: true }
+    ],
+    costPerOperation: { operation: "restoration-face", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT"],
+    supportedModes: ["WHITE_BACKGROUND"]
+  },
+  "local-ddcolor": {
+    name: "local-ddcolor",
+    displayName: "Local DDColor",
+    description: "Local colorization using DDColor for black and white photos",
+    enabled: true,
+    isLocal: true,
+    isPaid: false,
+    capabilities: [
+      { capability: "restoration-colorize", enabled: true }
+    ],
+    costPerOperation: { operation: "restoration-colorize", estimatedCost: 0 },
+    supportedWorkflows: ["PRODUCT"],
+    supportedModes: ["WHITE_BACKGROUND"]
   }
 };

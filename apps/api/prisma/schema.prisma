@@ -565,6 +565,95 @@ model AuditLog {
   @@index([actorType, createdAt])
 }
 
+enum RestorationStatus {
+  PENDING
+  QUEUED
+  ANALYZING
+  PROCESSING
+  REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum DamageSeverity {
+  LIGHT
+  MEDIUM
+  HEAVY
+  UNKNOWN
+}
+
+enum ImageCategory {
+  FACE
+  DOCUMENT
+  LANDSCAPE
+  PORTRAIT
+  BLACK_WHITE
+  COLOR
+  WEDDING
+  GROUP_PHOTO
+  GENERAL
+}
+
+model RestorationOrder {
+  id              String            @id @default(cuid())
+  orderNo         String            @unique
+  userId          String?
+  customerId      String?
+  packageId       String?
+  title           String?
+  notes           String?
+  status          RestorationStatus @default(PENDING)
+  totalItems      Int               @default(0)
+  completedItems  Int               @default(0)
+  failedItems     Int               @default(0)
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  items RestorationItem[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([orderNo])
+}
+
+model RestorationItem {
+  id                    String           @id @default(cuid())
+  restorationOrderId    String
+  originalStorageKey    String
+  previewStorageKey     String?
+  finalStorageKey       String?
+  maskStorageKey        String?
+  mimeType              String?
+  width                 Int?
+  height                Int?
+  fileSizeBytes         Int?
+  status                RestorationStatus @default(PENDING)
+  damageSeverity        DamageSeverity   @default(UNKNOWN)
+  imageCategory         ImageCategory    @default(GENERAL)
+  damageScore           Float?
+  qualityScore          Int?
+  beforeQualityScore    Int?
+  afterQualityScore     Int?
+  processingStage       String?
+  providerUsed          String?
+  totalDurationMs       Int?
+  errorMessage          String?
+  retryCount            Int              @default(0)
+  metadata              Json?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  restorationOrder RestorationOrder @relation(fields: [restorationOrderId], references: [id], onDelete: Cascade)
+  providerCostLogs ProviderCostLog[]
+
+  @@index([restorationOrderId, status])
+  @@index([status, createdAt])
+}
+
 enum ProviderCostType {
   BACKGROUND_REMOVAL
   CLASSIFICATION
@@ -576,6 +665,11 @@ enum ProviderCostType {
   LIFESTYLE_SCENE
   VIRTUAL_MODEL
   VIDEO_GENERATION
+  RESTORATION_INPAINT
+  RESTORATION_FACE
+  RESTORATION_COLORIZE
+  RESTORATION_UPSCALE
+  RESTORATION_ANALYSIS
 }
 
 model ProviderCostLog {
@@ -592,6 +686,7 @@ model ProviderCostLog {
   processingJobId String?
   aiJobId         String?
   creativeStudioJobId String?
+  restorationItemId String?
   metadata        Json?
   createdAt       DateTime       @default(now())
 
@@ -599,12 +694,14 @@ model ProviderCostLog {
   processingJob ProcessingJob? @relation(fields: [processingJobId], references: [id], onDelete: SetNull)
   aiJob AiJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
   creativeStudioJob CreativeStudioJob? @relation(fields: [creativeStudioJobId], references: [id], onDelete: SetNull)
+  restorationItem RestorationItem? @relation(fields: [restorationItemId], references: [id], onDelete: SetNull)
 
   @@index([provider, createdAt])
   @@index([orderId, createdAt])
   @@index([processingJobId, createdAt])
   @@index([aiJobId, createdAt])
   @@index([creativeStudioJobId, createdAt])
+  @@index([restorationItemId, createdAt])
 }
 
 enum CreativeType {

@@ -1,0 +1,36 @@
+{
+  "image_name": "ae96f2ae30cbe91cfd2c12dbfa750931.jpeg",
+  "timestamp": "2026-07-13T11:42:25.695023",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\white_products_ae96f2ae30cbe91cfd2c12dbfa750931\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.4937062615101289,
+    "edge_continuity": 0.0,
+    "connected_components": 18,
+    "largest_component_pct": 0.9961066089729841,
+    "alpha_entropy": 0.3278800137797345,
+    "bg_leakage": 0.08894567219152855,
+    "mask_confidence": 0.938542817679558,
+    "mask_smoothness": 0.9985685348510742,
+    "boundary_f1": 0.07484169984985965,
+    "rgba_integrity": 0.5691459484346224,
+    "iqs": 29.07656423148321
+  },
+  "sha256": "c196df2b56e15f752cb398171f57a41773f8e64f7a5ce03c453ab387f39c3707",
+  "status": "FAIL"
+}

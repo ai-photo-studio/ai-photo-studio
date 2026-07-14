@@ -7,8 +7,15 @@ import { LocalYoloImageProvider } from "./local-yolo.provider";
 import { LocalEsrganImageProvider } from "./local-esrgan.provider";
 import { LocalIclightImageProvider } from "./local-iclight.provider";
 import { GPUSAM2ImageProvider } from "./gpu-sam2.provider";
+import { LocalLamaImageProvider } from "./local-lama.provider";
+import { LocalGfpganImageProvider } from "./local-gfpgan.provider";
+import { LocalCodeformerImageProvider } from "./local-codeformer.provider";
+import { LocalDdcolorImageProvider } from "./local-ddcolor.provider";
 
-const LOCAL_PROVIDERS: AIProviderName[] = ["mock", "local-rembg", "local-yolo", "local-esrgan", "local-iclight", "gpu-sam2"];
+const LOCAL_PROVIDERS: AIProviderName[] = [
+  "mock", "local-rembg", "local-yolo", "local-esrgan", "local-iclight",
+  "gpu-sam2", "local-lama", "local-gfpgan", "local-codeformer", "local-ddcolor"
+];
 
 const DEPRECATED_PROVIDERS: AIProviderName[] = ["photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"];
 
@@ -16,7 +23,7 @@ export const resolveProviderName = (config: Pick<AppConfig, "aiProvider">): AIPr
   const selected = (config.aiProvider || "").trim().toLowerCase();
   if (!selected) {
     throw new AppError(
-      "AI_PROVIDER environment variable must be set. Valid values: mock, local-rembg, local-yolo, local-esrgan, local-iclight, gpu-sam2",
+      "AI_PROVIDER environment variable must be set. Valid values: mock, local-rembg, local-yolo, local-esrgan, local-iclight, gpu-sam2, local-lama, local-gfpgan, local-codeformer, local-ddcolor",
       500,
       "AI_PROVIDER_NOT_SET"
     );
@@ -25,7 +32,7 @@ export const resolveProviderName = (config: Pick<AppConfig, "aiProvider">): AIPr
     return selected as AIProviderName;
   }
   throw new AppError(
-    `Invalid AI_PROVIDER: ${selected}. Valid values: mock, local-rembg, local-yolo, local-esrgan, local-iclight, gpu-sam2`,
+    `Invalid AI_PROVIDER: ${selected}. Valid values: mock, local-rembg, local-yolo, local-esrgan, local-iclight, gpu-sam2, local-lama, local-gfpgan, local-codeformer, local-ddcolor`,
     500,
     "INVALID_AI_PROVIDER"
   );
@@ -101,6 +108,22 @@ export const createImageProvider = (config: AppConfig): ImageProvider => {
 
   if (providerName === "gpu-sam2") {
     return new GPUSAM2ImageProvider(config);
+  }
+
+  if (providerName === "local-lama") {
+    return new LocalLamaImageProvider(config);
+  }
+
+  if (providerName === "local-gfpgan") {
+    return new LocalGfpganImageProvider(config);
+  }
+
+  if (providerName === "local-codeformer") {
+    return new LocalCodeformerImageProvider(config);
+  }
+
+  if (providerName === "local-ddcolor") {
+    return new LocalDdcolorImageProvider(config);
   }
 
   return new MockImageProvider();

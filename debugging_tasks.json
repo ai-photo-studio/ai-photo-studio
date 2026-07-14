@@ -1,0 +1,8 @@
+[
+  {"content": "Fix production deployment drift (align HEAD with v21-edgefix)", "status": "pending", "priority": "critical"},
+  {"content": "Build and deploy updated code to Cloud Run", "status": "pending", "priority": "critical"},
+  {"content": "Verify production matches repository HEAD", "status": "pending", "priority": "high"},
+  {"content": "Inspect RAW SAM2 outputs before any post-processing", "status": "pending", "priority": "high"},
+  {"content": "Generate pipeline isolation outputs for all stages", "status": "pending", "priority": "high"},
+  {"content": "Measure latency profile and document 10-15 second runtime", "status": "pending", "priority": "medium"}
+]

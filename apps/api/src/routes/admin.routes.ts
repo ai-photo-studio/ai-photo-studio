@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { AppConfig } from "../config/env";
 import { AdminAuthController } from "../controllers/admin-auth.controller";
 import { AdminController } from "../controllers/admin.controller";
+import { AdminRestorationController } from "../controllers/admin-restoration.controller";
 import type { AdminRole } from "../services/admin-auth.service";
 import { requireAdminAuth } from "../middleware/admin-auth.middleware";
 
@@ -9,6 +10,7 @@ export const createAdminRouter = (config: AppConfig): Router => {
   const router = Router();
   const controller = new AdminController(config);
   const authController = new AdminAuthController(config);
+  const restorationController = new AdminRestorationController(config);
 
   const opsRoles: AdminRole[] = ["SUPER_ADMIN", "OPERATIONS", "SUPPORT"];
   const financeRoles: AdminRole[] = ["SUPER_ADMIN", "FINANCE"];
@@ -48,6 +50,13 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.post("/admin/packages", requireAdminAuth(config, adminRoles), controller.upsertPackage);
   router.post("/admin/payments/:id/approve", requireAdminAuth(config, financeRoles), controller.approvePayment);
   router.post("/admin/payments/:id/reject", requireAdminAuth(config, financeRoles), controller.rejectPayment);
+
+  // Restoration admin routes
+  router.get("/admin/restorations", requireAdminAuth(config, opsRoles), restorationController.listOrders);
+  router.get("/admin/restorations/:id", requireAdminAuth(config, opsRoles), restorationController.getOrderDetail);
+  router.get("/admin/restoration-stats", requireAdminAuth(config, opsRoles), restorationController.getStats);
+  router.post("/admin/restorations/:id/retry", requireAdminAuth(config, opsRoles), restorationController.retryOrder);
+  router.post("/admin/restoration-items/:id/retry", requireAdminAuth(config, opsRoles), restorationController.retryItem);
 
   return router;
 };

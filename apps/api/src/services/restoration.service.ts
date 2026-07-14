@@ -8,6 +8,7 @@ import { logger } from "../utils/logger";
 import { RestorationInpaintService, RestorationGfpganService, RestorationCodeformerService, RestorationDdcolorService } from "./restoration-provider.service";
 import { RealEsrganService } from "./real-esrgan.service";
 import { SubscriptionService } from "./subscription.service";
+import { NotificationService } from "./notification.service";
 
 const RESTORATION_CREDIT_COST = 1;
 
@@ -68,6 +69,7 @@ export class RestorationService {
   private readonly ddcolorService: RestorationDdcolorService;
   private readonly esrganService: RealEsrganService;
   private readonly subscriptionService: SubscriptionService;
+  private readonly notificationService: NotificationService;
 
   constructor(private readonly config: AppConfig) {
     this.storage = new StorageService(config);
@@ -78,10 +80,11 @@ export class RestorationService {
     this.ddcolorService = new RestorationDdcolorService(config);
     this.esrganService = new RealEsrganService(config);
     this.subscriptionService = new SubscriptionService();
+    this.notificationService = new NotificationService();
   }
 
   async createOrder(input: { userId: string; title?: string; notes?: string; totalItems?: number }) {
-    return prisma.restorationOrder.create({
+    const order = await prisma.restorationOrder.create({
       data: {
         orderNo: toOrderNo(),
         userId: input.userId,
@@ -90,6 +93,21 @@ export class RestorationService {
         totalItems: input.totalItems || 0
       }
     });
+
+    try {
+      const user = await prisma.user.findUnique({ where: { id: input.userId } });
+      if (user?.email) {
+        this.notificationService.sendEmail(
+          user.email,
+          `Restoration Order Received: ${order.orderNo}`,
+          `Your restoration order ${order.orderNo} has been received and is being processed.`
+        );
+      }
+    } catch (err) {
+      logger.warn("Failed to send ORDER_RECEIVED email notification", { orderId: order.id, error: err instanceof Error ? err.message : String(err) });
+    }
+
+    return order;
   }
 
   async getOrder(id: string) {
@@ -208,7 +226,24 @@ export class RestorationService {
     const item = await prisma.restorationItem.findUnique({ where: { id: itemId } });
     if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
     if (!item.finalStorageKey) throw new AppError("Restoration not yet completed", 400, "RESTORATION_NOT_COMPLETED");
-    return this.storage.generateDownloadUrl(item.finalStorageKey);
+
+    const url = await this.storage.generateDownloadUrl(item.finalStorageKey);
+
+    try {
+      const order = await prisma.restorationOrder.findUnique({ where: { id: item.restorationOrderId } });
+      const user = order?.userId ? await prisma.user.findUnique({ where: { id: order.userId } }) : null;
+      if (user?.email) {
+        this.notificationService.sendEmail(
+          user.email,
+          `Your Restoration is Ready for Download: ${order?.orderNo ?? itemId}`,
+          `Your restored image is ready. Download it here: ${url}`
+        );
+      }
+    } catch (err) {
+      logger.warn("Failed to send DOWNLOAD_READY email notification", { itemId, error: err instanceof Error ? err.message : String(err) });
+    }
+
+    return url;
   }
 
   async processItem(itemId: string): Promise<void> {
@@ -368,6 +403,22 @@ export class RestorationService {
           status: (succeeded ? "COMPLETED" : "FAILED") as any
         }
       });
+    }
+
+    try {
+      const user = order?.userId ? await prisma.user.findUnique({ where: { id: order.userId } }) : null;
+      if (user?.email) {
+        const event = succeeded ? "EMAIL_PROCESSING_COMPLETED" : "EMAIL_PROCESSING_FAILED";
+        const subject = succeeded
+          ? `Restoration Completed: ${order?.orderNo ?? itemId}`
+          : `Restoration Failed: ${order?.orderNo ?? itemId}`;
+        const body = succeeded
+          ? `Your restoration item (${itemId}) has been successfully processed.`
+          : `Your restoration item (${itemId}) could not be processed. Please try again.`;
+        this.notificationService.sendEmail(user.email, subject, body);
+      }
+    } catch (err) {
+      logger.warn("Failed to send processing email notification", { itemId, error: err instanceof Error ? err.message : String(err) });
     }
   }
 }

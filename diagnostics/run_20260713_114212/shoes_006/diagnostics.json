@@ -1,0 +1,36 @@
+{
+  "image_name": "006.png",
+  "timestamp": "2026-07-13T11:44:11.095189",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\shoes_006\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\shoes_006\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\shoes_006\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\shoes_006\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\shoes_006\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\shoes_006\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\shoes_006\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\shoes_006\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\shoes_006\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\shoes_006\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\shoes_006\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\shoes_006\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.13982772827148438,
+    "edge_continuity": 0.2828369140625,
+    "connected_components": 1,
+    "largest_component_pct": 1.0,
+    "alpha_entropy": 0.1043029396000637,
+    "bg_leakage": 0.010089874267578125,
+    "mask_confidence": 0.9952926635742188,
+    "mask_smoothness": 0.9990884065628052,
+    "boundary_f1": 0.051289046514800166,
+    "rgba_integrity": 0.5,
+    "iqs": 24.477736299579927
+  },
+  "sha256": "8d7364b254c649a1cdd2073789a54b0750b42e2fbd0dc67ca495ddd06be74ce3",
+  "status": "FAIL"
+}

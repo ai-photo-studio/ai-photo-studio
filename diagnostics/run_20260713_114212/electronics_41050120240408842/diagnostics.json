@@ -1,0 +1,36 @@
+{
+  "image_name": "41050120240408842.png",
+  "timestamp": "2026-07-13T11:44:24.374147",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\electronics_41050120240408842\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.354584,
+    "edge_continuity": 0.0,
+    "connected_components": 20,
+    "largest_component_pct": 0.9874782844121562,
+    "alpha_entropy": 0.5168929627072463,
+    "bg_leakage": 0.196716,
+    "mask_confidence": 0.8743,
+    "mask_smoothness": 0.9978812336921692,
+    "boundary_f1": 0.236073821717844,
+    "rgba_integrity": 0.537096,
+    "iqs": 29.283210604724406
+  },
+  "sha256": "3ee0c7a69cc8eeca2128e060ee768f67dc46121a0fe5d36c0745d58f5e43c5d9",
+  "status": "FAIL"
+}

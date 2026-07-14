@@ -15,6 +15,7 @@ import { createPackageRouter } from "./routes/package.routes";
 import { createMonitoringRouter } from "./routes/monitoring.routes";
 import { createAdminAuthRouter } from "./routes/admin-auth.routes";
 import { createCreativeRouter } from "./routes/creative.routes";
+import { createRestorationRouter } from "./routes/restoration.routes";
 import { AuthController } from "./controllers/auth.controller";
 import { PackageController } from "./controllers/package.controller";
 import { MonitoringController } from "./controllers/monitoring.controller";
@@ -124,7 +125,21 @@ const bootstrap = async () => {
            { name: "creative-flat-lay", path: "/api/creative/flat-lay" },
            { name: "creative-lifestyle", path: "/api/creative/lifestyle" },
            { name: "creative-virtual-model", path: "/api/creative/virtual-model" },
-           { name: "creative-video-prep", path: "/api/creative/video-prep" }
+            { name: "creative-video-prep", path: "/api/creative/video-prep" },
+            { name: "restoration-create", path: "/api/restorations" },
+            { name: "restoration-read", path: "/api/restorations/:id" },
+            { name: "restoration-list", path: "/api/restorations" },
+            { name: "restoration-items", path: "/api/restorations/:id/items" },
+            { name: "restoration-quality-analysis", path: "/api/restorations/:id/items/:itemId/quality-analysis" },
+            { name: "restoration-preview", path: "/api/restorations/:id/items/:itemId/preview" },
+            { name: "restoration-approve", path: "/api/restorations/:id/items/:itemId/approve" },
+            { name: "restoration-download", path: "/api/restorations/:id/items/:itemId/download" },
+            { name: "restoration-process", path: "/api/restorations/:id/items/:itemId/process" },
+            { name: "admin-restorations", path: "/api/admin/restorations" },
+            { name: "admin-restoration-detail", path: "/api/admin/restorations/:id" },
+            { name: "admin-restoration-stats", path: "/api/admin/restoration-stats" },
+            { name: "admin-restoration-retry", path: "/api/admin/restorations/:id/retry" },
+            { name: "admin-restoration-item-retry", path: "/api/admin/restoration-items/:id/retry" }
         ]
       }
     });
@@ -148,6 +163,7 @@ const bootstrap = async () => {
   app.use("/api", createPackageRouter(config));
   app.use("/api", createMonitoringRouter(config));
   app.use("/api", createCreativeRouter(config));
+  app.use("/api", createRestorationRouter(config));
 
   startImageProcessingWorker(config);
   setInterval(() => {

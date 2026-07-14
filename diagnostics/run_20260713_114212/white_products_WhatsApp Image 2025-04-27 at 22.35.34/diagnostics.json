@@ -1,0 +1,36 @@
+{
+  "image_name": "WhatsApp Image 2025-04-27 at 22.35.34.jpeg",
+  "timestamp": "2026-07-13T11:43:11.082377",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2025-04-27 at 22.35.34\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.47141979166666664,
+    "edge_continuity": 0.0,
+    "connected_components": 1,
+    "largest_component_pct": 1.0,
+    "alpha_entropy": 0.3377444197393763,
+    "bg_leakage": 0.0683203125,
+    "mask_confidence": 0.9594697916666667,
+    "mask_smoothness": 0.9983035922050476,
+    "boundary_f1": 0.05735002640516348,
+    "rgba_integrity": 0.5187979166666667,
+    "iqs": 28.541158170927222
+  },
+  "sha256": "d108a2345413eef12900ce397221d58bf573fdc3a2d9c63209b50a5490ff47ce",
+  "status": "FAIL"
+}
