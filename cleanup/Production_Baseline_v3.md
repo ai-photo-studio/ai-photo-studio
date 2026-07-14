@@ -4,6 +4,8 @@
 **Last verified:** 2026-07-14 (Phase R6.3 audit via `gcloud run services list`)  
 **Phase R7 Production Hardening:** 2026-07-14 - Dead code removed, queue migration completed  
 **Phase R8.2 Cloudflare Pages Deployment:** 2026-07-14 17:03 UTC - Frontend deployed via Wrangler CLI  
+**Phase R8.3 Navigation Integration:** 2026-07-14 - Added "Restore Photos" navigation  
+**Phase R8.4 Bug Fix:** 2026-07-14 17:39 UTC - Fixed process button condition in RestoreOrderPage  
 **Project:** project-9540c255-c960-4fa0-a91  
 **Source:** Google Cloud Console / gcloud CLI
 
@@ -14,11 +16,11 @@
 **Project:** ai-photo-studio-frontend  
 **Account ID:** 2eb5eadd4af6da3d3a5f6c61d92437e4  
 **URL:** https://ai-photo-studio-frontend.pages.dev  
-**Deployment ID:** f2d0b950-267d-4972-bb78-ec6112e129da  
-**Deployment Timestamp:** 2026-07-14T17:03:12.160796Z  
+**Deployment ID:** 771546ce-0a93-444f-9162-732d2ef3f87a  
+**Deployment Timestamp:** 2026-07-14T17:39:28.873387Z  
 **Commit:** 07735b3a7d1aa3dfa8b312ed18871e2589ec457c (HEAD)  
 **Asset Hashes:**  
-- JS: index-DBgLwQro.js  
+- JS: index-0NUqkjsZ.js  
 - CSS: index-BcZYZg25.css  
 
 ### Route Verification
@@ -27,7 +29,7 @@
 | / | 200 |
 | /restore/new | 200 |
 | /restore/:id | 200 |
-| /history/restorations | 404 (client-side route, requires specific state) |
+| /history/restorations | 200 |
 | /admin/restorations | 200 |
 | /admin/restorations/:id | 200 |
 
