@@ -57,7 +57,11 @@ export function RestoreNewPage() {
   const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   const handleUpload = async () => {
-    if (!token || files.length === 0) return;
+    if (!token) {
+      setError("Please log in to upload images for restoration");
+      return;
+    }
+    if (files.length === 0) return;
     setUploading(true);
     setError(null);
     try {
