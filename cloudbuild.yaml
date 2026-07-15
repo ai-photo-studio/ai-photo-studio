@@ -23,5 +23,4 @@ images:
 - 'us-central1-docker.pkg.dev/project-9540c255-c960-4fa0-a91/ai-photo-studio-api/latest'
 options:
   logging: CLOUD_LOGGING_ONLY
-  timeout: 1200s
-  machineType: e2-highmem-4
+  timeout: 1800s
