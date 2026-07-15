@@ -55,20 +55,22 @@ const buildStorageKey = (params: UploadFileInput) => {
 const buildRetentionDate = (keyPrefix: UploadFileInput["keyPrefix"]) =>
   new Date(Date.now() + retentionByPrefix[keyPrefix] * 3600_000);
 
-const buildPublicUrl = (baseUrl: string, key: string) => `${baseUrl.replace(/\/$/, "")}/${key}`;
+const buildPublicUrl = (baseUrl: string, key: string) => `${baseUrl.trim().replace(/\/$/, "")}/${key}`;
 
 const buildR2Client = (config: AppConfig) => {
-  const endpoint = config.R2_ENDPOINT || `https://${config.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+  const endpoint = config.R2_ENDPOINT?.trim() || `https://${config.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
   return new S3Client({
     region: "auto",
     endpoint,
     credentials: {
-      accessKeyId: config.R2_ACCESS_KEY_ID,
-      secretAccessKey: config.R2_SECRET_ACCESS_KEY
+      accessKeyId: config.R2_ACCESS_KEY_ID?.trim() ?? "",
+      secretAccessKey: config.R2_SECRET_ACCESS_KEY?.trim() ?? ""
     },
     forcePathStyle: true
   });
 };
+
+const getBucketName = (config: AppConfig) => config.R2_BUCKET_NAME?.trim() ?? "";
 
 const toStorageError = (action: string, error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
@@ -164,9 +166,11 @@ class MockStorageProvider implements StorageProvider {
 
 class R2StorageProvider implements StorageProvider {
   private readonly client: S3Client;
+  private readonly bucketName: string;
 
   constructor(private readonly config: AppConfig) {
     this.client = buildR2Client(config);
+    this.bucketName = getBucketName(config);
   }
 
   async uploadFile(params: UploadFileInput): Promise<UploadFileResult> {
@@ -175,7 +179,7 @@ class R2StorageProvider implements StorageProvider {
     try {
       await this.client.send(
         new PutObjectCommand({
-          Bucket: this.config.R2_BUCKET_NAME,
+          Bucket: this.bucketName,
           Key: key,
           Body: params.body,
           ContentType: params.contentType
@@ -195,7 +199,7 @@ class R2StorageProvider implements StorageProvider {
       return await getSignedUrl(
         this.client,
         new GetObjectCommand({
-          Bucket: this.config.R2_BUCKET_NAME,
+          Bucket: this.bucketName,
           Key: key
         }),
         { expiresIn: 15 * 60 }
@@ -209,7 +213,7 @@ class R2StorageProvider implements StorageProvider {
     try {
       await this.client.send(
         new DeleteObjectCommand({
-          Bucket: this.config.R2_BUCKET_NAME,
+          Bucket: this.bucketName,
           Key: key
         })
       );
@@ -220,7 +224,7 @@ class R2StorageProvider implements StorageProvider {
   }
 
   async deleteExpiredFiles(): Promise<{ deleted: number }> {
-    logger.info("R2 storage cleanup noop", { bucket: this.config.R2_BUCKET_NAME });
+    logger.info("R2 storage cleanup noop", { bucket: this.bucketName });
     return { deleted: 0 };
   }
 
@@ -228,7 +232,7 @@ class R2StorageProvider implements StorageProvider {
     try {
       const output = await this.client.send(
         new GetObjectCommand({
-          Bucket: this.config.R2_BUCKET_NAME,
+          Bucket: this.bucketName,
           Key: key
         })
       );
