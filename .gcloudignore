@@ -49,3 +49,7 @@ deploy.bat
 deployment_snapshot.json
 validate_production.py
 IQS.md
+# Include source files (no longer copying dist)
+!apps/api/src/
+!apps/api/prisma/
+!apps/api/tsconfig.json
