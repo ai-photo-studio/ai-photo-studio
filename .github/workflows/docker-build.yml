@@ -1,0 +1,167 @@
+# =============================================================================
+# AI Photo Studio — AI Service Container Build & Publish
+# =============================================================================
+# Builds all 6 AI microservice Docker images and pushes to GitHub Container
+# Registry (GHCR). RunPod templates reference ghcr.io/ai-photo-studio/ai-*.
+#
+# Tags pushed per service:
+#   - latest
+#   - git SHA (short)
+#   - semantic version (from git tag, if present)
+# =============================================================================
+
+name: Build & Publish AI Services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/background-remover/**"
+      - "services/lama/**"
+      - "services/gfpgan/**"
+      - "services/codeformer/**"
+      - "services/ddcolor/**"
+      - "services/real-esrgan/**"
+      - ".github/workflows/docker-build.yml"
+  workflow_dispatch:
+    inputs:
+      force_build_all:
+        description: "Rebuild all images even if unchanged"
+        required: true
+        default: "false"
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  ORG: ai-photo-studio
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.changes.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - id: changes
+        shell: bash
+        run: |
+          FORCE_ALL="${{ github.event.inputs.force_build_all || 'false' }}"
+          if [ "$FORCE_ALL" = "true" ]; then
+            MATRIX='["bg-remover","lama","gfpgan","codeformer","ddcolor","real-esrgan"]'
+          else
+            CHANGED=$(git diff --name-only HEAD~1)
+            MATRIX='[]'
+            for svc in bg-remover lama gfpgan codeformer ddcolor real-esrgan; do
+              if echo "$CHANGED" | grep -q "^services/$svc/"; then
+                MATRIX=$(echo "$MATRIX" | python3 -c "import sys,json; m=json.load(sys.stdin); m.append('$svc'); print(json.dumps(m))")
+              fi
+            done
+            if [ -z "$(echo "$MATRIX" | python3 -c "import sys,json; m=json.load(sys.stdin); print(''.join(m))")" ]; then
+              MATRIX='[]'
+            fi
+          fi
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    name: Build & Push ${{ matrix.service }}
+    needs: [detect-changes]
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix)[0] != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.ORG }}/ai-${{ matrix.service }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.description=AI Photo Studio - ${{ matrix.service }} service
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          file: services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-runpod-templates:
+    name: Update RunPod Templates
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update templates via RunPod API
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          declare -A TEMPLATES
+          TEMPLATES["bg-remover"]="vqdtnpy7tz"
+          TEMPLATES["lama"]="frtl10x55s"
+          TEMPLATES["gfpgan"]="rl85g36pc4"
+          TEMPLATES["codeformer"]="i9zrd1x9tx"
+          TEMPLATES["ddcolor"]="l1qm5ldu2b"
+          TEMPLATES["real-esrgan"]="7sf3b8kyq9"
+
+          for svc in bg-remover lama gfpgan codeformer ddcolor real-esrgan; do
+            TEMPLATE_ID="${TEMPLATES[$svc]}"
+            IMAGE="ghcr.io/ai-photo-studio/ai-$svc:latest"
+            echo "Updating template $TEMPLATE_ID for $svc -> $IMAGE"
+            curl -s -X PATCH "https://rest.runpod.io/v1/templates/$TEMPLATE_ID" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"imageName\":\"$IMAGE\"}"
+          done
+
+  verify:
+    name: Verify Deployments
+    needs: [update-runpod-templates]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check RunPod endpoint status
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            "https://rest.runpod.io/v1/endpoints" | python3 -c "
+          import sys,json
+          endpoints = json.load(sys.stdin)
+          for ep in endpoints:
+              print(f'{ep[\"name\"]:30s} ver={ep[\"version\"]} workers={ep[\"workersMin\"]}/{ep[\"workersMax\"]}')
+          "

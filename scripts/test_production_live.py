@@ -13,7 +13,7 @@ import os
 
 PRODUCTION_URL = "https://ai-photo-studio-bg-remover-gpu-00066-dqs.us-central1.run.app"
 # Using the service URL from the gcloud output
-PRODUCTION_URL = "https://ai-photo-studio-bg-remover-gpu-mp3arpoi2a-uc.a.run.app"
+PRODUCTION_URL = "https://api.thannow.com"
 
 TEST_IMAGES = [
     "flower bouquet",

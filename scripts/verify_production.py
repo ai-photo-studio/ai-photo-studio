@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image
 import io
 
-PRODUCTION_URL = "https://ai-photo-studio-bg-remover-gpu-mp3arpoi2a-uc.a.run.app"
+PRODUCTION_URL = "https://api.thannow.com"
 
 # Map test names to actual files
 TEST_IMAGES = {

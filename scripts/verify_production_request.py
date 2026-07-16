@@ -14,7 +14,7 @@ from datetime import datetime
 from PIL import Image
 import requests
 
-PRODUCTION_URL = "https://ai-photo-studio-bg-remover-gpu-mp3arpoi2a-uc.a.run.app"
+PRODUCTION_URL = "https://api.thannow.com"
 TEST_IMAGE = "test images/WhatsApp Image 2024-01-16 at 07.09.23.jpeg"
 OUTPUT_DIR = Path("production_verification")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

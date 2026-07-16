@@ -26,8 +26,8 @@ except ImportError:
     ndimage = None
     sobel = None
 
-PRODUCTION_API_URL = "https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app"
-BACKGROUND_REMOVER_URL = "https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app"
+PRODUCTION_API_URL = "https://api.thannow.com"
+BACKGROUND_REMOVER_URL = "https://api.thannow.com/ai/bg-remover"
 TEST_IMAGES_DIR = Path(__file__).parent.parent / "test images"
 OUTPUT_DIR = Path(__file__).parent.parent / "validation_output"
 GALLERY_DIR = OUTPUT_DIR / "visual_gallery"

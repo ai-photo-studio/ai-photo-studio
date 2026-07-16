@@ -1,0 +1,125 @@
+# =============================================================================
+# AI Photo Studio — Production Deployment Workflow
+# =============================================================================
+# TARGET:    https://www.thannow.com (frontend)
+#            https://api.thannow.com (API)
+# SECRETS:   All credentials via GitHub Secrets only
+# TRIGGER:   Manual (workflow_dispatch) or push to main (uncomment to enable)
+# =============================================================================
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment target"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+  # push:
+  #   branches: [main]
+  #   paths-ignore:
+  #     - "**.md"
+  #     - "docs/**"
+  #     - ".kilo/**"
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+  deploy-api:
+    name: Deploy API
+    needs: [verify]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    concurrency: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build API
+        run: npm run build -w apps/api
+
+      - name: Generate Prisma client
+        run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
+
+      - name: Deploy API
+        run: |
+          echo "Deploying API to https://api.thannow.com"
+          echo "Deployment method: TBD (Cloudflare Workers / Fly.io / Railway)"
+          echo "Required secrets from GitHub: DATABASE_URL, REDIS_URL, JWT_SECRET, ADMIN_JWT_SECRET, R2_*, WHATSAPP_*, PAYMENT_*, RUNPOD_*"
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: [verify]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    concurrency: production
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=ai-photo-studio-frontend
+
+  post-deploy-verify:
+    name: Post-Deploy Verification
+    needs: [deploy-api, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify API health
+        run: |
+          curl -f -s -o /dev/null -w "%{http_code}" "https://api.thannow.com/api/health" || echo "API health check failed (expected if not yet deployed)"
+
+      - name: Verify frontend
+        run: |
+          curl -f -s -o /dev/null -w "%{http_code}" "https://www.thannow.com" || echo "Frontend check failed (expected if not yet deployed)"

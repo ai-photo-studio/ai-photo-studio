@@ -50,7 +50,7 @@ Cloud SQL
 | YOLO Detector | YOLOv8 | local-yolo | Ready |
 | Product Classifier | YOLOv8 | local | Ready |
 | Real-ESRGAN | ESRGAN | local-esrgan | Ready |
-| IC-Light | IC-Light | local-iclight | Ready |
+| IC-Light | IC-Light | local-iclight | Archived |
 
 ## Current Deployment Flow
 
@@ -85,9 +85,9 @@ Cloud SQL
 ## Phase 2B Image Enhancement Map
 
 - `services/real-esrgan/`: local enhancement service with `/health` and `/enhance`
-- `services/ic-light-lab/`: experimental relighting and shadow lab with `/health` and `/relight`
+- `services/ic-light-lab/`: experimental relighting and shadow lab (archived)
 - `apps/api/src/services/real-esrgan.service.ts`: enhancement client
-- `apps/api/src/services/ic-light-lab.service.ts`: experimental lab client
+- `apps/api/src/archive/ic-light-lab.service.ts`: experimental lab client (archived)
 - `apps/api/src/providers/local-yolo.provider.ts`: enhancement step after rembg
 - `apps/api/prisma/schema.prisma`: before/after score storage, enhancement delta, and processing stage
 - `apps/api/src/workers/image-processing.worker.ts`: persists enhancement comparison data
@@ -125,7 +125,7 @@ Cloud SQL
 - `apps/api/src/providers/provider.interface.ts`: provider types, capability matrix, provider metadata
 - `apps/api/src/providers/provider.factory.ts`: configuration-driven provider selection, fallback framework
 - `apps/api/src/providers/local-esrgan.provider.ts`: local ESRGAN provider implementation
-- `apps/api/src/providers/local-iclight.provider.ts`: local IC-Light provider implementation
+- `apps/api/src/archive/local-iclight.provider.ts`: local IC-Light provider implementation (archived)
 - `apps/api/prisma/schema.prisma`: `ProviderCostLog` model for cost tracking, `CreativeStudioJob` model for Phase 4
 - `apps/api/src/services/admin.service.ts`: provider diagnostics in job listings
 - `apps/web/src/pages/AdminJobsPage.tsx`: provider, duration, and quality diagnostics
@@ -136,7 +136,7 @@ Cloud SQL
 - `apps/api/src/services/background-remover.service.ts`: health endpoint for local-rembg
 - `apps/api/src/services/yolo-detector.service.ts`: health endpoint for local-yolo
 - `apps/api/src/services/real-esrgan.service.ts`: health endpoint for local-esrgan
-- `apps/api/src/services/ic-light-lab.service.ts`: health endpoint for local-iclight
+- `apps/api/src/archive/ic-light-lab.service.ts`: health endpoint for local-iclight (archived)
 - `apps/api/src/services/product-classifier.service.ts`: health endpoint and fallback classifier
 - `apps/api/src/services/service-health.types.ts`: health status types
 
@@ -191,20 +191,18 @@ Cloud SQL
 ## Background Remover Status
 
 - **Current:** local-rembg (AI_PROVIDER=local-rembg)
-- **Deployed:** ✅ https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app
-- **API URL:** https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app
+- **Migration Target:** RunPod Serverless GPU
+- **API URL:** https://api.thannow.com
 - **Model:** u2netp (512MB RAM, 1-3s latency)
-- **Image:** bg-remover:v6 (revision 00007-cgh)
-- **Fix:** rembg 2.0.62 API changed - use session.predict(pil_image) instead of session.process()
 - **Requirement:** BACKGROUND_API_URL configured
-- **Status:** ✅ Production ready
+- **Status:** ✅ Production ready (pending RunPod cutover)
 
 ## Production URLs
 
 | Service | URL |
 |---------|-----|
-| API | https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app |
-| Frontend | https://29105fb4.ai-photo-studio-frontend.pages.dev |
-| Database | ai-photo-studio-db |
-| Redis | ai-photo-studio-redis |
+| API | https://api.thannow.com |
+| Frontend | https://www.thannow.com |
+| Database | Neon PostgreSQL (pending provisioning) |
+| Redis | Upstash Redis (pending provisioning) |
 | R2 | ai-photo-studio-storage |

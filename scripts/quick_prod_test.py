@@ -6,7 +6,7 @@ import requests
 import time
 from pathlib import Path
 
-PRODUCTION_URL = "https://ai-photo-studio-bg-remover-gpu-mp3arpoi2a-uc.a.run.app"
+PRODUCTION_URL = "https://api.thannow.com"
 
 def test_image(img_path: Path) -> dict:
     """Test a single image"""

@@ -5,10 +5,16 @@
   "githubOwner": "ai-photo-studio",
   "expectedGitHubRepositoryUrl": "https://github.com/ai-photo-studio/ai-photo-studio.git",
   "expectedBranch": "main",
+  "productionDomains": {
+    "frontend": "https://www.thannow.com",
+    "api": "https://api.thannow.com"
+  },
   "cloudProvider": "gcp",
   "gcpProjectId": "project-9540c255-c960-4fa0-a91",
   "productionLock": true,
-  "migrationComplete": true,
+  "migrationInProgress": true,
+  "migrationPhase": "M3-deployment",
+  "migrationBlocker": "cloudflare-api-token",
   "railwayRemoved": true,
   "databaseProtection": {
     "enabled": true,
@@ -16,11 +22,48 @@
     "blockSchemaChanges": true,
     "requireUnlock": true
   },
+  "applicationFreeze": {
+    "enabled": true,
+    "activeSince": "2026-07-16",
+    "scope": "All feature development frozen. Infrastructure migration only.",
+    "allowedChanges": [
+      "Configuration updates for migration readiness",
+      "Environment variable reclassification",
+      "Build/deployment script replacement",
+      "GitHub Actions workflow preparation"
+    ],
+    "blockedChanges": [
+      "New business features",
+      "AI pipeline modifications",
+      "Payment logic changes",
+      "Database schema changes",
+      "Cloud Run service deletion"
+    ]
+  },
+  "targetInfrastructure": {
+    "compute": "Cloudflare Pages (frontend) + RunPod Serverless GPU (AI services)",
+    "database": "Neon PostgreSQL",
+    "cache": "Upstash Redis",
+    "storage": "Cloudflare R2",
+    "ci_cd": "GitHub Actions",
+    "frontendDomain": "www.thannow.com",
+    "apiDomain": "api.thannow.com"
+  },
   "cloudrun": {
     "project": "project-9540c255-c960-4fa0-a91",
     "region": "us-central1",
     "service": "ai-photo-studio-api",
-    "url": "https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app"
+    "url": "https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app",
+    "retirementStatus": "scheduled",
+    "retirementCriteria": [
+      "0% traffic to Cloud Run",
+      "No environment variable references to GCP",
+      "No provider references to GCP services",
+      "No worker references to GCP",
+      "No deployment script references",
+      "Replacement deployment healthy",
+      "Rollback verified"
+    ]
   },
   "cloudflare": {
     "accountEmail": "Wpaistudio@gmail.com",
@@ -28,12 +71,50 @@
     "accountName": "Wpaistudio@gmail.com's Account",
     "r2BucketName": "ai-photo-studio-storage",
     "pagesProjectName": "ai-photo-studio-frontend",
-    "pagesUrl": "https://ai-photo-studio-frontend.pages.dev"
+    "pagesUrl": "https://ai-photo-studio-frontend.pages.dev",
+    "pagesProductionUrl": "https://29105fb4.ai-photo-studio-frontend.pages.dev",
+    "pagesLiveStatus": "confirmed-200",
+    "apiLiveStatus": "confirmed-200",
+    "customDomain": "www.thannow.com",
+    "apiDomain": "api.thannow.com",
+    "zoneId": "REPLACE_WITH_ZONE_ID",
+    "apiTokenStatus": "user-token-verified",
+    "apiTokenHasR2Access": true,
+    "apiTokenHasPagesAccess": true,
+    "apiTokenHasDnsAccess": true,
+    "pagesProjectExists": "confirmed",
+    "pagesProjectId": "6c9f6608-8801-4abd-812e-5c4b8044d6c2",
+    "pagesLatestDeployment": "89934ef2-8e8c-4a48-8259-00272bcdf6a2",
+    "pagesLatestDeploymentUrl": "https://89934ef2.ai-photo-studio-frontend.pages.dev",
+    "pagesLatestDeploymentStatus": "success",
+    "pagesDeploymentLive": "http-200-confirmed",
+    "r2BucketConfirmed": "ai-photo-studio-storage",
+    "r2BucketCreated": "2026-06-29",
+    "thannowDnsZoneExists": false
   },
   "infrastructure": {
     "cloudSQL": "ai-photo-studio-db",
     "redis": "ai-photo-studio-redis",
-    "artifactRegistry": "ai-photo-studio-api"
+    "artifactRegistry": "ai-photo-studio-api",
+    "neonDatabase": "pending-provisioning",
+    "upstashRedis": "pending-provisioning",
+    "runpodEndpoints": "endpoint-mapping-ready"
+  },
+  "buildValidation": {
+    "typecheck": "passed-2026-07-16",
+    "apiBuild": "passed-2026-07-16",
+    "webBuild": "passed-2026-07-16",
+    "apiHealthLive": "confirmed-200",
+    "frontendLive": "confirmed-200"
+  },
+  "deploymentStatus": {
+    "frontendPages": "deployed-to-dev-url",
+    "frontendCustomDomain": "not-configured",
+    "apiCloudRun": "active-rollback",
+    "apiNewPlatform": "not-deployed",
+    "neonDatabase": "not-provisioned",
+    "upstashRedis": "not-provisioned",
+    "runpodEndpoints": "not-deployed"
   },
   "backgroundRemover": {
     "service": "ai-photo-studio-bg-remover",
@@ -42,14 +123,9 @@
     "model": "u2netp",
     "image": "bg-remover:v8",
     "revision": "ai-photo-studio-bg-remover-00011-x6z",
-    "fix": "rembg 2.0.62 API: session.predict(pil_image) instead of session.process()",
     "memory": "2Gi",
-    "cpu": "2"
-  },
-  "cloudRunJobs": {
-    "service": "ai-photo-studio-bg-remover-job",
-    "status": "configured",
-    "note": "Python Cloud Run Job for background removal with u2netp model"
+    "cpu": "2",
+    "migrationTarget": "RunPod Serverless GPU"
   },
   "protectedFiles": [
     "PROJECT_LOCK.json",
@@ -65,9 +141,134 @@
     "R2_SECRET_ACCESS_KEY",
     "R2_ACCOUNT_ID"
   ],
+  "futureSecrets": [
+    "NEON_DATABASE_URL",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "RUNPOD_API_KEY",
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_ACCOUNT_ID"
+  ],
+  "githubSecrets": {
+    "needed": [
+      "DATABASE_URL",
+      "REDIS_URL",
+      "JWT_SECRET",
+      "ADMIN_JWT_SECRET",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_ACCOUNT_ID",
+      "R2_PUBLIC_BASE_URL",
+      "WHATSAPP_VERIFY_TOKEN",
+      "WHATSAPP_ACCESS_TOKEN",
+      "WHATSAPP_PHONE_NUMBER_ID",
+      "PAYMENT_GATEWAY_NAME",
+      "PAYMENT_GATEWAY_BASE_URL",
+      "PAYMENT_GATEWAY_SECRET",
+      "CLOUDFLARE_API_TOKEN",
+      "CLOUDFLARE_ACCOUNT_ID",
+      "NEON_DATABASE_URL",
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN",
+      "RUNPOD_API_KEY",
+      "RUNPOD_BG_REMOVER_ENDPOINT",
+      "RUNPOD_LAMA_ENDPOINT",
+      "RUNPOD_GFPGAN_ENDPOINT",
+      "RUNPOD_CODEFORMER_ENDPOINT",
+      "RUNPOD_DDCOLOR_ENDPOINT",
+      "RUNPOD_REAL_ESRGAN_ENDPOINT"
+    ],
+    "status": "7-of-27-configured"
+  },
+  "githubSecretsUpdated": "2026-07-16T15:06:00Z",
   "aiProvider": {
     "current": "local-yolo",
+    "migrationTarget": "RunPod Serverless GPU",
     "note": "Active provider uses local pipeline: YOLO detector + background remover + Real-ESRGAN. BACKGROUND_API_URL configured."
   },
-  "protectedScopeProtocolVersion": "3.1.0"
+  "buildValidation": {
+    "typecheck": "passed-2026-07-16",
+    "apiBuild": "passed-2026-07-16",
+    "webBuild": "passed-2026-07-16",
+    "apiHealthLive": "confirmed-200",
+    "frontendLive": "confirmed-200"
+  },
+  "deploymentStatus": {
+    "frontendPages": "deployed-to-dev-url",
+    "frontendCustomDomain": "not-configured",
+    "apiCloudRun": "active-rollback",
+    "apiNewPlatform": "not-deployed",
+    "neonDatabase": "provisioned",
+    "neonProjectId": "delicate-violet-30698323",
+    "neonDatabaseName": "ai_photo_studio",
+    "neonRegion": "aws-us-east-1",
+    "neonPoolerEnabled": true,
+    "upstashRedis": "verified",
+    "upstashPongConfirmed": true,
+    "runpodEndpoints": "all-6-deployed",
+    "runpodTemplateImageSource": "ghcr.io/ai-photo-studio",
+    "runpodTemplateImageUpdated": true,
+    "runpodBgRemoverEndpointId": "a8htv0u9c7we5a",
+    "runpodBgRemoverGpu": "NVIDIA RTX 4000 Ada Generation",
+    "runpodLamaEndpointId": "0oqlkj2hjwcacj",
+    "runpodGfpganEndpointId": "00h6fg3oy458ml",
+    "runpodCodeformerEndpointId": "gohz91bvs1gvn1",
+    "runpodDdcolorEndpointId": "besuyv4w9ndg3l",
+    "runpodRealEsrganEndpointId": "do10pbme13b166",
+    "runpodGpuType": "NVIDIA RTX 4000 Ada Generation"
+  },
+  "m3Checklist": {
+    "cloudflareAccountApiToken": "verified-authenticates-correct-account",
+    "cloudflarePagesPermission": "verified",
+    "cloudflareDnsConfigured": false,
+    "cloudflarePagesDeployed": true,
+    "cloudflarePagesLatestDeployment": "89934ef2-8e8c-4a48-8259-00272bcdf6a2",
+    "cloudflareCustomDomain": false,
+    "githubSecretsSet": "23-of-27",
+    "deployWorkflowEnabled": false,
+    "neonProvisioned": true,
+    "upstashProvisioned": true,
+    "runpodBgRemoverDeployed": true,
+    "runpodBgRemoverTemplate": "vqdtnpy7tz",
+    "runpodLamaDeployed": true,
+    "runpodLamaTemplate": "frtl10x55s",
+    "runpodGfpganDeployed": true,
+    "runpodGfpganTemplate": "rl85g36pc4",
+    "runpodCodeformerDeployed": false,
+    "runpodCodeformerTemplate": "i9zrd1x9tx",
+    "runpodDdcolorDeployed": false,
+    "runpodDdcolorTemplate": "l1qm5ldu2b",
+    "runpodRealEsrganDeployed": false,
+    "runpodRealEsrganTemplate": "7sf3b8kyq9",
+    "envVarsConfigured": true,
+    "productionUrlsActive": false,
+    "buildValidated": true,
+    "typecheckPassed": true,
+    "rollbackVerified": true
+  },
+  "credentialVerification": {
+    "activeToken": "User API Token (cfut_***4216)",
+    "authAgainstAccount": "2eb5eadd4af6da3d3a5f6c61d92437e4",
+    "accountName": "Wpaistudio@gmail.com's Account",
+    "r2Access": "verified",
+    "pagesAccess": "verified",
+    "dnsAccess": "verified",
+    "r2AccessKeyId": "deb66ae1e3f11bf1c241291b533b1b73",
+    "r2SecretAccessKey": "***",
+    "r2BucketName": "ai-photo-studio-storage",
+    "r2BucketExists": true,
+    "r2BucketCreated": "2026-06-29",
+    "thannowDnsZone": "not-found",
+    "githubCliAuth": "verified",
+    "githubRepo": "ai-photo-studio/ai-photo-studio",
+    "githubSecretsBefore": 4,
+    "githubSecretsAfter": 7,
+    "updatedSecrets": [
+      "CLOUDFLARE_API_TOKEN",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY"
+    ]
+  },
+  "protectedScopeProtocolVersion": "3.2.0",
+  "infrastructureMigrationVersion": "1.0.0"
 }

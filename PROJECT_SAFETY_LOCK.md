@@ -36,15 +36,16 @@ This repository has a mandatory protection system to prevent accidental operatio
 ## Cloudflare Pages Deployment
 
 - Frontend project: `ai-photo-studio-frontend`
-- Production URL: `https://29105fb4.ai-photo-studio-frontend.pages.dev`
+- Pages URL: `https://ai-photo-studio-frontend.pages.dev`
+- Production URL: `https://www.thannow.com`
 - Account: `2eb5eadd4af6da3d3a5f6c61d92437e4` (`Wpaistudio@gmail.com`)
 - Separate from `hojaseeds`: do not modify, redeploy, relink, rename, or disturb
-- Frontend API binding: production builds use the Cloud Run API
+- API binding: production builds use `https://api.thannow.com`
 
 ## CORS Restriction
 
-The Cloud Run API returns `Access-Control-Allow-Origin: https://ai-photo-studio.pages.dev` for the dedicated frontend origin.
-Keep `ALLOWED_ORIGINS` restricted to the dedicated Pages project and do not widen it without a deliberate launch decision.
+The API returns `Access-Control-Allow-Origin: https://www.thannow.com` for the dedicated frontend origin.
+Keep `ALLOWED_ORIGINS` restricted to the production domain and do not widen it without a deliberate launch decision.
 
 ## Phase 3.0 - Infrastructure Migration
 
@@ -70,19 +71,19 @@ Railway has been completely removed. Protected Scope Protocol v3.2.0 applies.
 - Successfully built and deployed Python container to Artifact Registry
 
 **Environment Variables:**
-- `AI_PROVIDER=local-rembg` (configured in Cloud Run API)
-- `BACKGROUND_API_URL=https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app`
+- `AI_PROVIDER=local-rembg` (configured in API)
+- `BACKGROUND_API_URL=https://api.thannow.com/ai/bg-remover`
 
 **Deployment Status:**
-- API: `https://ai-photo-studio-api-mp3arpoi2a-uc.a.run.app` (deployed 2026-07-02, revision 00001-888)
-- Background Remover: `https://ai-photo-studio-bg-remover-mp3arpoi2a-uc.a.run.app` (deployed 2026-07-02, revision 00007-cgh)
+- API: `https://api.thannow.com` (target)
+- Background Remover: RunPod serverless endpoint (pending)
 
 **Model:** u2netp (512MB RAM, 1-5s processing)
 
 ## Phase 3.8 - Cloud Run Jobs Implementation
 
 **Architecture:**
-Cloudflare Pages → Cloud Run API → Cloud Tasks → Cloud Run Job → Background Remover → R2 → Result
+Cloudflare Pages → API (api.thannow.com) → RunPod Serverless GPU → R2 → Result
 
 **Model Selection:**
 - **u2netp** recommended for MVP: 512MB RAM, 1-3s latency, good quality
@@ -108,17 +109,17 @@ Cloudflare Pages → Cloud Run API → Cloud Tasks → Cloud Run Job → Backgro
 
 **Current Provider:** `local-rembg` with u2netp model (transparent PNG returned)
 
-## Phase 3.5 - Local Open Source AI Verification
+## Phase 3.5 - AI Provider Verification
 
 **Open Source AI Matrix:**
 
-| Service | Model | Health | Memory | Status |
-|---------|-------|--------|--------|--------|
-| background-remover | rembg (u2netp) | HEALTHY | 512Mi | Deployed |
-| yolo-detector | YOLOv8 | local | 512Mi | Ready |
-| real-esrgan | ESRGAN | local | 512Mi | Ready |
-| ic-light-lab | IC-Light | local | 1Gi | Ready |
-| product-classifier | YOLOv8 | local | 512Mi | Ready |
+| Service | Model | Health | Memory | Deploy Target |
+|---------|-------|--------|--------|--------------|
+| background-remover | rembg (u2netp) | HEALTHY | 512Mi | RunPod |
+| yolo-detector | YOLOv8 | local | 512Mi | RunPod |
+| real-esrgan | ESRGAN | local | 512Mi | RunPod |
+| ic-light-lab | IC-Light | local | 1Gi | RunPod |
+| product-classifier | YOLOv8 | local | 512Mi | RunPod |
 
 **Resource Comparison (Background Remover):**
 - Model: **u2netp** (deployed)

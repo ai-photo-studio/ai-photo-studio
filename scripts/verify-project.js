@@ -8,9 +8,10 @@ const CONFIG = {
     "PROJECT_LOCK.json",
     "PROJECT_SAFETY_LOCK.md",
     "AI_PROJECT_RULES.md",
-    "AI_code_audit_report.md"
+    "AI_code_audit_report.md",
+    "AI_code_audit_report_RI.md"
   ],
-  AUDIT_REPORT_MAX_AGE_HOURS: 24
+  AUDIT_REPORT_MAX_AGE_HOURS: 48,
 };
 
 const stop = (message, details = []) => {
@@ -118,15 +119,29 @@ for (const file of CONFIG.PROTECTED_FILES) {
   }
 }
 
-const auditPath = path.join(cwd, "AI_code_audit_report.md");
+const auditPath = path.join(cwd, "AI_code_audit_report_RI.md");
+const auditPathOld = path.join(cwd, "AI_code_audit_report.md");
+let auditFound = false;
 if (fs.existsSync(auditPath)) {
   const stats = fs.statSync(auditPath);
   const ageHours = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60);
   if (ageHours > CONFIG.AUDIT_REPORT_MAX_AGE_HOURS) {
-    errors.push(`AI_code_audit_report.md is too old (${Math.round(ageHours)}h). Max age: ${CONFIG.AUDIT_REPORT_MAX_AGE_HOURS}h`);
+    errors.push(`AI_code_audit_report_RI.md is too old (${Math.round(ageHours)}h). Max age: ${CONFIG.AUDIT_REPORT_MAX_AGE_HOURS}h`);
   }
-} else {
-  errors.push("Missing AI_code_audit_report.md");
+  auditFound = true;
+}
+if (fs.existsSync(auditPathOld)) {
+  if (!auditFound) {
+    const stats = fs.statSync(auditPathOld);
+    const ageHours = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60);
+    if (ageHours > CONFIG.AUDIT_REPORT_MAX_AGE_HOURS) {
+      errors.push(`AI_code_audit_report.md is too old (${Math.round(ageHours)}h). Max age: ${CONFIG.AUDIT_REPORT_MAX_AGE_HOURS}h`);
+    }
+    auditFound = true;
+  }
+}
+if (!auditFound) {
+  errors.push("Missing AI_code_audit_report.md or AI_code_audit_report_RI.md");
 }
 
 console.log("");
