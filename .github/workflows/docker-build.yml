@@ -108,8 +108,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: services/${{ matrix.service }}
-          file: services/${{ matrix.service }}/Dockerfile
+          context: ${{ matrix.service == 'bg-remover' && 'services/background-remover' || format('services/{0}', matrix.service) }}
+          file: ${{ matrix.service == 'bg-remover' && 'services/background-remover/Dockerfile' || format('services/{0}/Dockerfile', matrix.service) }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
