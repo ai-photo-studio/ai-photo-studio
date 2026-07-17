@@ -14,12 +14,12 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py ./
+COPY handlers ./handlers
 COPY providers ./providers
 COPY job.py ./
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
-
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# RunPod Serverless entry point (used when SERVERLESS=true)
+ENV SERVERLESS=true
+CMD ["sh", "-c", "if [ \"$SERVERLESS\" = \"true\" ] && python -c \"import runpod\" 2>/dev/null; then python handler.py; else uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1; fi"]

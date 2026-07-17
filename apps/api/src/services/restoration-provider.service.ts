@@ -2,6 +2,7 @@ import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import type { ServiceHealth } from "./service-health.types";
+import { runRunPodRequest } from "../providers/runpod.transport";
 
 export type RestorationServiceInput = {
   body: Buffer;
@@ -19,6 +20,10 @@ export type RestorationServiceOutput = {
   fileName: string;
 };
 
+const isRunPodEndpointId = (url: string): boolean => {
+  return url.length < 30 && !url.includes("://") && !url.includes(".");
+};
+
 const postImage = async (
   baseUrl: string,
   endpoint: string,
@@ -26,6 +31,11 @@ const postImage = async (
 ): Promise<RestorationServiceOutput> => {
   if (!baseUrl) {
     throw new AppError(`${endpoint} service is not configured`, 503, `${endpoint.toUpperCase().replace(/-/g, "_")}_UNAVAILABLE`);
+  }
+
+  // Route to RunPod if baseUrl is an endpoint ID
+  if (isRunPodEndpointId(baseUrl)) {
+    return runViaRunPod(baseUrl, endpoint, input);
   }
 
   const url = new URL(`${baseUrl.replace(/\/$/, "")}/${endpoint}`);
@@ -56,6 +66,36 @@ const postImage = async (
   const fileName = response.headers.get("x-file-name") || input.fileName || "output.png";
   return { body: Buffer.from(arrayBuffer), contentType, fileName };
 };
+
+async function runViaRunPod(
+  endpointId: string,
+  endpoint: string,
+  input: RestorationServiceInput
+): Promise<RestorationServiceOutput> {
+  const apiKey = process.env.RUNPOD_API_KEY || "";
+  if (!apiKey) {
+    throw new AppError("RunPod API key not configured", 503, "RUNPOD_API_KEY_MISSING");
+  }
+  const base64Image = input.body.toString("base64");
+  const runpodInput: Record<string, unknown> = {
+    image: `data:${input.contentType || "image/png"};base64,${base64Image}`,
+    content_type: input.contentType || "image/png",
+    file_name: input.fileName || "image.png",
+  };
+  // Add typed params for the RunPod handler
+  if (input.fidelity !== undefined) runpodInput.fidelity = input.fidelity;
+  if (input.denoise !== undefined) runpodInput.denoise = input.denoise;
+  if (input.scale !== undefined) runpodInput.scale = input.scale;
+  if (input.maskBase64) runpodInput.mask = input.maskBase64;
+
+  const result = await runRunPodRequest(apiKey, endpointId, runpodInput);
+  const outputB64 = result.image as string;
+  return {
+    body: Buffer.from(outputB64, "base64"),
+    contentType: (result.media_type as string) || "image/png",
+    fileName: (result.filename as string) || input.fileName || "output.png",
+  };
+}
 
 const checkHealth = async (baseUrl: string, serviceName: string): Promise<ServiceHealth> => {
   if (!baseUrl) {

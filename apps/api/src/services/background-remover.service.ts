@@ -2,6 +2,7 @@ import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import type { ServiceHealth } from "./service-health.types";
+import { runRunPodRequest } from "../providers/runpod.transport";
 
 export class BackgroundRemoverService {
   constructor(private readonly config: AppConfig) {}
@@ -14,6 +15,11 @@ export class BackgroundRemoverService {
     const baseUrl = this.config.BACKGROUND_API_URL.trim();
     if (!baseUrl) {
       throw new AppError("Background remover service is not configured", 503, "BACKGROUND_API_UNAVAILABLE");
+    }
+
+    // Route to RunPod if the URL looks like an endpoint ID
+    if (baseUrl.length < 30 && !baseUrl.includes("://") && !baseUrl.includes(".")) {
+      return this.runViaRunPod(input, baseUrl);
     }
 
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}/product-transparent`, {
@@ -38,6 +44,28 @@ export class BackgroundRemoverService {
       body: Buffer.from(arrayBuffer),
       contentType,
       fileName: input.fileName || "product-transparent.png"
+    };
+  }
+
+  private async runViaRunPod(
+    input: { body: Buffer; contentType?: string; fileName?: string },
+    endpointId: string
+  ): Promise<{ body: Buffer; contentType: string; fileName: string }> {
+    const apiKey = process.env.RUNPOD_API_KEY || "";
+    if (!apiKey) {
+      throw new AppError("RunPod API key not configured", 503, "RUNPOD_API_KEY_MISSING");
+    }
+    const base64Image = input.body.toString("base64");
+    const result = await runRunPodRequest(apiKey, endpointId, {
+      image: `data:${input.contentType || "image/png"};base64,${base64Image}`,
+      output: "transparent",
+      content_type: input.contentType || "image/png",
+    });
+    const outputB64 = result.image as string;
+    return {
+      body: Buffer.from(outputB64, "base64"),
+      contentType: (result.media_type as string) || "image/png",
+      fileName: (result.filename as string) || input.fileName || "product-transparent.png",
     };
   }
 

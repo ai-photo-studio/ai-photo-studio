@@ -2,6 +2,7 @@ import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import type { ServiceHealth } from "./service-health.types";
+import { runRunPodRequest } from "../providers/runpod.transport";
 
 export type RealEsrganEnhanceInput = {
   body: Buffer;
@@ -30,6 +31,11 @@ export class RealEsrganService {
         contentType: input.contentType || "image/png",
         fileName: input.fileName || "enhanced.png"
       };
+    }
+
+    // Route to RunPod if baseUrl is an endpoint ID
+    if (baseUrl.length < 30 && !baseUrl.includes("://") && !baseUrl.includes(".")) {
+      return this.runViaRunPod(input, baseUrl);
     }
 
     const url = new URL(`${baseUrl.replace(/\/$/, "")}/enhance`);
@@ -65,6 +71,31 @@ export class RealEsrganService {
       body: Buffer.from(arrayBuffer),
       contentType,
       fileName
+    };
+  }
+
+  private async runViaRunPod(
+    input: RealEsrganEnhanceInput,
+    endpointId: string
+  ): Promise<RealEsrganEnhanceOutput> {
+    const apiKey = process.env.RUNPOD_API_KEY || "";
+    if (!apiKey) {
+      throw new AppError("RunPod API key not configured", 503, "RUNPOD_API_KEY_MISSING");
+    }
+    const base64Image = input.body.toString("base64");
+    const result = await runRunPodRequest(apiKey, endpointId, {
+      image: `data:${input.contentType || "image/png"};base64,${base64Image}`,
+      content_type: input.contentType || "image/png",
+      file_name: input.fileName || "product.png",
+      scale: input.scale ?? 2.0,
+      sharpen: input.sharpen ?? 0.55,
+      denoise: input.denoise ?? 0.3,
+    });
+    const outputB64 = result.image as string;
+    return {
+      body: Buffer.from(outputB64, "base64"),
+      contentType: (result.media_type as string) || "image/png",
+      fileName: (result.filename as string) || input.fileName || "enhanced.png",
     };
   }
 
