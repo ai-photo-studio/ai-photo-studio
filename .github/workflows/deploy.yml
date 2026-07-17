@@ -3,6 +3,7 @@
 # =============================================================================
 # TARGET:    https://www.thannow.com (frontend)
 #            https://api.thannow.com (API)
+# PLATFORM:  Cloud Run (backend API)
 # SECRETS:   All credentials via GitHub Secrets only
 # TRIGGER:   Manual (workflow_dispatch) or push to main (uncomment to enable)
 # =============================================================================
@@ -30,6 +31,8 @@ on:
 
 env:
   NODE_VERSION: "24"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/ai-api
 
 jobs:
   verify:
@@ -51,34 +54,73 @@ jobs:
       - name: Lint
         run: npm run lint
 
-  deploy-api:
-    name: Deploy API
+  build-and-push:
+    name: Build & Push API Image
     needs: [verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/ai-api
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-api:
+    name: Deploy API to Cloud Run
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
     concurrency: production
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build API
-        run: npm run build -w apps/api
-
       - name: Generate Prisma client
         run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
 
-      - name: Deploy API
-        run: |
-          echo "Deploying API to https://api.thannow.com"
-          echo "Deployment method: TBD (Cloudflare Workers / Fly.io / Railway)"
-          echo "Required secrets from GitHub: DATABASE_URL, REDIS_URL, JWT_SECRET, ADMIN_JWT_SECRET, R2_*, WHATSAPP_*, PAYMENT_*, RUNPOD_*"
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v0
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID || 'project-9540c255-c960-4fa0-a91' }}
+          service_name: ai-photo-studio-api
+          image: ${{ env.REGISTRY }}/${{ github.repository }}/ai-api:latest
+          region: us-central1
+          deploy_producer: true
+          allow_unauthenticated: true
+          ingress: all
+          memory: 512Mi
+          cpu: 1
+          concurrency: 80
+          min_instances: 0
+          max_instances: 10
 
   deploy-frontend:
     name: Deploy Frontend
@@ -118,8 +160,8 @@ jobs:
     steps:
       - name: Verify API health
         run: |
-          curl -f -s -o /dev/null -w "%{http_code}" "https://api.thannow.com/api/health" || echo "API health check failed (expected if not yet deployed)"
+          curl -f -s -o /dev/null -w "%{http_code}" "https://api.thannow.com/api/health" || echo "API health check failed"
 
       - name: Verify frontend
         run: |
-          curl -f -s -o /dev/null -w "%{http_code}" "https://www.thannow.com" || echo "Frontend check failed (expected if not yet deployed)"
+          curl -f -s -o /dev/null -w "%{http_code}" "https://www.thannow.com" || echo "Frontend check failed"
