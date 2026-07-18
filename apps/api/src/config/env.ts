@@ -141,14 +141,20 @@ const envSchema = z
           message: "BACKGROUND_API_URL is required when AI_PROVIDER uses the local pipeline"
         });
       } else {
-        try {
-          new URL(cfg.BACKGROUND_API_URL);
-        } catch {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["BACKGROUND_API_URL"],
-            message: "BACKGROUND_API_URL must be a valid URL"
-          });
+        // Accept URLs (http/https) or RunPod endpoint IDs (short, no ://, no .)
+        const isRunPodEndpointId = cfg.BACKGROUND_API_URL.length < 30
+          && !cfg.BACKGROUND_API_URL.includes("://")
+          && !cfg.BACKGROUND_API_URL.includes(".");
+        if (!isRunPodEndpointId) {
+          try {
+            new URL(cfg.BACKGROUND_API_URL);
+          } catch {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["BACKGROUND_API_URL"],
+              message: "BACKGROUND_API_URL must be a valid URL or a RunPod endpoint ID"
+            });
+          }
         }
       }
 
