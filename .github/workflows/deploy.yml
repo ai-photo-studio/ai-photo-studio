@@ -48,6 +48,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate Prisma client
+        run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
+
       - name: Type check
         run: npm run typecheck
 
