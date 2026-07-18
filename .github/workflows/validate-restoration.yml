@@ -3,11 +3,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - .github/workflows/validate-restoration.yml
-      - .github/workflows/docker-build.yml
-      - services/restoration/**
-      - services/background-remover/**
 
 jobs:
   validate:
