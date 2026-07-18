@@ -8,5 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Test Python
-        run: python3 -c "print('hello')"
+      - name: Test Python multiline
+        run: |
+          python3 -c "print('hello')"
