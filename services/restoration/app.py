@@ -630,16 +630,16 @@ async def analyze(request: Request):
 
 
 @app.on_event("startup")
-async def load_models():
-    logger.info(f"Loading AI models on device: {MODEL_DEVICE}")
+async def startup():
+    logger.info(f"Restoration endpoint starting on device: {MODEL_DEVICE}")
+    logger.info("Models will load lazily on first restore request (ModelCache pattern)")
     
-    _load_lama_model()
-    _load_gfpgan_model()
-    _load_codeformer_model()
-    _load_ddcolor_model()
-    _load_realesrgan_model()
-    
-    logger.info("Model loading complete")
+    import torch
+    if torch.cuda.is_available():
+        logger.info(f"CUDA available: {torch.cuda.get_device_name(0)}")
+        logger.info(f"VRAM total: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+    else:
+        logger.info("CUDA not available — running on CPU")
 
 
 @app.get("/debug/models")
