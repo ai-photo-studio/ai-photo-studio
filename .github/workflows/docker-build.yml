@@ -201,10 +201,25 @@ jobs:
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
-          curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
-            "https://rest.runpod.io/v1/endpoints" | python3 -c "
-          import sys,json
-          endpoints = json.load(sys.stdin)
-          for ep in endpoints:
-              print(f'{ep[\"name\"]:30s} ver={ep[\"version\"]} workers={ep[\"workersMin\"]}/{ep[\"workersMax\"]}')
-          "
+          echo "=== RunPod Endpoint Status ==="
+          ENDPOINTS=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "https://rest.runpod.io/v1/endpoints")
+          for ep in $(echo "$ENDPOINTS" | jq -r '.[] | @base64'); do
+            _jq() { echo ${ep} | base64 -d | jq -r ${1}; }
+            printf "%-30s ver=%-3s workers=%s/%s\n" "$(_jq '.name')" "$(_jq '.version')" "$(_jq '.workersMin')" "$(_jq '.workersMax')"
+          done
+
+          echo ""
+          echo "=== Freezing legacy restoration endpoints (workersMax=0) ==="
+          LEGACY=("ai-lama" "ai-gfpgan" "ai-codeformer" "ai-ddcolor" "ai-real-esrgan")
+          for name in "${LEGACY[@]}"; do
+            EP_ID=$(echo "$ENDPOINTS" | jq -r ".[] | select(.name == \"$name\") | .id")
+            if [ -n "$EP_ID" ]; then
+              echo "Freezing $name ($EP_ID)..."
+              curl -s -X PATCH "https://rest.runpod.io/v1/endpoints/$EP_ID" \
+                -H "Authorization: Bearer $RUNPOD_API_KEY" \
+                -H "Content-Type: application/json" \
+                -d '{"workersMin":0,"workersMax":0}'
+              echo ""
+            fi
+          done
+          echo "Legacy endpoints frozen."
