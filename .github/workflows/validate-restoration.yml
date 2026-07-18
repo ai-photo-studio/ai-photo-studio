@@ -1,6 +1,10 @@
 name: Validate Unified Restoration Endpoint
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/validate-restoration.yml"
 
 jobs:
   validate:
