@@ -1,8 +1,6 @@
 name: Validate Unified Restoration Endpoint
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   validate:
