@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
+    wget \
     libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
@@ -12,7 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py handler.py ./
+COPY app.py handler.py download_checkpoints.sh ./
+
+# Download model checkpoints at build time so they're baked into the image
+RUN mkdir -p /models && bash download_checkpoints.sh
 
 ENV MODEL_DEVICE=cuda
 ENV MODEL_CACHE_DIR=/models
@@ -25,7 +29,7 @@ ENV REALESRGAN_CHECKPOINT=/models/RealESRGAN_x4.pth
 RUN mkdir -p /models && useradd -m -u 1000 appuser && chown -R appuser:appuser /app /models
 USER appuser
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 EXPOSE 8000
