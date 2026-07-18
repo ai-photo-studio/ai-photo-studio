@@ -162,7 +162,7 @@ jobs:
                 "name": "ai-restoration",
                 "imageName": "ghcr.io/ai-photo-studio/ai-restoration:latest",
                 "containerDiskInGb": 50,
-                "startCommand": "uvicorn app:app --host 0.0.0.0 --port 8000"
+                "dockerStartCmd": ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
               }')
             echo "Template response: $TEMPLATE_RESP"
             TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
