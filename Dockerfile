@@ -11,7 +11,7 @@ WORKDIR /app
 COPY apps/api/prisma ./apps/api/prisma
 RUN npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
 COPY apps/api/src ./apps/api/src
-RUN ./node_modules/.bin/tsc -p apps/api/tsconfig.json
+RUN node apps/api/node_modules/.bin/tsc -p apps/api/tsconfig.json
 WORKDIR /app/apps/api
 RUN npm install --production
 WORKDIR /app
