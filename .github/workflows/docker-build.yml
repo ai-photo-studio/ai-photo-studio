@@ -185,7 +185,7 @@ jobs:
               curl -s -X POST "https://rest.runpod.io/v1/endpoints" \
                 -H "Authorization: Bearer $RUNPOD_API_KEY" \
                 -H "Content-Type: application/json" \
-                -d "{\"name\":\"unified-restoration\",\"templateId\":\"$RESTORATION_TEMPLATE_ID\",\"gpuTypeIds\":[\"NVIDIA RTX 4000 Ada Generation\"],\"minWorkers\":0,\"maxWorkers\":1}"
+                -d "{\"name\":\"unified-restoration\",\"templateId\":\"$RESTORATION_TEMPLATE_ID\",\"gpuTypeIds\":[\"NVIDIA RTX 4000 Ada Generation\"],\"workersMin\":0,\"workersMax\":1}"
             fi
           fi
 
