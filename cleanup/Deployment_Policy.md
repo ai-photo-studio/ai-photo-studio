@@ -2,8 +2,43 @@
 
 **Project:** project-9540c255-c960-4fa0-a91
 **Effective:** 2026-07-13
-**Phase R7 Update:** 2026-07-14 - Dead code removed, queue migration completed
+**Phase OPS-01A Update:** 2026-07-18 — Production topology registry, retired services documented
 **Enforced by:** CI/CD automation + cleanup_phase1.sh after every successful deploy.
+
+---
+
+## 0. PRODUCTION TOPOLOGY REGISTRY
+
+### ACTIVE Services
+
+| Service | Kind | Location | Managed By | Recovery |
+|---------|------|----------|------------|----------|
+| `ai-photo-studio-api` | Cloud Run | us-central1 | `deploy.yml` | Redeploy via GitHub Actions |
+| `unified-restoration` (`3z633s11yn4n8q`) | RunPod serverless | RunPod | `docker-build.yml` verify step | Redeploy via `docker-build.yml` |
+| `ai-bg-remover` (`a8htv0u9c7we5a`) | RunPod serverless | RunPod | `docker-build.yml` verify step | Redeploy via `docker-build.yml` |
+| `ai-photo-studio-frontend` | Cloudflare Pages | Cloudflare | `deploy.yml` | Redeploy via GitHub Actions |
+| `ai-photo-studio-storage` (R2) | Cloudflare R2 | Cloudflare | Manual | Multi-region replication |
+| `ai-photo-studio-db` | Cloud SQL (PostgreSQL) | us-central1 | Manual | Point-in-time recovery |
+| neon-pooler | Neon PostgreSQL | aws-us-east-1 | Manual | Provision via Neon dashboard |
+| upstash-redis | Upstash Redis | us-east-1 | Manual | Provision via Upstash dashboard |
+| GitHub Actions CI/CD | GitHub | github.com | Repository config | Re-run failed workflow |
+
+### RETIRED Services
+
+| Service | Kind | Former Location | Retired Reason | Recovery Procedure |
+|---------|------|----------------|----------------|-------------------|
+| `ai-lama` (`0oqlkj2hjwcacj`) | RunPod endpoint | RunPod | Replaced by unified-restoration | Recreate via `docker-build.yml` (template `frtl10x55s`) |
+| `ai-gfpgan` (`00h6fg3oy458ml`) | RunPod endpoint | RunPod | Replaced by unified-restoration | Recreate via `docker-build.yml` (template `rl85g36pc4`) |
+| `ai-codeformer` (`gohz91bvs1gvn1`) | RunPod endpoint | RunPod | Replaced by unified-restoration | Recreate via `docker-build.yml` (template `i9zrd1x9tx`) |
+| `ai-ddcolor` (`besuyv4w9ndg3l`) | RunPod endpoint | RunPod | Replaced by unified-restoration | Recreate via `docker-build.yml` (template `l1qm5ldu2b`) |
+| `ai-real-esrgan` (`do10pbme13b166`) | RunPod endpoint | RunPod | Replaced by unified-restoration | Recreate via `docker-build.yml` (template `7sf3b8kyq9`) |
+| `ai-photo-studio-lama` | Cloud Run service | us-central1 | Replaced by unified-restoration | Redeploy from `services/lama/` |
+| `ai-photo-studio-gfpgan` | Cloud Run service | us-central1 | Replaced by unified-restoration | Redeploy from `services/gfpgan/` |
+| `ai-photo-studio-codeformer` | Cloud Run service | us-central1 | Replaced by unified-restoration | Redeploy from `services/codeformer/` |
+| `ai-photo-studio-ddcolor` | Cloud Run service | us-central1 | Replaced by unified-restoration | Redeploy from `services/ddcolor/` |
+| `ai-photo-studio-real-esrgan` | Cloud Run service | us-central1 | Replaced by unified-restoration | Redeploy from `services/real-esrgan/` |
+| `gpu-research-service` | Cloud Run service | us-east4 | Research project, not production | Redeploy from gpu-research sources |
+| `ai-photo-studio-bg-remover-gpu-us-east4` | Cloud Run service | us-east4 | Secondary region, not in use | Redeploy from `services/background-remover/` |
 
 ---
 
