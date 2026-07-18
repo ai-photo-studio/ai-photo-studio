@@ -223,3 +223,26 @@ jobs:
             fi
           done
           echo "Legacy endpoints frozen."
+
+          echo ""
+          echo "=== Restarting unified-restoration endpoint to pick up new image ==="
+          # Scale to 0 to kill old worker, then back to 1 for new image
+          RESTORATION_ID=$(echo "$ENDPOINTS" | jq -r '.[] | select(.name | test("unified"; "i")) | .id | select(. != null)' | head -1)
+          if [ -n "$RESTORATION_ID" ]; then
+            echo "Scaling $RESTORATION_ID to 0..."
+            curl -s -X PATCH "https://rest.runpod.io/v1/endpoints/$RESTORATION_ID" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"workersMin":0,"workersMax":0}'
+            echo ""
+            sleep 10
+            echo "Scaling $RESTORATION_ID to 1..."
+            curl -s -X PATCH "https://rest.runpod.io/v1/endpoints/$RESTORATION_ID" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"workersMin":0,"workersMax":1}'
+            echo ""
+            echo "Unified restoration endpoint restarted with new image."
+          else
+            echo "unified-restoration endpoint not found."
+          fi
