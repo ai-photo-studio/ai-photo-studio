@@ -8,10 +8,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Test Python simple
-        run: |
-          python3 -c "
-import json
-d = {'status': 'test'}
-print('Status:', d.get('status', '?'))
-"
+      - name: Test Python
+        run: python3 -c "print('hello')"
