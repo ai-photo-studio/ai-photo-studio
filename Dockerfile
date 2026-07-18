@@ -23,6 +23,6 @@ EXPOSE ${PORT:-8080}
 ENV NODE_ENV=production
 ENV SKIP_MIGRATIONS=true
 ENV PORT=8080
-CMD ["node", "dist/index.js"]
+CMD ["node", "apps/api/dist/index.js"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:${PORT:-8080}/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
