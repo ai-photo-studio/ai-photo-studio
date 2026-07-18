@@ -1,0 +1,14 @@
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pillow>=10.0.0
+python-multipart>=0.0.6
+numpy>=1.24.0
+torch>=2.0.0
+torchvision>=0.15.0
+einops>=0.6.0
+gfpgan>=1.3.0
+codeformer>=0.1.0
+realesrgan>=0.3.0
+lama>=0.1.0
+ddcolor>=0.1.0
+runpod>=1.7.3

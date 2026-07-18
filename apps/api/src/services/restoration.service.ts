@@ -5,8 +5,7 @@ import { createImageProvider } from "../providers/provider.factory";
 import type { ImageProvider, ProcessImageInput } from "../providers/provider.interface";
 import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
-import { RestorationInpaintService, RestorationGfpganService, RestorationCodeformerService, RestorationDdcolorService } from "./restoration-provider.service";
-import { RealEsrganService } from "./real-esrgan.service";
+import { UnifiedRestorationService } from "./restoration-provider.service";
 import { SubscriptionService } from "./subscription.service";
 import { NotificationService } from "./notification.service";
 
@@ -63,22 +62,14 @@ const classifyImageCategory = (isBw: boolean, hasFaces: boolean, faceCount: numb
 export class RestorationService {
   private readonly storage: StorageService;
   private readonly provider: ImageProvider;
-  private readonly inpaintService: RestorationInpaintService;
-  private readonly gfpganService: RestorationGfpganService;
-  private readonly codeformerService: RestorationCodeformerService;
-  private readonly ddcolorService: RestorationDdcolorService;
-  private readonly esrganService: RealEsrganService;
+  private readonly restorationService: UnifiedRestorationService;
   private readonly subscriptionService: SubscriptionService;
   private readonly notificationService: NotificationService;
 
   constructor(private readonly config: AppConfig) {
     this.storage = new StorageService(config);
     this.provider = createImageProvider(config);
-    this.inpaintService = new RestorationInpaintService(config);
-    this.gfpganService = new RestorationGfpganService(config);
-    this.codeformerService = new RestorationCodeformerService(config);
-    this.ddcolorService = new RestorationDdcolorService(config);
-    this.esrganService = new RealEsrganService(config);
+    this.restorationService = new UnifiedRestorationService(config);
     this.subscriptionService = new SubscriptionService();
     this.notificationService = new NotificationService();
   }
@@ -298,42 +289,30 @@ export class RestorationService {
 
     let processedBuffer = original.body;
     let processedContentType = item.mimeType || "image/jpeg";
-    const providersUsed: string[] = [];
+    let providersUsed: string[] = [];
     const stageTimings: Record<string, number> = {};
     let totalDurationMs = 0;
 
-    const runStage = async (name: string, stage: string, fn: () => Promise<{ body: Buffer; contentType: string }>) => {
-      const start = Date.now();
-      await prisma.restorationItem.update({
-        where: { id: itemId }, data: { processingStage: stage }
-      });
-      try {
-        const result = await fn();
-        processedBuffer = result.body;
-        processedContentType = result.contentType;
-        providersUsed.push(name);
-        logger.info(`${name} completed for restoration item`, { itemId, durationMs: Date.now() - start });
-      } catch (err) {
-        logger.warn(`${name} failed for restoration item, continuing`, { itemId, error: err instanceof Error ? err.message : String(err) });
-      }
-      const elapsed = Date.now() - start;
-      stageTimings[name] = elapsed;
-      totalDurationMs += elapsed;
-    };
+    const start = Date.now();
+    await prisma.restorationItem.update({
+      where: { id: itemId },
+      data: { processingStage: "RESTORATION_PROCESSING" }
+    });
 
-    await runStage("lama", "RESTORATION_INPAINT", async () => this.inpaintService.inpaint(input));
-    await runStage("gfpgan", "RESTORATION_FACE", async () => this.gfpganService.enhance({
-      ...input, body: processedBuffer, contentType: processedContentType
-    }));
-    await runStage("codeformer", "RESTORATION_FACE", async () => this.codeformerService.enhance({
-      ...input, body: processedBuffer, contentType: processedContentType
-    }));
-    await runStage("ddcolor", "RESTORATION_COLORIZE", async () => this.ddcolorService.colorize({
-      ...input, body: processedBuffer, contentType: processedContentType
-    }));
-    await runStage("real-esrgan", "RESTORATION_UPSCALE", async () => this.esrganService.enhance({
-      body: processedBuffer, contentType: processedContentType, fileName: input.fileName
-    }));
+    try {
+      const result = await this.restorationService.restore(input);
+      processedBuffer = result.body;
+      processedContentType = result.contentType;
+      providersUsed = result.processingStages || ["restoration"];
+      logger.info("Restoration completed via single endpoint", { itemId, stages: providersUsed });
+    } catch (err) {
+      logger.error("Restoration failed", { itemId, error: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
+
+    const elapsed = Date.now() - start;
+    stageTimings["restoration"] = elapsed;
+    totalDurationMs = elapsed;
 
     const processedUpload = await this.storage.uploadFile({
       keyPrefix: "finals",
@@ -367,7 +346,7 @@ export class RestorationService {
     }
 
     for (const [name, elapsed] of Object.entries(stageTimings)) {
-      const costTypeMap: Record<string, string> = { lama: "RESTORATION_INPAINT", gfpgan: "RESTORATION_FACE", codeformer: "RESTORATION_FACE", ddcolor: "RESTORATION_COLORIZE", "real-esrgan": "RESTORATION_UPSCALE" };
+      const costTypeMap: Record<string, string> = { restoration: "RESTORATION_PROCESSING" };
       try {
         await prisma.providerCostLog.create({
           data: {
@@ -408,7 +387,6 @@ export class RestorationService {
     try {
       const user = order?.userId ? await prisma.user.findUnique({ where: { id: order.userId } }) : null;
       if (user?.email) {
-        const event = succeeded ? "EMAIL_PROCESSING_COMPLETED" : "EMAIL_PROCESSING_FAILED";
         const subject = succeeded
           ? `Restoration Completed: ${order?.orderNo ?? itemId}`
           : `Restoration Failed: ${order?.orderNo ?? itemId}`;
