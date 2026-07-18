@@ -22,7 +22,7 @@ ENV CODEFORMER_CHECKPOINT=/models/codeformer.pth
 ENV DDCOLOR_CHECKPOINT=/models/ddcolor.pth
 ENV REALESRGAN_CHECKPOINT=/models/RealESRGAN_x4.pth
 
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app /models
+RUN mkdir -p /models && useradd -m -u 1000 appuser && chown -R appuser:appuser /app /models
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
