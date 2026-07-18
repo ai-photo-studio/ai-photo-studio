@@ -1,10 +1,8 @@
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+FROM python:3.11-slim
 
-# Install Python 3.11 and build tools
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    python3-dev \
     curl \
     git \
     wget \
@@ -12,21 +10,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     g++ \
     gcc \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/python3 /usr/bin/python
-
-WORKDIR /app
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-# Install PyTorch with CUDA from the official PyTorch index
+# Pre-install torch from the PyTorch CUDA index (avoids CUDA toolkit pip package bloat)
+# Then install remaining packages which depend on basicsr
 RUN pip install --no-cache-dir \
-    torch torchvision \
-    --index-url https://download.pytorch.org/whl/cu124
-RUN pip install --no-cache-dir -r requirements.txt
+    torch==2.5.1 torchvision==0.20.1 \
+    --index-url https://download.pytorch.org/whl/cu124 && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY app.py handler.py download_checkpoints.sh ./
 
-# Download model checkpoints at build time
+# Download model checkpoints at build time so they're baked into the image
 RUN mkdir -p /models && bash download_checkpoints.sh
 
 ENV MODEL_DEVICE=cuda
@@ -36,7 +33,6 @@ ENV GFPGAN_CHECKPOINT=/models/GFPGAN.pth
 ENV CODEFORMER_CHECKPOINT=/models/codeformer.pth
 ENV DDCOLOR_CHECKPOINT=/models/ddcolor.pth
 ENV REALESRGAN_CHECKPOINT=/models/RealESRGAN_x4.pth
-ENV CUDA_HOME=/usr/local/cuda
 
 RUN mkdir -p /models && useradd -m -u 1000 appuser && chown -R appuser:appuser /app /models
 USER appuser
