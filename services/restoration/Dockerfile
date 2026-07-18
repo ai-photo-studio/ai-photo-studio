@@ -33,6 +33,8 @@ ENV GFPGAN_CHECKPOINT=/models/GFPGAN.pth
 ENV CODEFORMER_CHECKPOINT=/models/codeformer.pth
 ENV DDCOLOR_CHECKPOINT=/models/ddcolor.pth
 ENV REALESRGAN_CHECKPOINT=/models/RealESRGAN_x4.pth
+ENV SERVERLESS=true
+ENV PYTHONUNBUFFERED=1
 
 RUN mkdir -p /models && useradd -m -u 1000 appuser && chown -R appuser:appuser /app /models
 USER appuser
@@ -42,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["sh", "-c", "if [ \"$SERVERLESS\" = \"true\" ] && python -c \"import runpod\" 2>/dev/null; then python handler.py; else uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1; fi"]
