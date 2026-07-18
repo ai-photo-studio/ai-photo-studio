@@ -150,16 +150,8 @@ jobs:
 
           # Deploy unified restoration endpoint
           echo "Looking up existing restoration template..."
-          TEMPLATES_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
-            "https://rest.runpod.io/v1/templates")
-          RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATES_RESP" | python3 -c "
-import sys,json
-templates = json.load(sys.stdin)
-for t in templates:
-    if 'restoration' in t.get('name','').lower():
-        print(t.get('id',''))
-        break
-")
+          TEMPLATES_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "https://rest.runpod.io/v1/templates")
+          RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATES_RESP" | jq -r '.[] | select(.name | test("restoration"; "i")) | .id | select(. != null)' | head -1)
           if [ -n "$RESTORATION_TEMPLATE_ID" ]; then
             echo "Found existing restoration template: $RESTORATION_TEMPLATE_ID"
             echo "Updating image to ghcr.io/ai-photo-studio/ai-restoration:latest"
@@ -172,29 +164,15 @@ for t in templates:
             TEMPLATE_RESP=$(curl -s -X POST "https://rest.runpod.io/v1/templates" \
               -H "Authorization: Bearer $RUNPOD_API_KEY" \
               -H "Content-Type: application/json" \
-              -d '{
-                "name": "ai-restoration",
-                "imageName": "ghcr.io/ai-photo-studio/ai-restoration:latest",
-                "containerDiskInGb": 50,
-                "dockerStartCmd": ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-              }')
+              -d '{"name":"ai-restoration","imageName":"ghcr.io/ai-photo-studio/ai-restoration:latest","containerDiskInGb":50,"dockerStartCmd":["uvicorn","app:app","--host","0.0.0.0","--port","8000"]}')
             echo "Template response: $TEMPLATE_RESP"
-            RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+            RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | jq -r '.id // empty')
           fi
 
           if [ -n "$RESTORATION_TEMPLATE_ID" ]; then
-            # Check if endpoint already exists
             echo "Looking up existing restoration endpoint..."
-            ENDPOINTS_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
-              "https://rest.runpod.io/v1/endpoints")
-            RESTORATION_ENDPOINT_ID=$(echo "$ENDPOINTS_RESP" | python3 -c "
-import sys,json
-endpoints = json.load(sys.stdin)
-for ep in endpoints:
-    if 'restoration' in ep.get('name','').lower():
-        print(ep.get('id',''))
-        break
-")
+            ENDPOINTS_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "https://rest.runpod.io/v1/endpoints")
+            RESTORATION_ENDPOINT_ID=$(echo "$ENDPOINTS_RESP" | jq -r '.[] | select(.name | test("restoration"; "i")) | .id | select(. != null)' | head -1)
             if [ -n "$RESTORATION_ENDPOINT_ID" ]; then
               echo "Endpoint already exists: $RESTORATION_ENDPOINT_ID"
               echo "Updating endpoint template reference..."
@@ -207,13 +185,7 @@ for ep in endpoints:
               curl -s -X POST "https://rest.runpod.io/v1/endpoints" \
                 -H "Authorization: Bearer $RUNPOD_API_KEY" \
                 -H "Content-Type: application/json" \
-                -d "{
-                  \"name\": \"unified-restoration\",
-                  \"templateId\": \"$RESTORATION_TEMPLATE_ID\",
-                  \"gpuTypeIds\": [\"NVIDIA RTX 4000 Ada Generation\"],
-                  \"minWorkers\": 0,
-                  \"maxWorkers\": 1
-                }"
+                -d "{\"name\":\"unified-restoration\",\"templateId\":\"$RESTORATION_TEMPLATE_ID\",\"gpuTypeIds\":[\"NVIDIA RTX 4000 Ada Generation\"],\"minWorkers\":0,\"maxWorkers\":1}"
             fi
           fi
 
