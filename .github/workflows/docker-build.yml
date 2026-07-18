@@ -137,7 +137,6 @@ jobs:
           TEMPLATES["codeformer"]="i9zrd1x9tx"
           TEMPLATES["ddcolor"]="l1qm5ldu2b"
           TEMPLATES["real-esrgan"]="7sf3b8kyq9"
-          TEMPLATES["restoration"]=""
 
           for svc in bg-remover lama gfpgan codeformer ddcolor real-esrgan; do
             TEMPLATE_ID="${TEMPLATES[$svc]}"
@@ -149,10 +148,25 @@ jobs:
               -d "{\"imageName\":\"$IMAGE\"}"
           done
 
-          # Deploy unified restoration endpoint if built
-          if curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
-            "https://rest.runpod.io/v1/templates" | grep -q '"restoration"'; then
-            echo "Restoration endpoint template exists"
+          # Deploy unified restoration endpoint
+          echo "Looking up existing restoration template..."
+          TEMPLATES_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            "https://rest.runpod.io/v1/templates")
+          RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATES_RESP" | python3 -c "
+import sys,json
+templates = json.load(sys.stdin)
+for t in templates:
+    if 'restoration' in t.get('name','').lower():
+        print(t.get('id',''))
+        break
+")
+          if [ -n "$RESTORATION_TEMPLATE_ID" ]; then
+            echo "Found existing restoration template: $RESTORATION_TEMPLATE_ID"
+            echo "Updating image to ghcr.io/ai-photo-studio/ai-restoration:latest"
+            curl -s -X PATCH "https://rest.runpod.io/v1/templates/$RESTORATION_TEMPLATE_ID" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"imageName\":\"ghcr.io/ai-photo-studio/ai-restoration:latest\"}"
           else
             echo "Creating restoration endpoint template..."
             TEMPLATE_RESP=$(curl -s -X POST "https://rest.runpod.io/v1/templates" \
@@ -165,15 +179,37 @@ jobs:
                 "dockerStartCmd": ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
               }')
             echo "Template response: $TEMPLATE_RESP"
-            TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
-            if [ -n "$TEMPLATE_ID" ]; then
-              # Create endpoint with workersMin=0, workersMax=1
+            RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+          fi
+
+          if [ -n "$RESTORATION_TEMPLATE_ID" ]; then
+            # Check if endpoint already exists
+            echo "Looking up existing restoration endpoint..."
+            ENDPOINTS_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              "https://rest.runpod.io/v1/endpoints")
+            RESTORATION_ENDPOINT_ID=$(echo "$ENDPOINTS_RESP" | python3 -c "
+import sys,json
+endpoints = json.load(sys.stdin)
+for ep in endpoints:
+    if 'restoration' in ep.get('name','').lower():
+        print(ep.get('id',''))
+        break
+")
+            if [ -n "$RESTORATION_ENDPOINT_ID" ]; then
+              echo "Endpoint already exists: $RESTORATION_ENDPOINT_ID"
+              echo "Updating endpoint template reference..."
+              curl -s -X PATCH "https://rest.runpod.io/v1/endpoints/$RESTORATION_ENDPOINT_ID" \
+                -H "Authorization: Bearer $RUNPOD_API_KEY" \
+                -H "Content-Type: application/json" \
+                -d "{\"templateId\":\"$RESTORATION_TEMPLATE_ID\"}"
+            else
+              echo "Creating unified-restoration endpoint..."
               curl -s -X POST "https://rest.runpod.io/v1/endpoints" \
                 -H "Authorization: Bearer $RUNPOD_API_KEY" \
                 -H "Content-Type: application/json" \
                 -d "{
                   \"name\": \"unified-restoration\",
-                  \"templateId\": \"$TEMPLATE_ID\",
+                  \"templateId\": \"$RESTORATION_TEMPLATE_ID\",
                   \"gpuTypeIds\": [\"NVIDIA RTX 4000 Ada Generation\"],
                   \"minWorkers\": 0,
                   \"maxWorkers\": 1
