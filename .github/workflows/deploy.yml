@@ -143,6 +143,9 @@ jobs:
             DATABASE_URL=DATABASE_URL:latest
             REDIS_URL=REDIS_URL:latest
             R2_BUCKET_NAME=R2_BUCKET:latest
+            WHATSAPP_VERIFY_TOKEN=WHATSAPP_VERIFY_TOKEN:latest
+            WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest
+            WHATSAPP_PHONE_NUMBER_ID=WHATSAPP_PHONE_NUMBER_ID:latest
 
   deploy-frontend:
     name: Deploy Frontend
