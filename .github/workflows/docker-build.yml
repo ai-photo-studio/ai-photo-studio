@@ -1,7 +1,7 @@
 # =============================================================================
 # AI Photo Studio — AI Service Container Build & Publish
 # =============================================================================
-# Builds all 6 AI microservice Docker images and pushes to GitHub Container
+# Builds all AI service Docker images and pushes to GitHub Container
 # Registry (GHCR). RunPod templates reference ghcr.io/ai-photo-studio/ai-*.
 #
 # Tags pushed per service:
@@ -22,6 +22,7 @@ on:
       - "services/codeformer/**"
       - "services/ddcolor/**"
       - "services/real-esrgan/**"
+      - "services/restoration/**"
       - ".github/workflows/docker-build.yml"
   workflow_dispatch:
     inputs:
@@ -51,11 +52,11 @@ jobs:
         run: |
           FORCE_ALL="${{ github.event.inputs.force_build_all || 'false' }}"
           if [ "$FORCE_ALL" = "true" ]; then
-            MATRIX='["bg-remover","lama","gfpgan","codeformer","ddcolor","real-esrgan"]'
+            MATRIX='["bg-remover","lama","gfpgan","codeformer","ddcolor","real-esrgan","restoration"]'
           else
             CHANGED=$(git diff --name-only HEAD~1)
             MATRIX='[]'
-            for svc in bg-remover lama gfpgan codeformer ddcolor real-esrgan; do
+            for svc in bg-remover lama gfpgan codeformer ddcolor real-esrgan restoration; do
               if echo "$CHANGED" | grep -q "^services/$svc/"; then
                 MATRIX=$(echo "$MATRIX" | python3 -c "import sys,json; m=json.load(sys.stdin); m.append('$svc'); print(json.dumps(m))")
               fi
@@ -136,6 +137,7 @@ jobs:
           TEMPLATES["codeformer"]="i9zrd1x9tx"
           TEMPLATES["ddcolor"]="l1qm5ldu2b"
           TEMPLATES["real-esrgan"]="7sf3b8kyq9"
+          TEMPLATES["restoration"]=""
 
           for svc in bg-remover lama gfpgan codeformer ddcolor real-esrgan; do
             TEMPLATE_ID="${TEMPLATES[$svc]}"
@@ -146,6 +148,38 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"imageName\":\"$IMAGE\"}"
           done
+
+          # Deploy unified restoration endpoint if built
+          if curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            "https://rest.runpod.io/v1/templates" | grep -q '"restoration"'; then
+            echo "Restoration endpoint template exists"
+          else
+            echo "Creating restoration endpoint template..."
+            TEMPLATE_RESP=$(curl -s -X POST "https://rest.runpod.io/v1/templates" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "name": "ai-restoration",
+                "imageName": "ghcr.io/ai-photo-studio/ai-restoration:latest",
+                "containerDiskInGb": 50,
+                "startCommand": "uvicorn app:app --host 0.0.0.0 --port 8000"
+              }')
+            echo "Template response: $TEMPLATE_RESP"
+            TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+            if [ -n "$TEMPLATE_ID" ]; then
+              # Create endpoint with workersMin=0, workersMax=1
+              curl -s -X POST "https://rest.runpod.io/v1/endpoints" \
+                -H "Authorization: Bearer $RUNPOD_API_KEY" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"name\": \"unified-restoration\",
+                  \"templateId\": \"$TEMPLATE_ID\",
+                  \"gpuTypeIds\": [\"NVIDIA RTX 4000 Ada Generation\"],
+                  \"minWorkers\": 0,
+                  \"maxWorkers\": 1
+                }"
+            fi
+          fi
 
   verify:
     name: Verify Deployments
