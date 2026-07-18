@@ -116,7 +116,6 @@ jobs:
           service_name: ai-photo-studio-api
           image: ${{ env.REGISTRY }}/${{ github.repository }}/ai-api:latest
           region: us-central1
-          deploy_producer: true
           allow_unauthenticated: true
           ingress: all
           memory: 512Mi
