@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install basicsr first with build deps, then remaining packages
+RUN pip install --no-cache-dir basicsr>=1.4.2 && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY app.py handler.py download_checkpoints.sh ./
 
