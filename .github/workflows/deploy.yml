@@ -136,13 +136,13 @@ jobs:
             PAYMENT_GATEWAY_NAME=manual
             RESTORATION_ENDPOINT_URL=3z633s11yn4n8q
             R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
-            R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
             R2_PUBLIC_BASE_URL=${{ secrets.R2_PUBLIC_BASE_URL }}
           secrets: |
             JWT_SECRET=JWT_SECRET:latest
             ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest
             DATABASE_URL=DATABASE_URL:latest
             REDIS_URL=REDIS_URL:latest
+            R2_BUCKET_NAME=R2_BUCKET:latest
 
   deploy-frontend:
     name: Deploy Frontend
