@@ -3,7 +3,7 @@
 # =============================================================================
 # TARGET:    https://www.thannow.com (frontend)
 #            https://api.thannow.com (API)
-# PLATFORM:  Cloud Run (backend API)
+# PLATFORM:  Cloud Run (backend API) — Neon PostgreSQL + Upstash Redis + R2
 # SECRETS:   All credentials via GitHub Secrets only
 # TRIGGER:   Manual (workflow_dispatch) or push to main (uncomment to enable)
 # =============================================================================
@@ -121,6 +121,21 @@ jobs:
           concurrency: 80
           min_instances: 0
           max_instances: 10
+          secrets: |
+            JWT_SECRET=JWT_SECRET:latest
+            ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest
+            DATABASE_URL=DATABASE_URL:latest
+            REDIS_URL=REDIS_URL:latest
+          env_vars: |
+            ALLOWED_ORIGINS=https://www.thannow.com
+            AI_PROVIDER=local-rembg
+            STORAGE_PROVIDER=r2
+            DELIVERY_MODE=WHATSAPP
+            PAYMENT_GATEWAY_NAME=manual
+            RESTORATION_ENDPOINT_URL=3z633s11yn4n8q
+            R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
+            R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
+            R2_PUBLIC_BASE_URL=${{ secrets.R2_PUBLIC_BASE_URL }}
 
   deploy-frontend:
     name: Deploy Frontend
@@ -160,8 +175,11 @@ jobs:
     steps:
       - name: Verify API health
         run: |
-          curl -f -s -o /dev/null -w "%{http_code}" "https://api.thannow.com/api/health" || echo "API health check failed"
+          HEALTH_URL="https://ai-photo-studio-api-108335160641.us-central1.run.app/api/health"
+          echo "Checking API health at $HEALTH_URL"
+          curl -sf -o /dev/null -w "HTTP %{http_code}\n" "$HEALTH_URL" || echo "API health check failed"
 
       - name: Verify frontend
         run: |
-          curl -f -s -o /dev/null -w "%{http_code}" "https://www.thannow.com" || echo "Frontend check failed"
+          echo "Checking frontend at https://www.thannow.com"
+          curl -sf -o /dev/null -w "HTTP %{http_code}\n" "https://www.thannow.com" || echo "Frontend check failed"
