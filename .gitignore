@@ -69,3 +69,14 @@ deployment_snapshot.json
 validation_output/
 validate_production.py
 IQS.md
+
+# Generated audit/report files (machine-generated, not source)
+deployment_sync_report.md
+production_verification_report.md
+merge_blur_fix_report.md
+qa_pipeline_analysis.md
+raw_sam2_corruption_analysis.md
+final_validation_report.py
+scripts/generate_final_report.py
+scripts/pre_deploy_audit.py
+benchmarks/restoration-load-report.json
