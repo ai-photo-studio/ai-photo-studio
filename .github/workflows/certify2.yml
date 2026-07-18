@@ -1,0 +1,13 @@
+name: Certify
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pillow numpy
+      - run: echo "hello" > /tmp/test.txt
+      - run: cat /tmp/test.txt
