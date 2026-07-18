@@ -1,7 +1,25 @@
 """RunPod Serverless handler for Old Photo Restoration."""
-import io, json, base64, traceback, os, logging, time
+import io, json, base64, traceback, os, logging, time, gc, threading
+
+import torch
 
 logger = logging.getLogger(__name__)
+
+QUEUE_TIMEOUT_SECONDS = int(os.getenv("QUEUE_TIMEOUT_SECONDS", "60"))
+PROCESSING_TIMEOUT_SECONDS = int(os.getenv("PROCESSING_TIMEOUT_SECONDS", "90"))
+ABSOLUTE_TIMEOUT_SECONDS = int(os.getenv("ABSOLUTE_TIMEOUT_SECONDS", "150"))
+
+def _gpu_cleanup():
+    try:
+        start = time.time()
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+        torch.cuda.ipc_collect()
+        gc.collect()
+        elapsed = round(time.time() - start, 3)
+        logger.info(f"GPU_CLEANUP completed in {elapsed}s")
+    except Exception as e:
+        logger.error(f"GPU_CLEANUP failed: {e}")
 
 def handler(job):
     start_time = time.time()
@@ -10,6 +28,16 @@ def handler(job):
 
     if action == "health":
         return _handle_health()
+
+    queue_wait = job_input.get("__queue_wait_seconds", 0)
+    if queue_wait > QUEUE_TIMEOUT_SECONDS:
+        logger.warning(f"QUEUE_TIMEOUT job exceeded {QUEUE_TIMEOUT_SECONDS}s queue wait (waited {queue_wait}s)")
+        return {"error": f"Queue timeout after {queue_wait}s", "status": "TIMED_OUT", "timeout_type": "queue"}
+
+    now = time.time()
+    if now - start_time > ABSOLUTE_TIMEOUT_SECONDS:
+        logger.warning(f"ABSOLUTE_TIMEOUT job exceeded {ABSOLUTE_TIMEOUT_SECONDS}s absolute timeout")
+        return {"error": f"Absolute timeout after {ABSOLUTE_TIMEOUT_SECONDS}s", "status": "TIMED_OUT", "timeout_type": "absolute"}
 
     image_data = job_input.get("image") or job_input.get("input_image")
     if not image_data:
@@ -24,24 +52,35 @@ def handler(job):
 
     try:
         from app import _process_restoration
+        processing_start = time.time()
         processed = _process_restoration(raw=raw_bytes, content_type=content_type, file_name=file_name, lama_denoise=lama_denoise)
+        processing_time = round(time.time() - processing_start, 3)
+
+        if processing_time > PROCESSING_TIMEOUT_SECONDS:
+            logger.warning(f"PROCESSING_TIMEOUT exceeded {PROCESSING_TIMEOUT_SECONDS}s (took {processing_time}s)")
+            return {"error": f"Processing timeout after {processing_time}s", "status": "TIMED_OUT", "timeout_type": "processing"}
+
+        total_time = round(time.time() - start_time, 3)
+        logger.info(f"QUEUE_WAIT={queue_wait}s PROCESSING_TIME={processing_time}s TOTAL_TIME={total_time}s")
+
         return {
             "image": base64.b64encode(processed.content).decode("utf-8"),
             "media_type": processed.media_type,
             "filename": processed.filename,
             "credits_used": processed.credits_used,
             "processing_stages": processed.stages,
-            "latency_seconds": round(time.time() - start_time, 3),
+            "latency_seconds": total_time,
             "status": "COMPLETED",
         }
     except Exception as e:
         traceback.print_exc()
         logger.error(f"Restoration failed: {e}")
         return {"error": str(e), "status": "FAILED"}
+    finally:
+        _gpu_cleanup()
 
 def _handle_health():
     try:
-        import torch
         cuda = torch.cuda.is_available()
         gpu = torch.cuda.get_device_name(0) if cuda else None
         vram = torch.cuda.get_device_properties(0).total_memory / 1e9 if cuda else None

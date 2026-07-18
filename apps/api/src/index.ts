@@ -26,6 +26,9 @@ import { logger } from "./utils/logger";
 import { toErrorMessage } from "./utils/errors";
 import { startImageProcessingWorker } from "./workers/image-processing.worker";
 import { runCleanupOnce } from "./workers/cleanup.worker";
+import { startQueueWatchdog } from "./services/queue-watchdog.service";
+import { startWorkerWatchdog } from "./services/worker-watchdog.service";
+import { setWorkerHealthState } from "./services/worker-health.service";
 import { AdminAuthService, normalizeAdminRole } from "./services/admin-auth.service";
 
 const execFile = promisify(execFileCb);
@@ -166,6 +169,15 @@ const bootstrap = async () => {
   app.use("/api", createRestorationRouter(config));
 
   startImageProcessingWorker(config);
+  startQueueWatchdog();
+  const restartWorker = () => {
+    logger.warn("WORKER_RESTART triggered by watchdog");
+    setWorkerHealthState({
+      running: false,
+      lastError: "WORKER_WATCHDOG_RESTART: 3 consecutive failures"
+    });
+  };
+  startWorkerWatchdog(restartWorker);
   setInterval(() => {
     runCleanupOnce(config).catch((error) => logger.error("Cleanup tick failed", { error: toErrorMessage(error) }));
   }, 60 * 60 * 1000);

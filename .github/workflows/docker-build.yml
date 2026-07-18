@@ -165,7 +165,7 @@ jobs:
             TEMPLATE_RESP=$(curl -s -X POST "https://rest.runpod.io/v1/templates" \
               -H "Authorization: Bearer $RUNPOD_API_KEY" \
               -H "Content-Type: application/json" \
-              -d '{"name":"unified-restoration","imageName":"ghcr.io/ai-photo-studio/ai-restoration:latest","containerDiskInGb":50,"dockerStartCmd":["uvicorn","app:app","--host","0.0.0.0","--port","8000"],"isServerless":true}')
+              -d '{"name":"unified-restoration","imageName":"ghcr.io/ai-photo-studio/ai-restoration:latest","containerDiskInGb":50,"isServerless":true}')
             echo "Template response: $TEMPLATE_RESP"
             RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | jq -r '.id // empty')
           fi
@@ -209,6 +209,36 @@ jobs:
           done
 
           echo ""
+          echo "=== Fixing unified-restoration template dockerStartCmd ==="
+          TEMPLATES_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "https://rest.runpod.io/v1/templates")
+          RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATES_RESP" | jq -r '.[] | select(.isServerless == true) | select(.name | test("restoration"; "i")) | .id | select(. != null)' | head -1)
+          if [ -n "$RESTORATION_TEMPLATE_ID" ]; then
+            echo "Found restoration template: $RESTORATION_TEMPLATE_ID"
+            echo "Removing dockerStartCmd override so Dockerfile CMD is used..."
+            # Remove dockerStartCmd by setting it to empty, allowing Dockerfile CMD to execute
+            curl -s -X PATCH "https://rest.runpod.io/v1/templates/$RESTORATION_TEMPLATE_ID" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"dockerStartCmd":["python","handler.py"]}'
+            echo ""
+            echo "Template dockerStartCmd fixed to [python, handler.py]"
+          else
+            echo "Restoration template not found!"
+          fi
+
+          echo ""
+          echo "=== Ensuring queue balancer is attached to unified-restoration ==="
+          RESTORATION_ID=$(echo "$ENDPOINTS" | jq -r '.[] | select(.name | test("unified"; "i")) | .id | select(. != null)' | head -1)
+          if [ -n "$RESTORATION_ID" ]; then
+            echo "Found unified-restoration endpoint: $RESTORATION_ID"
+            # Read current endpoint configuration
+            EP_DETAIL=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "https://rest.runpod.io/v1/endpoints/$RESTORATION_ID")
+            echo "Endpoint detail: $(echo "$EP_DETAIL" | jq '{name, id, workersMin, workersMax, gpuTypeIds, scalerType, networkVolumeId, version}')"
+          else
+            echo "unified-restoration endpoint not found."
+          fi
+
+          echo ""
           echo "=== Freezing legacy restoration endpoints (workersMax=0) ==="
           LEGACY=("ai-lama" "ai-gfpgan" "ai-codeformer" "ai-ddcolor" "ai-real-esrgan")
           for name in "${LEGACY[@]}"; do
@@ -225,8 +255,7 @@ jobs:
           echo "Legacy endpoints frozen."
 
           echo ""
-          echo "=== Restarting unified-restoration endpoint to pick up new image ==="
-          # Scale to 0 to kill old worker, then back to 1 for new image
+          echo "=== Restarting unified-restoration endpoint to pick up fixes ==="
           RESTORATION_ID=$(echo "$ENDPOINTS" | jq -r '.[] | select(.name | test("unified"; "i")) | .id | select(. != null)' | head -1)
           if [ -n "$RESTORATION_ID" ]; then
             echo "Scaling $RESTORATION_ID to 0..."
@@ -242,7 +271,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"workersMin":0,"workersMax":1}'
             echo ""
-            echo "Unified restoration endpoint restarted with new image."
+            echo "Unified restoration endpoint restarted."
           else
             echo "unified-restoration endpoint not found."
           fi

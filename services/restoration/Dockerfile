@@ -35,6 +35,9 @@ ENV DDCOLOR_CHECKPOINT=/models/ddcolor.pth
 ENV REALESRGAN_CHECKPOINT=/models/RealESRGAN_x4.pth
 ENV SERVERLESS=true
 ENV PYTHONUNBUFFERED=1
+ENV QUEUE_TIMEOUT_SECONDS=60
+ENV PROCESSING_TIMEOUT_SECONDS=90
+ENV ABSOLUTE_TIMEOUT_SECONDS=150
 
 RUN mkdir -p /models && useradd -m -u 1000 appuser && chown -R appuser:appuser /app /models
 USER appuser
