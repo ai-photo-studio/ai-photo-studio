@@ -149,22 +149,23 @@ jobs:
           done
 
           # Deploy unified restoration endpoint
-          echo "Looking up existing restoration template..."
+          echo "Checking for existing serverless restoration template..."
           TEMPLATES_RESP=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "https://rest.runpod.io/v1/templates")
-          RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATES_RESP" | jq -r '.[] | select(.name | test("restoration"; "i")) | .id | select(. != null)' | head -1)
+          # Try to find existing serverless template matching restoration
+          RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATES_RESP" | jq -r '.[] | select(.isServerless == true) | select(.name | test("restoration"; "i")) | .id | select(. != null)' | head -1)
           if [ -n "$RESTORATION_TEMPLATE_ID" ]; then
-            echo "Found existing restoration template: $RESTORATION_TEMPLATE_ID"
+            echo "Found existing serverless restoration template: $RESTORATION_TEMPLATE_ID"
             echo "Updating image to ghcr.io/ai-photo-studio/ai-restoration:latest"
             curl -s -X PATCH "https://rest.runpod.io/v1/templates/$RESTORATION_TEMPLATE_ID" \
               -H "Authorization: Bearer $RUNPOD_API_KEY" \
               -H "Content-Type: application/json" \
               -d "{\"imageName\":\"ghcr.io/ai-photo-studio/ai-restoration:latest\"}"
           else
-            echo "Creating restoration endpoint template..."
+            echo "Creating serverless restoration template..."
             TEMPLATE_RESP=$(curl -s -X POST "https://rest.runpod.io/v1/templates" \
               -H "Authorization: Bearer $RUNPOD_API_KEY" \
               -H "Content-Type: application/json" \
-              -d '{"name":"ai-restoration","imageName":"ghcr.io/ai-photo-studio/ai-restoration:latest","containerDiskInGb":50,"dockerStartCmd":["uvicorn","app:app","--host","0.0.0.0","--port","8000"]}')
+              -d '{"name":"unified-restoration","imageName":"ghcr.io/ai-photo-studio/ai-restoration:latest","containerDiskInGb":50,"dockerStartCmd":["uvicorn","app:app","--host","0.0.0.0","--port","8000"],"isServerless":true}')
             echo "Template response: $TEMPLATE_RESP"
             RESTORATION_TEMPLATE_ID=$(echo "$TEMPLATE_RESP" | jq -r '.id // empty')
           fi
