@@ -1,6 +1,8 @@
 name: Validate Production Endpoint
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   validate:
