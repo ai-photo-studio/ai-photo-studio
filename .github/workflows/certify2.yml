@@ -1,4 +1,4 @@
-name: Certify
+name: Certify Production
 on:
   push:
     branches: [main]
@@ -8,6 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install pillow numpy
-      - run: echo "hello" > /tmp/test.txt
-      - run: cat /tmp/test.txt
+      - name: Test Python
+        run: |
+          python3 -c "
+import json
+d = {'status': 'test'}
+print(f'Result: {d.get(\"status\",\"?\")}')
+"
