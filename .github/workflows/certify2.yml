@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Test Python
+      - name: Test Python simple
         run: |
           python3 -c "
 import json
 d = {'status': 'test'}
-print(f'Result: {d.get(\"status\",\"?\")}')
+print('Status:', d.get('status', '?'))
 "
