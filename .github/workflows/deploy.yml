@@ -110,17 +110,14 @@ jobs:
         run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v0
         with:
           image: ${{ env.REGISTRY }}/${{ github.repository }}/ai-api:latest
           service: ai-photo-studio-api
           region: us-central1
           project_id: ${{ secrets.GCP_PROJECT_ID || 'project-9540c255-c960-4fa0-a91' }}
-          allow_unauthenticated: true
-          memory: 512Mi
-          cpu: 1
-          concurrency: 80
           timeout: 300
+          flags: --allow-unauthenticated --memory=512Mi --cpu=1 --concurrency=80
           env_vars: |
             ALLOWED_ORIGINS=https://www.thannow.com
             AI_PROVIDER=local-rembg
