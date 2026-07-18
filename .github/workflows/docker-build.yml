@@ -389,23 +389,29 @@ if all(ho.get('models_loaded', {}).values()):
 print('%d/%d' % (pass_count, total))
 if pass_count == 4:
     print('GO FOR PRODUCTION')
-    print('')
-    print('=== Deleting legacy RunPod endpoints (validation PASSED) ===')
-    LEGACY_DELETE=(\"ai-lama\" \"ai-gfpgan\" \"ai-codeformer\" \"ai-ddcolor\" \"ai-real-esrgan\")
-    for name in \"\${LEGACY_DELETE[@]}\"; do
-        EP_ID=\$(echo \"\$ENDPOINTS\" | jq -r \". [] | select(.name == \\\"\$name\\\") | .id\")
-        if [ -n \"\$EP_ID\" ]; then
-            echo \"Deleting \$name (\$EP_ID)...\"
-            curl -s -X DELETE \"https://rest.runpod.io/v1/endpoints/\$EP_ID\" \
-                -H \"Authorization: Bearer \$RUNPOD_API_KEY\"
-            echo \"\"
-        fi
-    done
-    echo \"Legacy endpoints deleted. Active: unified-restoration, ai-bg-remover\"
 else:
     print('ISSUES: %d checks failed' % (4 - pass_count))
-    exit(1)
+    sys.exit(1)
 "
+            echo "Validation complete."
+            echo ""
+            if [ \"$?\" -eq 0 ] && python3 -c \"import json; d=json.load(open('/tmp/cold_response.json')); exit(0) if d.get('status')=='COMPLETED' else exit(1)\" 2>/dev/null; then
+              echo \"=== Validation PASSED. Deleting legacy RunPod endpoints ===\"
+              LEGACY_DELETE=(\"ai-lama\" \"ai-gfpgan\" \"ai-codeformer\" \"ai-ddcolor\" \"ai-real-esrgan\")
+              for name in \"\${LEGACY_DELETE[@]}\"; do
+                EP_ID=\$(echo \"\$ENDPOINTS\" | jq -r \". [] | select(.name == \\\"\$name\\\") | .id\")
+                if [ -n \"\$EP_ID\" ]; then
+                  echo \"Deleting \$name (\$EP_ID)...\"
+                  curl -s -X DELETE \"https://rest.runpod.io/v1/endpoints/\$EP_ID\" \
+                    -H \"Authorization: Bearer \$RUNPOD_API_KEY\"
+                  echo \"\"
+                fi
+              done
+              echo \"Legacy endpoints deleted. Active: unified-restoration, ai-bg-remover\"
+            else
+              echo \"Validation FAILED - legacy endpoints NOT deleted.\"
+              exit 1
+            fi
           else
             echo "unified-restoration endpoint not found."
           fi
