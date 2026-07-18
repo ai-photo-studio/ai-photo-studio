@@ -272,6 +272,140 @@ jobs:
               -d '{"workersMin":0,"workersMax":1}'
             echo ""
             echo "Unified restoration endpoint restarted."
+            echo ""
+            echo "=== Sending validation requests ==="
+            pip install -q pillow numpy
+            python3 -c "
+from PIL import Image
+import numpy as np, random, io, base64, json, urllib.request, time, sys
+
+# Create test image
+img = Image.new('RGB', (640, 480), color=(180, 160, 140))
+arr = np.array(img)
+noise = np.random.randint(0, 30, arr.shape, dtype=np.uint8)
+arr = np.clip(arr.astype(np.int16) + noise.astype(np.int16), 0, 255).astype(np.uint8)
+for _ in range(5):
+    y = np.random.randint(0, 480)
+    x = np.random.randint(0, 100)
+    arr[y, x:x+random.randint(10, 50)] = [255, 255, 255]
+img = Image.fromarray(arr)
+buf = io.BytesIO()
+img.save(buf, format='JPEG', quality=85)
+b64 = base64.b64encode(buf.getvalue()).decode()
+
+api_key = '$RUNPOD_API_KEY'
+ep_id = '$RESTORATION_ID'
+url = 'https://api.runpod.ai/v2/%s/runsync' % ep_id
+headers = {
+    'Authorization': 'Bearer %s' % api_key,
+    'Content-Type': 'application/json'
+}
+
+# Cold start
+print('--- Cold Start ---')
+start = time.time()
+payload = json.dumps({'input': {'action': 'restore', 'image': 'data:image/jpeg;base64,' + b64, 'file_name': 'cold-test.jpg'}}).encode()
+req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
+try:
+    resp = urllib.request.urlopen(req, timeout=120)
+    d = json.loads(resp.read())
+    elapsed = time.time() - start
+    print('Status: %s' % d.get('status'))
+    if d.get('status') == 'COMPLETED':
+        o = d.get('output', {})
+        print('Latency: %ss' % o.get('latency_seconds'))
+        print('Stages: %s' % o.get('processing_stages'))
+    else:
+        print('Full: %s' % json.dumps(d, indent=2)[:500])
+except Exception as e:
+    print('Error: %s' % str(e))
+print('')
+
+# Warm start
+print('--- Warm Start ---')
+start = time.time()
+payload = json.dumps({'input': {'action': 'restore', 'image': 'data:image/jpeg;base64,' + b64, 'file_name': 'warm-test.jpg'}}).encode()
+req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
+try:
+    resp = urllib.request.urlopen(req, timeout=120)
+    d = json.loads(resp.read())
+    elapsed = time.time() - start
+    print('Status: %s' % d.get('status'))
+    if d.get('status') == 'COMPLETED':
+        o = d.get('output', {})
+        print('Latency: %ss' % o.get('latency_seconds'))
+        print('Stages: %s' % o.get('processing_stages'))
+    else:
+        print('Full: %s' % json.dumps(d, indent=2)[:500])
+except Exception as e:
+    print('Error: %s' % str(e))
+print('')
+
+# Health
+print('--- Health ---')
+payload = json.dumps({'input': {'action': 'health'}}).encode()
+req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
+try:
+    resp = urllib.request.urlopen(req, timeout=30)
+    d = json.loads(resp.read())
+    print('Status: %s' % d.get('status'))
+    if d.get('status') == 'COMPLETED':
+        o = d.get('output', {})
+        print('Device: %s' % o.get('device'))
+        print('GPU: %s' % o.get('gpu_name'))
+        print('VRAM: %s GB' % o.get('vram_total_gb'))
+        print('Models: %s' % o.get('models_loaded'))
+    else:
+        print('Full: %s' % json.dumps(d, indent=2)[:500])
+except Exception as e:
+    print('Error: %s' % str(e))
+print('')
+
+# Summary
+print('=== CERTIFICATION SUMMARY ===')
+pass_count = 0
+total = 4
+try:
+    cold = json.load(open('/tmp/cold_response.json'))
+except:
+    cold = {}
+try:
+    warm = json.load(open('/tmp/warm_response.json'))
+except:
+    warm = {}
+try:
+    health = json.load(open('/tmp/health_response.json'))
+except:
+    health = {}
+if cold.get('status') == 'COMPLETED':
+    pass_count += 1
+if warm.get('status') == 'COMPLETED':
+    pass_count += 1
+if health.get('status') == 'COMPLETED':
+    pass_count += 1
+ho = health.get('output', {})
+if all(ho.get('models_loaded', {}).values()):
+    pass_count += 1
+print('%d/%d' % (pass_count, total))
+if pass_count == 4:
+    print('GO FOR PRODUCTION')
+    print('')
+    print('=== Deleting legacy RunPod endpoints (validation PASSED) ===')
+    LEGACY_DELETE=(\"ai-lama\" \"ai-gfpgan\" \"ai-codeformer\" \"ai-ddcolor\" \"ai-real-esrgan\")
+    for name in \"\${LEGACY_DELETE[@]}\"; do
+        EP_ID=\$(echo \"\$ENDPOINTS\" | jq -r \". [] | select(.name == \\\"\$name\\\") | .id\")
+        if [ -n \"\$EP_ID\" ]; then
+            echo \"Deleting \$name (\$EP_ID)...\"
+            curl -s -X DELETE \"https://rest.runpod.io/v1/endpoints/\$EP_ID\" \
+                -H \"Authorization: Bearer \$RUNPOD_API_KEY\"
+            echo \"\"
+        fi
+    done
+    echo \"Legacy endpoints deleted. Active: unified-restoration, ai-bg-remover\"
+else:
+    print('ISSUES: %d checks failed' % (4 - pass_count))
+    exit(1)
+"
           else
             echo "unified-restoration endpoint not found."
           fi
