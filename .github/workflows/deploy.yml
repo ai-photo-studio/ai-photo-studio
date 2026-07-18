@@ -110,24 +110,17 @@ jobs:
         run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v0
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID || 'project-9540c255-c960-4fa0-a91' }}
-          service_name: ai-photo-studio-api
           image: ${{ env.REGISTRY }}/${{ github.repository }}/ai-api:latest
+          service: ai-photo-studio-api
           region: us-central1
+          project_id: ${{ secrets.GCP_PROJECT_ID || 'project-9540c255-c960-4fa0-a91' }}
           allow_unauthenticated: true
-          ingress: all
           memory: 512Mi
           cpu: 1
           concurrency: 80
-          min_instances: 0
-          max_instances: 10
-          secrets: |
-            JWT_SECRET=JWT_SECRET:latest
-            ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest
-            DATABASE_URL=DATABASE_URL:latest
-            REDIS_URL=REDIS_URL:latest
+          timeout: 300
           env_vars: |
             ALLOWED_ORIGINS=https://www.thannow.com
             AI_PROVIDER=local-rembg
@@ -138,6 +131,11 @@ jobs:
             R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
             R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
             R2_PUBLIC_BASE_URL=${{ secrets.R2_PUBLIC_BASE_URL }}
+          secrets: |
+            JWT_SECRET=JWT_SECRET:latest
+            ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest
+            DATABASE_URL=DATABASE_URL:latest
+            REDIS_URL=REDIS_URL:latest
 
   deploy-frontend:
     name: Deploy Frontend
