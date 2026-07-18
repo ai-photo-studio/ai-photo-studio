@@ -148,6 +148,7 @@ jobs:
             WHATSAPP_VERIFY_TOKEN=WHATSAPP_VERIFY_TOKEN:latest
             WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest
             WHATSAPP_PHONE_NUMBER_ID=WHATSAPP_PHONE_NUMBER_ID:latest
+            RUNPOD_API_KEY=RUNPOD_API_KEY:latest
 
   deploy-frontend:
     name: Deploy Frontend
