@@ -4,21 +4,17 @@ pillow>=10.0.0
 python-multipart>=0.0.6
 numpy>=1.24.0
 runpod>=1.7.3
-# Torch with CUDA support (installed via pip for GPU)
+# Torch with CUDA support (pip handles CUDA version)
 torch>=2.0.0
 torchvision>=0.15.0
-# GFPGAN dependencies
+# GFPGAN (includes basicsr as dependency)
 gfpgan>=1.3.8
-# Real-ESRGAN dependencies
+# Real-ESRGAN (includes basicsr as dependency)
 realesrgan>=0.3.0
-basicsr>=1.4.2
+# Face detection for GFPGAN/CodeFormer
 facexlib>=0.3.0
 # CodeFormer dependencies
 insightface>=0.7.3
 # Image processing
 opencv-python-headless>=4.8.0
 einops>=0.6.0
-# LaMa dependencies
-kornia>=0.7.0
-# Looseversion for GFPGAN
-setuptools>=68.0.0
