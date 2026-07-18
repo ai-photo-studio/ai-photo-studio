@@ -101,6 +101,9 @@ jobs:
     name: Deploy API to Cloud Run
     needs: [build-and-push]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment: ${{ github.event.inputs.environment || 'production' }}
     concurrency: production
     steps:
