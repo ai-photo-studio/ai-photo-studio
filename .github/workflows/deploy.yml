@@ -3,9 +3,16 @@
 # =============================================================================
 # TARGET:    https://www.thannow.com (frontend)
 #            https://api.thannow.com (API)
-# PLATFORM:  Cloud Run (backend API) — Neon PostgreSQL + Upstash Redis + R2
-# SECRETS:   All credentials via GitHub Secrets only
-# TRIGGER:   Manual (workflow_dispatch) or push to main (uncomment to enable)
+# PLATFORM:  Northflank (backend API) — Neon PostgreSQL + Upstash Redis + R2
+# SECRETS:   All credentials via GitHub Secrets only / Northflank secrets
+# TRIGGER:   Auto-deploy via Northflank GitHub integration on push to main
+# =============================================================================
+#
+# DEPLOYMENT ARCHITECTURE:
+#   GitHub Actions:     Build + push Docker image to GHCR
+#   Northflank:         Auto-deploys from GHCR when main branch updates
+#                       (GitHub integration handles the deploy trigger)
+#   Cloudflare Pages:   Frontend hosting (unchanged)
 # =============================================================================
 
 name: Deploy
@@ -98,57 +105,25 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-api:
-    name: Deploy API to Cloud Run
+    name: Trigger Northflank Deploy
     needs: [build-and-push]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    environment: ${{ github.event.inputs.environment || 'production' }}
-    concurrency: production
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate Prisma client
-        run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          project_id: project-9540c255-c960-4fa0-a91
-          workload_identity_provider: projects/108335160641/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-actions-deploy@project-9540c255-c960-4fa0-a91.iam.gserviceaccount.com
-
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          image: ${{ env.REGISTRY }}/${{ github.repository }}/ai-api:latest
-          service: ai-photo-studio-api
-          region: us-central1
-          project_id: project-9540c255-c960-4fa0-a91
-          timeout: 300
-          flags: --allow-unauthenticated --memory=512Mi --cpu=1 --concurrency=80
-          env_vars: |
-            ALLOWED_ORIGINS=https://www.thannow.com
-            AI_PROVIDER=local-rembg
-            STORAGE_PROVIDER=r2
-            DELIVERY_MODE=WHATSAPP
-            PAYMENT_GATEWAY_NAME=manual
-            RESTORATION_ENDPOINT_URL=3z633s11yn4n8q
-            BACKGROUND_API_URL=krovsimtvnr75h
-            PRODUCT_CLASSIFIER_URL=http://10.0.0.1:8080
-            R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
-            R2_PUBLIC_BASE_URL=${{ secrets.R2_PUBLIC_BASE_URL }}
-          secrets: |
-            JWT_SECRET=JWT_SECRET:latest
-            ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest
-            DATABASE_URL=DATABASE_URL:latest
-            REDIS_URL=REDIS_URL:latest
-            R2_BUCKET_NAME=R2_BUCKET:latest
-            WHATSAPP_VERIFY_TOKEN=WHATSAPP_VERIFY_TOKEN:latest
-            WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest
-            WHATSAPP_PHONE_NUMBER_ID=WHATSAPP_PHONE_NUMBER_ID:latest
-            RUNPOD_API_KEY=RUNPOD_API_KEY:latest
+      - name: Northflank auto-deploy (GitHub integration)
+        run: |
+          echo "Northflank is configured via GitHub integration."
+          echo "Auto-deploy triggers on every push to main branch."
+          echo "No manual deploy trigger needed — Northflank monitors the repository."
+        # Note: Northflank's GitHub integration watches the repo for pushes to main.
+        # When a new GHCR image is pushed by the build-and-push job, the subsequent
+        # push to main (or the same commit that triggered this workflow) causes
+        # Northflank to pull the new image and deploy it automatically.
+        #
+        # If Northflank needs an explicit webhook trigger, add:
+        #   - name: Trigger Northflank Deploy
+        #     run: |
+        #       curl -X POST https://api.northflank.com/v1/projects/ai-photo-studio/services/ai-photo-studio-api/deploy \
+        #         -H "Authorization: Bearer ${{ secrets.NORTHFLANK_API_TOKEN }}"
 
   deploy-frontend:
     name: Deploy Frontend
@@ -188,9 +163,11 @@ jobs:
     steps:
       - name: Verify API health
         run: |
-          HEALTH_URL="https://ai-photo-studio-api-108335160641.us-central1.run.app/api/health"
+          HEALTH_URL="https://api.thannow.com/api/health"
           echo "Checking API health at $HEALTH_URL"
           curl -sf -o /dev/null -w "HTTP %{http_code}\n" "$HEALTH_URL" || echo "API health check failed"
+          # Direct Northflank URL can also be verified once available:
+          # curl -sf -o /dev/null -w "HTTP %{http_code}\n" "https://ai-photo-studio-api.northflank.app/api/health"
 
       - name: Verify frontend
         run: |

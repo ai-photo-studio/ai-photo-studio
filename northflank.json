@@ -1,0 +1,75 @@
+{
+  "project": "AI Photo Studio",
+  "description": "AI Photo Studio WhatsApp API — migrated from Google Cloud Run",
+  "services": [
+    {
+      "name": "ai-photo-studio-api",
+      "type": "docker",
+      "repository": {
+        "provider": "github",
+        "owner": "ai-photo-studio",
+        "repo": "ai-photo-studio",
+        "branch": "main",
+        "dockerfile": "Dockerfile"
+      },
+      "port": 8080,
+      "autoDeploy": true,
+      "previewDeployments": true,
+      "healthCheck": {
+        "type": "http",
+        "path": "/api/health",
+        "port": 8080,
+        "initialDelaySeconds": 10,
+        "periodSeconds": 30,
+        "timeoutSeconds": 5,
+        "successThreshold": 1,
+        "failureThreshold": 3
+      },
+      "autoscaling": {
+        "minReplicas": 0,
+        "maxReplicas": 3,
+        "targetCPUUtilization": 60,
+        "targetMemoryUtilization": 60
+      },
+      "resources": {
+        "cpu": 1,
+        "memory": "512Mi"
+      },
+      "restartPolicy": "Always",
+      "customDomains": [
+        {
+          "domain": "api.thannow.com",
+          "ssl": "auto"
+        }
+      ],
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "8080",
+        "ALLOWED_ORIGINS": "https://www.thannow.com",
+        "AI_PROVIDER": "local-rembg",
+        "STORAGE_PROVIDER": "r2",
+        "DELIVERY_MODE": "WHATSAPP",
+        "PAYMENT_GATEWAY_NAME": "manual",
+        "RESTORATION_ENDPOINT_URL": "3z633s11yn4n8q",
+        "BACKGROUND_API_URL": "krovsimtvnr75h",
+        "PRODUCT_CLASSIFIER_URL": "http://10.0.0.1:8080",
+        "R2_ACCOUNT_ID": "2eb5eadd4af6da3d3a5f6c61d92437e4",
+        "R2_PUBLIC_BASE_URL": "https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com"
+      },
+      "secrets": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "JWT_SECRET",
+        "ADMIN_JWT_SECRET",
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
+        "R2_BUCKET_NAME",
+        "R2_ENDPOINT",
+        "WHATSAPP_VERIFY_TOKEN",
+        "WHATSAPP_ACCESS_TOKEN",
+        "WHATSAPP_PHONE_NUMBER_ID",
+        "RUNPOD_API_KEY"
+      ]
+    }
+  ]
+}
