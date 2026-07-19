@@ -135,7 +135,7 @@ jobs:
             DELIVERY_MODE=WHATSAPP
             PAYMENT_GATEWAY_NAME=manual
             RESTORATION_ENDPOINT_URL=3z633s11yn4n8q
-            BACKGROUND_API_URL=7w10v24n1hy1es
+            BACKGROUND_API_URL=krovsimtvnr75h
             PRODUCT_CLASSIFIER_URL=http://10.0.0.1:8080
             R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
             R2_PUBLIC_BASE_URL=${{ secrets.R2_PUBLIC_BASE_URL }}
