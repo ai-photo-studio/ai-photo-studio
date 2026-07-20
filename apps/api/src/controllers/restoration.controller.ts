@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { RestorationService } from "../services/restoration.service";
+import { RestorationEngineService } from "../services/restoration-engine.service";
 import { StorageService } from "../services/storage.service";
 import { logger } from "../utils/logger";
 
@@ -17,10 +18,12 @@ const decodeBase64Input = (input: string) => {
 
 export class RestorationController {
   private readonly restoration: RestorationService;
+  private readonly engine: RestorationEngineService;
   private readonly storage: StorageService;
 
   constructor(private readonly config: AppConfig) {
     this.restoration = new RestorationService(config);
+    this.engine = new RestorationEngineService(config);
     this.storage = new StorageService(config);
   }
 
@@ -128,20 +131,16 @@ export class RestorationController {
       const item = order.items.find((i: { id: string }) => i.id === itemId);
       if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
 
-      const quality = await this.restoration.runQualityAnalysis(item.originalStorageKey);
-      const damage = this.restoration.analyzeDamage(quality, item.originalStorageKey);
-
-      await this.restoration.updateItemStatus(itemId, "ANALYZING", {
-        damageSeverity: damage.damageSeverity,
-        imageCategory: damage.imageCategory,
-        damageScore: Math.round(damage.scratchCoverage),
-        qualityScore: quality.overallScore,
-        beforeQualityScore: quality.overallScore
-      });
+      const analysis = await this.engine.analyzeAndStore(item.originalStorageKey, item.mimeType || "image/jpeg", itemId);
 
       res.json({
         success: true,
-        data: { quality, damage }
+        data: {
+          quality: analysis.quality,
+          damage: analysis.damage,
+          pipeline: analysis.pipeline,
+          verification: analysis.verification
+        }
       });
     } catch (error) {
       this.handleError(res, error);
@@ -221,7 +220,20 @@ export class RestorationController {
     try {
       const { id, itemId } = req.params;
 
-      void this.restoration.processItem(itemId).catch((error) => {
+      void this.restoration.processItem(itemId).then(async () => {
+        try {
+          const item = await this.restoration.getOrder(id);
+          const restoredItem = item.items.find((i: { id: string }) => i.id === itemId);
+          if (restoredItem?.finalStorageKey) {
+            await this.engine.analyzeAndStore(restoredItem.finalStorageKey, restoredItem.mimeType || "image/jpeg", itemId);
+            logger.info("After-quality metrics captured", { itemId });
+          }
+        } catch (inner) {
+          logger.warn("After-quality capture failed (non-critical)", {
+            itemId, error: toErrorMessage(inner)
+          });
+        }
+      }).catch((error) => {
         logger.error("Restoration processing failed", {
           itemId,
           error: toErrorMessage(error)
