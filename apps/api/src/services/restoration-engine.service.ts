@@ -87,6 +87,20 @@ export class RestorationEngineService {
         faceDetection: { faceCount: analysis.faceCount, faceConfidence: analysis.faceConfidence }
       });
 
+      // Compute regression detection
+      const regressions: string[] = [];
+      if (quality.sharpnessScore < (item?.beforeSharpnessScore ?? quality.sharpnessScore) - 10) {
+        regressions.push(`Sharpness: ${item?.beforeSharpnessScore ?? '?'}→${Math.round(quality.sharpnessScore)}`);
+      }
+      if (quality.blurScore < (item?.beforeBlurScore ?? quality.blurScore) - 10) {
+        regressions.push(`Blur: ${item?.beforeBlurScore ?? '?'}→${Math.round(quality.blurScore)}`);
+      }
+      if ((analysis.resolution.width * analysis.resolution.height) < ((item?.imageResolutionWidth ?? 0) * (item?.imageResolutionHeight ?? 0)) * 0.5) {
+        regressions.push(`Resolution: lost detail`);
+      }
+      const qualityRegressionStage = regressions.length > 0 ? "RESTORATION_PIPELINE" : null;
+      const qualityRegressionDetail = regressions.length > 0 ? regressions.join("; ") : null;
+
       await prisma.restorationItem.update({
         where: { id: itemId },
         data: {
@@ -99,7 +113,9 @@ export class RestorationEngineService {
           afterQualityScore: quality.overallScore,
           ssimScore: verification.metrics.ssim,
           psnrScore: verification.metrics.psnr,
-          printQuality: verification.metrics.printQuality
+          printQuality: verification.metrics.printQuality,
+          qualityRegressionStage,
+          qualityRegressionDetail
         }
       });
 

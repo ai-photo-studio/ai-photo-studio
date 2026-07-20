@@ -659,6 +659,20 @@ model RestorationItem {
   afterBrightnessScore  Int?
   afterContrastScore    Int?
   afterColorCastScore   Int?
+  beforeEntropy         Float?
+  afterEntropy          Float?
+  beforeEdgeDensity     Float?
+  afterEdgeDensity      Float?
+  beforeTextureEnergy   Float?
+  afterTextureEnergy    Float?
+  beforeLaplacianVar    Float?
+  afterLaplacianVar     Float?
+  beforeHistogramSpread Float?
+  afterHistogramSpread  Float?
+  beforeLocalContrast   Float?
+  afterLocalContrast    Float?
+  qualityRegressionStage String?
+  qualityRegressionDetail String?
   beforeBlurScore       Int?
   beforeNoiseScore      Int?
   beforeSharpnessScore  Int?

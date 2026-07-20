@@ -268,9 +268,38 @@ export function RestoreOrderPage() {
                     <div><dt>Duration</dt><dd>{item.totalDurationMs ? `${(item.totalDurationMs / 1000).toFixed(1)}s` : "-"}</dd></div>
                     {item.qualityScore != null && (
                       <>
-                        <div><dt>Photo Condition</dt><dd>{formatScore(item.beforeQualityScore)}</dd></div>
-                        <div><dt>Restored Quality</dt><dd style={{ color: "var(--accent)", fontWeight: 600 }}>{formatScore(item.afterQualityScore)}</dd></div>
+                        <div><dt>Photo Condition</dt><dd>{formatScore(item.beforeQualityScore)} ({item.qualityScore})</dd></div>
+                        <div><dt>Restored Quality</dt><dd style={{ color: "var(--accent)", fontWeight: 600 }}>{formatScore(item.afterQualityScore)} ({item.afterQualityScore ?? "-"})</dd></div>
                       </>
+                    )}
+                    {item.afterQualityScore != null && item.qualityScore != null && (
+                      <div><dt>Improvement</dt><dd style={{ color: (item.afterQualityScore - item.qualityScore) >= 5 ? "var(--success)" : "var(--warn)" }}>
+                        {item.afterQualityScore - item.qualityScore >= 0 ? "+" : ""}{item.afterQualityScore - item.qualityScore} pts
+                      </dd></div>
+                    )}
+                    {item.qualityRegressionStage && (
+                      <div><dt>⚠️ Regression</dt><dd style={{ color: "var(--warn)", fontSize: "0.85rem" }}>{item.qualityRegressionDetail}</dd></div>
+                    )}
+                    {item.beforeSharpnessScore != null && (
+                      <div><dt>Sharpness</dt><dd>{item.beforeSharpnessScore} → {item.afterSharpnessScore ?? "—"}</dd></div>
+                    )}
+                    {item.beforeBlurScore != null && (
+                      <div><dt>Blur</dt><dd>{item.beforeBlurScore} → {item.afterBlurScore ?? "—"}</dd></div>
+                    )}
+                    {item.beforeNoiseScore != null && (
+                      <div><dt>Noise</dt><dd>{item.beforeNoiseScore} → {item.afterNoiseScore ?? "—"}</dd></div>
+                    )}
+                    {item.beforeContrastScore != null && (
+                      <div><dt>Contrast</dt><dd>{item.beforeContrastScore} → {item.afterContrastScore ?? "—"}</dd></div>
+                    )}
+                    {item.beforeBrightnessScore != null && (
+                      <div><dt>Brightness</dt><dd>{item.beforeBrightnessScore} → {item.afterBrightnessScore ?? "—"}</dd></div>
+                    )}
+                    {item.faceCount != null && (
+                      <div><dt>Faces</dt><dd>{item.faceCount} ({Math.round(item.faceConfidence * 100)}%)</dd></div>
+                    )}
+                    {item.damageScore != null && (
+                      <div><dt>Damage</dt><dd>{item.damageScore}/100 ({item.damageSeverity})</dd></div>
                     )}
                     {item.finalStorageKey && <div><dt>Print Ready</dt><dd style={{ color: (item.afterQualityScore ?? 0) >= 60 ? "var(--accent)" : "var(--muted)" }}>{(item.afterQualityScore ?? 0) >= 60 ? "Yes" : "Standard"}</dd></div>}
                   </dl>
