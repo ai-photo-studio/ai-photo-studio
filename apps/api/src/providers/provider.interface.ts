@@ -488,6 +488,7 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
     isPaid: false,
     capabilities: [
       { capability: "restoration-inpaint", enabled: true },
+      { capability: "restoration-analysis", enabled: true },
       { capability: "enhancement", enabled: false }
     ],
     costPerOperation: { operation: "restoration-inpaint", estimatedCost: 0 },
@@ -502,7 +503,8 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
     isLocal: true,
     isPaid: false,
     capabilities: [
-      { capability: "restoration-face", enabled: true }
+      { capability: "restoration-face", enabled: true },
+      { capability: "restoration-analysis", enabled: true }
     ],
     costPerOperation: { operation: "restoration-face", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT"],
@@ -516,7 +518,8 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
     isLocal: true,
     isPaid: false,
     capabilities: [
-      { capability: "restoration-face", enabled: true }
+      { capability: "restoration-face", enabled: true },
+      { capability: "restoration-analysis", enabled: true }
     ],
     costPerOperation: { operation: "restoration-face", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT"],
@@ -530,7 +533,8 @@ export const PROVIDER_CAPABILITIES: Record<AIProviderName, ProviderMetadata> = {
     isLocal: true,
     isPaid: false,
     capabilities: [
-      { capability: "restoration-colorize", enabled: true }
+      { capability: "restoration-colorize", enabled: true },
+      { capability: "restoration-analysis", enabled: true }
     ],
     costPerOperation: { operation: "restoration-colorize", estimatedCost: 0 },
     supportedWorkflows: ["PRODUCT"],

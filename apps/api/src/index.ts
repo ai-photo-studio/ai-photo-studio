@@ -30,6 +30,7 @@ import { startQueueWatchdog } from "./services/queue-watchdog.service";
 import { startWorkerWatchdog } from "./services/worker-watchdog.service";
 import { setWorkerHealthState } from "./services/worker-health.service";
 import { AdminAuthService, normalizeAdminRole } from "./services/admin-auth.service";
+import { RestorationEngineService } from "./services/restoration-engine.service";
 
 const execFile = promisify(execFileCb);
 
@@ -57,6 +58,7 @@ const bootstrap = async () => {
     await applyPendingMigrations();
   }
   const adminAuth = new AdminAuthService(config);
+  const restorationEngine = new RestorationEngineService(config);
   await adminAuth
     .bootstrapFirstAdmin({
       email: process.env.ADMIN_BOOTSTRAP_EMAIL || "",
