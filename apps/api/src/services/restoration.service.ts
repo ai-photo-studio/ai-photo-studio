@@ -195,22 +195,24 @@ export class RestorationService {
     };
   }
 
-  async generatePreview(originalStorageKey: string, itemId: string): Promise<{ previewKey: string; previewUrl: string }> {
-    const original = await this.storage.downloadFile(originalStorageKey);
+  async generatePreview(processedStorageKey: string, itemId: string): Promise<{ previewKey: string; previewUrl: string }> {
+    const processed = await this.storage.downloadFile(processedStorageKey);
 
     const preview = await this.storage.uploadFile({
       keyPrefix: "previews",
       fileName: `restoration-${itemId}-${Date.now()}.jpg`,
-      body: original.body,
-      contentType: original.contentType || "image/jpeg"
+      body: processed.body,
+      contentType: processed.contentType || "image/jpeg"
     });
+
+    const signedUrl = await this.storage.getSignedUrl(preview.key);
 
     await prisma.restorationItem.update({
       where: { id: itemId },
       data: { previewStorageKey: preview.key }
     });
 
-    return { previewKey: preview.key, previewUrl: preview.url };
+    return { previewKey: preview.key, previewUrl: signedUrl };
   }
 
   async getDownloadUrl(itemId: string): Promise<string> {
@@ -294,17 +296,41 @@ export class RestorationService {
     let totalDurationMs = 0;
 
     const start = Date.now();
-    await prisma.restorationItem.update({
-      where: { id: itemId },
-      data: { processingStage: "RESTORATION_PROCESSING" }
-    });
+
+    const stageMap: Record<string, string> = {
+      damage_detection: "RESTORATION_ANALYSIS",
+      lama_inpaint: "RESTORATION_INPAINT",
+      face_restoration_gfpgan: "RESTORATION_FACE",
+      face_restoration_codeformer: "RESTORATION_FACE",
+      colorization_ddcolor: "RESTORATION_COLORIZE",
+      real_esrgan_upscale: "RESTORATION_UPSCALE"
+    };
 
     try {
+      await prisma.restorationItem.update({
+        where: { id: itemId },
+        data: { processingStage: "RESTORATION_INPAINT" }
+      });
       const result = await this.restorationService.restore(input);
       processedBuffer = result.body;
       processedContentType = result.contentType;
       providersUsed = result.processingStages || ["restoration"];
       logger.info("Restoration completed via single endpoint", { itemId, stages: providersUsed });
+
+      providersUsed.sort((a, b) => {
+        const order = ["damage_detection", "lama_inpaint", "face_restoration_gfpgan", "face_restoration_codeformer", "colorization_ddcolor", "real_esrgan_upscale"];
+        return (order.indexOf(a) - order.indexOf(b));
+      });
+
+      for (const stage of providersUsed) {
+        const mapped = stageMap[stage];
+        if (mapped) {
+          await prisma.restorationItem.update({
+            where: { id: itemId },
+            data: { processingStage: mapped }
+          });
+        }
+      }
     } catch (err) {
       logger.error("Restoration failed", { itemId, error: err instanceof Error ? err.message : String(err) });
       throw err;

@@ -86,7 +86,6 @@ export function AdminRestorationDetailPage() {
             </div>
             <dl className="detail-grid">
               <div><dt>Stage</dt><dd>{item.processingStage || "-"}</dd></div>
-              <div><dt>Provider</dt><dd>{item.providerUsed || "-"}</dd></div>
               <div><dt>Duration</dt><dd>{item.totalDurationMs ? `${(item.totalDurationMs / 1000).toFixed(1)}s` : "-"}</dd></div>
               <div><dt>Quality</dt><dd>{item.beforeQualityScore ?? "?"} → {item.afterQualityScore ?? "?"}</dd></div>
               <div><dt>Damage</dt><dd>{item.damageSeverity} ({item.damageScore ?? "?"})</dd></div>

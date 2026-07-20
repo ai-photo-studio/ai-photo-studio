@@ -1869,8 +1869,28 @@ img {
   border-radius: 50%;
   background: var(--accent);
   cursor: ew-resize;
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.restore-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.restore-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
   .marketplace-mini-row {
