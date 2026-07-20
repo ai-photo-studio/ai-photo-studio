@@ -225,7 +225,7 @@ export class RestorationController {
           const item = await this.restoration.getOrder(id);
           const restoredItem = item.items.find((i: { id: string }) => i.id === itemId);
           if (restoredItem?.finalStorageKey) {
-            await this.engine.analyzeAndStore(restoredItem.finalStorageKey, restoredItem.mimeType || "image/jpeg", itemId);
+            await this.engine.analyzeAndStore(restoredItem.finalStorageKey, restoredItem.mimeType || "image/jpeg", itemId, "after");
             logger.info("After-quality metrics captured", { itemId });
           }
         } catch (inner) {

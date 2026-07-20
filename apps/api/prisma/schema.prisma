@@ -653,6 +653,12 @@ model RestorationItem {
   qualityScore          Int?
   beforeQualityScore    Int?
   afterQualityScore     Int?
+  afterBlurScore        Int?
+  afterNoiseScore       Int?
+  afterSharpnessScore   Int?
+  afterBrightnessScore  Int?
+  afterContrastScore    Int?
+  afterColorCastScore   Int?
   beforeBlurScore       Int?
   beforeNoiseScore      Int?
   beforeSharpnessScore  Int?
