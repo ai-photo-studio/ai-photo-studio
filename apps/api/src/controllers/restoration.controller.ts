@@ -233,11 +233,26 @@ export class RestorationController {
             itemId, error: toErrorMessage(inner)
           });
         }
-      }).catch((error) => {
+      }).catch(async (error) => {
         logger.error("Restoration processing failed", {
           itemId,
           error: toErrorMessage(error)
         });
+        try {
+          const { prisma } = await import("../db/prisma");
+          await prisma.restorationItem.update({
+            where: { id: itemId },
+            data: {
+              status: "FAILED",
+              errorMessage: toErrorMessage(error),
+              processingStage: "RESTORATION_FAILED"
+            }
+          });
+        } catch (dbErr) {
+          logger.error("Failed to mark item FAILED from controller", {
+            itemId, error: toErrorMessage(dbErr)
+          });
+        }
       });
 
       res.json({

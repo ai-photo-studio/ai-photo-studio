@@ -333,6 +333,36 @@ export class RestorationService {
       }
     } catch (err) {
       logger.error("Restoration failed", { itemId, error: err instanceof Error ? err.message : String(err) });
+      try {
+        await prisma.restorationItem.update({
+          where: { id: itemId },
+          data: {
+            status: "FAILED",
+            errorMessage: err instanceof Error ? err.message : String(err),
+            processingStage: "RESTORATION_FAILED",
+            totalDurationMs: Date.now() - start
+          }
+        });
+        if (walletReservation) {
+          try {
+            const { WalletService } = await import("../services/wallet.service");
+            const walletService = new WalletService();
+            await walletService.releaseReservedCredits({
+              walletId: walletReservation.walletId, amount: walletReservation.amount,
+              referenceType: "restoration_item", referenceId: itemId,
+              note: `Auto-release after processing failure`
+            });
+          } catch (walletErr) {
+            logger.warn("Failed to release wallet after processing failure", {
+              itemId, error: walletErr instanceof Error ? walletErr.message : String(walletErr)
+            });
+          }
+        }
+      } catch (dbErr) {
+        logger.error("Failed to mark item as FAILED after processing error", {
+          itemId, error: dbErr instanceof Error ? dbErr.message : String(dbErr)
+        });
+      }
       throw err;
     }
 

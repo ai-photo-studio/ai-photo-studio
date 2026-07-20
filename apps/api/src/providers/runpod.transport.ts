@@ -2,9 +2,9 @@ import { logger } from "../utils/logger";
 
 const RUNPOD_API_BASE = "https://api.runpod.ai/v2";
 
-const QUEUE_TIMEOUT_MS = (parseInt(process.env.QUEUE_TIMEOUT_SECONDS || "60", 10) + 5) * 1000;
-const PROCESSING_TIMEOUT_MS = (parseInt(process.env.PROCESSING_TIMEOUT_SECONDS || "90", 10) + 10) * 1000;
-const ABSOLUTE_TIMEOUT_MS = (parseInt(process.env.ABSOLUTE_TIMEOUT_SECONDS || "150", 10) + 10) * 1000;
+const QUEUE_TIMEOUT_MS = (parseInt(process.env.QUEUE_TIMEOUT_SECONDS || "300", 10) + 5) * 1000;
+const PROCESSING_TIMEOUT_MS = (parseInt(process.env.PROCESSING_TIMEOUT_SECONDS || "600", 10) + 10) * 1000;
+const ABSOLUTE_TIMEOUT_MS = (parseInt(process.env.ABSOLUTE_TIMEOUT_SECONDS || "900", 10) + 10) * 1000;
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -32,7 +32,7 @@ export async function runRunPodRequest(
   const effectiveTimeout = timeoutMs ?? ABSOLUTE_TIMEOUT_MS;
   const url = `${RUNPOD_API_BASE}/${endpointId}/runsync`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Math.min(effectiveTimeout, 60_000));
+  const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
 
   try {
     const startTime = Date.now();
