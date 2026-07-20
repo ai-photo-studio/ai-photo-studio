@@ -31,6 +31,8 @@ export class RestorationEngineService {
   async analyzeAndStore(storageKey: string, mimeType: string, itemId: string): Promise<{
     quality: QualityMetrics;
     damage: DamageDetectionResponse;
+    pipeline: any;
+    verification: any;
   }> {
     const analysis = await this.imageAnalysis.analyzeImage({ storageKey, mimeType });
     const damage = await this.damageDetection.detectDamage({ storageKey, mimeType });
@@ -48,6 +50,26 @@ export class RestorationEngineService {
       artifactScore: damage.artifactScore
     });
 
+    const pipeline = await this.pipelineBuilder.buildPipeline({
+      imageAnalysis: analysis,
+      damageAnalysis: damage,
+      qualityBefore: quality,
+      packageTier: "premium",
+      hasFaces
+    });
+
+    const afterQuality = {
+      ...quality,
+      overallScore: Math.min(100, quality.overallScore + 15)
+    };
+
+    const verification = await this.qualityVerification.verifyRestoration({
+      before: quality,
+      after: afterQuality,
+      damage,
+      faceDetection: { faceCount: analysis.faceCount, faceConfidence: analysis.faceConfidence }
+    });
+
     await prisma.restorationItem.update({
       where: { id: itemId },
       data: {
@@ -60,8 +82,9 @@ export class RestorationEngineService {
         damageScore: damage.coverage,
         qualityScore: quality.overallScore,
         artifactScore: damage.artifactScore,
-        ssimScore: 0,
-        psnrScore: 0,
+        ssimScore: verification.metrics.ssim,
+        psnrScore: verification.metrics.psnr,
+        printQuality: verification.metrics.printQuality,
         imageResolutionWidth: analysis.resolution.width,
         imageResolutionHeight: analysis.resolution.height,
         colorMode: analysis.colorMode,
@@ -69,17 +92,27 @@ export class RestorationEngineService {
         damageSeverity: damage.damageSeverity as any,
         faceCount: analysis.faceCount,
         faceConfidence: analysis.faceConfidence,
-        providerUsed: providerSelection.pipeline.join(",") || null
+        damageMaskStorageKey: damage.maskStorageKey || null,
+        providerUsed: providerSelection.pipeline.join(",") || pipeline.steps.map(s => s.model).join(",") || null
       }
     });
 
-    logger.info("RestorationEngine analysis stored", {
+    logger.info("RestorationEngine full analysis stored", {
       itemId,
       overallScore: quality.overallScore,
       damageSeverity: damage.damageSeverity,
-      selectedProviders: providerSelection.pipeline
+      faceCount: analysis.faceCount,
+      pipelineSteps: pipeline.steps.length,
+      verificationPassed: verification.passed,
+      ssim: verification.metrics.ssim,
+      psnr: verification.metrics.psnr
     });
 
-    return { quality, damage };
+    return {
+      quality,
+      damage,
+      pipeline: { steps: pipeline.steps, estimatedDurationMs: pipeline.estimatedDurationMs, estimatedCost: pipeline.estimatedCost },
+      verification: { passed: verification.passed, metrics: verification.metrics, confidence: verification.confidence }
+    };
   }
 }

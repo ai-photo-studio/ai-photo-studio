@@ -1,5 +1,6 @@
 import { StorageService } from "./storage.service";
 import type { AppConfig } from "../config/env";
+import { RetinaFaceService } from "./retina-face.service";
 import { logger } from "../utils/logger";
 
 export interface ImageAnalysisRequest {
@@ -41,9 +42,11 @@ function clamp(v: number): number {
 
 export class ImageAnalysisService {
   private readonly storage: StorageService;
+  private readonly retinaFace: RetinaFaceService;
 
   constructor(private readonly config: AppConfig) {
     this.storage = new StorageService(config);
+    this.retinaFace = new RetinaFaceService(config);
   }
 
   async analyzeImage(request: ImageAnalysisRequest): Promise<ImageAnalysisResponse> {
@@ -58,18 +61,17 @@ export class ImageAnalysisService {
     const colorMode = this.detectColorMode(pixels);
     const overallScore = this.computeOverallScore(qualityMetrics);
 
-    const imageCategory = colorMode === "black_and_white" ? "BLACK_WHITE" :
-      width * height < 500 * 500 ? "DOCUMENT" :
-      width * height > 4000 * 3000 ? "LANDSCAPE" :
-      "GENERAL";
+    const faceResult = await this.retinaFace.detectFaces({ storageKey: request.storageKey, mimeType: request.mimeType });
+
+    const imageCategory = this.classifyImageCategory(colorMode === "black_and_white", faceResult.faceCount);
 
     const processingTimeMs = Date.now() - startTime;
 
     return {
       resolution: { width, height },
       colorMode,
-      faceCount: 0,
-      faceConfidence: 0,
+      faceCount: faceResult.faceCount,
+      faceConfidence: faceResult.faceConfidence,
       imageCategory,
       qualityMetrics: { ...qualityMetrics, overallScore },
       processingTimeMs
@@ -220,5 +222,14 @@ export class ImageAnalysisService {
 
     const avgDeviation = colorDeviation / pixelCount;
     return avgDeviation < 15 ? "black_and_white" : "color";
+  }
+
+  private classifyImageCategory(isBw: boolean, faceCount: number): ImageCategory {
+    if (isBw) return "BLACK_WHITE";
+    if (faceCount >= 3) return "GROUP_PHOTO";
+    if (faceCount >= 2) return "WEDDING";
+    if (faceCount === 1) return "PORTRAIT";
+    if (faceCount > 0) return "FACE";
+    return "GENERAL";
   }
 }

@@ -12,7 +12,7 @@ import { AppError } from "../utils/errors";
 import { logger } from "../utils/logger";
 
 export type UploadFileInput = {
-  keyPrefix: "originals" | "previews" | "finals";
+  keyPrefix: "originals" | "previews" | "finals" | "artifacts";
   fileName: string;
   contentType?: string;
   body: Buffer | string;
@@ -44,7 +44,8 @@ export interface StorageProvider {
 const retentionByPrefix: Record<UploadFileInput["keyPrefix"], number> = {
   originals: 72,
   finals: 24 * 30,
-  previews: 24 * 7
+  previews: 24 * 7,
+  artifacts: 24
 };
 
 const buildStorageKey = (params: UploadFileInput) => {

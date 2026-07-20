@@ -1,6 +1,6 @@
 import { StorageService } from "./storage.service";
+import { DamageMaskService } from "./damage-mask.service";
 import type { AppConfig } from "../config/env";
-import { randomUUID } from "node:crypto";
 import { logger } from "../utils/logger";
 
 export interface DamageDetectionRequest {
@@ -35,9 +35,11 @@ function isSkinTone(r: number, g: number, b: number): boolean {
 
 export class DamageDetectionService {
   private readonly storage: StorageService;
+  private readonly maskService: DamageMaskService;
 
   constructor(private readonly config: AppConfig) {
     this.storage = new StorageService(config);
+    this.maskService = new DamageMaskService(config);
   }
 
   async detectDamage(request: DamageDetectionRequest): Promise<DamageDetectionResponse> {
@@ -48,9 +50,6 @@ export class DamageDetectionService {
     const step = Math.max(1, Math.floor((body.length / 3) / pixelCount));
 
     const pixels: Array<{ r: number; g: number; b: number; gray: number }> = [];
-
-    const width = 0;
-    const height = 0;
 
     for (let i = 54; i + 2 < body.length && pixels.length < pixelCount; i += step * 3) {
       const r = body[i], g = body[i + 1], b = body[i + 2];
@@ -86,23 +85,19 @@ export class DamageDetectionService {
     const edgeDensity = scanLineEdges / grays.length;
 
     const darkPixels = pixels.filter(p => p.gray < 30).length / pixels.length;
-    const brightPixels = pixels.filter(p => p.gray > 220).length / pixels.length;
+    const veryDark = pixels.filter(p => p.gray < 15).length / pixels.length;
 
     let colorDeviation = 0;
-    let skinPixelCount = 0;
     for (const p of pixels) {
       colorDeviation += Math.abs(p.r - p.g) + Math.abs(p.g - p.b) + Math.abs(p.b - p.r);
-      if (isSkinTone(p.r, p.g, p.b)) skinPixelCount++;
     }
     const avgColorDev = colorDeviation / pixels.length;
-    const skinRatio = skinPixelCount / pixels.length;
 
     const scratchCoverage = clamp(Math.round(edgeDensity * 100));
     const dustLevel = clamp(Math.round(darkPixels * 100));
     const tearDepth = clamp(Math.round((edgeDensity + darkPixels) * 50));
     const crackCount = Math.max(0, Math.round(scanLineEdges * 0.1));
     const fadingLevel = clamp(Math.round((1 - stdDev / 127) * 100));
-    const yellowing = Math.max(0, (avgColorDev > 50 ? (avgColorDev - 50) / 50 * 100 : 0));
     const artifactScore = clamp(Math.round((dustLevel * 0.5 + (100 - fadingLevel) * 0.3 + crackCount * 0.2)));
 
     let severity: "LIGHT" | "MEDIUM" | "HEAVY";
@@ -123,14 +118,24 @@ export class DamageDetectionService {
       (fadingLevel > 30 ? fadingLevel * 0.2 : 0) + crackCount * 2
     ));
 
-    const maskKey = "";
+    let maskStorageKey = "";
+    try {
+      const maskResult = await this.maskService.generateMasks(request);
+      maskStorageKey = maskResult.maskStorageKey;
+    } catch (err) {
+      logger.warn("Damage mask generation failed, proceeding without mask", {
+        storageKey: request.storageKey,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+
     const durationMs = Date.now() - startTime;
 
     return {
       damageSeverity: severity,
       damageTypes,
       coverage,
-      maskStorageKey: maskKey,
+      maskStorageKey,
       scratchCoverage,
       dustLevel,
       tearDepth,
