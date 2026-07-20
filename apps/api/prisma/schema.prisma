@@ -237,6 +237,15 @@ model ProcessingJob {
   errorMessage    String?
   deadLetterReason String?
   failureStage    String?
+  lastHeartbeat   DateTime?
+  processingStartedAt DateTime?
+  processingWorkerId String?
+  gpuSecondsSpent Int       @default(0)
+  estimatedGpuCost Decimal? @db.Decimal(10, 4)
+  cloudRunCost    Decimal?  @db.Decimal(10, 4)
+  runpodCost      Decimal?  @db.Decimal(10, 4)
+  refundProcessed Boolean   @default(false)
+  refundNote      String?
   payload         Json?
   startedAt       DateTime?
   completedAt     DateTime?
@@ -252,6 +261,8 @@ model ProcessingJob {
   @@index([orderId, status])
   @@index([queueName, status])
   @@index([orderItemId, status])
+  @@index([status, lastHeartbeat])
+  @@index([status, processingStartedAt])
 }
 
 model OrderStatusHistory {

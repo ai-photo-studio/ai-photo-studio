@@ -29,6 +29,9 @@ import { runCleanupOnce } from "./workers/cleanup.worker";
 import { startQueueWatchdog } from "./services/queue-watchdog.service";
 import { startWorkerWatchdog } from "./services/worker-watchdog.service";
 import { setWorkerHealthState } from "./services/worker-health.service";
+import { startJobHeartbeat } from "./services/job-heartbeat.service";
+import { startRecoveryWatchdog } from "./services/recovery-watchdog.service";
+import { startMemoryWatchdog } from "./services/memory-watchdog.service";
 import { AdminAuthService, normalizeAdminRole } from "./services/admin-auth.service";
 import { RestorationEngineService } from "./services/restoration-engine.service";
 
@@ -172,6 +175,8 @@ const bootstrap = async () => {
 
   startImageProcessingWorker(config);
   startQueueWatchdog();
+  startJobHeartbeat();
+  startRecoveryWatchdog(config);
   const restartWorker = () => {
     logger.warn("WORKER_RESTART triggered by watchdog");
     setWorkerHealthState({
@@ -180,6 +185,7 @@ const bootstrap = async () => {
     });
   };
   startWorkerWatchdog(restartWorker);
+  startMemoryWatchdog(restartWorker);
   setInterval(() => {
     runCleanupOnce(config).catch((error) => logger.error("Cleanup tick failed", { error: toErrorMessage(error) }));
   }, 60 * 60 * 1000);

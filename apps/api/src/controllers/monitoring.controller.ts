@@ -9,6 +9,8 @@ import { YoloDetectorService } from "../services/yolo-detector.service";
 import { RealEsrganService } from "../services/real-esrgan.service";
 import { ICLightLabService } from "../services/ic-light-lab.service";
 import { ProductClassifierService } from "../services/product-classifier.service";
+import { getMemoryWatchdogStatus, getGpuMemoryStatus } from "../services/memory-watchdog.service";
+import { prisma } from "../db/prisma";
 
 export class MonitoringController {
   private readonly queueHealth: QueueHealthService;
@@ -80,6 +82,54 @@ export class MonitoringController {
         iclight: iclightHealth.status === "fulfilled" ? iclightHealth.value : { status: "error", error: String(iclightHealth.reason) },
         classifier: classifierHealth.status === "fulfilled" ? classifierHealth.value : { status: "error", error: String(classifierHealth.reason) }
       }
+    });
+  };
+
+  queueDashboard = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const [waiting, active, failed, completed, retries, avgRuntime, totalGpuSeconds, totalGpuCost, totalCloudCost, totalRunpodCost] = await Promise.all([
+        prisma.processingJob.count({ where: { status: "QUEUED" } }),
+        prisma.processingJob.count({ where: { status: { in: ["RUNNING", "RETRYING"] } } }),
+        prisma.processingJob.count({ where: { status: "FAILED" } }),
+        prisma.processingJob.count({ where: { status: "COMPLETED" } }),
+        prisma.processingJob.aggregate({ _sum: { attempts: true }, where: { attempts: { gt: 1 } } }),
+        prisma.processingJob.aggregate({
+          _avg: { gpuSecondsSpent: true },
+          where: { status: { in: ["COMPLETED", "FAILED"] }, gpuSecondsSpent: { gt: 0 } }
+        }),
+        prisma.processingJob.aggregate({ _sum: { gpuSecondsSpent: true } }),
+        prisma.processingJob.aggregate({ _sum: { estimatedGpuCost: true } }),
+        prisma.processingJob.aggregate({ _sum: { cloudRunCost: true } }),
+        prisma.processingJob.aggregate({ _sum: { runpodCost: true } }),
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          counts: { waiting, active, failed, completed },
+          retryCount: retries._sum.attempts || 0,
+          averageRuntimeSeconds: Math.round(avgRuntime._avg.gpuSecondsSpent || 0),
+          totalGpuSeconds: totalGpuSeconds._sum.gpuSecondsSpent || 0,
+          totalGpuCost: Number(totalGpuCost._sum.estimatedGpuCost || 0),
+          totalCloudRunCost: Number(totalCloudCost._sum.cloudRunCost || 0),
+          totalRunpodCost: Number(totalRunpodCost._sum.runpodCost || 0),
+          totalEstimatedCost: Number(totalGpuCost._sum.estimatedGpuCost || 0) +
+            Number(totalCloudCost._sum.cloudRunCost || 0) +
+            Number(totalRunpodCost._sum.runpodCost || 0),
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  memory = async (_req: Request, res: Response): Promise<void> => {
+    const mem = getMemoryWatchdogStatus();
+    const gpu = getGpuMemoryStatus();
+    res.json({
+      success: true,
+      data: { process: mem, gpu }
     });
   };
 
