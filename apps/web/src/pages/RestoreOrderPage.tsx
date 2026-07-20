@@ -8,6 +8,7 @@ import { formatDateTime } from "../lib/format";
 const STAGES = [
   { key: "RESTORATION_ANALYSIS", label: "Analyzing" },
   { key: "RESTORATION_INPAINT", label: "Repairing" },
+  { key: "RESTORATION_PROCESSING", label: "Processing" },
   { key: "RESTORATION_FACE", label: "Enhancing" },
   { key: "RESTORATION_COLORIZE", label: "Improving" },
   { key: "RESTORATION_UPSCALE", label: "Improving" },
