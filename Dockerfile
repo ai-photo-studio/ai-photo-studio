@@ -19,7 +19,7 @@ RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 USER nodejs
 EXPOSE ${PORT:-8080}
 ENV NODE_ENV=production
-ENV SKIP_MIGRATIONS=true
+ENV SKIP_MIGRATIONS=false
 ENV PORT=8080
 CMD ["node", "apps/api/dist/index.js"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
