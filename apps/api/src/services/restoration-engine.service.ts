@@ -1,16 +1,16 @@
 import type { AppConfig } from "../config/env";
+import { prisma } from "../db/prisma";
+import { logger } from "../utils/logger";
 import { ImageAnalysisService } from "./image-analysis.service";
 import { DamageDetectionService } from "./damage-detection.service";
 import { QualityVerificationService } from "./quality-verification.service";
 import { PipelineBuilderService } from "./pipeline-builder.service";
 import { PrintReadinessService } from "./print-readiness.service";
 import { MonitoringService } from "./monitoring.service";
+import { selectProviders } from "../providers/provider-selection.service";
+import type { QualityMetrics } from "./image-analysis.service";
+import type { DamageDetectionResponse } from "./damage-detection.service";
 
-/**
- * RestorationEngineService — Sprint 1 skeleton only.
- * This service will orchestrate the full restoration pipeline in Sprint 2+.
- * For now it only wires the sub-services; no existing restoration logic is replaced.
- */
 export class RestorationEngineService {
   public readonly imageAnalysis: ImageAnalysisService;
   public readonly damageDetection: DamageDetectionService;
@@ -28,12 +28,58 @@ export class RestorationEngineService {
     this.monitoring = new MonitoringService(config);
   }
 
-  /**
-   * Placeholder — no functional behavior in Sprint 1.
-   * Will be implemented in Sprint 2+ to orchestrate the full pipeline.
-   */
-  async processRestoration(_params: { storageKey: string; mimeType: string }): Promise<void> {
-    void _params;
-    // Not implemented — existing restoration service continues to handle processing
+  async analyzeAndStore(storageKey: string, mimeType: string, itemId: string): Promise<{
+    quality: QualityMetrics;
+    damage: DamageDetectionResponse;
+  }> {
+    const analysis = await this.imageAnalysis.analyzeImage({ storageKey, mimeType });
+    const damage = await this.damageDetection.detectDamage({ storageKey, mimeType });
+
+    const quality = analysis.qualityMetrics;
+
+    const isBlackAndWhite = analysis.colorMode === "black_and_white";
+    const hasFaces = analysis.faceCount > 0;
+
+    const providerSelection = selectProviders({
+      hasFaces,
+      isBlackAndWhite,
+      damageSeverity: damage.damageSeverity,
+      overallQuality: quality.overallScore,
+      artifactScore: damage.artifactScore
+    });
+
+    await prisma.restorationItem.update({
+      where: { id: itemId },
+      data: {
+        beforeBlurScore: Math.round(quality.blurScore),
+        beforeNoiseScore: Math.round(quality.noiseScore),
+        beforeSharpnessScore: Math.round(quality.sharpnessScore),
+        beforeBrightnessScore: Math.round(quality.brightnessScore),
+        beforeContrastScore: Math.round(quality.contrastScore),
+        beforeColorCastScore: Math.round(quality.colorCastScore),
+        damageScore: damage.coverage,
+        qualityScore: quality.overallScore,
+        artifactScore: damage.artifactScore,
+        ssimScore: 0,
+        psnrScore: 0,
+        imageResolutionWidth: analysis.resolution.width,
+        imageResolutionHeight: analysis.resolution.height,
+        colorMode: analysis.colorMode,
+        imageCategory: analysis.imageCategory as any,
+        damageSeverity: damage.damageSeverity as any,
+        faceCount: analysis.faceCount,
+        faceConfidence: analysis.faceConfidence,
+        providerUsed: providerSelection.pipeline.join(",") || null
+      }
+    });
+
+    logger.info("RestorationEngine analysis stored", {
+      itemId,
+      overallScore: quality.overallScore,
+      damageSeverity: damage.damageSeverity,
+      selectedProviders: providerSelection.pipeline
+    });
+
+    return { quality, damage };
   }
 }

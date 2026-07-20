@@ -609,6 +609,9 @@ model RestorationOrder {
   totalItems      Int               @default(0)
   completedItems  Int               @default(0)
   failedItems     Int               @default(0)
+  totalDurationMs Int?
+  qualityImprovement Int?
+  estimatedCost   Decimal?          @db.Decimal(10, 4)
   metadata        Json?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -627,6 +630,7 @@ model RestorationItem {
   previewStorageKey     String?
   finalStorageKey       String?
   maskStorageKey        String?
+  damageMaskStorageKey  String?
   mimeType              String?
   width                 Int?
   height                Int?
@@ -638,6 +642,22 @@ model RestorationItem {
   qualityScore          Int?
   beforeQualityScore    Int?
   afterQualityScore     Int?
+  beforeBlurScore       Int?
+  beforeNoiseScore      Int?
+  beforeSharpnessScore  Int?
+  beforeBrightnessScore Int?
+  beforeContrastScore   Int?
+  beforeColorCastScore  Int?
+  faceCount             Int?
+  faceConfidence        Float?
+  imageResolutionWidth  Int?
+  imageResolutionHeight Int?
+  colorMode             String?
+  artifactScore         Int?
+  printQuality          Int?
+  ssimScore             Float?
+  psnrScore             Float?
+  revisionCount         Int               @default(0)
   processingStage       String?
   providerUsed          String?
   totalDurationMs       Int?
