@@ -208,7 +208,7 @@
     "runpodEndpoints": "all-6-deployed",
     "runpodTemplateImageSource": "ghcr.io/ai-photo-studio",
     "runpodTemplateImageUpdated": true,
-    "runpodBgRemoverEndpointId": "a8htv0u9c7we5a",
+    "runpodBgRemoverEndpointId": "krovsimtvnr75h",
     "runpodBgRemoverGpu": "NVIDIA RTX 4000 Ada Generation",
     "runpodLamaEndpointId": "0oqlkj2hjwcacj",
     "runpodGfpganEndpointId": "00h6fg3oy458ml",
