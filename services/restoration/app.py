@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -40,6 +40,26 @@ REALESRGAN_MODEL_PATH = os.getenv("REALESRGAN_CHECKPOINT", "/models/RealESRGAN_x
 
 MODEL_DEVICE = os.getenv("MODEL_DEVICE", "cuda" if os.path.exists("/dev/nvidia0") else "cpu")
 MODEL_CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "/models")
+
+# DEBUG mode: saves every intermediate image
+DEBUG_ENABLED = os.getenv("RESTORATION_DEBUG", "0") == "1"
+DEBUG_DIR = os.getenv("RESTORATION_DEBUG_DIR", "/tmp/debug-output")
+RUN_ID: str = ""
+
+
+def save_debug(file_name: str, image: "Image.Image", stage: str = "") -> None:
+    """Save an intermediate image in DEBUG mode."""
+    if not DEBUG_ENABLED:
+        return
+    try:
+        safe_name = file_name.replace("/", "_").replace("\\", "_")
+        filename = f"{RUN_ID}_{safe_name}_{stage}.png"
+        path = os.path.join(DEBUG_DIR, filename)
+        os.makedirs(DEBUG_DIR, exist_ok=True)
+        image.save(path, "PNG")
+        logger.info(f"DEBUG saved: {path} ({image.size[0]}x{image.size[1]})")
+    except Exception as e:
+        logger.warning(f"DEBUG save failed for {file_name}: {e}")
 
 
 @dataclass(slots=True)
@@ -636,6 +656,11 @@ def _process_restoration(
     source = _load_image(raw)
     stages: list[str] = []
     
+    global RUN_ID
+    RUN_ID = f"{int(time.time())}_{file_name or 'unknown'}"
+    if DEBUG_ENABLED:
+        save_debug(file_name or "unknown", source, "01_original")
+    
     damage = _detect_damage(source)
     damage_severity = "MEDIUM"
     if damage["overall_score"] < 45:
@@ -648,29 +673,61 @@ def _process_restoration(
     working = source
     working_rgba = working.convert("RGBA") if working.mode not in ("RGBA", "L") else working
     stages.append("lama_inpaint")
+    
+    # Save pre-LaMa state (with damage mask overlay)
+    try:
+        mask_image = _generate_damage_mask(working_rgba)
+        save_debug(file_name or "unknown", mask_image, "02_damage_mask")
+    except Exception:
+        pass
+    
     working = _apply_lama(working_rgba, lama_denoise, lama_model)
+    save_debug(file_name or "unknown", working, "03_lama_output")
     
     face_provider, face_fidelity, face_denoise = _should_use_face_restoration(working, damage_severity, damage["overall_score"])
     if face_provider != "none":
         stages.append(f"face_restoration_{face_provider}")
         if face_provider == "gfpgan":
             gfpgan_model = _load_gfpgan_model()
+            # Save face crops before GFPGAN
+            try:
+                from PIL import ImageDraw
+                draw = ImageDraw.Draw(working.convert("RGB"))
+                faces = _detect_faces(working)
+                for i, face in enumerate(faces):
+                    x, y, w, h = face["x"], face["y"], face["width"], face["height"]
+                    crop = working.crop((x, y, x + w, y + h))
+                    save_debug(file_name or "unknown", crop, f"04_face_{i}_crop_before")
+                    draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
+                if faces:
+                    save_debug(file_name or "unknown", working, "04_face_boxes")
+            except Exception:
+                pass
             working = _restore_face_gfpgan(working, face_fidelity, gfpgan_model)
         elif face_provider == "codeformer":
             codeformer_model = _load_codeformer_model()
             working = _restore_face_codeformer(working, face_fidelity, face_denoise, codeformer_model)
+        save_debug(file_name or "unknown", working, "05_face_restored")
     
     needs_color, color_temp, color_sat = _should_colorize(working, damage_severity, damage["overall_score"])
     if needs_color:
         stages.append("ddcolor_colorize")
         ddcolor_model = _load_ddcolor_model()
+        working_before_color = working
         working = _colorize_ddcolor(working, color_temp, color_sat, ddcolor_model)
+        save_debug(file_name or "unknown", working_before_color, "06_before_colorize")
+        save_debug(file_name or "unknown", working, "07_after_colorize")
     
     needs_upscale, upscale_scale, upscale_sharpen, upscale_denoise = _should_upscale(working, damage_severity)
     if needs_upscale:
         stages.append("real_esrgan_upscale")
         realsrgan_model = _load_realesrgan_model()
+        working_before_esrgan = working
         working = _upscale_realesrgan(working, upscale_scale, upscale_sharpen, upscale_denoise, realsrgan_model)
+        save_debug(file_name or "unknown", working_before_esrgan, "08_before_esrgan")
+        save_debug(file_name or "unknown", working, "09_after_esrgan")
+    
+    save_debug(file_name or "unknown", working, "10_final_output")
     
     if working.mode in ("RGBA", "LA"):
         rgb = working.convert("RGB")
