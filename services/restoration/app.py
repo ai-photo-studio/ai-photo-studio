@@ -151,15 +151,22 @@ def _load_lama_model() -> Optional[object]:
         
         if os.path.exists(LAMA_MODEL_PATH):
             import torch
-            from lama_cleaner.model_manager import ModelManager
             
-            manager = ModelManager(device=MODEL_DEVICE)
-            model = manager.load_model("lama")
+            # Load LaMa directly from the checkpoint file
+            # Big LaMa from lama-cleaner uses a TorchScript-based model
+            logger.info(f"Loading LaMa model from {LAMA_MODEL_PATH} ({os.path.getsize(LAMA_MODEL_PATH)} bytes)")
+            
+            # Try loading as TorchScript (Big LaMa format from lama-cleaner)
+            model = torch.jit.load(LAMA_MODEL_PATH, map_location=MODEL_DEVICE)
+            model.eval()
+            if MODEL_DEVICE == "cuda":
+                model = model.half()
+            
             model_cache.lama = model
-            logger.info(f"LaMa model loaded via lama-cleaner from {LAMA_MODEL_PATH}")
+            logger.info(f"LaMa loaded successfully as TorchScript model")
             return model
         else:
-            logger.warning("LaMa checkpoint not found, using PIL fallback")
+            logger.warning("LaMa checkpoint not found at %s, using PIL fallback", LAMA_MODEL_PATH)
             return None
     except Exception as e:
         logger.warning(f"Failed to load LaMa model: {e}", exc_info=True)
