@@ -808,3 +808,22 @@ model CreativeStudioJob {
   @@index([creativeType, generationStatus])
   @@index([providerUsed, createdAt])
 }
+
+model ProviderPerformance {
+  id              String   @id @default(cuid())
+  provider        String
+  imageCategory   String
+  benchmarkVersion String
+  avgScore        Float
+  avgLatencyMs    Int
+  avgCost         Decimal  @db.Decimal(10, 4)
+  successRate     Float
+  lastBenchmarkAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([provider, imageCategory, benchmarkVersion])
+  @@index([provider, benchmarkVersion])
+  @@index([imageCategory, benchmarkVersion])
+  @@index([avgScore])
+}
