@@ -131,36 +131,18 @@ def _load_lama_model() -> Optional[object]:
         
         if os.path.exists(LAMA_MODEL_PATH):
             import torch
+            from lama_cleaner.model_manager import ModelManager
             
-            # Load LaMa directly from checkpoint
-            # LaMa is a simple FFC-based model that can be loaded with torch.jit.load
-            # or by loading the state dict into the known architecture
-            try:
-                # Try loading as scripted model (Big LaMa from lama-cleaner)
-                model = torch.jit.load(LAMA_MODEL_PATH, map_location=MODEL_DEVICE)
-                model.eval()
-                model_cache.lama = model
-                logger.info(f"LaMa model loaded via torch.jit from {LAMA_MODEL_PATH}")
-                return model
-            except Exception:
-                pass
-            
-            try:
-                # Try loading state dict with lazy_framework pattern
-                from collections import OrderedDict
-                checkpoint = torch.load(LAMA_MODEL_PATH, map_location=MODEL_DEVICE, weights_only=True)
-                if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-                    checkpoint = checkpoint["state_dict"]
-                logger.info(f"LaMa checkpoint loaded (state dict keys: {len(checkpoint) if isinstance(checkpoint, dict) else 'unknown'})")
-                model_cache.lama = checkpoint
-                return checkpoint
-            except Exception as e2:
-                logger.warning(f"LaMa state dict load failed: {e2}")
+            manager = ModelManager(device=MODEL_DEVICE)
+            model = manager.load_model("lama")
+            model_cache.lama = model
+            logger.info(f"LaMa model loaded via lama-cleaner from {LAMA_MODEL_PATH}")
+            return model
         else:
             logger.warning("LaMa checkpoint not found, using PIL fallback")
             return None
     except Exception as e:
-        logger.warning(f"Failed to load LaMa model: {e}, using PIL fallback")
+        logger.warning(f"Failed to load LaMa model: {e}", exc_info=True)
         return None
 
 
@@ -207,13 +189,13 @@ def _apply_lama(image: Image.Image, denoise: float, model: Optional[object] = No
             try:
                 mask_path = f"/tmp/lama_mask_{int(time.time())}.png"
                 mask.save(mask_path)
-                logger.info(f"LaMa mask saved to {mask_path}")
+                logger.info(f"LaMa mask saved to {mask_path}, size={mask.size}, mode={mask.mode}")
             except Exception:
                 pass
             
             # Convert to tensors
             img_array = np.array(image.convert("RGB"), dtype=np.float32) / 255.0
-            mask_array = np.array(mask, dtype=np.float32) / 255.0
+            mask_array = np.array(mask.convert("L"), dtype=np.float32) / 255.0
             
             img_tensor = torch.from_numpy(img_array).permute(2, 0, 1).unsqueeze(0).to(MODEL_DEVICE)
             mask_tensor = torch.from_numpy(mask_array).unsqueeze(0).unsqueeze(0).to(MODEL_DEVICE)
@@ -222,23 +204,34 @@ def _apply_lama(image: Image.Image, denoise: float, model: Optional[object] = No
                 img_tensor = img_tensor.half()
                 mask_tensor = mask_tensor.half()
             
+            logger.info(f"LaMa input shapes: image={img_tensor.shape}, mask={mask_tensor.shape}, dtype={img_tensor.dtype}")
+            
             with torch.no_grad():
-                # LaMa model takes (image, mask) as input
+                # LaMa model from lama-cleaner takes (image, mask)
                 output = model(img_tensor, mask_tensor)
                 if isinstance(output, dict):
-                    output = output.get("result", output)
+                    output = output.get("result", output.get("inpaint", output))
                 if isinstance(output, (list, tuple)):
                     output = output[0]
-                output = output.squeeze(0).cpu().float().clamp(0, 1)
+                
+                logger.info(f"LaMa output type={type(output).__name__}")
+                
+                # Convert output to PIL
+                if isinstance(output, torch.Tensor):
+                    output = output.squeeze(0).cpu().float().clamp(0, 1)
+                    output_np = output.permute(1, 2, 0).numpy()
+                    result = PILImage.fromarray((output_np * 255).astype(np.uint8))
+                else:
+                    logger.warning(f"LaMa unexpected output type: {type(output)}")
+                    result = image
             
-            result = PILImage.fromarray((output.permute(1, 2, 0).numpy() * 255).astype(np.uint8))
-            logger.info("LaMa inference successful")
+            logger.info(f"LaMa inference successful, output size={result.size}")
             return result
         except Exception as e:
-            logger.warning(f"LaMa inference failed: {e}, using PIL fallback")
-            import traceback
-            traceback.print_exc()
+            logger.warning(f"LaMa inference failed: {e}", exc_info=True)
     
+    # PIL fallback
+    logger.warning("LaMa using PIL fallback")
     working = image.convert("RGBA") if image.mode not in ("RGBA", "L") else image
     denoise = _clamp(denoise, 0.0, 1.0)
     
