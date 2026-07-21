@@ -9,6 +9,30 @@ QUEUE_TIMEOUT_SECONDS = int(os.getenv("QUEUE_TIMEOUT_SECONDS", "60"))
 PROCESSING_TIMEOUT_SECONDS = int(os.getenv("PROCESSING_TIMEOUT_SECONDS", "90"))
 ABSOLUTE_TIMEOUT_SECONDS = int(os.getenv("ABSOLUTE_TIMEOUT_SECONDS", "150"))
 
+# TRACE log capture
+TRACE_LINES: list = []
+TRACE_LINES_LOCK = threading.Lock()
+
+def trace(msg: str) -> None:
+    """Log a TRACE line and capture it for response."""
+    logger.info(msg)
+    with TRACE_LINES_LOCK:
+        timestamp = f"{time.time():.3f}"
+        TRACE_LINES.append(f"[{timestamp}] {msg}")
+
+class TraceCapture(logging.Handler):
+    """Captures TRACE log lines for inclusion in API response."""
+    def emit(self, record):
+        msg = self.format(record)
+        if "TRACE" in msg or "TENSOR" in msg or "=== LAMA" in msg: 
+            with TRACE_LINES_LOCK:
+                TRACE_LINES.append(msg)
+
+# Install the trace capture handler
+_trace_handler = TraceCapture()
+_trace_handler.setLevel(logging.INFO)
+logging.getLogger().addHandler(_trace_handler)
+
 def _gpu_cleanup():
     try:
         start = time.time()
@@ -63,6 +87,12 @@ def handler(job):
                 tensor_info = dict(TENSOR_STATS)
                 TENSOR_STATS.clear()
         
+        # Capture TRACE lines
+        trace_output = []
+        with TRACE_LINES_LOCK:
+            trace_output = list(TRACE_LINES)
+            TRACE_LINES.clear()
+        
         if processing_time > PROCESSING_TIMEOUT_SECONDS:
             logger.warning(f"PROCESSING_TIMEOUT exceeded {PROCESSING_TIMEOUT_SECONDS}s (took {processing_time}s)")
             return {"error": f"Processing timeout after {processing_time}s", "status": "TIMED_OUT", "timeout_type": "processing"}
@@ -82,7 +112,9 @@ def handler(job):
         
         if tensor_info:
             result["tensor_stats"] = tensor_info
-            logger.info(f"TENSOR_STATS included in response: {json.dumps(tensor_info, default=str)}")
+        
+        if trace_output:
+            result["trace"] = trace_output[-200:]  # last 200 lines max
         
         return result
     except Exception as e:
