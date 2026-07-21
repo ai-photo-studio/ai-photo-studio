@@ -694,6 +694,7 @@ model RestorationItem {
   totalDurationMs       Int?
   errorMessage          String?
   retryCount            Int              @default(0)
+  packageTier           String?
   metadata              Json?
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
@@ -703,6 +704,7 @@ model RestorationItem {
 
   @@index([restorationOrderId, status])
   @@index([status, createdAt])
+  @@index([packageTier])
 }
 
 enum ProviderCostType {

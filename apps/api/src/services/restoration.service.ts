@@ -2,12 +2,16 @@ import { prisma } from "../db/prisma";
 import { AppError } from "../utils/errors";
 import { StorageService } from "./storage.service";
 import { createImageProvider } from "../providers/provider.factory";
-import type { ImageProvider, ProcessImageInput } from "../providers/provider.interface";
+import type { ImageProvider } from "../providers/provider.interface";
 import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
 import { UnifiedRestorationService } from "./restoration-provider.service";
 import { SubscriptionService } from "./subscription.service";
 import { NotificationService } from "./notification.service";
+import { ProviderFactory } from "../restoration-providers/factory/ProviderFactory";
+import { ProviderRouter } from "../restoration-providers/router/ProviderRouter";
+import { ProviderPolicyEngine } from "../restoration-providers/policy/ProviderPolicyEngine";
+import type { PackageTier } from "../restoration-providers/interfaces/IRestorationProvider";
 
 const RESTORATION_CREDIT_COST = 1;
 
@@ -65,6 +69,9 @@ export class RestorationService {
   private readonly restorationService: UnifiedRestorationService;
   private readonly subscriptionService: SubscriptionService;
   private readonly notificationService: NotificationService;
+  private readonly providerFactory: ProviderFactory;
+  private readonly providerRouter: ProviderRouter;
+  private readonly policyEngine: ProviderPolicyEngine;
 
   constructor(private readonly config: AppConfig) {
     this.storage = new StorageService(config);
@@ -72,6 +79,14 @@ export class RestorationService {
     this.restorationService = new UnifiedRestorationService(config);
     this.subscriptionService = new SubscriptionService();
     this.notificationService = new NotificationService();
+    this.providerFactory = new ProviderFactory(config);
+    this.policyEngine = new ProviderPolicyEngine();
+    this.providerRouter = new ProviderRouter({
+      shadowMode: this.policyEngine.isShadowModeEnabled() ? "enabled" : "disabled",
+      abTestMode: "disabled",
+      failoverCooldownMs: 30000,
+      maxRetries: 2,
+    });
   }
 
   async createOrder(input: { userId: string; title?: string; notes?: string; totalItems?: number }) {
@@ -283,11 +298,6 @@ export class RestorationService {
     }
 
     const original = await this.storage.downloadFile(item.originalStorageKey);
-    const input = {
-      body: original.body,
-      contentType: item.mimeType || "image/jpeg",
-      fileName: `restoration-${itemId}.jpg`
-    };
 
     let processedBuffer = original.body;
     let processedContentType = item.mimeType || "image/jpeg";
@@ -309,13 +319,45 @@ export class RestorationService {
     try {
       await prisma.restorationItem.update({
         where: { id: itemId },
-        data: { processingStage: "RESTORATION_INPAINT" }
+        data: { processingStage: "RESTORATION_INPAINT", packageTier: "basic" }
       });
-      const result = await this.restorationService.restore(input);
-      processedBuffer = result.body;
+
+      const packageTier: PackageTier = "basic";
+      const routingContext = {
+        packageTier,
+        imageCategory: item.imageCategory || undefined,
+        damageSeverity: item.damageSeverity || undefined,
+        hasFaces: (item.faceCount ?? 0) > 0,
+        isBlackAndWhite: item.colorMode === "black_and_white",
+        imageSizeBytes: item.fileSizeBytes ?? undefined,
+      };
+
+      const routingDecision = this.policyEngine.makeRoutingDecision(routingContext);
+      logger.info("Provider routing decision", { itemId, decision: routingDecision });
+
+      const runPodProvider = this.providerFactory.create("runpod");
+      this.providerRouter.registerProvider(runPodProvider);
+
+      const result = await this.providerRouter.route(
+        {
+          image: original.body,
+          contentType: item.mimeType || "image/jpeg",
+          fileName: `restoration-${itemId}.jpg`,
+        },
+        routingContext,
+        routingDecision
+      );
+
+      processedBuffer = result.image;
       processedContentType = result.contentType;
-      providersUsed = result.processingStages || ["restoration"];
-      logger.info("Restoration completed via single endpoint", { itemId, stages: providersUsed });
+      providersUsed = result.stages;
+      logger.info("Restoration completed via provider router", {
+        itemId,
+        provider: result.providerName,
+        stages: providersUsed,
+        processingTimeMs: result.processingTimeMs,
+        estimatedCost: result.estimatedCost,
+      });
 
       providersUsed.sort((a, b) => {
         const order = ["damage_detection", "lama_inpaint", "face_restoration_gfpgan", "face_restoration_codeformer", "colorization_ddcolor", "real_esrgan_upscale"];
@@ -419,7 +461,7 @@ export class RestorationService {
         status: succeeded ? "COMPLETED" : "FAILED",
         finalStorageKey: processedUpload.key,
         afterQualityScore: afterQuality,
-        providerUsed: providersUsed.join(",") || "none",
+        providerUsed: `runpod:${providersUsed.join(",")}`,
         processingStage: succeeded ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
         totalDurationMs
       }
