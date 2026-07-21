@@ -51,19 +51,26 @@ def handler(job):
     lama_denoise = float(job_input.get("lama_denoise", os.environ.get("RESTORATION_LAMA_DENOISE", "0.3")))
 
     try:
-        from app import _process_restoration
+        from app import _process_restoration, TENSOR_STATS, TENSOR_STATS_LOCK
         processing_start = time.time()
         processed = _process_restoration(raw=raw_bytes, content_type=content_type, file_name=file_name, lama_denoise=lama_denoise)
         processing_time = round(time.time() - processing_start, 3)
-
+        
+        # Capture tensor stats
+        tensor_info = {}
+        with TENSOR_STATS_LOCK:
+            if TENSOR_STATS:
+                tensor_info = dict(TENSOR_STATS)
+                TENSOR_STATS.clear()
+        
         if processing_time > PROCESSING_TIMEOUT_SECONDS:
             logger.warning(f"PROCESSING_TIMEOUT exceeded {PROCESSING_TIMEOUT_SECONDS}s (took {processing_time}s)")
             return {"error": f"Processing timeout after {processing_time}s", "status": "TIMED_OUT", "timeout_type": "processing"}
-
+        
         total_time = round(time.time() - start_time, 3)
         logger.info(f"QUEUE_WAIT={queue_wait}s PROCESSING_TIME={processing_time}s TOTAL_TIME={total_time}s")
-
-        return {
+        
+        result = {
             "image": base64.b64encode(processed.content).decode("utf-8"),
             "media_type": processed.media_type,
             "filename": processed.filename,
@@ -72,6 +79,12 @@ def handler(job):
             "latency_seconds": total_time,
             "status": "COMPLETED",
         }
+        
+        if tensor_info:
+            result["tensor_stats"] = tensor_info
+            logger.info(f"TENSOR_STATS included in response: {json.dumps(tensor_info, default=str)}")
+        
+        return result
     except Exception as e:
         traceback.print_exc()
         logger.error(f"Restoration failed: {e}")

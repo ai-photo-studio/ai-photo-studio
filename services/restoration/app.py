@@ -5,6 +5,7 @@ import os
 import math
 import time
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Optional
 
@@ -45,6 +46,10 @@ MODEL_CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "/models")
 DEBUG_ENABLED = os.getenv("RESTORATION_DEBUG", "0") == "1"
 DEBUG_DIR = os.getenv("RESTORATION_DEBUG_DIR", "/tmp/debug-output")
 RUN_ID: str = ""
+
+# Tensor statistics captured during inference for response
+TENSOR_STATS: dict = {}
+TENSOR_STATS_LOCK = threading.Lock()
 
 
 def save_debug(file_name: str, image: "Image.Image", stage: str = "") -> None:
