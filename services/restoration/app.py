@@ -213,6 +213,16 @@ def _apply_lama(image: Image.Image, denoise: float, model: Optional[object] = No
             except Exception:
                 pass
             
+            # Tensor pipeline logging
+            import numpy as np
+            img_rgb_np = np.array(image.convert('RGB'), dtype=np.float32)
+            mask_np = np.array(mask.convert('L'), dtype=np.float32)
+            logger.info('=== LAMA TENSOR PIPELINE ===')
+            logger.info(f'Input image: size={image.size}, mode={image.mode}')
+            logger.info(f'Image array: shape={img_rgb_np.shape} dtype={img_rgb_np.dtype} min={img_rgb_np.min()} max={img_rgb_np.max()} mean={img_rgb_np.mean():.1f}')
+            logger.info(f'Mask array: shape={mask_np.shape} dtype={mask_np.dtype} min={mask_np.min()} max={mask_np.max()} mean={mask_np.mean():.1f}')
+            logger.info(f'Mask coverage: {int((mask_np > 0).sum())}/{mask_np.size} = {((mask_np > 0).sum()/mask_np.size*100):.1f}%')
+
             # Convert to tensors
             img_array = np.array(image.convert("RGB"), dtype=np.float32) / 255.0
             mask_array = np.array(mask.convert("L"), dtype=np.float32) / 255.0
