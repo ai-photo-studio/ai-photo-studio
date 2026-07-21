@@ -11,5 +11,7 @@ export { ProviderBenchmarkService, type BenchmarkImage, type BenchmarkSummary } 
 export { ProviderScorecardGenerator, type ProviderScorecard, type ScorecardEntry, type ScorecardCategory } from "./benchmark/ProviderScorecard";
 export { GoldenBenchmarkDatasetManager, GOLDEN_BENCHMARK_DATASET, type BenchmarkCategory, type GoldenBenchmarkImage, type GoldenBenchmarkDataset } from "./golden/GoldenBenchmarkDataset";
 export { QualityLabService, type QualityLabConfig, type QualityLabSummary } from "./quality/QualityLabService";
-export { QualityMetricsCalculator, type QualityMetrics } from "./quality/QualityMetricsCalculator";
+export { QualityMetricsCalculator, type QualityMetrics, type BenchmarkResult } from "./quality/QualityMetricsCalculator";
 export { QualityLabReportGenerator, type QualityLabReport, type ProviderRanking } from "./quality/QualityLabReport";
+export { ProviderCertifier, type CertificationStatus, type CredentialCheck, type HealthCheckResult, type ProviderCertification, type CertificationReport } from "./certification/ProviderCertifier";
+export { CertificationReportGenerator, type CertificationSummary } from "./certification/CertificationReport";
