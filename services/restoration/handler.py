@@ -97,7 +97,7 @@ def _handle_health():
             "gfpgan": model_cache.gfpgan is not None,
             "codeformer": model_cache.codeformer is not None,
             "ddcolor": model_cache.ddcolor is not None,
-            "realesrgan": model_cache.realesrgan is not None,
+            "realesrgan": model_cache.realsrgan is not None,
         }
     }
 
