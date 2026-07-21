@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir \
 COPY app.py handler.py download_checkpoints.sh ./
 
 # Download model checkpoints at build time so they're baked into the image
-RUN mkdir -p /models && bash download_checkpoints.sh
+# Non-fatal: models have PIL fallbacks
+RUN mkdir -p /models && bash download_checkpoints.sh || true
 
 ENV MODEL_DEVICE=cuda
 ENV MODEL_CACHE_DIR=/models
