@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import os
 import math
+import time
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -131,13 +132,15 @@ def _load_lama_model() -> Optional[object]:
         if os.path.exists(LAMA_MODEL_PATH):
             import torch
             from lama_cleaner.model_manager import ModelManager
+            from lama_cleaner.schema import Config
             
+            config = Config()
             manager = ModelManager(
                 device=MODEL_DEVICE,
-                dtype=torch.float16 if MODEL_DEVICE == "cuda" else torch.float32,
             )
-            model = manager.load_model(name="lama", model_dir=MODEL_CACHE_DIR)
+            model = manager.load_model(name="lama")
             model_cache.lama = model
+            logger.info(f"LaMa model loaded from {LAMA_MODEL_PATH}")
             return model
         else:
             logger.warning("LaMa checkpoint not found, using PIL fallback")
@@ -147,27 +150,80 @@ def _load_lama_model() -> Optional[object]:
         return None
 
 
+def _generate_damage_mask(image: Image.Image) -> "Image.Image":
+    """Generate a damage mask using edge detection and histogram analysis."""
+    import numpy as np
+    gray = image.convert("L")
+    img_array = np.array(gray, dtype=np.float32)
+    
+    # Laplacian edge detection
+    from scipy import ndimage
+    laplacian = ndimage.laplace(img_array)
+    edge_mask = np.abs(laplacian) > 40
+    
+    # Dark spot detection (potential scratches/dust)
+    dark_mask = img_array < 40
+    
+    # Bright spot detection (potential tears/folds)
+    bright_mask = img_array > 220
+    
+    # Combine masks
+    combined = (edge_mask | dark_mask | bright_mask).astype(np.uint8) * 255
+    
+    # Morphological dilation to connect nearby damage regions
+    from scipy.ndimage import binary_dilation
+    structure = np.ones((5, 5))
+    combined = binary_dilation(combined > 0, structure=structure).astype(np.uint8) * 255
+    
+    from PIL import Image as PILImage
+    return PILImage.fromarray(combined, mode="L")
+
+
 def _apply_lama(image: Image.Image, denoise: float, model: Optional[object] = None) -> Image.Image:
     if model is not None:
         try:
             import torch
-            import torch.nn.functional as F
-            from torchvision import transforms
+            import numpy as np
+            from PIL import Image as PILImage
             
-            input_tensor = transforms.ToTensor()(image).unsqueeze(0).to(MODEL_DEVICE)
+            # Generate damage mask from the image
+            mask = _generate_damage_mask(image)
+            
+            # Save mask for verification
+            try:
+                mask_path = f"/tmp/lama_mask_{int(time.time())}.png"
+                mask.save(mask_path)
+                logger.info(f"LaMa mask saved to {mask_path}")
+            except Exception:
+                pass
+            
+            # Convert to tensors
+            img_array = np.array(image.convert("RGB"), dtype=np.float32) / 255.0
+            mask_array = np.array(mask, dtype=np.float32) / 255.0
+            
+            img_tensor = torch.from_numpy(img_array).permute(2, 0, 1).unsqueeze(0).to(MODEL_DEVICE)
+            mask_tensor = torch.from_numpy(mask_array).unsqueeze(0).unsqueeze(0).to(MODEL_DEVICE)
+            
+            if MODEL_DEVICE == "cuda":
+                img_tensor = img_tensor.half()
+                mask_tensor = mask_tensor.half()
             
             with torch.no_grad():
-                output = model(input_tensor)
+                # LaMa model takes (image, mask) as input
+                output = model(img_tensor, mask_tensor)
                 if isinstance(output, dict):
                     output = output.get("result", output)
                 if isinstance(output, (list, tuple)):
                     output = output[0]
-                output = output.squeeze(0).cpu()
+                output = output.squeeze(0).cpu().float().clamp(0, 1)
             
-            result = transforms.ToPILImage()(output.clamp(0, 1))
+            result = PILImage.fromarray((output.permute(1, 2, 0).numpy() * 255).astype(np.uint8))
+            logger.info("LaMa inference successful")
             return result
         except Exception as e:
             logger.warning(f"LaMa inference failed: {e}, using PIL fallback")
+            import traceback
+            traceback.print_exc()
     
     working = image.convert("RGBA") if image.mode not in ("RGBA", "L") else image
     denoise = _clamp(denoise, 0.0, 1.0)
@@ -208,28 +264,96 @@ def _load_gfpgan_model() -> Optional[object]:
         return None
 
 
+def _detect_faces(image: Image.Image) -> list[dict]:
+    """Detect faces using RetinaFace or OpenCV fallback."""
+    try:
+        import numpy as np
+        img_array = np.array(image.convert("RGB"))
+        
+        # Try RetinaFace first
+        try:
+            from retinaface import RetinaFace
+            faces = RetinaFace.detect_faces(img_array)
+            if faces:
+                results = []
+                for face_id, face_data in faces.items():
+                    area = face_data.get("area", {})
+                    results.append({
+                        "x": int(area.get("x", 0)),
+                        "y": int(area.get("y", 0)),
+                        "width": int(area.get("w", 0)),
+                        "height": int(area.get("h", 0)),
+                        "confidence": float(face_data.get("score", 0)),
+                    })
+                return results
+        except ImportError:
+            pass
+        
+        # OpenCV Haar Cascade fallback
+        import cv2
+        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        cascade = cv2.CascadeClassifier(cascade_path)
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        detections = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        return [{"x": int(x), "y": int(y), "width": int(w), "height": int(h), "confidence": 0.8}
+                for x, y, w, h in detections]
+    except Exception as e:
+        logger.warning(f"Face detection failed: {e}", exc_info=True)
+        return []
+
+
 def _restore_face_gfpgan(image: Image.Image, fidelity: float, model: Optional[object] = None) -> Image.Image:
     if model is not None:
         try:
             from PIL import Image as PILImage
             import numpy as np
             
+            # Only detect and process faces, not the entire image
+            faces = _detect_faces(image)
+            
+            if not faces:
+                logger.info("No faces detected — skipping GFPGAN")
+                return image
+            
             img_array = np.array(image)
-            h, w = img_array.shape[:2]
+            current = img_array.copy()
             
-            _, restored, _ = model.enhance(
-                img_array,
-                fidelity=fidelity,
-                has_aligned=False,
-                only_center_face=False,
-                paste_back=True,
-            )
+            for face in faces:
+                # Expand bounding box by 20% for context
+                cx = face["x"] + face["width"] // 2
+                cy = face["y"] + face["height"] // 2
+                expanded_w = int(face["width"] * 1.4)
+                expanded_h = int(face["height"] * 1.4)
+                
+                x1 = max(0, cx - expanded_w // 2)
+                y1 = max(0, cy - expanded_h // 2)
+                x2 = min(image.width, cx + expanded_w // 2)
+                y2 = min(image.height, cy + expanded_h // 2)
+                
+                face_crop = current[y1:y2, x1:x2]
+                
+                # Only suppress background enhancement to avoid smoothing
+                _, restored, _ = model.enhance(
+                    face_crop,
+                    fidelity=fidelity,
+                    has_aligned=False,
+                    only_center_face=False,
+                    paste_back=True,
+                    bg_upsampler=None,
+                )
+                
+                if restored is not None:
+                    # Paste restored face back
+                    restored_resized = PILImage.fromarray(restored).resize((x2 - x1, y2 - y1), PILImage.LANCZOS)
+                    current[y1:y2, x1:x2] = np.array(restored_resized)
+                    logger.info(f"GFPGAN restored face at ({x1},{y1}) size {x2-x1}x{y2-y1}")
             
-            if restored is not None:
-                result = PILImage.fromarray(restored)
-                return result
+            result = PILImage.fromarray(current)
+            return result
         except Exception as e:
             logger.warning(f"GFPGAN inference failed: {e}, using PIL fallback")
+            import traceback
+            traceback.print_exc()
     
     working = image.convert("RGB")
     fidelity = _clamp(fidelity, 0.0, 1.0)
@@ -368,9 +492,10 @@ def _load_realesrgan_model() -> Optional[object]:
             from realesrgan import RealESRGANer
             
             model = RealESRGANer(
-                scale=int(DEFAULT_ESRGAN_SCALE),
+                scale=4,  # Match checkpoint (RealESRGAN_x4plus.pth is a 4x model)
                 model_path=REALESRGAN_MODEL_PATH,
                 device=MODEL_DEVICE,
+                half=True if MODEL_DEVICE == "cuda" else False,
             )
             model_cache.realsrgan = model
             return model
@@ -421,7 +546,7 @@ def _upscale_realesrgan(image: Image.Image, scale: float, sharpen: float, denois
     alpha = working.split()[-1] if working.mode == "RGBA" else None
     
     rgb = working.convert("RGB")
-    rgb = ImageOps.autocontrast(rgb, cutoff=int(round(denoise * 8)))
+    rgb = ImageOps.autocontrast(rgb, cutoff=int(round(denoise * 5)))
     rgb = ImageEnhance.Sharpness(rgb).enhance(1.0 + sharpen * 1.8)
     rgb = ImageEnhance.Contrast(rgb).enhance(1.0 + sharpen * 0.25)
     rgb = ImageEnhance.Color(rgb).enhance(1.0 + sharpen * 0.08)
