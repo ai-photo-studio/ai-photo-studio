@@ -131,17 +131,31 @@ def _load_lama_model() -> Optional[object]:
         
         if os.path.exists(LAMA_MODEL_PATH):
             import torch
-            from lama_cleaner.model_manager import ModelManager
-            from lama_cleaner.schema import Config
             
-            config = Config()
-            manager = ModelManager(
-                device=MODEL_DEVICE,
-            )
-            model = manager.load_model(name="lama")
-            model_cache.lama = model
-            logger.info(f"LaMa model loaded from {LAMA_MODEL_PATH}")
-            return model
+            # Load LaMa directly from checkpoint
+            # LaMa is a simple FFC-based model that can be loaded with torch.jit.load
+            # or by loading the state dict into the known architecture
+            try:
+                # Try loading as scripted model (Big LaMa from lama-cleaner)
+                model = torch.jit.load(LAMA_MODEL_PATH, map_location=MODEL_DEVICE)
+                model.eval()
+                model_cache.lama = model
+                logger.info(f"LaMa model loaded via torch.jit from {LAMA_MODEL_PATH}")
+                return model
+            except Exception:
+                pass
+            
+            try:
+                # Try loading state dict with lazy_framework pattern
+                from collections import OrderedDict
+                checkpoint = torch.load(LAMA_MODEL_PATH, map_location=MODEL_DEVICE, weights_only=True)
+                if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+                    checkpoint = checkpoint["state_dict"]
+                logger.info(f"LaMa checkpoint loaded (state dict keys: {len(checkpoint) if isinstance(checkpoint, dict) else 'unknown'})")
+                model_cache.lama = checkpoint
+                return checkpoint
+            except Exception as e2:
+                logger.warning(f"LaMa state dict load failed: {e2}")
         else:
             logger.warning("LaMa checkpoint not found, using PIL fallback")
             return None

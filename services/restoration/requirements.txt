@@ -17,3 +17,5 @@ opencv-python-headless>=4.8.0
 einops>=0.6.0
 # scipy for damage mask generation
 scipy>=1.10.0
+# lama-cleaner for LaMa inpainting model
+lama-cleaner>=0.40.0

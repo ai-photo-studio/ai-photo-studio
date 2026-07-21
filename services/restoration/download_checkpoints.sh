@@ -76,9 +76,8 @@ echo ""
 download_model 100000000 \
     "$MODELS_DIR/lama.pth" \
     "LaMa (inpainting)" \
-    "https://huggingface.co/sanster/big-lama/resolve/main/lama.pt" \
-    "https://github.com/advimman/lama/releases/download/v1.0.0/big-lama.pt" \
-    "https://github.com/enesmserhan/AI-Photo-Restoration/releases/download/v1.0.0/big-lama.pt"
+    "https://huggingface.co/sanster/big-lama/resolve/main/big-lama.pt" \
+    "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
 
 # ---- GFPGAN ----
 download_model 100000000 \
