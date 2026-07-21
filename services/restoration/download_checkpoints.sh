@@ -29,28 +29,71 @@ download_model() {
     local url="$1"
     local output="$2"
     local description="$3"
+    local min_size_bytes="${4:-1000000}"  # Default minimum 1MB
 
     if [ -f "$output" ] && [ "${FORCE}" != "--force" ]; then
-        echo "  [SKIP] $description already exists: $(du -h "$output" | cut -f1)"
-        return 0
+        local file_size=$(stat -c%s "$output" 2>/dev/null || echo 0)
+        if [ "$file_size" -ge "$min_size_bytes" ]; then
+            echo "  [SKIP] $description already exists: $(du -h "$output" | cut -f1)"
+            return 0
+        else
+            echo "  [WARN] $description exists but is only $file_size bytes (expected >=$min_size_bytes) — re-downloading"
+            rm -f "$output"
+        fi
     fi
 
-    echo "  [DOWNLOAD] $description -> $output"
+    echo "  [DOWNLOAD] $description -> $output (minimum ${min_size_bytes}B)"
 
-    # Try primary URL with wget
-    if wget -q --show-progress --timeout=60 --tries=3 -O "$output" "$url" 2>/dev/null; then
-        echo "  [OK] $description ($(du -h "$output" | cut -f1))"
-        return 0
+    # Try primary URL with wget (with redirect following)
+    if wget -q --show-progress --timeout=120 --tries=5 -O "$output" "$url" --max-redirect=10 2>/dev/null; then
+        local file_size=$(stat -c%s "$output" 2>/dev/null || echo 0)
+        if [ "$file_size" -ge "$min_size_bytes" ]; then
+            echo "  [OK] $description ($(du -h "$output" | cut -f1))"
+            return 0
+        fi
+        echo "  [WARN] wget got $file_size bytes — trying curl"
+        rm -f "$output"
     fi
 
-    # If primary fails, try backup via curl
-    echo "  [RETRY] $description via curl..."
-    if curl -sL --connect-timeout 60 --retry 3 -o "$output" "$url"; then
-        echo "  [OK] $description ($(du -h "$output" | cut -f1))"
-        return 0
+    # Retry with curl (with redirect following)
+    if curl -sL --connect-timeout 120 --retry 5 -o "$output" "$url"; then
+        local file_size=$(stat -c%s "$output" 2>/dev/null || echo 0)
+        if [ "$file_size" -ge "$min_size_bytes" ]; then
+            echo "  [OK] $description ($(du -h "$output" | cut -f1))"
+            return 0
+        fi
+        echo "  [WARN] curl got $file_size bytes — trying HuggingFace mirror"
+        rm -f "$output"
     fi
 
-    echo "  [WARN] Failed to download $description from $url"
+    # Try HuggingFace mirror for common models
+    local hf_url=""
+    case "$description" in
+        "LaMa (inpainting)")
+            hf_url="https://huggingface.co/sanster/big-lama/resolve/main/lama.pt" ;;
+        "GFPGAN (face restoration)")
+            hf_url="https://huggingface.co/datasets/sanster/checkpoints/resolve/main/GFPGANv1.4.pth" ;;
+        "CodeFormer (face restoration)")
+            hf_url="https://huggingface.co/sczhou/CodeFormer/resolve/main/codeformer.pth" ;;
+        "DDColor (colorization)")
+            hf_url="https://huggingface.co/piggybackend/ddcolor/resolve/main/ddcolor.pth" ;;
+        "Real-ESRGAN (upscaling)")
+            hf_url="https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus.pth" ;;
+    esac
+
+    if [ -n "$hf_url" ]; then
+        echo "  [HF] $description via HuggingFace..."
+        if curl -sL --connect-timeout 180 --retry 5 -o "$output" "$hf_url"; then
+            local file_size=$(stat -c%s "$output" 2>/dev/null || echo 0)
+            if [ "$file_size" -ge "$min_size_bytes" ]; then
+                echo "  [OK] $description (HF) ($(du -h "$output" | cut -f1))"
+                return 0
+            fi
+            rm -f "$output"
+        fi
+    fi
+
+    echo "  [WARN] Failed to download $description from all sources"
     echo "  [WARN] The endpoint will use PIL fallback for this model."
     return 1
 }
@@ -64,44 +107,39 @@ echo "Models directory: $MODELS_DIR"
 echo ""
 
 # ---- LaMa (Big LaMa) ----
-# Source: Sanster/models (lama-cleaner project)
 download_model \
     "https://github.com/Sanster/models/releases/download/add_big_lama/lama.pt" \
     "$MODELS_DIR/lama.pth" \
-    "LaMa (inpainting)"
+    "LaMa (inpainting)" 100000000
 
 # ---- GFPGAN ----
-# Source: TencentARC/GFPGAN
 download_model \
     "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth" \
     "$MODELS_DIR/GFPGAN.pth" \
-    "GFPGAN (face restoration)"
+    "GFPGAN (face restoration)" 50000000
 
 # ---- CodeFormer ----
-# Source: sczhou/CodeFormer
 download_model \
     "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth" \
     "$MODELS_DIR/codeformer.pth" \
-    "CodeFormer (face restoration)"
+    "CodeFormer (face restoration)" 50000000
 
 # ---- DDColor ----
-# Source: piggybackend/DDColor
 download_model \
     "https://github.com/piggybackend/DDColor/releases/download/v1.0/ddcolor.pth" \
     "$MODELS_DIR/ddcolor.pth" \
-    "DDColor (colorization)" || true
+    "DDColor (colorization)" 50000000 || true
 
 download_model \
     "https://huggingface.co/piggybackend/ddcolor/resolve/main/ddcolor.pth" \
     "$MODELS_DIR/ddcolor.pth" \
-    "DDColor (colorization, hf mirror)" || true
+    "DDColor (colorization, hf mirror)" 50000000 || true
 
 # ---- Real-ESRGAN ----
-# Source: xinntao/Real-ESRGAN
 download_model \
     "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth" \
     "$MODELS_DIR/RealESRGAN_x4.pth" \
-    "Real-ESRGAN (upscaling)"
+    "Real-ESRGAN (upscaling)" 10000000
 
 echo ""
 echo "================================================"
