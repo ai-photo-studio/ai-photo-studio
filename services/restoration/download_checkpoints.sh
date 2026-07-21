@@ -97,6 +97,7 @@ download_model 100000000 \
 download_model 50000000 \
     "$MODELS_DIR/ddcolor.pth" \
     "DDColor (colorization)" \
+    "https://huggingface.co/piddnad/DDColor/resolve/main/ddcolor_checkpoints/iter_19000.pth" \
     "https://huggingface.co/cditzel/ddcolor/resolve/main/ddcolor.pth" \
     "https://github.com/piggybackend/DDColor/releases/download/v1.0/ddcolor.pth"
 
