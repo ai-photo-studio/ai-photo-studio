@@ -80,7 +80,22 @@ export class RestorationService {
     this.subscriptionService = new SubscriptionService();
     this.notificationService = new NotificationService();
     this.providerFactory = new ProviderFactory(config);
-    this.policyEngine = new ProviderPolicyEngine();
+    this.policyEngine = new ProviderPolicyEngine({
+      dynamicRouting: {
+        mode: config.providerMode,
+        benchmarkWeights: {
+          restoration: 0.25,
+          colorization: 0.15,
+          faceRestoration: 0.15,
+          printQuality: 0.15,
+          cost: 0.10,
+          latency: 0.10,
+          reliability: 0.10,
+        },
+        minScoreThreshold: 30,
+        maxCostOverride: 0.100,
+      },
+    });
     this.providerRouter = new ProviderRouter({
       shadowMode: this.policyEngine.isShadowModeEnabled() ? "enabled" : "disabled",
       abTestMode: "disabled",

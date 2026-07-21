@@ -21,6 +21,8 @@ const envSchema = z
     AI_PROVIDER_NAME: z.string().optional().default(""),
     PHOTOROOM_API_KEY: z.string().optional().default(""),
     FAL_API_KEY: z.string().optional().default(""),
+    OPENAI_API_KEY: z.string().optional().default(""),
+    PROVIDER_MODE: z.enum(["automatic", "manual", "benchmark", "shadow"]).default("automatic"),
     YOLO_DETECTOR_URL: z.string().optional().default(""),
     R2_ACCOUNT_ID: z.string().optional().default(""),
     R2_ACCESS_KEY_ID: z.string().optional().default(""),
@@ -203,6 +205,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   storageDryRun: boolean;
   queueDryRun: boolean;
   deliveryMode: "LOG_ONLY" | "WHATSAPP";
+  providerMode: "automatic" | "manual" | "benchmark" | "shadow";
 };
 
 const toSafePreview = (key: string, value: string | number | boolean) => {
@@ -239,7 +242,8 @@ export const loadConfig = (): AppConfig => {
       !cfg.R2_BUCKET_NAME ||
       cfg.R2_ACCESS_KEY_ID === "replace_me",
     queueDryRun: !cfg.REDIS_URL || cfg.REDIS_URL.includes("replace_me"),
-    deliveryMode: cfg.DELIVERY_MODE
+    deliveryMode: cfg.DELIVERY_MODE,
+    providerMode: cfg.PROVIDER_MODE
   };
 };
 

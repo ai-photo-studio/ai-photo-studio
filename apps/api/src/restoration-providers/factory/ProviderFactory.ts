@@ -2,6 +2,7 @@ import type { AppConfig } from "../../config/env";
 import type { IRestorationProvider, PackageTier } from "../interfaces/IRestorationProvider";
 import { RunPodProvider } from "../providers/RunPodProvider";
 import { MockProvider } from "../providers/MockProvider";
+import { OpenAIProvider } from "../providers/OpenAIProvider";
 
 export class ProviderFactory {
   private readonly config: AppConfig;
@@ -25,6 +26,9 @@ export class ProviderFactory {
       case "mock":
         provider = new MockProvider();
         break;
+      case "openai":
+        provider = new OpenAIProvider(this.config);
+        break;
       default:
         throw new Error(`Unknown provider: ${name}`);
     }
@@ -37,8 +41,8 @@ export class ProviderFactory {
     const mapping: Record<PackageTier, { primary: string; fallback: string | null }> = {
       preview: { primary: "runpod", fallback: null },
       basic: { primary: "runpod", fallback: null },
-      premium: { primary: "fal-ai", fallback: "replicate" },
-      print: { primary: "fal-ai", fallback: "replicate" },
+      premium: { primary: "openai", fallback: "fal-ai" },
+      print: { primary: "openai", fallback: "fal-ai" },
       archive: { primary: "runpod", fallback: null },
     };
 
@@ -50,6 +54,6 @@ export class ProviderFactory {
   }
 
   getAvailableProviders(): string[] {
-    return ["runpod", "mock", "fal-ai", "replicate"];
+    return ["runpod", "mock", "openai", "fal-ai", "replicate"];
   }
 }

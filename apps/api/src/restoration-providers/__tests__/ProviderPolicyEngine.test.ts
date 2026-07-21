@@ -30,13 +30,13 @@ describe("ProviderPolicyEngine", () => {
 
       const premium = engine.getPolicy("premium");
       assert.strictEqual(premium.tier, "premium");
-      assert.strictEqual(premium.primaryProvider, "fal-ai");
-      assert.strictEqual(premium.fallbackProvider, "replicate");
+      assert.strictEqual(premium.primaryProvider, "openai");
+      assert.strictEqual(premium.fallbackProvider, "fal-ai");
 
       const print = engine.getPolicy("print");
       assert.strictEqual(print.tier, "print");
-      assert.strictEqual(print.primaryProvider, "fal-ai");
-      assert.strictEqual(print.fallbackProvider, "replicate");
+      assert.strictEqual(print.primaryProvider, "openai");
+      assert.strictEqual(print.fallbackProvider, "fal-ai");
 
       const archive = engine.getPolicy("archive");
       assert.strictEqual(archive.tier, "archive");
@@ -75,8 +75,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("premium");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "fal-ai");
-      assert.strictEqual(decision.fallbackProvider, "replicate");
+      assert.strictEqual(decision.primaryProvider, "openai");
+      assert.strictEqual(decision.fallbackProvider, "fal-ai");
       assert.ok(decision.reason.includes("premium"));
     });
 
@@ -85,8 +85,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("print");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "fal-ai");
-      assert.strictEqual(decision.fallbackProvider, "replicate");
+      assert.strictEqual(decision.primaryProvider, "openai");
+      assert.strictEqual(decision.fallbackProvider, "fal-ai");
     });
 
     it("should create routing decision for basic tier", () => {
