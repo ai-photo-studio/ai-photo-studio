@@ -55,12 +55,15 @@ export function RestoreOrderPage() {
   const [restoredLoadState, setRestoredLoadState] = useState<ImageLoadState>("idle");
   const [originalLoadState, setOriginalLoadState] = useState<ImageLoadState>("idle");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const loadOrder = useCallback(async () => {
     if (!token || !orderId) return;
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
     setLoading(true);
     try {
-      const data = await customerApi.getRestorationOrder(token, orderId);
+      const data = await customerApi.getRestorationOrder(token, orderId, abortRef.current?.signal);
       setOrder(data);
       if (data.items.length > 0 && !selectedItem) {
         setSelectedItem(data.items[0]);
@@ -72,17 +75,20 @@ export function RestoreOrderPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load order");
+      if ((err as Error)?.name !== "AbortError") {
+        setError(err instanceof Error ? err.message : "Failed to load order");
+      }
     } finally {
       setLoading(false);
     }
   }, [token, orderId]);
 
-  useEffect(() => { void loadOrder(); }, [loadOrder]);
+  useEffect(() => { void loadOrder(); return () => { if (abortRef.current) abortRef.current.abort(); }; }, [loadOrder]);
   useEffect(() => {
     pollingRef.current = setInterval(() => { void loadOrder(); }, 7000);
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, [loadOrder]);
 

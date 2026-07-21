@@ -146,9 +146,9 @@ export const customerApi = {
       token
     ),
 
-  getRestorationOrder: (token: string, id: string) =>
+  getRestorationOrder: (token: string, id: string, signal?: AbortSignal) =>
     apiRequest<{ id: string; orderNo: string; title: string | null; status: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] }>(
-      `/api/restorations/${id}`, {}, token
+      `/api/restorations/${id}`, { signal }, token
     ),
 
   listRestorationOrders: (token: string) =>
