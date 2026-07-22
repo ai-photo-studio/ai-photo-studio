@@ -32,6 +32,8 @@ export class ReplicateProvider implements IRestorationProvider {
   private readonly maxRetries: number = 3;
   private readonly pollIntervalMs: number = 1000;
   private readonly maxPollTimeMs: number = 60000;
+  private readonly cancelAfterMs: number = 120000;
+  private currentPredictionId: string | null = null;
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env.REPLICATE_API_TOKEN || "";
@@ -45,25 +47,35 @@ export class ReplicateProvider implements IRestorationProvider {
     const startTime = Date.now();
     const base64Image = request.image.toString("base64");
 
-    // Create prediction with sync mode (Prefer: wait=60)
     const prediction = await this.createPrediction(base64Image, request.contentType, request.options?.upscaleScale);
+    this.currentPredictionId = prediction.id;
 
-    // If prediction didn't complete in sync wait, poll for result
     if (prediction.status !== "succeeded") {
       const polled = await this.pollPrediction(prediction.id);
+      this.currentPredictionId = null;
       return this.handleResult(polled, startTime, request);
     }
 
+    this.currentPredictionId = null;
     return this.handleResult(prediction, startTime, request);
   }
 
+  async cancel(): Promise<void> {
+    if (this.currentPredictionId) {
+      await this.cancelPrediction(this.currentPredictionId);
+      this.currentPredictionId = null;
+    }
+  }
+
   private async createPrediction(base64Image: string, contentType: string, upscaleScale?: number): Promise<ReplicatePrediction> {
+    const cancelAfterSeconds = Math.floor(this.cancelAfterMs / 1000);
     const response = await fetch(`${REPLICATE_API_BASE}/models/${MODEL_OWNER}/${MODEL_NAME}/predictions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${this.apiKey}`,
         "Prefer": "wait=60",
+        "Cancel-After": `${cancelAfterSeconds}s`,
       },
       body: JSON.stringify({
         input: {
@@ -154,6 +166,19 @@ export class ReplicateProvider implements IRestorationProvider {
     };
   }
 
+  private async cancelPrediction(predictionId: string): Promise<void> {
+    try {
+      await fetch(`${REPLICATE_API_BASE}/predictions/${predictionId}/cancel`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${this.apiKey}`,
+        },
+      });
+    } catch (err) {
+      logger.warn("Failed to cancel Replicate prediction", { predictionId, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
   async health(): Promise<ProviderHealth> {
     if (!this.apiKey) {
       return {
@@ -206,7 +231,6 @@ export class ReplicateProvider implements IRestorationProvider {
   }
 
   estimateCost(request: RestorationRequest): number {
-    // CodeFormer costs approximately $0.0037 per run
-    return 0.0037;
+    return 0.0034;
   }
 }

@@ -21,26 +21,26 @@ describe("ProviderPolicyEngine", () => {
 
       const preview = engine.getPolicy("preview");
       assert.strictEqual(preview.tier, "preview");
-      assert.strictEqual(preview.primaryProvider, "runpod");
-      assert.strictEqual(preview.fallbackProvider, null);
+      assert.strictEqual(preview.primaryProvider, "replicate");
+      assert.strictEqual(preview.fallbackProvider, "openai");
 
       const basic = engine.getPolicy("basic");
       assert.strictEqual(basic.tier, "basic");
-      assert.strictEqual(basic.primaryProvider, "runpod");
+      assert.strictEqual(basic.primaryProvider, "replicate");
 
       const premium = engine.getPolicy("premium");
       assert.strictEqual(premium.tier, "premium");
-      assert.strictEqual(premium.primaryProvider, "openai");
-      assert.strictEqual(premium.fallbackProvider, "fal-ai");
+      assert.strictEqual(premium.primaryProvider, "replicate");
+      assert.strictEqual(premium.fallbackProvider, "openai");
 
       const print = engine.getPolicy("print");
       assert.strictEqual(print.tier, "print");
-      assert.strictEqual(print.primaryProvider, "openai");
-      assert.strictEqual(print.fallbackProvider, "fal-ai");
+      assert.strictEqual(print.primaryProvider, "replicate");
+      assert.strictEqual(print.fallbackProvider, "openai");
 
       const archive = engine.getPolicy("archive");
       assert.strictEqual(archive.tier, "archive");
-      assert.strictEqual(archive.primaryProvider, "runpod");
+      assert.strictEqual(archive.primaryProvider, "replicate");
     });
 
     it("should return default tier for unknown tier", () => {
@@ -65,8 +65,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("preview");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "runpod");
-      assert.strictEqual(decision.fallbackProvider, null);
+      assert.strictEqual(decision.primaryProvider, "replicate");
+      assert.strictEqual(decision.fallbackProvider, "openai");
       assert.ok(decision.reason.includes("preview"));
     });
 
@@ -75,8 +75,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("premium");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "openai");
-      assert.strictEqual(decision.fallbackProvider, "fal-ai");
+      assert.strictEqual(decision.primaryProvider, "replicate");
+      assert.strictEqual(decision.fallbackProvider, "openai");
       assert.ok(decision.reason.includes("premium"));
     });
 
@@ -85,8 +85,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("print");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "openai");
-      assert.strictEqual(decision.fallbackProvider, "fal-ai");
+      assert.strictEqual(decision.primaryProvider, "replicate");
+      assert.strictEqual(decision.fallbackProvider, "openai");
     });
 
     it("should create routing decision for basic tier", () => {
@@ -94,8 +94,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("basic");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "runpod");
-      assert.strictEqual(decision.fallbackProvider, null);
+      assert.strictEqual(decision.primaryProvider, "replicate");
+      assert.strictEqual(decision.fallbackProvider, "openai");
     });
 
     it("should create routing decision for archive tier", () => {
@@ -103,8 +103,8 @@ describe("ProviderPolicyEngine", () => {
       const context = createContext("archive");
       const decision = engine.makeRoutingDecision(context);
 
-      assert.strictEqual(decision.primaryProvider, "runpod");
-      assert.strictEqual(decision.fallbackProvider, null);
+      assert.strictEqual(decision.primaryProvider, "replicate");
+      assert.strictEqual(decision.fallbackProvider, "openai");
     });
   });
 

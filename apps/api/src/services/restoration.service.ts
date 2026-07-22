@@ -317,6 +317,7 @@ export class RestorationService {
     let processedBuffer = original.body;
     let processedContentType = item.mimeType || "image/jpeg";
     let providersUsed: string[] = [];
+    let providerUsedName: string | null = null;
     const stageTimings: Record<string, number> = {};
     let totalDurationMs = 0;
 
@@ -350,8 +351,8 @@ export class RestorationService {
       const routingDecision = this.policyEngine.makeRoutingDecision(routingContext);
       logger.info("Provider routing decision", { itemId, decision: routingDecision });
 
-      const runPodProvider = this.providerFactory.create("runpod");
-      this.providerRouter.registerProvider(runPodProvider);
+      const primaryProvider = this.providerFactory.create(routingDecision.primaryProvider);
+      this.providerRouter.registerProvider(primaryProvider);
 
       if (routingDecision.fallbackProvider) {
         try {
@@ -387,6 +388,8 @@ export class RestorationService {
         const order = ["damage_detection", "lama_inpaint", "face_restoration_gfpgan", "face_restoration_codeformer", "colorization_ddcolor", "real_esrgan_upscale"];
         return (order.indexOf(a) - order.indexOf(b));
       });
+
+      providerUsedName = result.providerName;
 
       for (const stage of providersUsed) {
         const mapped = stageMap[stage];
@@ -485,7 +488,7 @@ export class RestorationService {
         status: succeeded ? "COMPLETED" : "FAILED",
         finalStorageKey: processedUpload.key,
         afterQualityScore: afterQuality,
-        providerUsed: `runpod:${providersUsed.join(",")}`,
+         providerUsed: `${providerUsedName ?? "unknown"}:${providersUsed.join(",")}`,
         processingStage: succeeded ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
         totalDurationMs
       }

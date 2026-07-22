@@ -47,11 +47,11 @@ export class ProviderFactory {
 
   createForPackage(tier: PackageTier): { primary: IRestorationProvider; fallback: IRestorationProvider | null } {
     const mapping: Record<PackageTier, { primary: string; fallback: string | null }> = {
-      preview: { primary: "runpod", fallback: null },
-      basic: { primary: "runpod", fallback: null },
-      premium: { primary: "openai", fallback: "fal-ai" },
-      print: { primary: "openai", fallback: "fal-ai" },
-      archive: { primary: "runpod", fallback: null },
+      preview: { primary: "replicate", fallback: "openai" },
+      basic: { primary: "replicate", fallback: "openai" },
+      premium: { primary: "replicate", fallback: "openai" },
+      print: { primary: "replicate", fallback: "openai" },
+      archive: { primary: "replicate", fallback: "openai" },
     };
 
     const config = mapping[tier];
