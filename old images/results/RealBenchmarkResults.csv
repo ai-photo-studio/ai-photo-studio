@@ -1,0 +1,15 @@
+provider,imageName,startTime,finishTime,elapsedMs,httpStatus,requestId,outputWidth,outputHeight,outputSizeBytes,retryCount,failureReason,actualCost,costSource,ssim,psnr,sharpness,noise,contrast,brightness,printQuality,success,inputWidth,inputHeight
+replicate,2.jpeg,2026-07-22T11:09:03.647Z,2026-07-22T11:09:03.650Z,3,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,525,380
+openai,2.jpeg,2026-07-22T11:09:03.652Z,2026-07-22T11:09:03.652Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,525,380
+replicate,3.jpeg,2026-07-22T11:09:03.654Z,2026-07-22T11:09:03.654Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,455,673
+openai,3.jpeg,2026-07-22T11:09:03.656Z,2026-07-22T11:09:03.656Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,455,673
+replicate,4.jpg,2026-07-22T11:09:03.658Z,2026-07-22T11:09:03.658Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,900,600
+openai,4.jpg,2026-07-22T11:09:03.659Z,2026-07-22T11:09:03.660Z,1,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,900,600
+replicate,5.jpeg,2026-07-22T11:09:03.661Z,2026-07-22T11:09:03.661Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,596,335
+openai,5.jpeg,2026-07-22T11:09:03.663Z,2026-07-22T11:09:03.663Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,596,335
+replicate,6.jpeg,2026-07-22T11:09:03.664Z,2026-07-22T11:09:03.664Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,370,400
+openai,6.jpeg,2026-07-22T11:09:03.666Z,2026-07-22T11:09:03.666Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,370,400
+replicate,images.jpeg,2026-07-22T11:09:03.667Z,2026-07-22T11:09:03.667Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,493,405
+openai,images.jpeg,2026-07-22T11:09:03.669Z,2026-07-22T11:09:03.669Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,493,405
+replicate,lahore.jpeg,2026-07-22T11:09:03.670Z,2026-07-22T11:09:03.670Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,502,611
+openai,lahore.jpeg,2026-07-22T11:09:03.671Z,2026-07-22T11:09:03.671Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,502,611
