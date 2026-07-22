@@ -1,35 +1,35 @@
 # Production Provider Routing Recommendation
 
-**Generated:** 2026-07-22T11:36:35.987Z
+**Generated:** 2026-07-22T13:01:58.320Z
 **Source:** OPS-91 Real Production Benchmark (Measured Data Only)
 
 ## Measured Scores
 
 | Metric | Replicate | OpenAI |
 |---|---|---|
-| Quality Score | 0.68 | 0.15 |
-| Avg Cost/Image | $0.003400 | $0.000000 |
-| Success Rate | 100% | 0% |
-| Avg SSIM | 0.80 | 0.00 |
-| Avg PSNR | 7.67 | 0.00 |
-| Avg Print Quality | 81.0 | 0.0 |
+| Quality Score | 0.68 | 0.69 |
+| Avg Cost/Image | $0.002200 | $0.000070 |
+| Success Rate | 100% | 100% |
+| Avg SSIM | 0.80 | 0.80 |
+| Avg PSNR | 7.67 | 7.03 |
+| Avg Print Quality | 81.0 | 81.0 |
 
 ## Tier Routing
 
 | Tier | Primary | Fallback | Rationale |
 |---|---|---|---|
-| Preview | replicate | openai | Replicate leads in quality score (0.68 vs 0.15) and cost ($0.003400 vs $0.000000) |
-| Basic | replicate | openai | Replicate leads in quality score (0.68 vs 0.15) and cost ($0.003400 vs $0.000000) |
-| Premium | replicate | openai | Replicate leads in quality score (0.68 vs 0.15) and cost ($0.003400 vs $0.000000) |
-| Print | replicate | openai | Replicate leads in quality score (0.68 vs 0.15) and cost ($0.003400 vs $0.000000) |
-| Archive | replicate | openai | Replicate leads in quality score (0.68 vs 0.15) and cost ($0.003400 vs $0.000000) |
+| Preview | openai | replicate | OpenAI leads in quality score (0.69 vs 0.68) |
+| Basic | openai | replicate | OpenAI leads in quality score (0.69 vs 0.68) |
+| Premium | openai | replicate | OpenAI leads in quality score (0.69 vs 0.68) |
+| Print | openai | replicate | OpenAI leads in quality score (0.69 vs 0.68) |
+| Archive | openai | replicate | OpenAI leads in quality score (0.69 vs 0.68) |
 
 ## Cost Projection (1000 images)
 
 | Provider | Cost/Image | 1000 Images |
 |---|---|---|
-| Replicate | $0.003400 | $3.40 |
-| OpenAI | $0.040000 | $40.00 |
+| Replicate | $0.002200 | $2.20 |
+| OpenAI | $0.000070 | $0.07 |
 
 ## Note on measured benchmark data
 

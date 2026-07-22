@@ -36,6 +36,11 @@ export interface RestorationResult {
   processingTimeMs: number;
   creditsUsed: number;
   estimatedCost: number;
+  actualCost?: number;
+  actualGPUSeconds?: number;
+  actualProviderCharge?: number;
+  requestId?: string;
+  costSource?: "actual" | "calculated" | "estimated";
 }
 
 export interface ProviderHealth {
@@ -58,6 +63,17 @@ export interface ProviderMetrics {
 }
 
 export type PackageTier = "preview" | "basic" | "premium" | "print" | "archive";
+
+export type CustomerPackage = "original_restore" | "hd_2x" | "premium_printable";
+
+export interface PackageRoutingDecision {
+  packageName: CustomerPackage;
+  primaryProvider: string;
+  fallbackProvider: string | null;
+  reason: string;
+  qualityScore: number;
+  costPerImage: number;
+}
 
 export interface RoutingContext {
   packageTier: PackageTier;

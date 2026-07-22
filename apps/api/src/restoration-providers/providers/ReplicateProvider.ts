@@ -11,6 +11,7 @@ interface ReplicatePrediction {
   metrics?: {
     predict_time?: number;
     total_time?: number;
+    gpu_seconds?: number;
   };
   urls?: {
     get: string;
@@ -152,6 +153,10 @@ export class ReplicateProvider implements IRestorationProvider {
     }
     const outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
 
+    // Replicate returns GPU seconds in metrics.predict_time (seconds of GPU compute)
+    // Official pricing: $0.00085 per GPU second for CodeFormer (T4 GPU)
+    const gpuSeconds = prediction.metrics?.predict_time || prediction.metrics?.gpu_seconds || 0;
+    const actualCost = this.calculateActualCost(gpuSeconds);
     const estimatedCost = this.estimateCost(request);
 
     return {
@@ -164,6 +169,11 @@ export class ReplicateProvider implements IRestorationProvider {
       processingTimeMs,
       creditsUsed: 0,
       estimatedCost,
+      actualCost,
+      actualGPUSeconds: gpuSeconds,
+      actualProviderCharge: actualCost,
+      requestId: prediction.id,
+      costSource: "calculated",
     };
   }
 
@@ -233,5 +243,11 @@ export class ReplicateProvider implements IRestorationProvider {
 
   estimateCost(request: RestorationRequest): number {
     return 0.0034;
+  }
+
+  private calculateActualCost(gpuSeconds: number): number {
+    // Replicate CodeFormer: $0.00085 per GPU second (T4 GPU pricing)
+    // Source: https://replicate.com/docs/reference/providers
+    return Math.round(gpuSeconds * 0.00085 * 10000) / 10000;
   }
 }

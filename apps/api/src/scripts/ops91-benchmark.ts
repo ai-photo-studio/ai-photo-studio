@@ -3,6 +3,7 @@ import { join, extname } from "node:path";
 import { ReplicateProvider } from "../restoration-providers/providers/ReplicateProvider";
 import { OpenAIProvider } from "../restoration-providers/providers/OpenAIProvider";
 import { QualityMetricsCalculator } from "../restoration-providers/quality/QualityMetricsCalculator";
+import { PackageRoutingService } from "../restoration-providers/routing/PackageRoutingService";
 import type { RestorationRequest } from "../restoration-providers/interfaces/IRestorationProvider";
 import type { AppConfig } from "../config/env";
 
@@ -29,7 +30,10 @@ interface BenchmarkRecord {
   retryCount: number;
   failureReason: string;
   actualCost: number;
+  estimatedCost: number;
   costSource: string;
+  actualGPUSeconds: number;
+  providerVersion: string;
   ssim: number;
   psnr: number;
   sharpness: number;
@@ -189,14 +193,17 @@ async function benchmarkSingleImage(
       finishTime: finishTime.toISOString(),
       elapsedMs,
       httpStatus: 200,
-      requestId: "",
+      requestId: result.requestId || "",
       outputWidth: outputDims.width,
       outputHeight: outputDims.height,
       outputSizeBytes: result.image.length,
       retryCount: 0,
       failureReason: "",
-      actualCost: result.estimatedCost,
-      costSource: providerName === "replicate" ? "Replicate official pricing ($0.0034/run)" : "OpenAI official pricing ($0.04/image)",
+      actualCost: result.actualCost ?? result.estimatedCost,
+      estimatedCost: result.estimatedCost,
+      costSource: result.costSource || "estimated",
+      actualGPUSeconds: result.actualGPUSeconds || 0,
+      providerVersion: result.providerVersion || "",
       ssim: metrics.ssim,
       psnr: metrics.psnr,
       sharpness: metrics.sharpness,
@@ -248,7 +255,10 @@ async function benchmarkSingleImage(
       retryCount: 0,
       failureReason: errMsg,
       actualCost: 0,
+      estimatedCost: 0,
       costSource: "",
+      actualGPUSeconds: 0,
+      providerVersion: "",
       ssim: 0,
       psnr: 0,
       sharpness: 0,
@@ -279,7 +289,8 @@ function generateCsv(records: BenchmarkRecord[]): string {
   const headers = [
     "provider", "imageName", "startTime", "finishTime", "elapsedMs",
     "httpStatus", "requestId", "outputWidth", "outputHeight", "outputSizeBytes",
-    "retryCount", "failureReason", "actualCost", "costSource",
+    "retryCount", "failureReason", "actualCost", "estimatedCost", "costSource",
+    "actualGPUSeconds", "providerVersion",
     "ssim", "psnr", "sharpness", "noise", "contrast", "brightness", "printQuality",
     "success", "inputWidth", "inputHeight",
   ];
@@ -298,12 +309,14 @@ function generateXlsx(records: BenchmarkRecord[]): Buffer {
   const wb = XLSX.utils.book_new();
 
   const resultsAoa = [
-    ["Provider", "Image", "Success", "Elapsed (ms)", "Cost ($)", "SSIM", "PSNR", "Sharpness", "Noise", "Contrast", "Brightness", "Print Quality", "Input WxH", "Output WxH", "Failure Reason"],
+    ["Provider", "Image", "Success", "Elapsed (ms)", "Actual Cost ($)", "Est. Cost ($)", "Cost Source", "GPU Secs", "Request ID", "SSIM", "PSNR", "Sharpness", "Noise", "Contrast", "Brightness", "Print Quality", "Input WxH", "Output WxH", "Failure Reason"],
   ];
   for (const r of records) {
     resultsAoa.push([
       r.provider, r.imageName, r.success ? "YES" : "NO", String(r.elapsedMs),
-      String(r.actualCost.toFixed(6)), String(r.ssim), String(r.psnr), String(r.sharpness), String(r.noise),
+      String(r.actualCost.toFixed(6)), String(r.estimatedCost.toFixed(6)), r.costSource,
+      String(r.actualGPUSeconds), r.requestId,
+      String(r.ssim), String(r.psnr), String(r.sharpness), String(r.noise),
       String(r.contrast), String(r.brightness), String(r.printQuality),
       `${r.inputWidth}x${r.inputHeight}`, `${r.outputWidth}x${r.outputHeight}`,
       r.failureReason,
@@ -602,6 +615,184 @@ function generateRoutingRecommendation(records: BenchmarkRecord[]): string {
   return lines.join("\n");
 }
 
+function generateBillingCsv(records: BenchmarkRecord[]): string {
+  const headers = [
+    "provider", "imageName", "requestId", "actualCost", "estimatedCost",
+    "costSource", "actualGPUSeconds", "providerVersion", "success", "failureReason",
+  ];
+  const rows = records.map((r) =>
+    headers.map((h) => {
+      const val = (r as any)[h] ?? "";
+      const str = String(val);
+      return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
+    }).join(",")
+  );
+  return [headers.join(","), ...rows].join("\n");
+}
+
+function generateBillingXlsx(records: BenchmarkRecord[]): Buffer {
+  const XLSX = require("xlsx");
+  const wb = XLSX.utils.book_new();
+
+  const billingAoa = [
+    ["Provider", "Image", "Request ID", "Actual Cost ($)", "Est. Cost ($)", "Cost Source", "GPU Seconds", "Provider Version", "Success", "Failure Reason"],
+  ];
+  for (const r of records) {
+    billingAoa.push([
+      r.provider, r.imageName, r.requestId,
+      String(r.actualCost.toFixed(6)), String(r.estimatedCost.toFixed(6)),
+      r.costSource, String(r.actualGPUSeconds), r.providerVersion,
+      r.success ? "YES" : "NO", r.failureReason,
+    ]);
+  }
+  const ws1 = XLSX.utils.aoa_to_sheet(billingAoa);
+  XLSX.utils.book_append_sheet(wb, ws1, "Billing");
+
+  const replicateSuccess = records.filter((r) => r.provider === "replicate" && r.success);
+  const openaiSuccess = records.filter((r) => r.provider === "openai" && r.success);
+
+  const totalActualR = replicateSuccess.reduce((s, r) => s + r.actualCost, 0);
+  const totalActualO = openaiSuccess.reduce((s, r) => s + r.actualCost, 0);
+  const totalEstR = replicateSuccess.reduce((s, r) => s + r.estimatedCost, 0);
+  const totalEstO = openaiSuccess.reduce((s, r) => s + r.estimatedCost, 0);
+  const totalGpuR = replicateSuccess.reduce((s, r) => s + r.actualGPUSeconds, 0);
+
+  const summaryAoa = [
+    ["Metric", "Replicate", "OpenAI"],
+    ["Successful Calls", String(replicateSuccess.length), String(openaiSuccess.length)],
+    ["Total Actual Cost ($)", totalActualR.toFixed(6), totalActualO.toFixed(6)],
+    ["Total Estimated Cost ($)", totalEstR.toFixed(6), totalEstO.toFixed(6)],
+    ["Avg Actual Cost/Image ($)", replicateSuccess.length > 0 ? (totalActualR / replicateSuccess.length).toFixed(6) : "0", openaiSuccess.length > 0 ? (totalActualO / openaiSuccess.length).toFixed(6) : "0"],
+    ["Total GPU Seconds", totalGpuR.toFixed(2), "N/A"],
+    ["Avg GPU Seconds/Image", replicateSuccess.length > 0 ? (totalGpuR / replicateSuccess.length).toFixed(2) : "0", "N/A"],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(summaryAoa);
+  XLSX.utils.book_append_sheet(wb, ws2, "Billing Summary");
+
+  return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+}
+
+function generatePackageRoutingReport(records: BenchmarkRecord[]): string {
+  const routingService = new PackageRoutingService();
+
+  const replicateSuccess = records.filter((r) => r.provider === "replicate" && r.success);
+  const openaiSuccess = records.filter((r) => r.provider === "openai" && r.success);
+
+  if (replicateSuccess.length > 0) {
+    routingService.registerBenchmarkData({
+      providerName: "replicate",
+      avgSSIM: replicateSuccess.reduce((s, r) => s + r.ssim, 0) / replicateSuccess.length,
+      avgPSNR: replicateSuccess.reduce((s, r) => s + r.psnr, 0) / replicateSuccess.length,
+      avgSharpness: replicateSuccess.reduce((s, r) => s + r.sharpness, 0) / replicateSuccess.length,
+      avgNoise: replicateSuccess.reduce((s, r) => s + r.noise, 0) / replicateSuccess.length,
+      avgPrintQuality: replicateSuccess.reduce((s, r) => s + r.printQuality, 0) / replicateSuccess.length,
+      avgCostPerImage: replicateSuccess.reduce((s, r) => s + r.actualCost, 0) / replicateSuccess.length,
+      successRate: 100,
+      avgLatencyMs: replicateSuccess.reduce((s, r) => s + r.elapsedMs, 0) / replicateSuccess.length,
+      totalImages: records.filter((r) => r.provider === "replicate").length,
+      successfulImages: replicateSuccess.length,
+    });
+  }
+
+  if (openaiSuccess.length > 0) {
+    routingService.registerBenchmarkData({
+      providerName: "openai",
+      avgSSIM: openaiSuccess.reduce((s, r) => s + r.ssim, 0) / openaiSuccess.length,
+      avgPSNR: openaiSuccess.reduce((s, r) => s + r.psnr, 0) / openaiSuccess.length,
+      avgSharpness: openaiSuccess.reduce((s, r) => s + r.sharpness, 0) / openaiSuccess.length,
+      avgNoise: openaiSuccess.reduce((s, r) => s + r.noise, 0) / openaiSuccess.length,
+      avgPrintQuality: openaiSuccess.reduce((s, r) => s + r.printQuality, 0) / openaiSuccess.length,
+      avgCostPerImage: openaiSuccess.reduce((s, r) => s + r.actualCost, 0) / openaiSuccess.length,
+      successRate: 100,
+      avgLatencyMs: openaiSuccess.reduce((s, r) => s + r.elapsedMs, 0) / openaiSuccess.length,
+      totalImages: records.filter((r) => r.provider === "openai").length,
+      successfulImages: openaiSuccess.length,
+    });
+  }
+
+  const decisions = routingService.routeAllPackages();
+
+  const lines: string[] = [];
+  lines.push("# Package Routing Report");
+  lines.push("");
+  lines.push("**Generated:** " + new Date().toISOString());
+  lines.push("**Source:** OPS-93 Real Production Benchmark");
+  lines.push("");
+  lines.push("> Provider names are hidden from customers. This report is for internal routing logic only.");
+  lines.push("");
+  lines.push("## Customer Packages");
+  lines.push("");
+  lines.push("| Package | Display Name | Primary | Fallback | Quality Score | Cost/Image | Rationale |");
+  lines.push("|---|---|---|---|---|---|---|");
+
+  for (const d of decisions) {
+    lines.push(`| ${d.packageName} | ${d.primaryProvider} | ${d.primaryProvider} | ${d.fallbackProvider ?? "none"} | ${d.qualityScore.toFixed(2)} | $${d.costPerImage.toFixed(6)} | ${d.reason} |`);
+  }
+
+  lines.push("");
+  lines.push("## Measured Provider Data");
+  lines.push("");
+  lines.push("| Provider | SSIM | PSNR | Sharpness | Noise | Print Quality | Cost/Image | Success Rate | Latency (ms) |");
+  lines.push("|---|---|---|---|---|---|---|---|---|");
+
+  const providerEntries: { providerName: string; data: any }[] = [];
+  if (replicateSuccess.length > 0) {
+    providerEntries.push({
+      providerName: "replicate",
+      data: {
+        avgSSIM: replicateSuccess.reduce((s, r) => s + r.ssim, 0) / replicateSuccess.length,
+        avgPSNR: replicateSuccess.reduce((s, r) => s + r.psnr, 0) / replicateSuccess.length,
+        avgSharpness: replicateSuccess.reduce((s, r) => s + r.sharpness, 0) / replicateSuccess.length,
+        avgNoise: replicateSuccess.reduce((s, r) => s + r.noise, 0) / replicateSuccess.length,
+        avgPrintQuality: replicateSuccess.reduce((s, r) => s + r.printQuality, 0) / replicateSuccess.length,
+        avgCostPerImage: replicateSuccess.reduce((s, r) => s + r.actualCost, 0) / replicateSuccess.length,
+        successRate: 100,
+        avgLatencyMs: replicateSuccess.reduce((s, r) => s + r.elapsedMs, 0) / replicateSuccess.length,
+      },
+    });
+  }
+  if (openaiSuccess.length > 0) {
+    providerEntries.push({
+      providerName: "openai",
+      data: {
+        avgSSIM: openaiSuccess.reduce((s, r) => s + r.ssim, 0) / openaiSuccess.length,
+        avgPSNR: openaiSuccess.reduce((s, r) => s + r.psnr, 0) / openaiSuccess.length,
+        avgSharpness: openaiSuccess.reduce((s, r) => s + r.sharpness, 0) / openaiSuccess.length,
+        avgNoise: openaiSuccess.reduce((s, r) => s + r.noise, 0) / openaiSuccess.length,
+        avgPrintQuality: openaiSuccess.reduce((s, r) => s + r.printQuality, 0) / openaiSuccess.length,
+        avgCostPerImage: openaiSuccess.reduce((s, r) => s + r.actualCost, 0) / openaiSuccess.length,
+        successRate: 100,
+        avgLatencyMs: openaiSuccess.reduce((s, r) => s + r.elapsedMs, 0) / openaiSuccess.length,
+      },
+    });
+  }
+
+  for (const entry of providerEntries) {
+    const d = entry.data;
+    lines.push(`| ${entry.providerName} | ${d.avgSSIM.toFixed(2)} | ${d.avgPSNR.toFixed(2)} | ${d.avgSharpness.toFixed(1)} | ${d.avgNoise.toFixed(1)} | ${d.avgPrintQuality.toFixed(1)} | $${d.avgCostPerImage.toFixed(6)} | ${d.successRate.toFixed(0)}% | ${Math.round(d.avgLatencyMs)} |`);
+  }
+
+  lines.push("");
+  lines.push("## Package Definitions");
+  lines.push("");
+  lines.push("| Package | Quality Threshold | Max Cost/Image | Resolution |");
+  lines.push("|---|---|---|---|");
+  lines.push("| original_restore | 60 | $0.010 | 1024x1024 |");
+  lines.push("| hd_2x | 75 | $0.050 | 1024x1024 |");
+  lines.push("| premium_printable | 85 | $0.100 | 1024x1024 |");
+  lines.push("");
+  lines.push("## Routing Logic");
+  lines.push("");
+  lines.push("- **Original Restore**: Lowest-cost provider meeting quality threshold (60)");
+  lines.push("- **HD 2x**: Best quality/cost ratio");
+  lines.push("- **Premium Printable**: Highest measured quality provider");
+  lines.push("");
+  lines.push("Provider names are NOT exposed to customers. Customers see package names only.");
+  lines.push("");
+
+  return lines.join("\n");
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
@@ -686,6 +877,18 @@ async function main() {
   const galleryPath = join(RESULTS_DIR, "BenchmarkGallery", "index.html");
   writeFileSync(galleryPath, generateGalleryHtml(records));
   console.log("  Gallery: " + galleryPath);
+
+  const billingCsvPath = join(RESULTS_DIR, "RealProviderBilling.csv");
+  writeFileSync(billingCsvPath, generateBillingCsv(records));
+  console.log("  Billing CSV: " + billingCsvPath);
+
+  const billingXlsxPath = join(RESULTS_DIR, "RealProviderBilling.xlsx");
+  writeFileSync(billingXlsxPath, generateBillingXlsx(records));
+  console.log("  Billing XLSX: " + billingXlsxPath);
+
+  const routingReportPath = join(RESULTS_DIR, "PackageRoutingReport.md");
+  writeFileSync(routingReportPath, generatePackageRoutingReport(records));
+  console.log("  Package Routing Report: " + routingReportPath);
 
   console.log("");
 

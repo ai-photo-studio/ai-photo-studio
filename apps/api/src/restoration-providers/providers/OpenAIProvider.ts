@@ -11,24 +11,36 @@ interface OpenAIImageEditResponse {
     url?: string;
     revised_prompt?: string;
   }>;
-}
-
-interface ImageGenUsage {
-  input_tokens: number;
-  input_tokens_details?: {
-    image_tokens: number;
-    text_tokens: number;
-  };
-  output_tokens: number;
-  total_tokens: number;
-  output_tokens_details?: {
-    image_tokens: number;
-    text_tokens: number;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
   };
 }
 
-// DALL-E 3 image edit pricing (per image)
-const DALL_E_3_EDIT_COST = 0.04;
+interface OpenAIModel {
+  id: string;
+  object: string;
+  owned_by: string;
+}
+
+interface OpenAIModelsResponse {
+  object: string;
+  data: OpenAIModel[];
+}
+
+// OpenAI image edit pricing per 1024x1024 image
+const IMAGE_EDIT_PRICING: Record<string, number> = {
+  "gpt-image-beta": 0.04,
+  "dall-e-3": 0.04,
+  "dall-e-2": 0.02,
+};
+
+// OpenAI image edit pricing per 1024x1024 image (token-based for gpt-image-beta)
+const GPT_IMAGE_TOKEN_COST = {
+  input: 0.000015,
+  output: 0.00006,
+};
 
 export class OpenAIProvider implements IRestorationProvider {
   readonly name = "openai";
@@ -36,12 +48,12 @@ export class OpenAIProvider implements IRestorationProvider {
   status: ProviderStatus = "active";
 
   private readonly apiKey: string;
-  private readonly model: string;
+  private cachedModels: string[] | null = null;
+  private cachedModelTimestamp: number = 0;
+  private readonly modelCacheTtlMs = 300000;
 
   constructor(config: AppConfig) {
     this.apiKey = config.OPENAI_API_KEY || "";
-    // dall-e-3 is the supported model for /v1/images/edits
-    this.model = "dall-e-3";
   }
 
   async restore(request: RestorationRequest): Promise<RestorationResult> {
@@ -50,24 +62,25 @@ export class OpenAIProvider implements IRestorationProvider {
     }
 
     const startTime = Date.now();
-
     const base64Image = request.image.toString("base64");
     const imageSize = this.estimateImageSize(request.image);
+
+    const model = await this.detectBestImageModel();
 
     let result: OpenAIImageEditResponse;
     let operation = "restoration";
 
     if (request.options?.colorize) {
-      result = await this.editImage(base64Image, request.contentType, "Colorize this black and white photograph, adding natural and realistic colors throughout. Restore faded areas and enhance contrast.");
+      result = await this.editImage(base64Image, request.contentType, model, "Colorize this black and white photograph, adding natural and realistic colors throughout. Restore faded areas and enhance contrast.");
       operation = "colorization";
     } else if (request.options?.upscale) {
-      result = await this.editImage(base64Image, request.contentType, "Upscale this image to higher resolution while preserving all details. Enhance sharpness and clarity.");
+      result = await this.editImage(base64Image, request.contentType, model, "Upscale this image to higher resolution while preserving all details. Enhance sharpness and clarity.");
       operation = "upscale";
     } else if (request.options?.restoreFaces) {
-      result = await this.editImage(base64Image, request.contentType, "Restore faces in this photograph. Fix scratches, reduce noise, enhance facial features while preserving natural appearance.");
+      result = await this.editImage(base64Image, request.contentType, model, "Restore faces in this photograph. Fix scratches, reduce noise, enhance facial features while preserving natural appearance.");
       operation = "face-restoration";
     } else {
-      result = await this.editImage(base64Image, request.contentType, "Restore this damaged photograph. Remove scratches, reduce noise, enhance contrast and sharpness, and improve overall quality while preserving the original character of the image.");
+      result = await this.editImage(base64Image, request.contentType, model, "Restore this damaged photograph. Remove scratches, reduce noise, enhance contrast and sharpness, and improve overall quality while preserving the original character of the image.");
       operation = "restoration";
     }
 
@@ -88,12 +101,16 @@ export class OpenAIProvider implements IRestorationProvider {
       }
       outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     }
+
     const estimatedCost = this.estimateCost(request);
+    const { actualCost, costSource } = this.calculateActualCost(model, result.usage);
 
     logger.info("OpenAI restoration completed", {
       operation,
+      model,
       processingTimeMs,
       estimatedCost,
+      actualCost,
       imageSize,
     });
 
@@ -102,12 +119,87 @@ export class OpenAIProvider implements IRestorationProvider {
       contentType: "image/png",
       fileName: request.fileName,
       providerName: this.name,
-      providerVersion: this.model,
+      providerVersion: model,
       stages: [operation],
       processingTimeMs,
       creditsUsed: 0,
       estimatedCost,
+      actualCost,
+      requestId: result.created.toString(),
+      costSource,
     };
+  }
+
+  private async detectBestImageModel(): Promise<string> {
+    const now = Date.now();
+    if (this.cachedModels && now - this.cachedModelTimestamp < this.modelCacheTtlMs) {
+      const best = this.selectBestModel(this.cachedModels);
+      if (best) return best;
+    }
+
+    try {
+      const response = await fetch(`${OPENAI_API_BASE}/models`, {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI models API failed (${response.status})`);
+      }
+
+      const modelsData = (await response.json()) as OpenAIModelsResponse;
+      const modelIds = modelsData.data.map((m) => m.id);
+      this.cachedModels = modelIds;
+      this.cachedModelTimestamp = now;
+
+      const best = this.selectBestModel(modelIds);
+      if (best) return best;
+    } catch (err) {
+      logger.warn("Failed to detect OpenAI models, falling back to default", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return "gpt-image-beta";
+  }
+
+  private selectBestModel(modelIds: string[]): string | null {
+    // Priority: gpt-image-beta > dall-e-3 > dall-e-2
+    // Do not hardcode — detect from API response
+    const imageModels = modelIds.filter(
+      (id) =>
+        id.includes("gpt-image") ||
+        id.includes("dall-e-3") ||
+        id.includes("dall-e-2") ||
+        id.includes("dall-e")
+    );
+
+    if (imageModels.length === 0) return null;
+
+    // Prefer gpt-image-beta (newest), then dall-e-3, then dall-e-2
+    const priority = ["gpt-image-beta", "dall-e-3", "dall-e-2"];
+    for (const p of priority) {
+      const match = imageModels.find((id) => id === p || id.startsWith(p));
+      if (match) return match;
+    }
+
+    // Return the first image model found
+    return imageModels[0];
+  }
+
+  private calculateActualCost(
+    model: string,
+    usage?: OpenAIImageEditResponse["usage"]
+  ): { actualCost: number; costSource: "actual" | "calculated" | "estimated" } {
+    if (usage && usage.input_tokens && usage.output_tokens) {
+      // gpt-image-beta uses token-based pricing
+      const inputCost = (usage.input_tokens / 1000) * GPT_IMAGE_TOKEN_COST.input;
+      const outputCost = (usage.output_tokens / 1000) * GPT_IMAGE_TOKEN_COST.output;
+      return { actualCost: Math.round((inputCost + outputCost) * 100000) / 100000, costSource: "actual" };
+    }
+
+    // Fall back to official per-image pricing for the exact model used
+    const price = IMAGE_EDIT_PRICING[model] ?? IMAGE_EDIT_PRICING["gpt-image-beta"];
+    return { actualCost: price, costSource: "calculated" };
   }
 
   async health(): Promise<ProviderHealth> {
@@ -136,7 +228,6 @@ export class OpenAIProvider implements IRestorationProvider {
       const latency = Date.now() - startTime;
 
       if (!response.ok) {
-        const body = await response.text();
         return {
           status: "down",
           latency,
@@ -163,13 +254,13 @@ export class OpenAIProvider implements IRestorationProvider {
   }
 
   estimateCost(request: RestorationRequest): number {
-    // DALL-E 3 image edits: $0.04/image (1024x1024)
-    return DALL_E_3_EDIT_COST;
+    // Default estimate: gpt-image-beta edit pricing $0.04/image (1024x1024)
+    return IMAGE_EDIT_PRICING["gpt-image-beta"];
   }
 
-  private async editImage(base64Image: string, contentType: string, prompt: string): Promise<OpenAIImageEditResponse> {
+  private async editImage(base64Image: string, contentType: string, model: string, prompt: string): Promise<OpenAIImageEditResponse> {
     const formData = new FormData();
-    formData.append("model", "dall-e-3");
+    formData.append("model", model);
     formData.append("prompt", prompt);
     formData.append("n", "1");
     formData.append("size", "1024x1024");

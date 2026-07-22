@@ -17,3 +17,4 @@ export { QualityMetricsCalculator, type QualityMetrics, type BenchmarkResult } f
 export { QualityLabReportGenerator, type QualityLabReport, type ProviderRanking } from "./quality/QualityLabReport";
 export { ProviderCertifier, type CertificationStatus, type CredentialCheck, type HealthCheckResult, type ProviderCertification, type CertificationReport } from "./certification/ProviderCertifier";
 export { CertificationReportGenerator, type CertificationSummary } from "./certification/CertificationReport";
+export { PackageRoutingService, type PackageSpec, type ProviderBenchmarkData } from "./routing/PackageRoutingService";

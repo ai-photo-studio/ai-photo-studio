@@ -1,64 +1,15 @@
-provider,imageName,startTime,finishTime,elapsedMs,httpStatus,requestId,outputWidth,outputHeight,outputSizeBytes,retryCount,failureReason,actualCost,costSource,ssim,psnr,sharpness,noise,contrast,brightness,printQuality,success,inputWidth,inputHeight
-replicate,2.jpeg,2026-07-22T11:35:03.918Z,2026-07-22T11:35:12.666Z,8748,200,,1414,1024,2418918,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.66,100,100,100,100,81,true,525,380
-openai,2.jpeg,2026-07-22T11:35:15.988Z,2026-07-22T11:35:17.954Z,1966,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,525,380
-replicate,3.jpeg,2026-07-22T11:35:20.969Z,2026-07-22T11:35:25.681Z,4712,200,,1024,1514,2508926,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.75,100,100,100,100,81,true,455,673
-openai,3.jpeg,2026-07-22T11:35:28.691Z,2026-07-22T11:35:29.541Z,850,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,455,673
-replicate,4.jpg,2026-07-22T11:35:32.549Z,2026-07-22T11:35:41.233Z,8684,200,,1800,1200,3436784,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.65,100,100,100,100,81,true,900,600
-openai,4.jpg,2026-07-22T11:35:44.242Z,2026-07-22T11:35:46.373Z,2131,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,900,600
-replicate,5.jpeg,2026-07-22T11:35:49.388Z,2026-07-22T11:35:53.352Z,3964,200,,1822,1024,2041767,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.64,100,100,100,100,81,true,596,335
-openai,5.jpeg,2026-07-22T11:35:56.369Z,2026-07-22T11:35:58.222Z,1853,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,596,335
-replicate,6.jpeg,2026-07-22T11:36:01.239Z,2026-07-22T11:36:04.782Z,3543,200,,1024,1108,1621474,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.77,100,100,100,100,81,true,370,400
-openai,6.jpeg,2026-07-22T11:36:07.791Z,2026-07-22T11:36:09.672Z,1881,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,370,400
-replicate,images.jpeg,2026-07-22T11:36:12.681Z,2026-07-22T11:36:17.475Z,4794,200,,1246,1024,1824158,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.57,100,100,100,100,81,true,493,405
-openai,images.jpeg,2026-07-22T11:36:20.479Z,2026-07-22T11:36:21.381Z,902,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,493,405
-replicate,lahore.jpeg,2026-07-22T11:36:24.386Z,2026-07-22T11:36:27.803Z,3417,200,,1024,1246,2270105,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.62,100,100,100,100,81,true,502,611
-openai,lahore.jpeg,2026-07-22T11:36:30.818Z,2026-07-22T11:36:32.812Z,1994,500,,0,0,0,0,"OpenAI API failed (400): {
-  ""error"": {
-    ""message"": ""The model 'dall-e-3' does not exist."",
-    ""type"": ""image_generation_user_error"",
-    ""param"": ""model"",
-    ""code"": ""invalid_value""
-  }
-}",0,,0,0,0,0,0,0,0,false,502,611
+provider,imageName,startTime,finishTime,elapsedMs,httpStatus,requestId,outputWidth,outputHeight,outputSizeBytes,retryCount,failureReason,actualCost,estimatedCost,costSource,actualGPUSeconds,providerVersion,ssim,psnr,sharpness,noise,contrast,brightness,printQuality,success,inputWidth,inputHeight
+replicate,2.jpeg,2026-07-22T12:55:56.675Z,2026-07-22T12:56:04.578Z,7903,200,rh0ada5xcnrmw0czh7jvvtxr2w,1414,1024,2418918,0,,0.0019,0.0034,calculated,2.185350542,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.66,100,100,100,100,81,true,525,380
+openai,2.jpeg,2026-07-22T12:56:08.661Z,2026-07-22T12:57:02.205Z,53544,200,1784725023,1024,1024,1802816,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,7,100,100,100,100,81,true,525,380
+replicate,3.jpeg,2026-07-22T12:57:05.214Z,2026-07-22T12:57:10.330Z,5116,200,jr6f5vxzrhrmr0czh7k9xc6per,1024,1514,2508926,0,,0.0017,0.0034,calculated,1.999089495,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.75,100,100,100,100,81,true,455,673
+openai,3.jpeg,2026-07-22T12:57:13.339Z,2026-07-22T12:57:43.753Z,30414,200,1784725065,1024,1024,2038165,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,6.84,100,100,100,100,81,true,455,673
+replicate,4.jpg,2026-07-22T12:57:46.769Z,2026-07-22T12:57:54.730Z,7961,200,r9baz8v3pdrmr0czh7ksbffws8,1800,1200,3436784,0,,0.0036,0.0034,calculated,4.207488924,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.65,100,100,100,100,81,true,900,600
+openai,4.jpg,2026-07-22T12:57:57.752Z,2026-07-22T12:58:32.214Z,34462,200,1784725114,1024,1024,1896743,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,7.74,100,100,100,100,81,true,900,600
+replicate,5.jpeg,2026-07-22T12:58:35.234Z,2026-07-22T12:58:41.390Z,6156,200,hwy8vc8zqdrmw0czh7m9xdzp14,1822,1024,2041767,0,,0.0025,0.0034,calculated,2.998366182,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.64,100,100,100,100,81,true,596,335
+openai,5.jpeg,2026-07-22T12:58:44.411Z,2026-07-22T12:59:19.466Z,35055,200,1784725160,1024,1024,2145755,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,6.69,100,100,100,100,81,true,596,335
+replicate,6.jpeg,2026-07-22T12:59:22.485Z,2026-07-22T12:59:27.480Z,4995,200,4mpvrgypvxrmy0czh7ma932p6r,1024,1108,1621474,0,,0.0011,0.0034,calculated,1.250076669,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.77,100,100,100,100,81,true,370,400
+openai,6.jpeg,2026-07-22T12:59:30.491Z,2026-07-22T13:00:07.218Z,36727,200,1784725208,1024,1024,1995254,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,7.23,100,100,100,100,81,true,370,400
+replicate,images.jpeg,2026-07-22T13:00:10.236Z,2026-07-22T13:00:17.471Z,7235,200,6xg7r9mjjhrmw0czh7mv127byr,1246,1024,1824158,0,,0.0038,0.0034,calculated,4.45141675,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.57,100,100,100,100,81,true,493,405
+openai,images.jpeg,2026-07-22T13:00:20.490Z,2026-07-22T13:00:57.146Z,36656,200,1784725259,1024,1024,1711232,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,6.68,100,100,100,100,81,true,493,405
+replicate,lahore.jpeg,2026-07-22T13:01:00.159Z,2026-07-22T13:01:05.463Z,5304,200,pyp2akatn5rmy0czh7n9cbj73w,1024,1246,2270105,0,,0.0008,0.0034,calculated,0.965610983,sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2,0.8,7.62,100,100,100,100,81,true,502,611
+openai,lahore.jpeg,2026-07-22T13:01:08.472Z,2026-07-22T13:01:54.779Z,46307,200,1784725316,1024,1024,2193336,0,,0.00007,0.04,actual,0,gpt-image-1,0.8,7.04,100,100,100,100,81,true,502,611
