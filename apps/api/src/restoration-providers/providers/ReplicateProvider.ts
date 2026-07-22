@@ -27,7 +27,8 @@ export class ReplicateProvider implements IRestorationProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Token ${this.apiKey}`,
+        "Authorization": `Bearer ${this.apiKey}`,
+        "Prefer": "wait=60",
       },
       body: JSON.stringify({
         input: {
@@ -95,7 +96,7 @@ export class ReplicateProvider implements IRestorationProvider {
     try {
       const response = await fetch(`${REPLICATE_API_BASE}/models`, {
         headers: {
-          Authorization: `Token ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
         },
       });
 

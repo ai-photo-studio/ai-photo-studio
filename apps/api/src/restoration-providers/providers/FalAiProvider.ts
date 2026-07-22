@@ -22,7 +22,7 @@ export class FalAiProvider implements IRestorationProvider {
     const startTime = Date.now();
     const base64Image = request.image.toString("base64");
 
-    const response = await fetch(`https://fal.run/fal-ai/old-photo-restoration`, {
+    const response = await fetch(`https://fal.run/fal-ai/image-editing/photo-restoration`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,8 +30,7 @@ export class FalAiProvider implements IRestorationProvider {
       },
       body: JSON.stringify({
         image_url: `data:${request.contentType || "image/png"};base64,${base64Image}`,
-        task_type: "restoration",
-        scale: request.options?.upscaleScale || 1,
+        sync_mode: true,
       }),
     });
 
@@ -41,11 +40,15 @@ export class FalAiProvider implements IRestorationProvider {
       throw new Error(`fal.ai API failed (${response.status}): ${body.slice(0, 200)}`);
     }
 
-    const result = await response.json() as { image?: string; media_type?: string; processing_time?: number };
+    const result = await response.json() as { images?: Array<{ url?: string }>; image?: string };
 
     let outputBuffer: Buffer;
     if (result.image) {
-      outputBuffer = Buffer.from(result.image, "base64");
+      const base64Data = result.image.includes(",") ? result.image.split(",")[1] : result.image;
+      outputBuffer = Buffer.from(base64Data, "base64");
+    } else if (result.images && result.images.length > 0 && result.images[0].url) {
+      const imgResponse = await fetch(result.images[0].url);
+      outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     } else {
       throw new Error("fal.ai API returned no image data");
     }
@@ -55,7 +58,7 @@ export class FalAiProvider implements IRestorationProvider {
 
     return {
       image: outputBuffer,
-      contentType: result.media_type || "image/png",
+      contentType: "image/png",
       fileName: request.fileName,
       providerName: this.name,
       providerVersion: "1.0.0",
@@ -78,7 +81,8 @@ export class FalAiProvider implements IRestorationProvider {
 
     const startTime = Date.now();
     try {
-      const response = await fetch(`https://fal.run/fal-ai/models`, {
+      const response = await fetch(`https://fal.run/fal-ai/image-editing/photo-restoration`, {
+        method: "OPTIONS",
         headers: {
           Authorization: `Key ${this.apiKey}`,
         },
