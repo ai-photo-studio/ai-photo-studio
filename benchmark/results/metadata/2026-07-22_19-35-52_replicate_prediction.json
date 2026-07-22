@@ -1,0 +1,28 @@
+{
+  "id": "sjrgq2hphnrmw0czh90rtpb7rm",
+  "model": "sczhou/codeformer",
+  "version": "cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
+  "input": {
+    "image": "data:image/jpeg;base64,...",
+    "upscale": 2
+  },
+  "logs": "detect 4 faces\n",
+  "output": "https://replicate.delivery/xezq/10PvwWSm8cJGCJ1hqZezHSWk0n7EXue3eMIbpaBibBCf0hubB/output.png",
+  "data_removed": false,
+  "error": null,
+  "source": "api",
+  "status": "succeeded",
+  "created_at": "2026-07-22T14:35:57.453Z",
+  "started_at": "2026-07-22T14:35:57.492094702Z",
+  "completed_at": "2026-07-22T14:35:59.627664183Z",
+  "urls": {
+    "cancel": "https://api.replicate.com/v1/predictions/sjrgq2hphnrmw0czh90rtpb7rm/cancel",
+    "get": "https://api.replicate.com/v1/predictions/sjrgq2hphnrmw0czh90rtpb7rm",
+    "stream": "https://stream.replicate.com/v1/files/jbxs-sp322vph3aael7jfmco5dcaycorudypyutxxdliy2r4g47m7rn4q",
+    "web": "https://replicate.com/p/sjrgq2hphnrmw0czh90rtpb7rm"
+  },
+  "metrics": {
+    "predict_time": 2.135569481,
+    "total_time": 2.174664183
+  }
+}
