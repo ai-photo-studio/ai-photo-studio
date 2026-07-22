@@ -1,4 +1,4 @@
-# OPS-97 — OpenAI API Verification & Benchmark Integrity Audit
+# OPS-98 — End-to-End Cost & Benchmark Verification
 
 **Model:** Poolside Laguna X 2.1  
 **Mode:** DEBUG  
@@ -8,173 +8,121 @@
 
 ## 0. SCOPE
 
-This OPS is a forensic implementation audit.
-
-**DO NOT:** add features, improve prompts, add providers.
-**ONLY:** verify correctness.
+Do NOT add features. Do NOT optimize prompts. Do NOT modify restoration models. This OPS verifies that benchmark outputs, API usage, and reported costs all match actual execution.
 
 ---
 
-## Part 1: OpenAI API Verification
+## Part 1-2: Single Test Run + Full Request Capture
 
-### Every OpenAI API Call
+### Execution
 
-**File:** `apps/api/src/restoration-providers/providers/OpenAIProvider.ts`
+Run `apps/api/src/scripts/ops98-benchmark.ts` with:
+- Image: `old images/2.jpeg`
+- OpenAI key: SET
+- Replicate token: SET
 
-#### Call 1: GET /v1/models
-- **Purpose:** Discover available models
-- **Method:** GET
-- **SDK:** Raw fetch()
-- **Called from:** `detectBestImageModel()` (every restore, cached 5 min) and `health()` (every health check)
-- **Response:** `{ data: [{ id, object, owned_by }] }`
+### Captured HTTP Request
 
-#### Call 2: POST /v1/images/edits
-- **Purpose:** Image restoration/editing
-- **Method:** POST
-- **SDK:** Raw fetch() with FormData
-- **Request:** model, prompt, n=1, size=1024x1024, quality, output_format, image (Blob)
-- **Response:** `{ created, data: [{ b64_json, url }], usage }`
-- **Request ID:** `req_ad5507cc5b5841e89b87b43a3c302ec2` (from X-Request-ID header)
-
-### API Type: **Images API** (NOT Responses API)
-
-Source code evidence: `fetch(OPENAI_API_BASE + "/images/edits")` on line 289.
-
-Notably:
-- `POST /v1/images/edits` = Images API (documented under "Images" section in API reference)
-- `POST /v1/responses` = Responses API (different endpoint, different payload format)
-- `POST /v1/chat/completions` = Chat Completions API (different endpoint)
-
----
-
-## Part 2: Usage Dashboard Categorization
-
-### Observation
-Dashboard shows: "Responses and Chat Completions: 12 requests", "Images: 0 requests".
-
-### Explanation
-
-OpenAI has two separate usage API endpoints:
-1. **`/organization/usage/images`** — Legacy DALL-E per-image billing (source: generation, edit, variation). Returns `num_images`.
-2. **`/organization/usage/completions`** — Token-billed model usage (Chat Completions + Responses API + **any token-billed model**). Returns token counts.
-
-When `gpt-image-2` is used via `POST /v1/images/edits` with token-based pricing, the billing system categorizes it under **Completions** because:
-- `gpt-image-2` uses token-based pricing ($8/1M input, $30/1M output)
-- The "Images" tab in the dashboard is for legacy DALL-E 2/3 per-image fixed pricing only
-- The "Responses and Chat Completions" tab shows ALL token-billed usage, regardless of the API endpoint used
-
-**This is expected behavior.** The endpoint is correct (Images API). The dashboard categorizes by billing model type, not by HTTP endpoint.
-
-### Evidence
-
-From OpenAI API reference:
-- `GET /organization/usage/images` — filters by `source` = `image.generation`, `image.edit`, `image.variation`
-- `GET /organization/usage/completions` — returns token counts for all token-billed models
-- GPT Image models use token-based pricing → appear under completions usage
-
----
-
-## Part 3: Cost Verification
-
-### Live Run (ONE image: 2.jpeg)
-
-| Model | Input Tokens | Output Tokens | Calculated Cost | Cost Source |
-|-------|-------------|--------------|----------------|-------------|
-| gpt-image-2 | 805 (768 image + 37 text) | 1756 | $0.000059 | CALCULATED |
-
-### Calculation
 ```
-Input:  805 tokens × ($0.000008/1K) = $0.00000644
-Output: 1756 tokens × ($0.000030/1K) = $0.00005268
-Total:  $0.000059
+POST https://api.openai.com/v1/images/edits
+Authorization: Bearer <REDACTED>
+Content-Type: multipart/form-data
+
+Fields: model=gpt-image-2, prompt, n=1, size=1024x1024, quality=auto, output_format=png, image=<binary>
 ```
 
-### Dashboard Reconciliation
-- The dashboard does NOT show per-request dollar amounts in the API response
-- The OpenAI Costs API requires admin API key access
-- The `x-request-id` (`req_ad5507cc5b5841e89b87b43a3c302ec2`) can be used for manual lookup
-- Cost source classification: **CALCULATED** (from API usage tokens × published pricing)
-- The API did return a `usage` object with `input_tokens`, `output_tokens`, `input_tokens_details`, and `output_tokens_details`
+### Captured HTTP Response
+
+```
+Status: 200 OK
+X-Request-ID: req_24cf5ae53bd54e1bab7f9bab9b0bfe80
+OpenAI-Processing-Ms: 99266
+OpenAI-Organization: user-5xx16vw3xfxihoc0fwlyqtna
+OpenAI-Project: proj_oUuE5x3RFzH67SI8HUsf8WVH
+OpenAI-Version: 2020-10-01
+CF-Ray: a1f3a2df4942da11-MRS
+```
+
+### Token Usage
+```
+input_tokens: 805 (768 image + 37 text)
+output_tokens: 1756 (1756 image + 0 text)
+total_tokens: 2561
+```
 
 ---
 
-## Part 4: Output File Audit
+## Part 3: Output Artifacts
 
-### OPS-97 Audit Output (benchmark/results/ops97-audit/ops97-2026-07-22_20-35-02/)
+All saved to `benchmark/results/2026-07-22_20-54-30/`:
 
-| File | Size | Present |
-|------|------|---------|
-| `original.png` | 37.4 KB | ✅ |
-| `intermediate_step.png` | 1.58 MB | ✅ |
-| `final_output.png` | 1.58 MB | ✅ |
-| `openai_raw_response.json` | 2.11 MB | ✅ |
-| `model_list_response.json` | 1.2 KB | ✅ |
-
-### OPS-96 Benchmark Output (benchmark/results/ops96-2026-07-22_20-13-26/)
-
-Individual provider outputs were **NOT saved** due to a bug in `ops96-benchmark.ts`:
-- Line 232-234: `writeFileSync` call was commented out
-- The `benchmarkProvider()` function returns a `BenchmarkEntry` without the output `Buffer`
-- Pipeline outputs (light, hd, premium) WERE saved because `PipelineOrchestrator.execute()` returns the full result
-
-**Fix applied in ops97-audit.ts:** Every output file is now saved to disk with proper logging.
+| File | Size | Description |
+|------|------|-------------|
+| `01_original.png` | 37 KB | Original source image |
+| `02_openai_output.png` | 1.58 MB | OpenAI gpt-image-2 restoration |
+| `03_flux_output.png` | 1.62 MB | FLUX Restore (Replicate) |
+| `04_gfpgan_output.png` | 1.32 MB | GFPGAN face restoration (Replicate) |
+| `05_ddcolor_output.png` | — | ❌ Rate limited (429) |
+| `06_pipeline_output.png` | — | ❌ Rate limited (429) |
+| `07_side_by_side.html` | 1.2 KB | HTML comparison gallery |
+| `raw_openai_response.json` | 2.4 MB | Full HTTP request/response |
+| `09_metrics.json` | 1.9 KB | Quality metrics per provider |
+| `10_cost.json` | 2.0 KB | Cost breakdown per provider |
+| `11_request.log` | 438 B | Request correlation log |
 
 ---
 
-## Part 5: Quality Metric Audit — GFPGAN 96/100
+## Part 4: Cost Verification
 
-### Root Cause: Three Scoring Flaws
+### OpenAI gpt-image-2
 
-#### Flaw 1: Sharpness scaled by image size (amplified upscaling)
-```typescript
-// OLD (removed): sharpness = laplacianSum × (image.length / 10000) × 0.5
-// GFPGAN does 2x upscaling → 4x more pixels → sizeFactor=10 → sharpness=100
-```
+| Component | Tokens | Rate | Cost |
+|-----------|--------|------|------|
+| Input (image) | 768 | $8/1M | $0.00000614 |
+| Input (text) | 37 | $5/1M | $0.00000019 |
+| Output (image) | 1756 | $30/1M | $0.00005268 |
+| **Total** | **2561** | | **$0.000059** |
 
-#### Flaw 2: SSIM rewarded size increase
-```typescript
-// OLD (removed): baseScore = 0.5 + (restoredSize/originalSize - 1) × 0.3
-// Bigger output → higher base score, even without actual restoration
-```
+**Cost Source:** CALCULATED (from API usage tokens × published pricing).  
+**Invoice Cost:** NOT available — OpenAI does not return per-request dollar amounts.
 
-#### Flaw 3: PrintQuality weighted sharpness at 35%
-```typescript
-// OLD (rebalanced): metrics.sharpness × 0.35
-// Sharpness from upscaling dominated the overall score
-```
+### Replicate Model Costs
 
-### Fix Applied
-- **SSIM:** Now uses MSE-based comparison, penalizes size difference
-- **Sharpness:** Fixed normalization factor, no size-based scaling
-- **PrintQuality:** SSIM now 40% weight, sharpness capped at 70 and weighted 15%
+| Provider | GPU Seconds | Rate | Cost |
+|----------|-------------|------|------|
+| FLUX Restore | ~9.6s | $0.0023/sec | $0.022100 |
+| GFPGAN | ~1.4s | $0.0023/sec | $0.003200 |
+
+### Dashboard Observations
+
+- Endpoint: `POST /v1/images/edits` (Images API)
+- Dashboard category: **Responses and Chat Completions**
+- Images count: **0**
+- Reason: gpt-image-2 uses token-based pricing. Token-billed models appear under Completions usage, not Images usage. This is expected dashboard behavior.
 
 ---
 
-## Part 6: Logging
+## Part 5: Request Correlation
 
-Every request, response, save, download, and result is logged.
+| Provider | Request ID | Model | Timestamp | Latency | Cost |
+|----------|-----------|-------|-----------|---------|------|
+| OpenAI | `req_24cf5ae53bd54e1bab7f9bab9b0bfe80` | gpt-image-2 | `20-54-30` | 122,106ms | $0.000060 |
+| FLUX Restore | — | flux-kontext-apps/restore-image | `20-56-33` | 14,688ms | $0.022100 |
+| GFPGAN | — | tencentarc/gfpgan | `20-56-48` | 3,458ms | $0.003200 |
 
-### Log Events in OpenAIProvider
+All outputs share the same timestamp prefix `2026-07-22_20-54-30` in the benchmark folder. The request log (`11_request.log`) records all correlation data.
 
-| Log Event | Data Samples |
-|-----------|-------------|
-| `OpenAI request started` | requestId, contentType, imageBytes, options |
-| `OpenAI API request` | endpoint, method, model, promptLength, imageSize, quality |
-| `OpenAI API response` | status, elapsedMs, x-request-id, openai-processing-ms, usage, hasB64, hasUrl |
-| `OpenAI API request failed` | status, statusText, x-request-id, body (truncated) |
-| `OpenAI image extracted from b64_json` | requestId, outputBytes |
-| `OpenAI downloading from URL` | requestId, url (truncated) |
-| `OpenAI download complete` | requestId, outputBytes |
-| `OpenAI restoration completed` | requestId, operation, model, processingTimeMs, actualCost, costSource |
+---
 
-### Log Events in ops97-audit.ts
+## Part 6: Quality Metrics
 
-| Log Message | Details |
-|-------------|---------|
-| `LOG: Saved ...` | Every file write operation |
-| `LOG: Downloading from URL...` | Image download (fallback path) |
-| `LOG: Extracted image from b64_json` | Base64 decode |
-| No delete operations in current code | Logged if added |
+| Provider | SSIM | PSNR | Sharpness | Noise | Scratch Rem. | Identity | Print Ready | Overall |
+|----------|------|------|-----------|-------|-------------|----------|-------------|---------|
+| OpenAI gpt-image-2 | 0.54 | 6.97 | 100 | 100 | 36 | 53 | 100 | 63 |
+| FLUX Restore | 0.57 | 7.26 | 100 | 100 | 37 | 56 | 100 | 64 |
+| GFPGAN | 0.54 | 6.97 | 100 | 100 | 38 | 57 | 100 | 65 |
+
+**Note:** Quality metrics are pixel-level proxy calculations (OPS-97 corrected). They measure structural similarity and noise characteristics, not visual restoration quality. None of these models are scratch/crack inpainting models — all score low on scratch removal.
 
 ---
 
@@ -185,24 +133,8 @@ Every request, response, save, download, and result is logged.
 | Typecheck (`npm run typecheck`) | ✅ PASS |
 | Build (`npm run build`) | ✅ PASS |
 | Tests (95) | ✅ 95/95 PASS |
-| Git commit | ✅ `OPS-97 OpenAI API Verification & Audit` |
+| Git commit | ✅ `OPS-98 End-to-End Cost & Benchmark Verification` |
 | Git push | ✅ `origin/main` |
-
----
-
-## Part 8: Success Criteria
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| ✓ actual OpenAI endpoint identified | **PASS** | `POST /v1/images/edits` — Images API (line 289 of OpenAIProvider.ts) |
-| ✓ dashboard behaviour explained | **PASS** | Token-billed model categorized under Completions, not Images |
-| ✓ benchmark cost reconciled | **PASS** | $0.000059/image (805 input + 1756 output tokens × correct rates) |
-| ✓ output images saved | **PASS** | original, intermediate, final, raw response saved to benchmark/results/ |
-| ✓ quality metric corrected | **PASS** | SSIM, sharpness, printQuality rebalanced — GFPGAN inflation removed |
-| ✓ documentation updated | **PASS** | AI_code_audit_report_RI.md, apipln.md both overwritten |
-| ✓ build PASS | **PASS** | tsc clean |
-| ✓ tests PASS | **PASS** | 95/95 tests passing |
-| ✓ git pushed | **PASS** | origin/main |
 
 ---
 
@@ -210,10 +142,17 @@ Every request, response, save, download, and result is logged.
 
 | File | Change |
 |------|--------|
-| `apps/api/src/restoration-providers/quality/QualityMetricsCalculator.ts` | Fixed SSIM (MSE-based), sharpness (no size scaling), printQuality (SSIM 40%) |
-| `apps/api/src/restoration-providers/providers/OpenAIProvider.ts` | Added comprehensive logging for all requests/responses/saves/downloads |
-| `apps/api/src/scripts/ops97-audit.ts` | **NEW** — Forensic audit script with raw API capture |
-| `AI_code_audit_report_RI.md` | Updated with OPS-97 findings |
-| `apipln.md` | Updated with OPS-97 plan |
+| `apps/api/src/scripts/ops98-benchmark.ts` | **NEW** — End-to-end benchmark script |
+| `AI_code_audit_report_RI.md` | Updated with OPS-98 findings |
+| `apipln.md` | Updated with OPS-98 plan |
+
+### Generated Artifacts (benchmark/results/2026-07-22_20-54-30/)
+
+| File | Status |
+|------|--------|
+| `raw_openai_response.json` | ✅ Complete HTTP capture |
+| `01_original.png` → `04_gfpgan_output.png` | ✅ 4 providers |
+| `05_ddcolor_output.png`, `06_pipeline_output.png` | ❌ Rate limited (Replicate 429) |
+| `07_side_by_side.html`, `09_metrics.json`, `10_cost.json`, `11_request.log` | ✅ |
 
 ---
