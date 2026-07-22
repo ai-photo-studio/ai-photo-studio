@@ -1,6 +1,7 @@
 import type { AppConfig } from "../config/env";
 import { prisma } from "../db/prisma";
 import { StorageService } from "../services/storage.service";
+import { CleanupService } from "../services/cleanup.service";
 import { logger } from "../utils/logger";
 
 const ORIGINAL_RETENTION_HOURS = 72;
@@ -83,5 +84,17 @@ export const runCleanupOnce = async (config: AppConfig) => {
     deleted,
     originalRetentionHours: ORIGINAL_RETENTION_HOURS,
     processedRetentionDays: PROCESSED_RETENTION_DAYS
+  });
+
+  const cleanupService = new CleanupService(config);
+  const cleanupResult = await cleanupService.runCleanup();
+
+  logger.info("Extended cleanup completed", {
+    deletedTempUploads: cleanupResult.deletedTempUploads,
+    deletedBenchmarkFiles: cleanupResult.deletedBenchmarkFiles,
+    deletedPreviews: cleanupResult.deletedPreviews,
+    deletedFinals: cleanupResult.deletedFinals,
+    deletedOriginals: cleanupResult.deletedOriginals,
+    totalDeleted: cleanupResult.totalDeleted,
   });
 };
