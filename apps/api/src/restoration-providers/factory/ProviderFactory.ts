@@ -3,6 +3,8 @@ import type { IRestorationProvider, PackageTier } from "../interfaces/IRestorati
 import { RunPodProvider } from "../providers/RunPodProvider";
 import { MockProvider } from "../providers/MockProvider";
 import { OpenAIProvider } from "../providers/OpenAIProvider";
+import { FalAiProvider } from "../providers/FalAiProvider";
+import { ReplicateProvider } from "../providers/ReplicateProvider";
 
 export class ProviderFactory {
   private readonly config: AppConfig;
@@ -28,6 +30,12 @@ export class ProviderFactory {
         break;
       case "openai":
         provider = new OpenAIProvider(this.config);
+        break;
+      case "fal-ai":
+        provider = new FalAiProvider(this.config.FAL_AI_API_KEY);
+        break;
+      case "replicate":
+        provider = new ReplicateProvider(this.config.REPLICATE_API_TOKEN);
         break;
       default:
         throw new Error(`Unknown provider: ${name}`);

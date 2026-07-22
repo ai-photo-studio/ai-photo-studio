@@ -353,6 +353,15 @@ export class RestorationService {
       const runPodProvider = this.providerFactory.create("runpod");
       this.providerRouter.registerProvider(runPodProvider);
 
+      if (routingDecision.fallbackProvider) {
+        try {
+          const fallbackProvider = this.providerFactory.create(routingDecision.fallbackProvider);
+          this.providerRouter.registerProvider(fallbackProvider);
+        } catch (err) {
+          logger.warn("Failed to register fallback provider", { itemId, provider: routingDecision.fallbackProvider, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+
       const result = await this.providerRouter.route(
         {
           image: original.body,

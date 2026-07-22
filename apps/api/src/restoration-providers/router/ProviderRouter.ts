@@ -1,5 +1,6 @@
 import type { IRestorationProvider, ProviderStatus, RestorationRequest, RestorationResult, RoutingContext, RoutingDecision } from "../interfaces/IRestorationProvider";
 import { ProviderMetricsCollector } from "../monitoring/ProviderMetrics";
+import { logger } from "../../utils/logger";
 
 export type ShadowMode = "disabled" | "enabled";
 export type ABTestMode = "disabled" | "control" | "test" | "split_50" | "weighted_90";
@@ -48,6 +49,8 @@ export class ProviderRouter {
       throw new Error(`Primary provider not found: ${primaryName}`);
     }
 
+    const fallback = fallbackName ? this.providers.get(fallbackName) : undefined;
+
     let shadowResult: RestorationResult | null = null;
     if (shadowName && this.config.shadowMode === "enabled") {
       const shadowProvider = this.providers.get(shadowName);
@@ -60,7 +63,7 @@ export class ProviderRouter {
       }
     }
 
-    const result = await this.executeWithRetry(primary, request, primaryName);
+    const result = await this.executeWithRetry(primary, request, primaryName, fallbackName, fallback);
 
     return result;
   }
@@ -68,7 +71,9 @@ export class ProviderRouter {
   async executeWithRetry(
     provider: IRestorationProvider,
     request: RestorationRequest,
-    providerName: string
+    providerName: string,
+    fallbackName?: string,
+    fallback?: IRestorationProvider
   ): Promise<RestorationResult> {
     let lastError: Error | null = null;
 
@@ -86,6 +91,16 @@ export class ProviderRouter {
         this.metrics.recordFailure(providerName, latency, errorMessage);
         this.recordFailure(providerName);
         lastError = err instanceof Error ? err : new Error(String(err));
+      }
+    }
+
+    if (fallback && fallbackName && this.isProviderAvailable(fallbackName)) {
+      logger.warn("Primary provider failed, trying fallback", { primary: providerName, fallback: fallbackName });
+      try {
+        const fallbackResult = await this.executeWithRetry(fallback, request, fallbackName);
+        return fallbackResult;
+      } catch (fallbackErr) {
+        lastError = fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr));
       }
     }
 
