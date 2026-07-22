@@ -40,7 +40,7 @@ export class OpenAIProvider implements IRestorationProvider {
 
   constructor(config: AppConfig) {
     this.apiKey = config.OPENAI_API_KEY || "";
-    // DALL-E 3 is the official supported model for /v1/images/edits
+    // dall-e-3 is the supported model for /v1/images/edits
     this.model = "dall-e-3";
   }
 
@@ -73,12 +73,21 @@ export class OpenAIProvider implements IRestorationProvider {
 
     const processingTimeMs = Date.now() - startTime;
     const outputB64 = result.data[0]?.b64_json || "";
+    let outputBuffer: Buffer;
 
-    if (!outputB64) {
-      throw new Error("OpenAI API returned no image data");
+    if (outputB64) {
+      outputBuffer = Buffer.from(outputB64, "base64");
+    } else {
+      const outputUrl = result.data[0]?.url;
+      if (!outputUrl) {
+        throw new Error("OpenAI API returned no image data");
+      }
+      const imgResponse = await fetch(outputUrl);
+      if (!imgResponse.ok) {
+        throw new Error(`OpenAI failed to download result image: ${imgResponse.status}`);
+      }
+      outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     }
-
-    const outputBuffer = Buffer.from(outputB64, "base64");
     const estimatedCost = this.estimateCost(request);
 
     logger.info("OpenAI restoration completed", {
@@ -160,11 +169,10 @@ export class OpenAIProvider implements IRestorationProvider {
 
   private async editImage(base64Image: string, contentType: string, prompt: string): Promise<OpenAIImageEditResponse> {
     const formData = new FormData();
-    formData.append("model", this.model);
+    formData.append("model", "dall-e-3");
     formData.append("prompt", prompt);
     formData.append("n", "1");
     formData.append("size", "1024x1024");
-    formData.append("response_format", "b64_json");
 
     const mime = contentType || "image/png";
     const blob = this.base64ToBlob(base64Image, mime);

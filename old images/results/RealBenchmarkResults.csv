@@ -1,15 +1,64 @@
 provider,imageName,startTime,finishTime,elapsedMs,httpStatus,requestId,outputWidth,outputHeight,outputSizeBytes,retryCount,failureReason,actualCost,costSource,ssim,psnr,sharpness,noise,contrast,brightness,printQuality,success,inputWidth,inputHeight
-replicate,2.jpeg,2026-07-22T11:09:03.647Z,2026-07-22T11:09:03.650Z,3,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,525,380
-openai,2.jpeg,2026-07-22T11:09:03.652Z,2026-07-22T11:09:03.652Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,525,380
-replicate,3.jpeg,2026-07-22T11:09:03.654Z,2026-07-22T11:09:03.654Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,455,673
-openai,3.jpeg,2026-07-22T11:09:03.656Z,2026-07-22T11:09:03.656Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,455,673
-replicate,4.jpg,2026-07-22T11:09:03.658Z,2026-07-22T11:09:03.658Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,900,600
-openai,4.jpg,2026-07-22T11:09:03.659Z,2026-07-22T11:09:03.660Z,1,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,900,600
-replicate,5.jpeg,2026-07-22T11:09:03.661Z,2026-07-22T11:09:03.661Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,596,335
-openai,5.jpeg,2026-07-22T11:09:03.663Z,2026-07-22T11:09:03.663Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,596,335
-replicate,6.jpeg,2026-07-22T11:09:03.664Z,2026-07-22T11:09:03.664Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,370,400
-openai,6.jpeg,2026-07-22T11:09:03.666Z,2026-07-22T11:09:03.666Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,370,400
-replicate,images.jpeg,2026-07-22T11:09:03.667Z,2026-07-22T11:09:03.667Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,493,405
-openai,images.jpeg,2026-07-22T11:09:03.669Z,2026-07-22T11:09:03.669Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,493,405
-replicate,lahore.jpeg,2026-07-22T11:09:03.670Z,2026-07-22T11:09:03.670Z,0,0,,0,0,0,0,Replicate API token not configured,0,,0,0,0,0,0,0,0,false,502,611
-openai,lahore.jpeg,2026-07-22T11:09:03.671Z,2026-07-22T11:09:03.671Z,0,0,,0,0,0,0,OpenAI API key not configured,0,,0,0,0,0,0,0,0,false,502,611
+replicate,2.jpeg,2026-07-22T11:35:03.918Z,2026-07-22T11:35:12.666Z,8748,200,,1414,1024,2418918,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.66,100,100,100,100,81,true,525,380
+openai,2.jpeg,2026-07-22T11:35:15.988Z,2026-07-22T11:35:17.954Z,1966,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,525,380
+replicate,3.jpeg,2026-07-22T11:35:20.969Z,2026-07-22T11:35:25.681Z,4712,200,,1024,1514,2508926,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.75,100,100,100,100,81,true,455,673
+openai,3.jpeg,2026-07-22T11:35:28.691Z,2026-07-22T11:35:29.541Z,850,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,455,673
+replicate,4.jpg,2026-07-22T11:35:32.549Z,2026-07-22T11:35:41.233Z,8684,200,,1800,1200,3436784,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.65,100,100,100,100,81,true,900,600
+openai,4.jpg,2026-07-22T11:35:44.242Z,2026-07-22T11:35:46.373Z,2131,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,900,600
+replicate,5.jpeg,2026-07-22T11:35:49.388Z,2026-07-22T11:35:53.352Z,3964,200,,1822,1024,2041767,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.64,100,100,100,100,81,true,596,335
+openai,5.jpeg,2026-07-22T11:35:56.369Z,2026-07-22T11:35:58.222Z,1853,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,596,335
+replicate,6.jpeg,2026-07-22T11:36:01.239Z,2026-07-22T11:36:04.782Z,3543,200,,1024,1108,1621474,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.77,100,100,100,100,81,true,370,400
+openai,6.jpeg,2026-07-22T11:36:07.791Z,2026-07-22T11:36:09.672Z,1881,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,370,400
+replicate,images.jpeg,2026-07-22T11:36:12.681Z,2026-07-22T11:36:17.475Z,4794,200,,1246,1024,1824158,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.57,100,100,100,100,81,true,493,405
+openai,images.jpeg,2026-07-22T11:36:20.479Z,2026-07-22T11:36:21.381Z,902,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,493,405
+replicate,lahore.jpeg,2026-07-22T11:36:24.386Z,2026-07-22T11:36:27.803Z,3417,200,,1024,1246,2270105,0,,0.0034,Replicate official pricing ($0.0034/run),0.8,7.62,100,100,100,100,81,true,502,611
+openai,lahore.jpeg,2026-07-22T11:36:30.818Z,2026-07-22T11:36:32.812Z,1994,500,,0,0,0,0,"OpenAI API failed (400): {
+  ""error"": {
+    ""message"": ""The model 'dall-e-3' does not exist."",
+    ""type"": ""image_generation_user_error"",
+    ""param"": ""model"",
+    ""code"": ""invalid_value""
+  }
+}",0,,0,0,0,0,0,0,0,false,502,611

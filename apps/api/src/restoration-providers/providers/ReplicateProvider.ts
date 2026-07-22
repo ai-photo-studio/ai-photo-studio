@@ -22,6 +22,7 @@ interface ReplicatePrediction {
 // Official model — does not require a version ID for prediction creation
 const MODEL_OWNER = "sczhou";
 const MODEL_NAME = "codeformer";
+const MODEL_VERSION = "cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2";
 
 export class ReplicateProvider implements IRestorationProvider {
   readonly name = "replicate";
@@ -69,7 +70,7 @@ export class ReplicateProvider implements IRestorationProvider {
 
   private async createPrediction(base64Image: string, contentType: string, upscaleScale?: number): Promise<ReplicatePrediction> {
     const cancelAfterSeconds = Math.floor(this.cancelAfterMs / 1000);
-    const response = await fetch(`${REPLICATE_API_BASE}/models/${MODEL_OWNER}/${MODEL_NAME}/predictions`, {
+    const response = await fetch(`${REPLICATE_API_BASE}/models/${MODEL_OWNER}/${MODEL_NAME}/versions/${MODEL_VERSION}/predictions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -158,7 +159,7 @@ export class ReplicateProvider implements IRestorationProvider {
       contentType: "image/png",
       fileName: request.fileName,
       providerName: this.name,
-      providerVersion: `${MODEL_OWNER}/${MODEL_NAME}`,
+      providerVersion: `${MODEL_OWNER}/${MODEL_NAME}@${MODEL_VERSION}`,
       stages: ["restoration"],
       processingTimeMs,
       creditsUsed: 0,

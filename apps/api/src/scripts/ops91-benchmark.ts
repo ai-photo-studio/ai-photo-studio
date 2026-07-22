@@ -209,15 +209,23 @@ async function benchmarkSingleImage(
       inputHeight: dims.height,
     };
 
-    const outputDir = join(RESULTS_DIR, providerName);
-    if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-    const outputPath = join(outputDir, image.fileName);
-    writeFileSync(outputPath, result.image);
+    try {
+      const outputDir = join(RESULTS_DIR, providerName);
+      if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+      const outputPath = join(outputDir, image.fileName);
+      writeFileSync(outputPath, result.image);
+    } catch (saveErr) {
+      console.warn(`  WARNING: Failed to save output image for ${providerName}/${image.fileName}: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`);
+    }
 
-    const metadataDir = join(RESULTS_DIR, "metadata");
-    if (!existsSync(metadataDir)) mkdirSync(metadataDir, { recursive: true });
-    const metaPath = join(metadataDir, `${providerName}_${image.fileName}.json`);
-    writeFileSync(metaPath, JSON.stringify(record, null, 2));
+    try {
+      const metadataDir = join(RESULTS_DIR, "metadata");
+      if (!existsSync(metadataDir)) mkdirSync(metadataDir, { recursive: true });
+      const metaPath = join(metadataDir, `${providerName}_${image.fileName}.json`);
+      writeFileSync(metaPath, JSON.stringify(record, null, 2));
+    } catch (saveErr) {
+      console.warn(`  WARNING: Failed to write metadata for ${providerName}/${image.fileName}: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`);
+    }
 
     records.push(record);
     console.log(`  ${providerName}/${image.fileName}: OK ${elapsedMs}ms cost=$${result.estimatedCost} ${metrics.ssim}ssim ${metrics.psnr}psnr`);
@@ -253,10 +261,14 @@ async function benchmarkSingleImage(
       inputHeight: dims.height,
     };
 
-    const metadataDir = join(RESULTS_DIR, "metadata");
-    if (!existsSync(metadataDir)) mkdirSync(metadataDir, { recursive: true });
-    const metaPath = join(metadataDir, `${providerName}_${image.fileName}.json`);
-    writeFileSync(metaPath, JSON.stringify(record, null, 2));
+    try {
+      const metadataDir = join(RESULTS_DIR, "metadata");
+      if (!existsSync(metadataDir)) mkdirSync(metadataDir, { recursive: true });
+      const metaPath = join(metadataDir, `${providerName}_${image.fileName}.json`);
+      writeFileSync(metaPath, JSON.stringify(record, null, 2));
+    } catch (saveErr) {
+      console.warn(`  WARNING: Failed to write metadata for ${providerName}/${image.fileName}: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`);
+    }
 
     records.push(record);
     console.log(`  ${providerName}/${image.fileName}: FAIL - ${errMsg}`);
@@ -590,6 +602,8 @@ function generateRoutingRecommendation(records: BenchmarkRecord[]): string {
   return lines.join("\n");
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function main() {
   console.log("========================================");
   console.log("OPS-91: Real Production Benchmark");
@@ -637,7 +651,9 @@ async function main() {
   for (const image of images) {
     console.log("Processing: " + image.fileName);
     await benchmarkSingleImage(image, "replicate", records, metricsCalculator);
+    await sleep(3000);
     await benchmarkSingleImage(image, "openai", records, metricsCalculator);
+    await sleep(3000);
   }
   console.log("");
 
