@@ -29,8 +29,12 @@ interface OpenAIModelsResponse {
   data: OpenAIModel[];
 }
 
-// GPT Image token pricing per 1M tokens (corrected per OPS-96 audit)
+// GPT Image token pricing per 1K tokens (computed from published per-1M rates)
 // Source: https://openai.com/api/pricing/
+// Per-1M rates: gpt-image-2: $8/1M input, $30/1M output
+//                gpt-image-1.5: $8/1M input, $32/1M output
+//                gpt-image-1-mini: $2.50/1M input, $8/1M output
+// Per-1K = per-1M / 1000
 const GPT_IMAGE_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-image-2":      { input: 0.000008, output: 0.000030 },  // $8/1M, $30/1M
   "gpt-image-1.5":    { input: 0.000008, output: 0.000032 },  // $8/1M, $32/1M
@@ -72,12 +76,19 @@ export class OpenAIProvider implements IRestorationProvider {
     const startTime = Date.now();
     const base64Image = request.image.toString("base64");
     const imageSize = this.estimateImageSize(request.image);
+    const requestId = `openai-req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+    logger.info("OpenAI request started", {
+      requestId,
+      contentType: request.contentType,
+      fileName: request.fileName,
+      imageBytes: imageSize.bytes,
+      options: request.options,
+    });
 
     const model = await this.detectBestImageModel();
     const quality = request.options?.quality || "auto";
     const outputFormat = request.options?.outputFormat || "png";
-
-    // Updated model -> operation mapping uses per-model pricing
 
     let result: OpenAIImageEditResponse;
     let operation = "restoration";
@@ -99,31 +110,41 @@ export class OpenAIProvider implements IRestorationProvider {
     const processingTimeMs = Date.now() - startTime;
     const outputB64 = result.data[0]?.b64_json || "";
     let outputBuffer: Buffer;
+    let imageSource: "b64_json" | "url" = "b64_json";
 
     if (outputB64) {
       outputBuffer = Buffer.from(outputB64, "base64");
+      logger.info("OpenAI image extracted from b64_json", { requestId, outputBytes: outputBuffer.length });
     } else {
       const outputUrl = result.data[0]?.url;
       if (!outputUrl) {
         throw new Error("OpenAI API returned no image data");
       }
+      logger.info("OpenAI downloading from URL", { requestId, url: outputUrl.substring(0, 100) });
       const imgResponse = await fetch(outputUrl);
       if (!imgResponse.ok) {
         throw new Error(`OpenAI failed to download result image: ${imgResponse.status}`);
       }
       outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
+      imageSource = "url";
+      logger.info("OpenAI download complete", { requestId, outputBytes: outputBuffer.length });
     }
 
     const estimatedCost = this.estimateCost(request);
     const { actualCost, costSource } = this.calculateActualCost(model, result.usage);
 
     logger.info("OpenAI restoration completed", {
+      requestId,
       operation,
       model,
+      imageSource,
       processingTimeMs,
       estimatedCost,
       actualCost,
+      costSource,
+      usage: result.usage,
       imageSize,
+      outputBytes: outputBuffer.length,
     });
 
     return {
@@ -286,6 +307,17 @@ export class OpenAIProvider implements IRestorationProvider {
     const blob = this.base64ToBlob(base64Image, mime);
     formData.append("image", blob, "input.png");
 
+    const requestStart = Date.now();
+    logger.info("OpenAI API request", {
+      endpoint: `${OPENAI_API_BASE}/images/edits`,
+      method: "POST",
+      model,
+      promptLength: prompt.length,
+      imageSize: Math.round(base64Image.length * 0.75), // approximate byte size
+      quality,
+      outputFormat,
+    });
+
     const response = await fetch(`${OPENAI_API_BASE}/images/edits`, {
       method: "POST",
       headers: {
@@ -294,13 +326,47 @@ export class OpenAIProvider implements IRestorationProvider {
       body: formData as unknown as BodyInit,
     });
 
+    const elapsedMs = Date.now() - requestStart;
+
+    // Log response headers
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((v, k) => { responseHeaders[k] = v; });
+
     if (!response.ok) {
       const body = await response.text();
-      logger.error("OpenAI API request failed", { status: response.status, body: body.slice(0, 300) });
+      logger.error("OpenAI API request failed", {
+        status: response.status,
+        statusText: response.statusText,
+        elapsedMs,
+        headers: {
+          "x-request-id": responseHeaders["x-request-id"] || "N/A",
+          "openai-processing-ms": responseHeaders["openai-processing-ms"] || "N/A",
+          "cf-ray": responseHeaders["cf-ray"] || "N/A",
+        },
+        body: body.slice(0, 500),
+      });
       throw new Error(`OpenAI API failed (${response.status}): ${body.slice(0, 200)}`);
     }
 
     const result = (await response.json()) as OpenAIImageEditResponse;
+
+    logger.info("OpenAI API response", {
+      status: response.status,
+      elapsedMs,
+      headers: {
+        "x-request-id": responseHeaders["x-request-id"] || "N/A",
+        "openai-processing-ms": responseHeaders["openai-processing-ms"] || "N/A",
+        "openai-organization": responseHeaders["openai-organization"] || "N/A",
+        "openai-project": responseHeaders["openai-project"] || "N/A",
+        "openai-version": responseHeaders["openai-version"] || "N/A",
+        "cf-ray": responseHeaders["cf-ray"] || "N/A",
+      },
+      created: result.created,
+      usage: result.usage,
+      imageCount: result.data?.length || 0,
+      hasB64: !!(result.data?.[0]?.b64_json),
+      hasUrl: !!(result.data?.[0]?.url),
+    });
 
     if (!result.data || result.data.length === 0) {
       throw new Error("OpenAI API returned no image data");

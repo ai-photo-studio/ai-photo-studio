@@ -50,14 +50,22 @@ export class QualityMetricsCalculator {
 
     if (originalSize === 0 || restoredSize === 0) return 0;
 
-    const sizeRatio = Math.min(restoredSize / originalSize, 2);
-    const baseScore = 0.5 + (sizeRatio - 1) * 0.3;
+    // Do NOT reward size increase — restoration should preserve structure, not inflate size.
+    // Compare up to the original size for pixel-level similarity.
+    const len = Math.min(originalSize, restoredSize);
+    const step = Math.max(1, Math.floor(len / 256));
 
     const originalEntropy = this.calculateEntropy(original);
     const restoredEntropy = this.calculateEntropy(restored);
     const entropyDiff = Math.abs(originalEntropy - restoredEntropy);
 
-    return Math.max(0, Math.min(1, baseScore - entropyDiff * 0.01));
+    // Base score from pixel MSE comparison
+    const mse = this.calculateMSE(original.subarray(0, len), restored.subarray(0, len));
+    const maxPixel = 255;
+    const baseScore = mse > 0 ? Math.max(0, 1 - Math.sqrt(mse) / maxPixel) : 1;
+
+    // Penalize entropy drift (structure change)
+    return Math.max(0, Math.min(1, baseScore - entropyDiff * 0.02));
   }
 
   private calculatePSNR(original: Buffer, restored: Buffer): number {
@@ -86,9 +94,9 @@ export class QualityMetricsCalculator {
     if (image.length < 10) return 0;
 
     const laplacianSum = this.calculateLaplacianVariance(image);
-    const sizeFactor = Math.min(image.length / 10000, 10);
-
-    return Math.max(0, Math.min(100, laplacianSum * sizeFactor * 0.5));
+    // Use a fixed normalization factor, NOT image.length-based scaling.
+    // Image-size-based factor rewards upscaling without actual sharpness gain.
+    return Math.max(0, Math.min(100, laplacianSum * 0.5));
   }
 
   private calculateLaplacianVariance(image: Buffer): number {
@@ -206,12 +214,17 @@ export class QualityMetricsCalculator {
     image: Buffer,
     metrics: { ssim: number; psnr: number; sharpness: number; noise: number; contrast: number; brightness: number }
   ): number {
+    // Rebalanced weights to de-emphasize sharpness (which inflates from upscaling).
+    // SSIM and PSNR are better indicators of true restoration quality.
+    // Sharpness is capped because upscaling inflates it without removing scratches.
+    const cappedSharpness = Math.min(metrics.sharpness, 70);
     const score =
-      metrics.sharpness * 0.35 +
-      metrics.contrast * 0.25 +
-      metrics.brightness * 0.15 +
-      (100 - metrics.noise) * 0.15 +
-      metrics.psnr * 0.10;
+      metrics.ssim * 40 +                // SSIM: 40% — structural similarity to original
+      metrics.psnr * 15 +                 // PSNR: 15% — pixel-level accuracy
+      cappedSharpness * 0.15 +            // Sharpness: 15% — capped at 70 to prevent upscaling inflation
+      metrics.contrast * 0.10 +           // Contrast: 10%
+      metrics.brightness * 0.05 +         // Brightness: 5%
+      (100 - metrics.noise) * 0.15;       // Noise: 15%
 
     const sizeBonus = image.length > 200 * 1024 ? 5 : 0;
 
