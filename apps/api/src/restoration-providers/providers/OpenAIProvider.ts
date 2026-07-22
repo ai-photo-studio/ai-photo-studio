@@ -128,6 +128,7 @@ export class OpenAIProvider implements IRestorationProvider {
       const latency = Date.now() - startTime;
 
       if (!response.ok) {
+        const body = await response.text();
         return {
           status: "down",
           latency,
@@ -168,7 +169,6 @@ export class OpenAIProvider implements IRestorationProvider {
     formData.append("prompt", prompt);
     formData.append("n", "1");
     formData.append("size", "1024x1024");
-    formData.append("response_format", "b64_json");
 
     const mime = contentType || "image/png";
     const blob = this.base64ToBlob(base64Image, mime);
@@ -188,7 +188,13 @@ export class OpenAIProvider implements IRestorationProvider {
       throw new Error(`OpenAI API failed (${response.status}): ${body.slice(0, 200)}`);
     }
 
-    return (await response.json()) as OpenAIImageResponse;
+    const result = await response.json() as OpenAIImageResponse;
+
+    if (!result.data || result.data.length === 0) {
+      throw new Error("OpenAI API returned no image data");
+    }
+
+    return result;
   }
 
   private base64ToBlob(base64: string, mimeType: string): Blob {

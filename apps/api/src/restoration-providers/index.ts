@@ -3,6 +3,8 @@ export * from "./interfaces/types";
 export * from "./providers/RunPodProvider";
 export * from "./providers/MockProvider";
 export * from "./providers/OpenAIProvider";
+export * from "./providers/FalAiProvider";
+export * from "./providers/ReplicateProvider";
 export * from "./router/ProviderRouter";
 export * from "./policy/ProviderPolicyEngine";
 export * from "./monitoring/ProviderMetrics";
