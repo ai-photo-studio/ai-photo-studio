@@ -48,6 +48,9 @@ export class FalAiProvider implements IRestorationProvider {
       outputBuffer = Buffer.from(base64Data, "base64");
     } else if (result.images && result.images.length > 0 && result.images[0].url) {
       const imgResponse = await fetch(result.images[0].url);
+      if (!imgResponse.ok) {
+        throw new Error(`fal.ai failed to download result image: ${imgResponse.status}`);
+      }
       outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     } else {
       throw new Error("fal.ai API returned no image data");
@@ -61,7 +64,7 @@ export class FalAiProvider implements IRestorationProvider {
       contentType: "image/png",
       fileName: request.fileName,
       providerName: this.name,
-      providerVersion: "1.0.0",
+      providerVersion: "fal-ai/image-editing/photo-restoration",
       stages: ["restoration"],
       processingTimeMs,
       creditsUsed: 0,
@@ -81,14 +84,24 @@ export class FalAiProvider implements IRestorationProvider {
 
     const startTime = Date.now();
     try {
-      const response = await fetch(`https://fal.run/fal-ai/image-editing/photo-restoration`, {
-        method: "OPTIONS",
+      // The fal.ai platform API /v1/models returns models list; a 200 means auth works
+      const response = await fetch(`https://api.fal.ai/v1/models`, {
         headers: {
           Authorization: `Key ${this.apiKey}`,
         },
       });
 
       const latency = Date.now() - startTime;
+
+      // 200 OK means auth works. 403 means API key is valid but account is locked (e.g., balance).
+      if (response.status === 403) {
+        return {
+          status: "degraded",
+          latency,
+          errorRate: 1,
+          lastChecked: new Date().toISOString(),
+        };
+      }
 
       if (!response.ok) {
         return {
@@ -117,11 +130,7 @@ export class FalAiProvider implements IRestorationProvider {
   }
 
   estimateCost(request: RestorationRequest): number {
-    const sizeBytes = request.image.length;
-    const sizeMb = sizeBytes / (1024 * 1024);
-
-    if (sizeMb < 1) return 0.003;
-    if (sizeMb < 4) return 0.008;
-    return 0.015;
+    // Official pricing: $0.04 per image
+    return 0.04;
   }
 }

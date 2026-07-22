@@ -230,9 +230,9 @@ export class ProviderPolicyEngine {
     const sizeMb = sizeBytes / (1024 * 1024);
 
     const costMap: Record<string, number> = {
-      openai: sizeMb < 1 ? 0.02 : sizeMb < 4 ? 0.04 : 0.08,
-      "fal-ai": sizeMb < 1 ? 0.003 : sizeMb < 4 ? 0.008 : 0.015,
-      replicate: sizeMb < 1 ? 0.02 : sizeMb < 4 ? 0.05 : 0.10,
+      openai: 0.04, // DALL-E 3 edit: $0.04/image
+      "fal-ai": 0.04, // fal.ai photo restoration: $0.04/image
+      replicate: 0.0037, // CodeFormer: ~$0.0037/run
       runpod: sizeMb < 1 ? 0.003 : sizeMb < 4 ? 0.008 : 0.015,
     };
 

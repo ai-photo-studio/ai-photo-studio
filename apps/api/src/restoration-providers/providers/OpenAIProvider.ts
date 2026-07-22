@@ -4,29 +4,31 @@ import { logger } from "../../utils/logger";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 
-interface OpenAIImageResponse {
+interface OpenAIImageEditResponse {
+  created: number;
   data: Array<{
-    url?: string;
     b64_json?: string;
+    url?: string;
     revised_prompt?: string;
   }>;
-  usage?: {
-    tokens: number;
+}
+
+interface ImageGenUsage {
+  input_tokens: number;
+  input_tokens_details?: {
+    image_tokens: number;
+    text_tokens: number;
+  };
+  output_tokens: number;
+  total_tokens: number;
+  output_tokens_details?: {
+    image_tokens: number;
+    text_tokens: number;
   };
 }
 
-interface OpenAIBillingInfo {
-  estimatedCost: number;
-  currency: string;
-}
-
-const SIZE_COST_MAP: Record<string, number> = {
-  "256x256": 0.002,
-  "512x512": 0.002,
-  "1024x1024": 0.002,
-  "1024x1536": 0.003,
-  "1536x1024": 0.003,
-};
+// DALL-E 3 image edit pricing (per image)
+const DALL_E_3_EDIT_COST = 0.04;
 
 export class OpenAIProvider implements IRestorationProvider {
   readonly name = "openai";
@@ -38,7 +40,8 @@ export class OpenAIProvider implements IRestorationProvider {
 
   constructor(config: AppConfig) {
     this.apiKey = config.OPENAI_API_KEY || "";
-    this.model = "gpt-image-1";
+    // DALL-E 3 is the official supported model for /v1/images/edits
+    this.model = "dall-e-3";
   }
 
   async restore(request: RestorationRequest): Promise<RestorationResult> {
@@ -51,7 +54,7 @@ export class OpenAIProvider implements IRestorationProvider {
     const base64Image = request.image.toString("base64");
     const imageSize = this.estimateImageSize(request.image);
 
-    let result: OpenAIImageResponse;
+    let result: OpenAIImageEditResponse;
     let operation = "restoration";
 
     if (request.options?.colorize) {
@@ -69,22 +72,13 @@ export class OpenAIProvider implements IRestorationProvider {
     }
 
     const processingTimeMs = Date.now() - startTime;
-    const outputB64 = result.data[0]?.b64_json || result.data[0]?.url || "";
+    const outputB64 = result.data[0]?.b64_json || "";
 
     if (!outputB64) {
       throw new Error("OpenAI API returned no image data");
     }
 
-    let outputBuffer: Buffer;
-    if (result.data[0]?.b64_json) {
-      outputBuffer = Buffer.from(result.data[0].b64_json, "base64");
-    } else if (result.data[0]?.url) {
-      const response = await fetch(result.data[0].url);
-      outputBuffer = Buffer.from(await response.arrayBuffer());
-    } else {
-      throw new Error("OpenAI API returned no image data");
-    }
-
+    const outputBuffer = Buffer.from(outputB64, "base64");
     const estimatedCost = this.estimateCost(request);
 
     logger.info("OpenAI restoration completed", {
@@ -102,7 +96,7 @@ export class OpenAIProvider implements IRestorationProvider {
       providerVersion: this.model,
       stages: [operation],
       processingTimeMs,
-      creditsUsed: result.usage?.tokens ?? 0,
+      creditsUsed: 0,
       estimatedCost,
     };
   }
@@ -119,11 +113,16 @@ export class OpenAIProvider implements IRestorationProvider {
 
     const startTime = Date.now();
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(`${OPENAI_API_BASE}/models`, {
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const latency = Date.now() - startTime;
 
@@ -155,20 +154,17 @@ export class OpenAIProvider implements IRestorationProvider {
   }
 
   estimateCost(request: RestorationRequest): number {
-    const sizeBytes = request.image.length;
-    const sizeMb = sizeBytes / (1024 * 1024);
-
-    if (sizeMb < 1) return 0.02;
-    if (sizeMb < 4) return 0.04;
-    return 0.08;
+    // DALL-E 3 image edits: $0.04/image (1024x1024)
+    return DALL_E_3_EDIT_COST;
   }
 
-  private async editImage(base64Image: string, contentType: string, prompt: string): Promise<OpenAIImageResponse> {
+  private async editImage(base64Image: string, contentType: string, prompt: string): Promise<OpenAIImageEditResponse> {
     const formData = new FormData();
     formData.append("model", this.model);
     formData.append("prompt", prompt);
     formData.append("n", "1");
     formData.append("size", "1024x1024");
+    formData.append("response_format", "b64_json");
 
     const mime = contentType || "image/png";
     const blob = this.base64ToBlob(base64Image, mime);
@@ -188,7 +184,7 @@ export class OpenAIProvider implements IRestorationProvider {
       throw new Error(`OpenAI API failed (${response.status}): ${body.slice(0, 200)}`);
     }
 
-    const result = await response.json() as OpenAIImageResponse;
+    const result = (await response.json()) as OpenAIImageEditResponse;
 
     if (!result.data || result.data.length === 0) {
       throw new Error("OpenAI API returned no image data");
