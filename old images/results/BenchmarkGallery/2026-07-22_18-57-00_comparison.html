@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>OPS-94 Comparison</title>
+<style>
+body{font-family:sans-serif;margin:20px;background:#f5f5f5}
+h1{color:#333}.gallery{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
+.card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;max-width:600px;flex:1 1 500px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+.card h2{margin:0 0 8px;color:#444;font-size:18px}
+.card img{max-width:100%;height:auto;border-radius:4px;border:1px solid #eee}
+.card table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.card td,.card th{border:1px solid #eee;padding:4px 8px;text-align:left}
+.card th{background:#fafafa;font-weight:600}
+.score-good{color:#090;font-weight:bold}
+.score-ok{color:#b60;font-weight:bold}
+.score-bad{color:#c00;font-weight:bold}
+</style></head><body>
+<h1>OPS-94 Commercial Restoration Comparison</h1>
+<p>Timestamp: 2026-07-22_18-57-00 | Image: 2.jpeg (525x380)</p>
+<div class="gallery">
+<div class="card"><h2>Original</h2><img src="2026-07-22_18-57-00_original.png" alt="Original"></div>
+<div class="card"><h2>Replicate (CodeFormer)</h2><img src="2026-07-22_18-57-00_replicate.png" alt="Replicate"><table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Latency</td><td>6961ms</td></tr>
+<tr><td>Cost</td><td>$0.001600 (CALCULATED)</td></tr>
+<tr><td>SSIM</td><td>0.8</td></tr>
+<tr><td>PSNR</td><td>7.66</td></tr>
+<tr><td>Quality Score</td><td>85/100</td></tr>
+</table></div>
+<div class="card"><h2>OpenAI (gpt-image-1)</h2><img src="2026-07-22_18-57-00_openai.png" alt="OpenAI"><table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Latency</td><td>52812ms</td></tr>
+<tr><td>Cost</td><td>$0.000070 (ACTUAL)</td></tr>
+<tr><td>SSIM</td><td>0.8</td></tr>
+<tr><td>PSNR</td><td>6.99</td></tr>
+<tr><td>Quality Score</td><td>85/100</td></tr>
+</table></div>
+</div>
+<h2>Quality Scores</h2>
+<table><tr><th>Dimension</th><th>Replicate</th><th>OpenAI</th></tr>
+<tr><td>Scratch Removal</td><td class="score-good">100</td>
+<td class="score-good">100</td></tr>
+<tr><td>Face Restoration</td><td class="score-good">100</td>
+<td class="score-good">100</td></tr>
+<tr><td>Print Readiness</td><td class="score-good">81</td>
+<td class="score-good">81</td></tr>
+<tr><td><strong>Overall</strong></td><td class="score-good"><strong>85/100</strong></td>
+<td class="score-good"><strong>85/100</strong></td></tr>
+</table>
+</body></html>
