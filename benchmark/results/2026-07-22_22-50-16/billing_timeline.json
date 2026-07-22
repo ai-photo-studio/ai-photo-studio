@@ -1,0 +1,39 @@
+{
+  "before": {
+    "spend": "UNKNOWN",
+    "requests": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "imagesRequests": "UNKNOWN"
+  },
+  "afterImmediately": {
+    "spend": "UNKNOWN",
+    "requests": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "imagesRequests": "UNKNOWN"
+  },
+  "after2min": {
+    "spend": "UNKNOWN",
+    "requests": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "imagesRequests": "UNKNOWN"
+  },
+  "after5min": {
+    "spend": "UNKNOWN",
+    "requests": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "imagesRequests": "UNKNOWN"
+  },
+  "after10min": {
+    "spend": "UNKNOWN",
+    "requests": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "imagesRequests": "UNKNOWN"
+  },
+  "after15min": {
+    "spend": "UNKNOWN",
+    "requests": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "imagesRequests": "UNKNOWN"
+  },
+  "classification": "UNKNOWN"
+}

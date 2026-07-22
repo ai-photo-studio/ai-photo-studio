@@ -1,0 +1,26 @@
+{
+  "statusCode": 200,
+  "statusText": "OK",
+  "elapsedMs": 222524,
+  "usage": {
+    "input_tokens": 805,
+    "input_tokens_details": {
+      "image_tokens": 768,
+      "text_tokens": 37
+    },
+    "output_tokens": 1756,
+    "output_tokens_details": {
+      "image_tokens": 1756,
+      "text_tokens": 0
+    },
+    "total_tokens": 2561
+  },
+  "bodySummary": {
+    "created": 1784735894,
+    "outputFormat": "png",
+    "quality": "medium",
+    "size": "1024x1024",
+    "imageCount": 1
+  },
+  "note": "Full response body is preserved in raw_openai_response.json; this text file captures the response evidence summary."
+}

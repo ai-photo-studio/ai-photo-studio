@@ -1,0 +1,28 @@
+{
+  "openaiPackagePresent": false,
+  "openaiPackageVersion": "UNKNOWN",
+  "openaiPackageLockMatch": false,
+  "transport": "native fetch() in apps/api/src/restoration-providers/providers/OpenAIProvider.ts",
+  "generatedRequest": {
+    "endpoint": "https://api.openai.com/v1/images/edits",
+    "method": "POST",
+    "headers": {
+      "Authorization": "Bearer <REDACTED>",
+      "Content-Type": "multipart/form-data"
+    },
+    "body": {
+      "model": "gpt-image-2",
+      "prompt": "Restore this damaged photograph...(truncated)",
+      "n": 1,
+      "size": "1024x1024",
+      "quality": "auto",
+      "output_format": "png",
+      "image": "<binary 38,247 bytes JPEG>"
+    }
+  },
+  "internalRedirectFound": false,
+  "evidence": [
+    "No openai dependency appears in package.json/package-lock.json searches.",
+    "OpenAIProvider uses direct fetch() to https://api.openai.com/v1/images/edits."
+  ]
+}

@@ -1,0 +1,12 @@
+NOT LIVE-EXECUTED IN THIS WORKSPACE TURN
+Derived request template from captured OpenAI evidence:
+POST https://api.openai.com/v1/images/edits
+{
+  "model": "gpt-image-2",
+  "prompt": "Restore this damaged photograph...(truncated)",
+  "n": 1,
+  "size": "1024x1024",
+  "quality": "auto",
+  "output_format": "png",
+  "image": "<binary 38,247 bytes JPEG>"
+}

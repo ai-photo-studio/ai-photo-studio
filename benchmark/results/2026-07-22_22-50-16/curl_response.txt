@@ -1,0 +1,4 @@
+{
+  "status": "UNKNOWN",
+  "reason": "No live curl execution possible because no OpenAI API key is present in the workspace environment."
+}

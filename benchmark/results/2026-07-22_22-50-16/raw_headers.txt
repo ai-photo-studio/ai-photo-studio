@@ -1,0 +1,20 @@
+{
+  "access-control-expose-headers": "X-Request-ID, CF-Ray, CF-Ray",
+  "alt-svc": "h3=\":443\"; ma=86400",
+  "cf-cache-status": "DYNAMIC",
+  "cf-ray": "a1f3a2df4942da11-MRS",
+  "connection": "keep-alive",
+  "content-encoding": "br",
+  "content-type": "application/json",
+  "date": "Wed, 22 Jul 2026 15:58:14 GMT",
+  "openai-organization": "user-5xx16vw3xfxihoc0fwlyqtna",
+  "openai-processing-ms": "99266",
+  "openai-project": "proj_oUuE5x3RFzH67SI8HUsf8WVH",
+  "openai-version": "2020-10-01",
+  "server": "cloudflare",
+  "set-cookie": "__cf_bm=97.Nm4x8TA4Zqdt9s_kye2Il87XKqSSdWAOn13aG7hA-1784735795.0852804-1.0.1.1-FIWfYSdjnqcG9XXahhjKYpn9sto_0Yr.NuoOMnKHWJ5vV4BmFlu7iqAkwp.6KN1ydqqW.Abvgi7ptUgrSps3ICZxF40FdOxGNBzR8SLik6i7QN.IQWD2TEj1UU19CTSh;...REDACTED...",
+  "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+  "transfer-encoding": "chunked",
+  "x-content-type-options": "nosniff",
+  "x-request-id": "req_24cf5ae53bd54e1bab7f9bab9b0bfe80"
+}

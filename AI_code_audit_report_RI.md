@@ -1,52 +1,58 @@
-# OPS-102 - Live Billing Reconciliation & Hybrid Pipeline Finalization
+# OPS-104 - Definitive OpenAI Dashboard & Billing Forensics
 
 **Date:** 2026-07-22  
-**Model:** Poolside Laguna X 2.1
-
----
+**Workspace:** D:\AI Product Photo Studio on WhatsApp
 
 ## VERIFIED
 
-- `old images/2.jpeg` was processed by the OpenAI Images API.
-- Endpoint: `POST https://api.openai.com/v1/images/edits`
-- Model: `gpt-image-2`
-- Request ID: `req_24cf5ae53bd54e1bab7f9bab9b0bfe80`
-- The API returned a `usage` object.
-- Billing can be calculated from returned usage tokens and published pricing.
-- Repo-wide scan found no matches for `/v1/responses`, `client.responses`, or `responses.create`.
+- The repository evidence shows the OpenAI image path is `POST https://api.openai.com/v1/images/edits`.
+- The captured request body uses `model: gpt-image-2`.
+- The implementation path in `apps/api/src/restoration-providers/providers/OpenAIProvider.ts` uses direct `fetch()` rather than the OpenAI SDK.
+- No `openai` package match was found in `package.json` or `package-lock.json`.
+- The preserved OpenAI response contains:
+  - request id `req_24cf5ae53bd54e1bab7f9bab9b0bfe80`
+  - `openai-processing-ms: 99266`
+  - `openai-organization: user-5xx16vw3xfxihoc0fwlyqtna`
+  - `openai-project: proj_oUuE5x3RFzH67SI8HUsf8WVH`
+  - usage `805` input tokens, `1756` output tokens, `2561` total tokens
+- The generated evidence bundle exists at `benchmark/results/2026-07-22_22-50-16/`.
+- `sdk_audit.json` was generated from the preserved evidence set.
+- `project_verification.json` was generated from the preserved evidence set.
 
 ## UNKNOWN
 
-- Dashboard classification for this request.
-- Dashboard spend delta.
-- Dashboard request delta.
-- Dashboard token delta.
-- Dashboard Images delta.
+- Whether the live dashboard currently categorizes this request under `Images`.
+- Whether the live dashboard currently categorizes this request under `Responses & Chat Completions`.
+- Whether the dashboard spend, request, token, and Images counters changed after the request.
+- Whether the dashboard selected project matches the request's project.
+- Whether OpenAI Logs are accessible from this workspace.
+- The live browser dashboard snapshots requested by OPS-104 were not captured from the dashboard UI in this turn.
 
 ## NOT VERIFIED
 
-- Live dashboard snapshots were not captured in this workspace run from the OpenAI dashboard itself.
-- `raw_flux_response.json` is an explicit `UNKNOWN` placeholder, not a live Flux exchange.
-- The local hybrid stages are evidence-backed as artifacts, but their runtime latencies are not proven by a fresh live execution in this turn.
-
----
+- A live dashboard screenshot before the request.
+- A live dashboard screenshot immediately after the request.
+- A live dashboard screenshot at 2 minutes.
+- A live dashboard screenshot at 5 minutes.
+- A live dashboard screenshot at 10 minutes.
+- A live dashboard screenshot at 15 minutes.
+- A live curl execution with a real API key in this workspace.
+- A live native `fetch()` execution in this workspace turn.
+- A live OpenAI Logs entry.
 
 ## Evidence Files
 
-- [raw_openai_response.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_20-54-30/raw_openai_response.json)
-- [billing_diff.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_20-54-30/billing_diff.json)
-- [responses_api_scan.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_20-54-30/responses_api_scan.json)
-- [billing_reconciliation.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-35-45/14_billing_reconciliation.json)
-- [pipeline_manifest.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-35-45/13_pipeline_manifest.json)
+- [sdk_audit.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/sdk_audit.json)
+- [raw_http_request.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/raw_http_request.txt)
+- [raw_http_response.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/raw_http_response.txt)
+- [raw_headers.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/raw_headers.txt)
+- [curl_request.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/curl_request.txt)
+- [curl_response.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/curl_response.txt)
+- [project_verification.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/project_verification.json)
+- [billing_timeline.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/billing_timeline.json)
+- [openai_logs.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/openai_logs.json)
+- [raw_openai_response.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-43-56/raw_openai_response.json)
 
----
+## Final Verdict
 
-## Final Answer Set
-
-1. YES
-2. `POST https://api.openai.com/v1/images/edits`
-3. `gpt-image-2`
-4. `req_24cf5ae53bd54e1bab7f9bab9b0bfe80`
-5. UNKNOWN
-6. VERIFIED
-7. NO
+6. `UNKNOWN`
