@@ -47,6 +47,7 @@ export interface PolicyConfig {
   shadowProvider: string | null;
   dynamicRouting: DynamicRoutingConfig;
   providerScores: Map<string, ProviderScore>;
+  disabledProviders: string[];
 }
 
 export const DEFAULT_DYNAMIC_ROUTING: DynamicRoutingConfig = {
@@ -117,6 +118,7 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   shadowProvider: null,
   dynamicRouting: DEFAULT_DYNAMIC_ROUTING,
   providerScores: new Map(),
+  disabledProviders: ["runpod"],
 };
 
 export class ProviderPolicyEngine {
@@ -130,6 +132,7 @@ export class ProviderPolicyEngine {
       shadowProvider: config?.shadowProvider ?? DEFAULT_POLICY_CONFIG.shadowProvider,
       dynamicRouting: config?.dynamicRouting ?? DEFAULT_DYNAMIC_ROUTING,
       providerScores: config?.providerScores ?? new Map(),
+      disabledProviders: config?.disabledProviders ? [...config.disabledProviders] : [...DEFAULT_POLICY_CONFIG.disabledProviders],
     };
   }
 
@@ -278,9 +281,28 @@ export class ProviderPolicyEngine {
     this.config.shadowProvider = config.shadowProvider ?? this.config.shadowProvider;
     this.config.dynamicRouting = config.dynamicRouting ?? this.config.dynamicRouting;
     this.config.providerScores = config.providerScores ?? this.config.providerScores;
+    this.config.disabledProviders = config.disabledProviders ?? this.config.disabledProviders;
   }
 
   setProviderMode(mode: ProviderMode): void {
     this.config.dynamicRouting.mode = mode;
+  }
+
+  getDisabledProviders(): string[] {
+    return [...this.config.disabledProviders];
+  }
+
+  isProviderDisabled(providerName: string): boolean {
+    return this.config.disabledProviders.includes(providerName);
+  }
+
+  enableProvider(providerName: string): void {
+    this.config.disabledProviders = this.config.disabledProviders.filter((p) => p !== providerName);
+  }
+
+  disableProvider(providerName: string): void {
+    if (!this.config.disabledProviders.includes(providerName)) {
+      this.config.disabledProviders.push(providerName);
+    }
   }
 }

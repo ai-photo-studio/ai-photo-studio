@@ -154,4 +154,43 @@ describe("ProviderPolicyEngine", () => {
       assert.strictEqual(DEFAULT_POLICY_CONFIG.defaultTier, "basic");
     });
   });
+
+  describe("disabledProviders", () => {
+    it("should have runpod disabled by default", () => {
+      engine = new ProviderPolicyEngine();
+      assert.deepStrictEqual(engine.getDisabledProviders(), ["runpod"]);
+    });
+
+    it("should detect disabled provider", () => {
+      engine = new ProviderPolicyEngine();
+      assert.strictEqual(engine.isProviderDisabled("runpod"), true);
+      assert.strictEqual(engine.isProviderDisabled("replicate"), false);
+    });
+
+    it("should enable a disabled provider", () => {
+      engine = new ProviderPolicyEngine();
+      engine.enableProvider("runpod");
+      assert.strictEqual(engine.isProviderDisabled("runpod"), false);
+      assert.deepStrictEqual(engine.getDisabledProviders(), []);
+    });
+
+    it("should disable an enabled provider", () => {
+      engine = new ProviderPolicyEngine();
+      engine.disableProvider("replicate");
+      assert.strictEqual(engine.isProviderDisabled("replicate"), true);
+      assert.deepStrictEqual(engine.getDisabledProviders(), ["runpod", "replicate"]);
+    });
+
+    it("should not duplicate disabled provider", () => {
+      engine = new ProviderPolicyEngine();
+      engine.disableProvider("runpod");
+      assert.deepStrictEqual(engine.getDisabledProviders(), ["runpod"]);
+    });
+
+    it("should update disabledProviders via updateConfig", () => {
+      engine = new ProviderPolicyEngine();
+      engine.updateConfig({ disabledProviders: ["runpod", "fal-ai"] });
+      assert.deepStrictEqual(engine.getDisabledProviders(), ["runpod", "fal-ai"]);
+    });
+  });
 });
