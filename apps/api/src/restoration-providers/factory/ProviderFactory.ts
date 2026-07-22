@@ -5,6 +5,10 @@ import { MockProvider } from "../providers/MockProvider";
 import { OpenAIProvider } from "../providers/OpenAIProvider";
 import { FalAiProvider } from "../providers/FalAiProvider";
 import { ReplicateProvider } from "../providers/ReplicateProvider";
+import { FluxRestoreProvider } from "../providers/FluxRestoreProvider";
+import { GFPGANProvider } from "../providers/GFPGANProvider";
+import { DDColorProvider } from "../providers/DDColorProvider";
+import { NAFNetProvider } from "../providers/NAFNetProvider";
 
 export class ProviderFactory {
   private readonly config: AppConfig;
@@ -37,6 +41,18 @@ export class ProviderFactory {
       case "replicate":
         provider = new ReplicateProvider(this.config.REPLICATE_API_TOKEN);
         break;
+      case "flux-restore":
+        provider = new FluxRestoreProvider(this.config.REPLICATE_API_TOKEN);
+        break;
+      case "gfpgan":
+        provider = new GFPGANProvider(this.config.REPLICATE_API_TOKEN);
+        break;
+      case "ddcolor":
+        provider = new DDColorProvider(this.config.REPLICATE_API_TOKEN);
+        break;
+      case "nafnet":
+        provider = new NAFNetProvider(this.config.REPLICATE_API_TOKEN);
+        break;
       default:
         throw new Error(`Unknown provider: ${name}`);
     }
@@ -48,9 +64,9 @@ export class ProviderFactory {
   createForPackage(tier: PackageTier): { primary: IRestorationProvider; fallback: IRestorationProvider | null } {
     const mapping: Record<PackageTier, { primary: string; fallback: string | null }> = {
       preview: { primary: "replicate", fallback: "openai" },
-      basic: { primary: "replicate", fallback: "openai" },
-      premium: { primary: "replicate", fallback: "openai" },
-      print: { primary: "replicate", fallback: "openai" },
+      basic: { primary: "flux-restore", fallback: "openai" },
+      premium: { primary: "flux-restore", fallback: "openai" },
+      print: { primary: "flux-restore", fallback: "openai" },
       archive: { primary: "replicate", fallback: "openai" },
     };
 
@@ -62,6 +78,6 @@ export class ProviderFactory {
   }
 
   getAvailableProviders(): string[] {
-    return ["runpod", "mock", "openai", "fal-ai", "replicate"];
+    return ["runpod", "mock", "openai", "fal-ai", "replicate", "flux-restore", "gfpgan", "ddcolor", "nafnet"];
   }
 }

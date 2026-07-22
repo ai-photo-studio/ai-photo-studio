@@ -29,18 +29,26 @@ interface OpenAIModelsResponse {
   data: OpenAIModel[];
 }
 
-// OpenAI image edit pricing per 1024x1024 image
-const IMAGE_EDIT_PRICING: Record<string, number> = {
-  "gpt-image-beta": 0.04,
-  "dall-e-3": 0.04,
-  "dall-e-2": 0.02,
+// GPT Image token pricing per 1M tokens (corrected per OPS-96 audit)
+// Source: https://openai.com/api/pricing/
+const GPT_IMAGE_PRICING: Record<string, { input: number; output: number }> = {
+  "gpt-image-2":      { input: 0.000008, output: 0.000030 },  // $8/1M, $30/1M
+  "gpt-image-1.5":    { input: 0.000008, output: 0.000032 },  // $8/1M, $32/1M
+  "gpt-image-1-mini":  { input: 0.0000025, output: 0.000008 }, // $2.50/1M, $8/1M
+  "gpt-image-1":      { input: 0.000008, output: 0.000032 },  // $8/1M, $32/1M
+  "gpt-image-beta":   { input: 0.000008, output: 0.000032 },  // fallback, same as gpt-image-1
 };
 
-// OpenAI image edit pricing per 1024x1024 image (token-based for gpt-image-beta)
-const GPT_IMAGE_TOKEN_COST = {
-  input: 0.000015,
-  output: 0.00006,
+const IMAGE_EDIT_PRICING_FALLBACK: Record<string, number> = {
+  "gpt-image-2": 0.032,
+  "gpt-image-1.5": 0.04,
+  "gpt-image-1-mini": 0.01,
+  "gpt-image-1": 0.04,
+  "gpt-image-beta": 0.04,
 };
+
+// Model priority for restoration (newest first, excluding removed DALL-E models)
+const MODEL_PRIORITY = ["gpt-image-2", "gpt-image-1.5", "gpt-image-1-mini", "gpt-image-1", "gpt-image-beta"];
 
 export class OpenAIProvider implements IRestorationProvider {
   readonly name = "openai";
@@ -66,21 +74,25 @@ export class OpenAIProvider implements IRestorationProvider {
     const imageSize = this.estimateImageSize(request.image);
 
     const model = await this.detectBestImageModel();
+    const quality = request.options?.quality || "auto";
+    const outputFormat = request.options?.outputFormat || "png";
+
+    // Updated model -> operation mapping uses per-model pricing
 
     let result: OpenAIImageEditResponse;
     let operation = "restoration";
 
     if (request.options?.colorize) {
-      result = await this.editImage(base64Image, request.contentType, model, "Colorize this black and white photograph, adding natural and realistic colors throughout. Restore faded areas and enhance contrast.");
+      result = await this.editImage(base64Image, request.contentType, model, "Colorize this black and white photograph, adding natural and realistic colors throughout. Restore faded areas and enhance contrast.", quality, outputFormat);
       operation = "colorization";
     } else if (request.options?.upscale) {
-      result = await this.editImage(base64Image, request.contentType, model, "Upscale this image to higher resolution while preserving all details. Enhance sharpness and clarity.");
+      result = await this.editImage(base64Image, request.contentType, model, "Upscale this image to higher resolution while preserving all details. Enhance sharpness and clarity.", quality, outputFormat);
       operation = "upscale";
     } else if (request.options?.restoreFaces) {
-      result = await this.editImage(base64Image, request.contentType, model, "Restore faces in this photograph. Fix scratches, reduce noise, enhance facial features while preserving natural appearance.");
+      result = await this.editImage(base64Image, request.contentType, model, "Restore faces in this photograph. Fix scratches, reduce noise, enhance facial features while preserving natural appearance.", quality, outputFormat);
       operation = "face-restoration";
     } else {
-      result = await this.editImage(base64Image, request.contentType, model, "Restore this damaged photograph. Remove scratches, reduce noise, enhance contrast and sharpness, and improve overall quality while preserving the original character of the image.");
+      result = await this.editImage(base64Image, request.contentType, model, "Restore this damaged photograph. Remove scratches, reduce noise, enhance contrast and sharpness, and improve overall quality while preserving the original character of the image.", quality, outputFormat);
       operation = "restoration";
     }
 
@@ -159,30 +171,26 @@ export class OpenAIProvider implements IRestorationProvider {
       });
     }
 
-    return "gpt-image-beta";
+    return "gpt-image-2";
   }
 
   private selectBestModel(modelIds: string[]): string | null {
-    // Priority: gpt-image-beta > dall-e-3 > dall-e-2
-    // Do not hardcode — detect from API response
+    // Priority: gpt-image-2 > gpt-image-1.5 > gpt-image-1-mini > gpt-image-1 > gpt-image-beta
+    // DALL-E models (dall-e-2, dall-e-3) removed from API May 12, 2026 — excluded
     const imageModels = modelIds.filter(
       (id) =>
-        id.includes("gpt-image") ||
-        id.includes("dall-e-3") ||
-        id.includes("dall-e-2") ||
-        id.includes("dall-e")
+        id.includes("gpt-image")
     );
 
     if (imageModels.length === 0) return null;
 
-    // Prefer gpt-image-beta (newest), then dall-e-3, then dall-e-2
-    const priority = ["gpt-image-beta", "dall-e-3", "dall-e-2"];
-    for (const p of priority) {
+    // Prefer newer models first per MODEL_PRIORITY
+    for (const p of MODEL_PRIORITY) {
       const match = imageModels.find((id) => id === p || id.startsWith(p));
       if (match) return match;
     }
 
-    // Return the first image model found
+    // Return the first gpt-image model found
     return imageModels[0];
   }
 
@@ -191,15 +199,17 @@ export class OpenAIProvider implements IRestorationProvider {
     usage?: OpenAIImageEditResponse["usage"]
   ): { actualCost: number; costSource: "actual" | "calculated" | "estimated" } {
     if (usage && usage.input_tokens && usage.output_tokens) {
-      // gpt-image-beta uses token-based pricing
-      const inputCost = (usage.input_tokens / 1000) * GPT_IMAGE_TOKEN_COST.input;
-      const outputCost = (usage.output_tokens / 1000) * GPT_IMAGE_TOKEN_COST.output;
-      return { actualCost: Math.round((inputCost + outputCost) * 100000) / 100000, costSource: "actual" };
+      // Find pricing for the model, fall back to gpt-image-2 pricing
+      const pricing = GPT_IMAGE_PRICING[model] ?? GPT_IMAGE_PRICING["gpt-image-2"];
+      const inputCost = (usage.input_tokens / 1000) * pricing.input;
+      const outputCost = (usage.output_tokens / 1000) * pricing.output;
+      // NOTE: Token usage from API is approximate; actual billing may differ slightly
+      return { actualCost: Math.round((inputCost + outputCost) * 100000) / 100000, costSource: "calculated" };
     }
 
-    // Fall back to official per-image pricing for the exact model used
-    const price = IMAGE_EDIT_PRICING[model] ?? IMAGE_EDIT_PRICING["gpt-image-beta"];
-    return { actualCost: price, costSource: "calculated" };
+    // Fall back to estimated per-image pricing for the exact model used
+    const price = IMAGE_EDIT_PRICING_FALLBACK[model] ?? IMAGE_EDIT_PRICING_FALLBACK["gpt-image-2"];
+    return { actualCost: price, costSource: "estimated" };
   }
 
   async health(): Promise<ProviderHealth> {
@@ -254,16 +264,23 @@ export class OpenAIProvider implements IRestorationProvider {
   }
 
   estimateCost(request: RestorationRequest): number {
-    // Default estimate: gpt-image-beta edit pricing $0.04/image (1024x1024)
-    return IMAGE_EDIT_PRICING["gpt-image-beta"];
+    // Estimate based on gpt-image-2 per-image average cost at medium quality
+    // $0.032/image for 1024x1024 medium quality (1056 output tokens × $0.000030)
+    const pricing = GPT_IMAGE_PRICING["gpt-image-2"];
+    // Rough estimate: ~1000 input tokens + ~1056 output tokens for medium quality 1024x1024
+    const estimatedInputTokens = 1000;
+    const estimatedOutputTokens = 1056;
+    return Math.round((estimatedInputTokens * pricing.input + estimatedOutputTokens * pricing.output) * 100000) / 100000;
   }
 
-  private async editImage(base64Image: string, contentType: string, model: string, prompt: string): Promise<OpenAIImageEditResponse> {
+  private async editImage(base64Image: string, contentType: string, model: string, prompt: string, quality: string = "auto", outputFormat: string = "png"): Promise<OpenAIImageEditResponse> {
     const formData = new FormData();
     formData.append("model", model);
     formData.append("prompt", prompt);
     formData.append("n", "1");
     formData.append("size", "1024x1024");
+    formData.append("quality", quality);
+    formData.append("output_format", outputFormat);
 
     const mime = contentType || "image/png";
     const blob = this.base64ToBlob(base64Image, mime);

@@ -23,6 +23,8 @@ export interface RestorationRequest {
     upscaleScale?: number;
     denoise?: number;
     fidelity?: number;
+    quality?: "low" | "medium" | "high" | "auto";
+    outputFormat?: "png" | "webp" | "jpeg";
   };
 }
 
