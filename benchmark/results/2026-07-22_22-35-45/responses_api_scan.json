@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-07-22_20-54-30",
+  "patterns": [
+    "/v1/responses",
+    "client.responses",
+    "responses.create"
+  ],
+  "findings": [],
+  "repositoryScan": "No matches found in the workspace search that was run for this audit.",
+  "classification": "NO"
+}

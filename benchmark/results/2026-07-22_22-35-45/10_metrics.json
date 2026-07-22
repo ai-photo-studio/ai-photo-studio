@@ -1,0 +1,74 @@
+{
+  "timestamp": "2026-07-22_20-54-30",
+  "image": "2.jpeg",
+  "qualityMetrics": {
+    "openai": {
+      "ssim": 0.54,
+      "psnr": 6.97,
+      "sharpness": 100,
+      "noise": 100,
+      "contrast": 100,
+      "brightness": 100,
+      "printQuality": 100,
+      "scratchRemoval": 36,
+      "identityPreservation": 53,
+      "printReadiness": 100,
+      "overall": 63
+    },
+    "flux-restore": {
+      "ssim": 0.57,
+      "psnr": 7.26,
+      "sharpness": 100,
+      "noise": 100,
+      "contrast": 100,
+      "brightness": 100,
+      "printQuality": 100,
+      "scratchRemoval": 37,
+      "identityPreservation": 56,
+      "printReadiness": 100,
+      "overall": 64
+    },
+    "gfpgan": {
+      "ssim": 0.58,
+      "psnr": 7.5,
+      "sharpness": 100,
+      "noise": 100,
+      "contrast": 100,
+      "brightness": 100,
+      "printQuality": 100,
+      "scratchRemoval": 38,
+      "identityPreservation": 57,
+      "printReadiness": 100,
+      "overall": 65
+    }
+  },
+  "requestLog": [
+    {
+      "provider": "openai",
+      "requestId": "req_24cf5ae53bd54e1bab7f9bab9b0bfe80",
+      "model": "gpt-image-2",
+      "endpoint": "POST /v1/images/edits",
+      "timestamp": "2026-07-22_20-54-30",
+      "processingTimeMs": 122106,
+      "inputTokens": 805,
+      "outputTokens": 1756,
+      "totalTokens": 2561,
+      "actualCost": 0.00006,
+      "costSource": "calculated"
+    },
+    {
+      "provider": "flux-restore",
+      "model": "flux-kontext-apps/restore-image@85ae46551612b8f778348846b6ce1ce1b340e384fe2062399c0c412be29e107d",
+      "processingTimeMs": 14688,
+      "actualCost": 0.0221,
+      "costSource": "calculated"
+    },
+    {
+      "provider": "gfpgan",
+      "model": "tencentarc/gfpgan@0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c",
+      "processingTimeMs": 3458,
+      "actualCost": 0.0032,
+      "costSource": "calculated"
+    }
+  ]
+}

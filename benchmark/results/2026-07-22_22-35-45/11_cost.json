@@ -1,0 +1,56 @@
+{
+  "image": "2.jpeg",
+  "imageBytes": 38247,
+  "imageDimensions": "525x380",
+  "timestamp": "2026-07-22_20-54-30",
+  "pricing": {
+    "model": "gpt-image-2",
+    "source": "https://openai.com/api/pricing/",
+    "inputPer1K": 0.000008,
+    "outputPer1K": 0.00003
+  },
+  "tokenUsage": {
+    "inputTokens": 805,
+    "inputImageTokens": 768,
+    "inputTextTokens": 37,
+    "outputTokens": 1756,
+    "outputImageTokens": 1756,
+    "outputTextTokens": 0,
+    "totalTokens": 2561
+  },
+  "calculatedCost": {
+    "inputCost": "0.00000644",
+    "outputCost": "0.00005268",
+    "totalCost": "0.00005912",
+    "costSource": "CALCULATED — from API usage tokens × published pricing",
+    "isInvoiceCost": false,
+    "note": "OpenAI does not return per-request dollar amounts in the Image Edit API response. This is a CALCULATED cost, not an invoice charge."
+  },
+  "dashboardObservations": {
+    "expectedCategory": "Responses and Chat Completions",
+    "expectedImagesCount": 0,
+    "explanation": "gpt-image-2 uses token-based billing ($8/1M input, $30/1M output). The OpenAI dashboard categorizes all token-billed model usage under 'Completions', not 'Images'. The 'Images' tab only shows legacy DALL-E 2/3 per-image fixed-price usage. This is expected dashboard behavior, not a code bug.",
+    "sourceEndpoint": "POST /v1/images/edits",
+    "sourceEndpointCategory": "Images API"
+  },
+  "individualProviderCosts": {
+    "openai": {
+      "actualCost": 0.00006,
+      "costSource": "calculated",
+      "processingTimeMs": 122106,
+      "model": "gpt-image-2"
+    },
+    "flux-restore": {
+      "actualCost": 0.0221,
+      "costSource": "calculated",
+      "processingTimeMs": 14688,
+      "model": "flux-kontext-apps/restore-image@85ae46551612b8f778348846b6ce1ce1b340e384fe2062399c0c412be29e107d"
+    },
+    "gfpgan": {
+      "actualCost": 0.0032,
+      "costSource": "calculated",
+      "processingTimeMs": 3458,
+      "model": "tencentarc/gfpgan@0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c"
+    }
+  }
+}
