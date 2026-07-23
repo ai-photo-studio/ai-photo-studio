@@ -1,6 +1,7 @@
 import type { AppConfig } from "../../config/env";
 import type { IRestorationProvider, ProviderHealth, ProviderStatus, RestorationRequest, RestorationResult } from "../interfaces/IRestorationProvider";
 import { logger } from "../../utils/logger";
+import { getGlobalCaptureSession } from "../../utils/runtime-capture";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 
@@ -304,16 +305,43 @@ export class OpenAIProvider implements IRestorationProvider {
     formData.append("output_format", outputFormat);
 
     const mime = contentType || "image/png";
-    const blob = this.base64ToBlob(base64Image, mime);
+    const imageBuffer = Buffer.from(base64Image, "base64");
+    const blob = new Blob([imageBuffer], { type: mime });
     formData.append("image", blob, "input.png");
 
     const requestStart = Date.now();
+
+    // --- OPS-106: Capture request BEFORE sending ---
+    const capture = getGlobalCaptureSession();
+    if (capture) {
+      capture.captureRequest({
+        method: "POST",
+        url: `${OPENAI_API_BASE}/images/edits`,
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "multipart/form-data",
+        },
+        formDataFields: [
+          { name: "model", value: model },
+          { name: "prompt", value: prompt },
+          { name: "n", value: "1" },
+          { name: "size", value: "1024x1024" },
+          { name: "quality", value: quality },
+          { name: "output_format", value: outputFormat },
+          { name: "image", value: blob, isFile: true, filename: "input.png", contentType: mime },
+        ],
+        imageBuffer,
+        model,
+        prompt,
+      });
+    }
+
     logger.info("OpenAI API request", {
       endpoint: `${OPENAI_API_BASE}/images/edits`,
       method: "POST",
       model,
       promptLength: prompt.length,
-      imageSize: Math.round(base64Image.length * 0.75), // approximate byte size
+      imageSize: imageBuffer.length,
       quality,
       outputFormat,
     });
@@ -334,6 +362,15 @@ export class OpenAIProvider implements IRestorationProvider {
 
     if (!response.ok) {
       const body = await response.text();
+      // --- OPS-106: Capture failure ---
+      if (capture) {
+        capture.captureResponse({
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          processingTimeMs: elapsedMs,
+        });
+      }
       logger.error("OpenAI API request failed", {
         status: response.status,
         statusText: response.statusText,
@@ -349,6 +386,32 @@ export class OpenAIProvider implements IRestorationProvider {
     }
 
     const result = (await response.json()) as OpenAIImageEditResponse;
+
+    // --- OPS-106: Capture response ---
+    // Compute returned image size from b64_json or prepare to download
+    let returnedImageBuffer: Buffer | undefined;
+    let returnedImageContentType: string | undefined;
+    if (result.data?.[0]?.b64_json) {
+      returnedImageBuffer = Buffer.from(result.data[0].b64_json, "base64");
+      returnedImageContentType = "image/png";
+    }
+
+    if (capture) {
+      capture.captureResponse({
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        processingTimeMs: elapsedMs,
+        usage: result.usage ? {
+          input_tokens: result.usage.input_tokens,
+          output_tokens: result.usage.output_tokens,
+          total_tokens: result.usage.total_tokens,
+        } : undefined,
+        responseSize: returnedImageBuffer?.length,
+        returnedImage: returnedImageBuffer,
+        returnedImageContentType,
+      });
+    }
 
     logger.info("OpenAI API response", {
       status: response.status,

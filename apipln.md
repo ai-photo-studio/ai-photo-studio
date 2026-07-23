@@ -1,40 +1,63 @@
-# OPS-104 - OpenAI Billing Forensics Plan
+# OPS-106 - Runtime Verification Plan & Results
 
-## VERIFIED
+## PLAN
 
-- The request path used by the repository evidence is `POST /v1/images/edits`.
-- The model is `gpt-image-2`.
-- The request is generated through direct `fetch()` in `apps/api/src/restoration-providers/providers/OpenAIProvider.ts`.
-- No `openai` dependency was found in the package manifest or lockfile searches.
-- The preserved response includes a concrete request id, processing time, project id, organization id, and usage object.
-- The evidence bundle exists at `benchmark/results/2026-07-22_22-50-16/`.
+### Part 1-2: Instrument OpenAI Request
+- Wrap `OpenAIProvider.editImage()` with `RuntimeCaptureSession` hooks
+- Capture before: method, URL, headers, multipart, filename, size, SHA256, model, prompt
+- Capture after: status, headers, request ID, processing time, usage, response size, returned image
 
-## UNKNOWN
+### Part 3: Save Artifacts
+- Format: `benchmark/runtime/YYYY-MM-DD_HH-MM-SS/`
+- Files: request.json, response.json, headers.json, usage.json, timing.json, image_sha256.txt, returned_image.png
 
-- Live dashboard classification of the request.
-- Whether the request counted under `Images` or `Responses & Chat Completions`.
-- Before and after dashboard deltas for spend, requests, tokens, and Images.
-- Whether the dashboard-selected project matches the API project.
-- Whether OpenAI Logs can be accessed from this workspace.
+### Part 4: Dashboard Comparison
+- Manual capture from https://platform.openai.com/usage
+- Compare API usage vs dashboard deltas
+- Record spend, token, request, images deltas
 
-## NOT VERIFIED
+### Part 5: Local Restoration Pipeline
+- Retain: `flux-kontext-apps/restore-image` (Replicate)
+- Run locally: LaMa, GFPGAN, Real-ESRGAN, DDColor, NAFNet
+- Generate final restored image
 
-- The live dashboard snapshots requested by OPS-104.
-- A live native `fetch()` execution during this workspace turn.
-- A live `curl` execution during this workspace turn.
-- A live browser screenshot sequence at 0, 2, 5, 10, and 15 minutes.
+## RESULTS — 2026-07-23_07-27-11
 
-## Supporting Artifacts
+| Check | Status | Detail |
+|-------|--------|--------|
+| Complete outbound HTTP captured | ✓ | POST /v1/images/edits, model=gpt-image-2, 38247 bytes |
+| Complete inbound HTTP captured | ✓ | 200 OK, req_6986761c82474b5fabfb3e4af6aa5d03 |
+| Returned usage preserved | ✓ | 805 in, 1756 out, 2561 total tokens |
+| Dashboard deltas measured | ✗ | PENDING MANUAL CAPTURE |
+| Final restored image generated | ✓ | 374308 bytes JPEG via LaMa→GFPGAN→Real-ESRGAN |
+| Numeric reconciliation completed | ✗ | Dashboard delta not available |
 
-- [sdk_audit.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/sdk_audit.json)
-- [raw_http_request.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/raw_http_request.txt)
-- [raw_http_response.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/raw_http_response.txt)
-- [curl_request.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/curl_request.txt)
-- [curl_response.txt](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/curl_response.txt)
-- [project_verification.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/project_verification.json)
-- [billing_timeline.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/billing_timeline.json)
-- [openai_logs.json](/D:/AI%20Product%20Photo%20Studio%20on%20WhatsApp/benchmark/results/2026-07-22_22-50-16/openai_logs.json)
+### Token Usage (API)
+- input_tokens: 805
+- output_tokens: 1756
+- total_tokens: 2561
+- Cost (calculated at $8/1M in, $30/1M out): $0.00006
 
-## Final Verdict
+### OpenAI Response Headers
+- x-request-id: req_6986761c82474b5fabfb3e4af6aa5d03
+- openai-processing-ms: 55651
+- openai-organization: user-5xx16vw3xfxihoc0fwlyqtna
+- openai-project: proj_oUuE5x3RFzH67SI8HUsf8WVH
 
-6. `UNKNOWN`
+### Local Restoration Pipeline
+- Stages: damage_detection → lama_inpaint → face_restoration_gfpgan → real_esrgan_upscale
+- Credits: 1.6
+- Output: local_restored.jpg (374308 bytes)
+
+### Outstanding
+- Replicate `flux-kontext-apps/restore-image`: NOT VERIFIED (no REPLICATE_API_TOKEN)
+- DDColor: NOT VERIFIED (no model checkpoint available locally)
+- NAFNet: NOT VERIFIED (no model checkpoint available locally)
+- Dashboard deltas: PENDING MANUAL CAPTURE
+
+## Evidence
+
+`benchmark/runtime/2026-07-23_07-27-11/`:
+- request.json, response.json, headers.json, usage.json
+- image_sha256.txt, returned_image.png, local_restored.jpg
+- manifest.json, verification_report.json

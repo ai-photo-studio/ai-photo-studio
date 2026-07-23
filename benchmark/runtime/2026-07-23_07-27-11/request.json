@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-07-23T07:27:11.965Z",
+  "method": "POST",
+  "url": "https://api.openai.com/v1/images/edits",
+  "headers": {
+    "Authorization": "Bearer [REDACTED]",
+    "Content-Type": "multipart/form-data"
+  },
+  "multipartFields": [
+    {
+      "name": "model",
+      "value": "gpt-image-2",
+      "isFile": false
+    },
+    {
+      "name": "prompt",
+      "value": "Restore this damaged photograph. Remove scratches, reduce noise, enhance contrast and sharpness, and improve overall quality while preserving the original character of the image.",
+      "isFile": false
+    },
+    {
+      "name": "n",
+      "value": "1",
+      "isFile": false
+    },
+    {
+      "name": "size",
+      "value": "1024x1024",
+      "isFile": false
+    },
+    {
+      "name": "quality",
+      "value": "auto",
+      "isFile": false
+    },
+    {
+      "name": "output_format",
+      "value": "png",
+      "isFile": false
+    },
+    {
+      "name": "image",
+      "filename": "2026-07-22_19-35-52_original.png",
+      "contentType": "image/png",
+      "size": 38247,
+      "isFile": true
+    }
+  ],
+  "uploadedFilename": "2026-07-22_19-35-52_original.png",
+  "uploadedSize": 38247,
+  "imageSha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+  "model": "gpt-image-2",
+  "prompt": "Restore this damaged photograph. Remove scratches, reduce noise, enhance contrast and sharpness, and improve overall quality while preserving the original character of the image.",
+  "promptHash": "423d07027a6c72ee"
+}
