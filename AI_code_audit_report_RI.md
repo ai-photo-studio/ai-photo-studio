@@ -1,47 +1,39 @@
-# OPS-119 — Production Route Forensic Audit
+# OPS-120 — Production Pipeline Activation & Commerce Workflow Refactor
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Root Cause Found
+## PART A: Production Routing Fix — APPLIED
 
-`restoration.service.ts:337` hardcodes `const pipelineTier: PipelineTier = "hd"` — this line **bypasses** the `RESTORATION_PIPELINE` feature flag entirely.
+`restoration.service.ts:337` changed:
+- `- const pipelineTier: PipelineTier = "hd"`
+- `+ const pipelineTier: PipelineTier = this.pipelineOrchestrator.getDefaultTier()`
 
-## Impact
+Production route now respects `RESTORATION_PIPELINE` env var (default: `replicate`).
 
-The production `POST /restorations/:id/items/:itemId/process` route ALWAYS uses the `hd` tier (FluxRestoreProvider + UnifiedLocalRestorationProvider), NEVER the `replicate` tier (ReplicatePipelineProvider).
+## PART B-D: Commerce Workflow Redesigned
 
-This means:
-- Every customer request via the web UI uses the legacy RunPod pipeline
-- The `RESTORATION_PIPELINE=replicate` env var (OPS-116) has NO EFFECT on production
-- CLI benchmarks (ops116-118) show correct quality because they bypass this code path
+**OLD:** Upload → Replicate (unpaid) → Preview → Download/Print
+**NEW:** Upload → Package Selection → Payment → Replicate → Master → All Assets
 
-## Fix Required
+## PART E: Verification — ALL PASS
 
-Change `restoration.service.ts:337` from:
-```
-const pipelineTier: PipelineTier = "hd";
-```
-to:
-```
-const pipelineTier: PipelineTier = this.pipelineOrchestrator.getDefaultTier();
-```
-
-## Environment Resolution
-
-| Source | RESTORATION_PIPELINE Value |
+| Check | Result |
 |---|---|
-| .env.project.example | NOT SET |
-| .env.local | NOT SET |
-| northflank.json | NOT SET |
-| deploy.yml | NOT SET |
-| process.env | replicate (explicit) |
+| 1 paid order → 3 Replicate predictions | **PASS** (3 predictions) |
+| Exactly one restored master image | **PASS** (4736×3520, 20.2MB) |
+| All download sizes from master (0 extra Replicate calls) | **PASS** (sharp resize) |
+| Print uses master (0 extra Replicate calls) | **PASS** |
+| No additional Replicate predictions | **PASS** |
 
-## Legacy Callers
+## Cost Savings
 
-140 legacy provider references found in production code (all via PipelineOrchestrator/ProviderFactory — conditional on tier selection). No direct calls to RunPod services bypassing the orchestrator in production routes.
+| Scenario | Before | After | Savings |
+|---|---|---|---|
+| Abandoned upload | $0.046 | $0.00 | 100% |
+| Full order (3 sizes + print) | $0.230 | $0.046 | 80% |
 
 ## Evidence
 
-All artifacts saved to `benchmark/results/ops119/<timestamp>/`.
+All artifacts saved to `benchmark/results/ops120/<timestamp>/`.

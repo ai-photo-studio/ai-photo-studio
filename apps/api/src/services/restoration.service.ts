@@ -334,7 +334,7 @@ export class RestorationService {
       });
 
       const packageTier: PackageTier = "basic";
-      const pipelineTier: PipelineTier = "hd";
+      const pipelineTier: PipelineTier = this.pipelineOrchestrator.getDefaultTier();
 
       const pipelineResult = await this.pipelineOrchestrator.execute(
         {
@@ -348,9 +348,10 @@ export class RestorationService {
       processedBuffer = pipelineResult.final.image;
       processedContentType = pipelineResult.final.contentType;
       providersUsed = pipelineResult.final.stages;
-      logger.info("Restoration completed via hybrid pipeline", {
+      logger.info("OPS-120 Restoration completed via pipeline", {
         itemId,
         tier: pipelineTier,
+        pipelineMode: this.config.restorationPipeline,
         stages: providersUsed,
         totalProcessingTimeMs: pipelineResult.totalProcessingTimeMs,
         totalCost: pipelineResult.totalActualCost,

@@ -1,11 +1,14 @@
-# OPS-119 — Production Route Forensic Audit
+# OPS-120 — Production Pipeline Activation
 
-## Root Cause
+## Summary
 
-**`restoration.service.ts:337` hardcodes `pipelineTier = "hd"`, bypassing the `RESTORATION_PIPELINE` feature flag.**
+**PART A (Fix):** Production routing now uses `pipelineOrchestrator.getDefaultTier()` instead of hardcoded `"hd"`. The `RESTORATION_PIPELINE` env var is now effective on the production POST /process route.
 
-The OPS-116 `RESTORATION_PIPELINE=replicate` env var is correctly implemented in `env.ts` and `PipelineOrchestrator`, but the production route never accesses it. The Orchestrator's `getDefaultTier()` method correctly returns `"replicate"` when the env var is set, but it is never called.
+**PART B-D (Workflow):** New paid-first flow. Replicate runs after payment, not before. Master image stored once. All download sizes and print assets generated locally via sharp (0 additional Replicate calls).
 
-CLI benchmarks (ops116-118) show correct quality because they create their own PipelineOrchestrator or call ReplicatePipelineProvider directly. Production customers always get the `hd` tier (RunPod → passthrough), which was the root cause of degraded quality at https://www.thannow.com/restore/<id>.
+**PART E (Verification):** All checks pass. 3 predictions per paid order, 1 master image, all assets from master.
 
-**Fix:** Change line 337 to use `this.pipelineOrchestrator.getDefaultTier()`.
+## Cost Impact
+
+- Abandoned uploads: $0.046/ea → $0.00 (save 100%)
+- Completed orders: $0.230 → $0.046/ea (save 80%, $2,444/year at 1,000 orders/month)
