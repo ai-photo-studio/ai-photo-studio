@@ -1,12 +1,11 @@
-# OPS-118 — Production End-to-End Acceptance Test
+# OPS-119 — Production Route Forensic Audit
 
-## Verdict
+## Root Cause
 
-Production customer journey validated end-to-end:
-- Region detection works (PKR/USD from 4 detection methods + manual override)
-- Replicate pipeline restores image (3 stages, 49.8s, $0.046)
-- Download packages configurable per region (PKR ₨250-₨500, USD $1.50-$3.50)
-- Signed URL security verified (S3 presigned, 15 min expiry, auth required)
-- Print flow scaffolded (9 steps, fulfillment pending external integration)
+**`restoration.service.ts:337` hardcodes `pipelineTier = "hd"`, bypassing the `RESTORATION_PIPELINE` feature flag.**
 
-8 of 8 acceptance criteria met.
+The OPS-116 `RESTORATION_PIPELINE=replicate` env var is correctly implemented in `env.ts` and `PipelineOrchestrator`, but the production route never accesses it. The Orchestrator's `getDefaultTier()` method correctly returns `"replicate"` when the env var is set, but it is never called.
+
+CLI benchmarks (ops116-118) show correct quality because they create their own PipelineOrchestrator or call ReplicatePipelineProvider directly. Production customers always get the `hd` tier (RunPod → passthrough), which was the root cause of degraded quality at https://www.thannow.com/restore/<id>.
+
+**Fix:** Change line 337 to use `this.pipelineOrchestrator.getDefaultTier()`.

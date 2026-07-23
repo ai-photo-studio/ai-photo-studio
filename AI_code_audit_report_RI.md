@@ -1,33 +1,47 @@
-# OPS-118 — Production End-to-End Acceptance Test & Regional Commerce
+# OPS-119 — Production Route Forensic Audit
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Result: ALL TESTS PASS
+## Root Cause Found
 
-| Test | Result |
+`restoration.service.ts:337` hardcodes `const pipelineTier: PipelineTier = "hd"` — this line **bypasses** the `RESTORATION_PIPELINE` feature flag entirely.
+
+## Impact
+
+The production `POST /restorations/:id/items/:itemId/process` route ALWAYS uses the `hd` tier (FluxRestoreProvider + UnifiedLocalRestorationProvider), NEVER the `replicate` tier (ReplicatePipelineProvider).
+
+This means:
+- Every customer request via the web UI uses the legacy RunPod pipeline
+- The `RESTORATION_PIPELINE=replicate` env var (OPS-116) has NO EFFECT on production
+- CLI benchmarks (ops116-118) show correct quality because they bypass this code path
+
+## Fix Required
+
+Change `restoration.service.ts:337` from:
+```
+const pipelineTier: PipelineTier = "hd";
+```
+to:
+```
+const pipelineTier: PipelineTier = this.pipelineOrchestrator.getDefaultTier();
+```
+
+## Environment Resolution
+
+| Source | RESTORATION_PIPELINE Value |
 |---|---|
-| 1. Region Detection (7 cases) | **PASS** |
-| 2a. Upload + Replicate Restore | **PASS** (49.8s, $0.0464) |
-| 2b. Watermarked Preview | **PASS** (20.2MB) |
-| 2c. Signed URL (15min expiry) | **PASS** |
-| 3. Download Packages (PKR+USD) | **VERIFIED** |
-| 4. Print Flow Scaffolding | **SCAFFOLDED** (9 steps) |
-| 5. API Response Audit | **VERIFIED** (10 endpoints) |
+| .env.project.example | NOT SET |
+| .env.local | NOT SET |
+| northflank.json | NOT SET |
+| deploy.yml | NOT SET |
+| process.env | replicate (explicit) |
 
-## Regional Storefront
+## Legacy Callers
 
-- Region detection priority: Cloudflare header → Accept-Language → Timezone → Manual override → Default (USD)
-- Pricing: PKR (₨250-₨500) for Pakistan, USD ($1.50-$3.50) for international
-- Payment merchants: Bank Alfalah PKR and USD per region
-- Download packages: Original/2X/4X tiers with per-region pricing
+140 legacy provider references found in production code (all via PipelineOrchestrator/ProviderFactory — conditional on tier selection). No direct calls to RunPod services bypassing the orchestrator in production routes.
 
-## Files Generated
+## Evidence
 
-- `production_acceptance.md` — Full test results
-- `regional_routing.md` — Region detection + pricing configuration
-- `payment_flow.md` — Payment journey documentation
-- `download_security.md` — Signed URL audit (S3 presigned, 15min)
-- `print_flow.md` — Print flow scaffolding
-- `journey_screenshots/` — Intermediate images
+All artifacts saved to `benchmark/results/ops119/<timestamp>/`.
