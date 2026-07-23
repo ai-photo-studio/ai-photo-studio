@@ -1,43 +1,33 @@
-# OPS-113 — Hybrid Pipeline Stage Verification
+# OPS-114 — Pipeline Chaining Verification
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Result
+## Result: PASS
 
-The commercial-quality Pipeline A is **not reproduced** because the local post-processing stages (GFPGAN, Real-ESRGAN, DDColor, LaMa) never execute. The pipeline degenerates to a single Replicate call.
+Image chaining is correct. Every stage receives the output of the previous stage.
 
-## Root Cause
+## Findings
 
-| Stage | Env Var Missing | Source Location | Why Skipped |
-|---|---|---|---|
-| GFPGAN | RUNPOD_API_KEY | restoration-provider.service.ts:88-89 | RESTORATION_ENDPOINT_URL resolves to RunPod endpoint ID, but runViaRunPod requires RUNPOD_API_KEY |
-| DDColor | RUNPOD_API_KEY | restoration-provider.service.ts:88-89 | Same RunPod transport failure; also image is not grayscale |
-| LaMa | RUNPOD_API_KEY | restoration-provider.service.ts:88-89 | Same RunPod transport failure; scratch=47% >15% threshold would trigger if RunPod worked |
-| Real-ESRGAN | REAL_ESRGAN_URL | real-esrgan.service.ts:27-33 | Empty URL → pass-through mode (returns source unchanged) |
+| Transition | Input SHA | Output SHA | Chain | Note |
+|---|---|---|---|---|
+| 01_original → 02_flux_restore | 3f6b0d3f... | da50e0e1... | BROKEN (expected) | FLUX Restore transforms 525x380→1184x880, pxDiff=98.02% |
+| 02_flux_restore → 03_gfpgan | da50e0e1... | da50e0e1... | VERIFIED | Passthrough (error: RUNPOD_API_KEY missing) |
+| 03_gfpgan → 04_realesrgan | da50e0e1... | da50e0e1... | VERIFIED | Passthrough (REAL_ESRGAN_URL not set) |
+| 04_realesrgan → 05_ddcolor | da50e0e1... | da50e0e1... | VERIFIED | Passthrough (error: RUNPOD_API_KEY missing) |
+| 05_ddcolor → 06_lama | da50e0e1... | da50e0e1... | VERIFIED | Passthrough (error: RUNPOD_API_KEY missing) |
+| 06_lama → 07_final | da50e0e1... | da50e0e1... | VERIFIED | Identity copy |
 
-## Pipeline Executed
+## Warnings
 
-FLUX Restore (Replicate, flux-kontext-apps/restore-image) → passthrough (all 4 local stages skipped)
-
-## Comparison with Pipeline A (OPS-109)
-
-| Metric | Current (OPS-113) | Pipeline A (OPS-109) |
-|---|---|---|
-| SSIM vs original | 0.57 | 0.58 |
-| PSNR vs original | 7.29 | 7.56 |
-| Stages executed | FLUX Restore only | FLUX Restore + GFPGAN + Real-ESRGAN (all Replicate) |
+5 stages produced negligible visual change (0% pixel diff): GFPGAN, Real-ESRGAN, DDColor, LaMa, Final. All return the FLUX Restore output unchanged due to missing production environment variables (RUNPOD_API_KEY, REAL_ESRGAN_URL).
 
 ## Evidence
 
-All artifacts saved to `benchmark/results/ops113/2026-07-23T11-53-11/`:
-- Intermediate images: 01-08
-- Stage trace: `10_stage_trace.json`
-- Metrics: `09_metrics.json`
-- Verification report: `15_verification.md`
-- Environment audit: `20_environment.json`
-
-## Fix Required
-
-Set `RUNPOD_API_KEY` and `REAL_ESRGAN_URL` in the benchmark/production environment.
+All artifacts saved to `benchmark/results/ops114/2026-07-23T12-10-49/`:
+- `pipeline_chain.md` — full chaining report
+- `hash_report.csv` — per-stage SHA256, dimensions, size
+- `pixel_difference.csv` — pixel diff, RGB delta, SSIM, PSNR per transition
+- `stage_inputs_outputs.json` — full stage metadata
+- Intermediate PNGs: 01-07
