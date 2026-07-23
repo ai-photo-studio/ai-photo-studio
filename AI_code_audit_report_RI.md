@@ -1,29 +1,44 @@
-# OPS-109 — Head-to-Head Restoration Benchmark
+# OPS-110 — Production Pipeline Cost Audit & Local Execution Verification
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Objective
+## Audit Summary
 
-Benchmark two Replicate restoration models head-to-head:
+**VERIFIED: The production pipeline emits exactly 1 Replicate prediction per uploaded image.**
 
-1. **Pipeline A:** flux-kontext-apps/restore-image → GFPGAN → Real-ESRGAN
-2. **Pipeline B:** microsoft/bringing-old-photos-back-to-life → GFPGAN → Real-ESRGAN
+The architecture set in OPS-108 already achieves the primary goal. No changes to routing or configuration were needed.
 
-## Results
+## Key Findings
 
-See `benchmark/results/ops109/` for full reports.
+### 1. Exactly 1 Replicate Call ✅
+`PipelineOrchestrator` HD tier executes:
+- Step 0: `FluxRestoreProvider` → 1 Replicate call (flux-kontext-apps/restore-image)
+- Step 1: `UnifiedLocalRestorationProvider` → 0 Replicate calls
 
-### Key Findings
+### 2. All Other Replicate Providers Are Dormant
+- `OpenAIProvider` — not in default routing
+- `ReplicateProvider` (CodeFormer) — removed in OPS-108
+- `GFPGANProvider` (Replicate) — removed in OPS-108
+- `DDColorProvider` (Replicate) — removed in OPS-108
+- `MicrosoftBringOldPhotosProvider` — not in default routing
 
-| Metric | Pipeline A (FLUX) | Pipeline B (Microsoft) |
-|---|---|---|
-| Avg Cost/Image | $0.023 | $0.067 |
-| Avg Replicate Latency | 13.4s | 32.8s |
-| Avg SSIM | 0.58 | 0.59 |
-| Avg PSNR | 7.56 | 7.74 |
+### 3. Redundant Local Service Calls (Not Replicate)
+`UnifiedLocalRestorationProvider` makes 3-4 calls to `{RESTORATION_ENDPOINT_URL}/restore`, each of which re-runs the full unified Python pipeline. This wastes self-hosted GPU credits but does NOT generate Replicate charges.
 
-### Caveat
+### 4. Correct Configuration
+All package tiers in `ProviderFactory` and `ProviderPolicyEngine` route to `flux-restore` primary with `unified-local` fallback. No further routing changes needed.
 
-Replicate account credits were exhausted (~$0.25 limit) before all 7 images × 2 pipelines could complete. Pipeline A completed 3/7 images, Pipeline B completed 5/7 images. LPIPS, face identity score, and scratch removal score require specialized computer vision models not available in the current benchmark infrastructure — recorded as UNKNOWN.
+### 5. Dormant Fallback Paths
+The old `ProviderRouter` + `ProviderPolicyEngine` path is still present in the codebase but not executed during `processItem()`.
+
+## Reports Generated
+
+`benchmark/results/ops110/`:
+- `pipeline_trace.md` — Full execution trace from upload to output
+- `replicate_call_graph.md` — Every Replicate API call documented
+- `provider_matrix.csv` — All providers with their status
+- `cost_breakdown.csv` — Cost per provider
+- `duplicate_calls.md` — Duplicate call analysis
+- `recommendations.md` — Recommendations

@@ -1,0 +1,9 @@
+Provider,CostPerImage($),CostPer1000Images($),ReplicateGPUSeconds,CostSource
+FluxRestoreProvider,0.009-0.025,9-25,3.9-10.9,actual (measured from OPS-109)
+OpenAIProvider,0.032-0.040,32-40,N/A,estimated (per-image pricing)
+ReplicateProvider (CodeFormer),0.0034-0.0037,3.4-3.7,2-5,estimated (T4 GPU pricing)
+GFPGANProvider (Replicate),0.005-0.006,5-6,2-3,estimated (L40S GPU pricing)
+DDColorProvider (Replicate),0.001-0.004,1-4,1-2,estimated (L40S GPU pricing)
+MicrosoftBringOldPhotosProvider,0.015-0.071,15-71,6.5-30.9,actual (measured from OPS-109)
+UnifiedLocalRestorationProvider,0.000,0,0,self-hosted (no Replicate cost)
+NAFNetProvider,0.003-0.005,3-5,1-2,estimated
