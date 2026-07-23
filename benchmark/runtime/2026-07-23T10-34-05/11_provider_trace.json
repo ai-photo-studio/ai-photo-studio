@@ -1,0 +1,25 @@
+{
+  "providers": [
+    "flux-restore",
+    "unified-local"
+  ],
+  "pipelineSteps": [
+    {
+      "step": 0,
+      "provider": "flux-restore",
+      "type": "replicate",
+      "model": "flux-kontext-apps/restore-image"
+    },
+    {
+      "step": 1,
+      "provider": "unified-local",
+      "type": "self-hosted",
+      "model": "RestorationGfpganService + RealEsrganService + RestorationDdcolorService + RestorationInpaintService"
+    }
+  ],
+  "replicateCalls": 1,
+  "localCalls": 1,
+  "stages": [
+    "real_esrgan_upscale"
+  ]
+}

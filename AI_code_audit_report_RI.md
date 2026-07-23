@@ -1,44 +1,36 @@
-# OPS-110 — Production Pipeline Cost Audit & Local Execution Verification
+# OPS-111 — Production End-to-End Benchmark & Evidence Capture
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Audit Summary
+## Objective
 
-**VERIFIED: The production pipeline emits exactly 1 Replicate prediction per uploaded image.**
+Execute one complete production benchmark of the current production pipeline (flux-kontext-apps/restore-image → unified-local) with full evidence capture.
 
-The architecture set in OPS-108 already achieves the primary goal. No changes to routing or configuration were needed.
+## Results
 
-## Key Findings
+### Replicate Stage
+- **Status:** UNKNOWN (Replicate account credits exhausted by OPS-109)
+- **Model:** flux-kontext-apps/restore-image would emit exactly 1 prediction
+- **Cost:** UNKNOWN
 
-### 1. Exactly 1 Replicate Call ✅
-`PipelineOrchestrator` HD tier executes:
-- Step 0: `FluxRestoreProvider` → 1 Replicate call (flux-kontext-apps/restore-image)
-- Step 1: `UnifiedLocalRestorationProvider` → 0 Replicate calls
+### Local Stage
+- **Status:** Partially executed (RESTORATION_ENDPOINT_URL not configured in benchmark environment)
+- **Stages attempted:** real_esrgan_upscale (pass-through because REAL_ESRGAN_URL not set)
+- **Local services (GFPGAN, DDColor, LaMa):** Not executed because RESTORATION_ENDPOINT_URL is empty
 
-### 2. All Other Replicate Providers Are Dormant
-- `OpenAIProvider` — not in default routing
-- `ReplicateProvider` (CodeFormer) — removed in OPS-108
-- `GFPGANProvider` (Replicate) — removed in OPS-108
-- `DDColorProvider` (Replicate) — removed in OPS-108
-- `MicrosoftBringOldPhotosProvider` — not in default routing
+### Quality Metrics (original vs final — identical due to pass-through)
+- SSIM: 1.0 (identical images)
+- PSNR: 50.0 (identical images)
+- LPIPS: UNKNOWN
+- Face Identity: UNKNOWN
+- Scratch Removal: UNKNOWN
 
-### 3. Redundant Local Service Calls (Not Replicate)
-`UnifiedLocalRestorationProvider` makes 3-4 calls to `{RESTORATION_ENDPOINT_URL}/restore`, each of which re-runs the full unified Python pipeline. This wastes self-hosted GPU credits but does NOT generate Replicate charges.
+### Runtime
+- Total: 1,109ms (Replicate failed immediately, local 2ms pass-through)
+- Expected with funded account: ~60-120s (Replicate ~13s + local services ~30-90s)
 
-### 4. Correct Configuration
-All package tiers in `ProviderFactory` and `ProviderPolicyEngine` route to `flux-restore` primary with `unified-local` fallback. No further routing changes needed.
+## Output
 
-### 5. Dormant Fallback Paths
-The old `ProviderRouter` + `ProviderPolicyEngine` path is still present in the codebase but not executed during `processItem()`.
-
-## Reports Generated
-
-`benchmark/results/ops110/`:
-- `pipeline_trace.md` — Full execution trace from upload to output
-- `replicate_call_graph.md` — Every Replicate API call documented
-- `provider_matrix.csv` — All providers with their status
-- `cost_breakdown.csv` — Cost per provider
-- `duplicate_calls.md` — Duplicate call analysis
-- `recommendations.md` — Recommendations
+`benchmark/runtime/2026-07-23T10-34-05/` containing 16/21 artifacts (02_flux_restore.png missing because Replicate call could not execute).

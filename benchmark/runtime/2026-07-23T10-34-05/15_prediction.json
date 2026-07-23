@@ -1,0 +1,11 @@
+{
+  "model": "flux-kontext-apps/restore-image",
+  "version": "85ae46551612b8f778348846b6ce1ce1b340e384fe2062399c0c412be29e107d",
+  "predictionId": "UNKNOWN",
+  "gpuSeconds": "UNKNOWN",
+  "actualCost": "UNKNOWN",
+  "estimatedCost": "UNKNOWN",
+  "costSource": "UNKNOWN",
+  "providerVersion": "flux-kontext-apps/restore-image@85ae4655",
+  "processingTimeMs": "UNKNOWN"
+}

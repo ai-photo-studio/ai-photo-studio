@@ -1,0 +1,8 @@
+{
+  "nodeVersion": "v24.15.0",
+  "platform": "win32",
+  "replicateApiToken": "SET",
+  "restorationEndpointUrl": "NOT SET",
+  "realEsrganUrl": "NOT SET",
+  "openaiApiKey": "NOT SET"
+}
