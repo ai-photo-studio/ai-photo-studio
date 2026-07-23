@@ -49,7 +49,7 @@ const TIER_COST: Record<string, number> = {
 const TIER_FACE_MODEL: Record<string, ModelName> = {
   basic: "gfpgan",
   premium: "gfpgan",
-  enterprise: "codeformer"
+  enterprise: "gfpgan"
 };
 
 const TIER_MAX_RESOLUTION_MP: Record<string, number> = {
@@ -122,7 +122,7 @@ export class PipelineBuilderService {
         estimatedDurationMs += STAGE_TIMEOUTS[faceModel] || 60_000;
 
         if (tier === "basic" && faceMapping.fallbackModel) {
-          skipReasons.push("R5: Package tier = basic — skip CodeFormer fallback");
+          skipReasons.push("R5: Package tier = basic — skip face restoration fallback");
         }
       }
     } else if (hasFaces && exceedsMaxRes) {

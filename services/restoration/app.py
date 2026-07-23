@@ -671,12 +671,7 @@ def _should_use_face_restoration(image: Image.Image, damage_severity: str, quali
     if not has_faces:
         return "none", 0.7, 0.5
     
-    if quality_score < 50:
-        return "codeformer", DEFAULT_CODEFORMER_FIDELITY, DEFAULT_CODEFORMER_DENOISE
-    elif quality_score < 70:
-        return "gfpgan", DEFAULT_GFPGAN_FIDELITY, 0.5
-    else:
-        return "gfpgan", DEFAULT_GFPGAN_FIDELITY, 0.5
+    return "gfpgan", DEFAULT_GFPGAN_FIDELITY, 0.5
 
 
 def _should_colorize(image: Image.Image, damage_severity: str, quality_score: float) -> tuple[bool, float, float]:
@@ -754,26 +749,21 @@ def _process_restoration(
     face_provider, face_fidelity, face_denoise = _should_use_face_restoration(working, damage_severity, damage["overall_score"])
     if face_provider != "none":
         stages.append(f"face_restoration_{face_provider}")
-        if face_provider == "gfpgan":
-            gfpgan_model = _load_gfpgan_model()
-            # Save face crops before GFPGAN
-            try:
-                from PIL import ImageDraw
-                draw = ImageDraw.Draw(working.convert("RGB"))
-                faces = _detect_faces(working)
-                for i, face in enumerate(faces):
-                    x, y, w, h = face["x"], face["y"], face["width"], face["height"]
-                    crop = working.crop((x, y, x + w, y + h))
-                    save_debug(file_name or "unknown", crop, f"04_face_{i}_crop_before")
-                    draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
-                if faces:
-                    save_debug(file_name or "unknown", working, "04_face_boxes")
-            except Exception:
-                pass
-            working = _restore_face_gfpgan(working, face_fidelity, gfpgan_model)
-        elif face_provider == "codeformer":
-            codeformer_model = _load_codeformer_model()
-            working = _restore_face_codeformer(working, face_fidelity, face_denoise, codeformer_model)
+        gfpgan_model = _load_gfpgan_model()
+        try:
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(working.convert("RGB"))
+            faces = _detect_faces(working)
+            for i, face in enumerate(faces):
+                x, y, w, h = face["x"], face["y"], face["width"], face["height"]
+                crop = working.crop((x, y, x + w, y + h))
+                save_debug(file_name or "unknown", crop, f"04_face_{i}_crop_before")
+                draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
+            if faces:
+                save_debug(file_name or "unknown", working, "04_face_boxes")
+        except Exception:
+            pass
+        working = _restore_face_gfpgan(working, face_fidelity, gfpgan_model)
         save_debug(file_name or "unknown", working, "05_face_restored")
     
     needs_color, color_temp, color_sat = _should_colorize(working, damage_severity, damage["overall_score"])
@@ -823,7 +813,6 @@ def health():
     models_loaded = {
         "lama": model_cache.lama is not None,
         "gfpgan": model_cache.gfpgan is not None,
-        "codeformer": model_cache.codeformer is not None,
         "ddcolor": model_cache.ddcolor is not None,
         "realesrgan": model_cache.realsrgan is not None,
     }

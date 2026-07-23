@@ -9,6 +9,7 @@ import { FluxRestoreProvider } from "../providers/FluxRestoreProvider";
 import { GFPGANProvider } from "../providers/GFPGANProvider";
 import { DDColorProvider } from "../providers/DDColorProvider";
 import { NAFNetProvider } from "../providers/NAFNetProvider";
+import { UnifiedLocalRestorationProvider } from "../providers/UnifiedLocalRestorationProvider";
 
 export class ProviderFactory {
   private readonly config: AppConfig;
@@ -53,6 +54,9 @@ export class ProviderFactory {
       case "nafnet":
         provider = new NAFNetProvider(this.config.REPLICATE_API_TOKEN);
         break;
+      case "unified-local":
+        provider = new UnifiedLocalRestorationProvider(this.config);
+        break;
       default:
         throw new Error(`Unknown provider: ${name}`);
     }
@@ -63,11 +67,11 @@ export class ProviderFactory {
 
   createForPackage(tier: PackageTier): { primary: IRestorationProvider; fallback: IRestorationProvider | null } {
     const mapping: Record<PackageTier, { primary: string; fallback: string | null }> = {
-      preview: { primary: "replicate", fallback: "openai" },
-      basic: { primary: "flux-restore", fallback: "openai" },
-      premium: { primary: "flux-restore", fallback: "openai" },
-      print: { primary: "flux-restore", fallback: "openai" },
-      archive: { primary: "replicate", fallback: "openai" },
+      preview: { primary: "flux-restore", fallback: "unified-local" },
+      basic: { primary: "flux-restore", fallback: "unified-local" },
+      premium: { primary: "flux-restore", fallback: "unified-local" },
+      print: { primary: "flux-restore", fallback: "unified-local" },
+      archive: { primary: "flux-restore", fallback: "unified-local" },
     };
 
     const config = mapping[tier];
@@ -78,6 +82,6 @@ export class ProviderFactory {
   }
 
   getAvailableProviders(): string[] {
-    return ["runpod", "mock", "openai", "fal-ai", "replicate", "flux-restore", "gfpgan", "ddcolor", "nafnet"];
+    return ["runpod", "mock", "openai", "fal-ai", "replicate", "flux-restore", "gfpgan", "ddcolor", "nafnet", "unified-local"];
   }
 }

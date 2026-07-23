@@ -128,7 +128,7 @@ const MODEL_SPECS: Record<ModelName, ModelSpec> = {
 const CAPABILITY_MAPPING: ModelCapabilityMapping[] = [
   { capability: "background-removal", preferredModel: "yolov8-seg", fallbackModel: "sam2", enabled: true },
   { capability: "face-detection", preferredModel: "retinaface", enabled: true },
-  { capability: "face-restoration", preferredModel: "gfpgan", fallbackModel: "codeformer", enabled: true },
+  { capability: "face-restoration", preferredModel: "gfpgan", enabled: true },
   { capability: "inpainting", preferredModel: "lama", enabled: true },
   { capability: "colorization", preferredModel: "ddcolor", enabled: true },
   { capability: "upscaling", preferredModel: "real-esrgan", enabled: true }

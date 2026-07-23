@@ -1,9 +1,6 @@
 import type { IRestorationProvider, RestorationRequest, RestorationResult } from "../interfaces/IRestorationProvider";
 import { FluxRestoreProvider } from "../providers/FluxRestoreProvider";
-import { GFPGANProvider } from "../providers/GFPGANProvider";
-import { DDColorProvider } from "../providers/DDColorProvider";
-import { NAFNetProvider } from "../providers/NAFNetProvider";
-import { OpenAIProvider } from "../providers/OpenAIProvider";
+import { UnifiedLocalRestorationProvider } from "../providers/UnifiedLocalRestorationProvider";
 import type { AppConfig } from "../../config/env";
 import { logger } from "../../utils/logger";
 
@@ -29,20 +26,21 @@ export interface PipelineResult {
 }
 
 /**
- * Modernized restoration pipeline orchestrator (OPS-96).
+ * OPS-108 Hybrid Production Pipeline.
  *
- * Pipeline definitions:
+ * Replicate is used ONLY for flux-kontext-apps/restore-image.
+ * All remaining stages execute locally:
+ *   Damage Analysis (local)
+ *   Decision Engine
+ *   FLUX Restore (Replicate)
+ *   GFPGAN (local)
+ *   Real-ESRGAN (local)
+ *   DDColor (local, conditional — grayscale only)
+ *   LaMa (local, conditional — scratch > threshold)
+ *   Quality Validation
  *
- * Light:
- *   GPT Image 1.5 (OpenAI)
- *
- * HD:
- *   FLUX Restore → GFPGAN → Real-ESRGAN (via existing services)
- *
- * Premium:
- *   FLUX Restore → GFPGAN → Real-ESRGAN → DDColor → GPT Image 2 (OpenAI)
- *
- * The pipeline is configurable via the PipelineBuilder.
+ * CodeFormer is removed from production routing.
+ * DDColor is removed from default routing (grayscale only).
  */
 export class PipelineOrchestrator {
   private readonly configPipelines: Map<PipelineTier, PipelineConfig> = new Map();
@@ -55,35 +53,32 @@ export class PipelineOrchestrator {
 
   private buildDefaultPipelines(): void {
     const fluxRestore = new FluxRestoreProvider(this.config.REPLICATE_API_TOKEN);
-    const gfpgan = new GFPGANProvider(this.config.REPLICATE_API_TOKEN);
-    const ddcolor = new DDColorProvider(this.config.REPLICATE_API_TOKEN);
-    const openai = new OpenAIProvider(this.config);
+    const unifiedLocal = new UnifiedLocalRestorationProvider(this.config);
 
-    // Light: GPT Image 1.5 (single provider, lowest cost)
+    // Light: FLUX Restore only (single Replicate call)
     this.configPipelines.set("light", {
       tier: "light",
       steps: [
-        { provider: openai, label: "openai-gpt-image-1.5" },
+        { provider: fluxRestore, label: "flux-restore" },
       ],
     });
 
-    // HD: FLUX Restore → GFPGAN (face enhancement) → (Real-ESRGAN handled by existing infra)
+    // HD: FLUX Restore (Replicate) → GFPGAN (local) → Real-ESRGAN (local)
     this.configPipelines.set("hd", {
       tier: "hd",
       steps: [
         { provider: fluxRestore, label: "flux-restore" },
-        { provider: gfpgan, label: "gfpgan-face-enhance" },
+        { provider: unifiedLocal, label: "unified-local-postprocessing" },
       ],
     });
 
-    // Premium: FLUX Restore → GFPGAN → DDColor → GPT Image 2
+    // Premium: FLUX Restore (Replicate) → GFPGAN (local) → Real-ESRGAN (local)
+    // DDColor and LaMa are handled conditionally inside UnifiedLocalRestorationProvider
     this.configPipelines.set("premium", {
       tier: "premium",
       steps: [
         { provider: fluxRestore, label: "flux-restore" },
-        { provider: gfpgan, label: "gfpgan-face-enhance" },
-        { provider: ddcolor, label: "ddcolor-colorization" },
-        { provider: openai, label: "openai-gpt-image-2" },
+        { provider: unifiedLocal, label: "unified-local-postprocessing" },
       ],
     });
   }

@@ -9,7 +9,8 @@ import { UnifiedRestorationService } from "./restoration-provider.service";
 import { SubscriptionService } from "./subscription.service";
 import { NotificationService } from "./notification.service";
 import { ProviderFactory } from "../restoration-providers/factory/ProviderFactory";
-import { ProviderRouter } from "../restoration-providers/router/ProviderRouter";
+import { PipelineOrchestrator } from "../restoration-providers/pipeline/PipelineOrchestrator";
+import type { PipelineTier } from "../restoration-providers/pipeline/PipelineOrchestrator";
 import { ProviderPolicyEngine } from "../restoration-providers/policy/ProviderPolicyEngine";
 import type { PackageTier } from "../restoration-providers/interfaces/IRestorationProvider";
 
@@ -70,7 +71,7 @@ export class RestorationService {
   private readonly subscriptionService: SubscriptionService;
   private readonly notificationService: NotificationService;
   private readonly providerFactory: ProviderFactory;
-  private readonly providerRouter: ProviderRouter;
+  private readonly pipelineOrchestrator: PipelineOrchestrator;
   private readonly policyEngine: ProviderPolicyEngine;
 
   constructor(private readonly config: AppConfig) {
@@ -80,6 +81,7 @@ export class RestorationService {
     this.subscriptionService = new SubscriptionService();
     this.notificationService = new NotificationService();
     this.providerFactory = new ProviderFactory(config);
+    this.pipelineOrchestrator = new PipelineOrchestrator(config);
     this.policyEngine = new ProviderPolicyEngine({
       dynamicRouting: {
         mode: config.providerMode,
@@ -95,12 +97,6 @@ export class RestorationService {
         minScoreThreshold: 30,
         maxCostOverride: 0.100,
       },
-    });
-    this.providerRouter = new ProviderRouter({
-      shadowMode: this.policyEngine.isShadowModeEnabled() ? "enabled" : "disabled",
-      abTestMode: "disabled",
-      failoverCooldownMs: 30000,
-      maxRetries: 2,
     });
   }
 
@@ -327,7 +323,6 @@ export class RestorationService {
       damage_detection: "RESTORATION_ANALYSIS",
       lama_inpaint: "RESTORATION_INPAINT",
       face_restoration_gfpgan: "RESTORATION_FACE",
-      face_restoration_codeformer: "RESTORATION_FACE",
       colorization_ddcolor: "RESTORATION_COLORIZE",
       real_esrgan_upscale: "RESTORATION_UPSCALE"
     };
@@ -339,57 +334,34 @@ export class RestorationService {
       });
 
       const packageTier: PackageTier = "basic";
-      const routingContext = {
-        packageTier,
-        imageCategory: item.imageCategory || undefined,
-        damageSeverity: item.damageSeverity || undefined,
-        hasFaces: (item.faceCount ?? 0) > 0,
-        isBlackAndWhite: item.colorMode === "black_and_white",
-        imageSizeBytes: item.fileSizeBytes ?? undefined,
-      };
+      const pipelineTier: PipelineTier = "hd";
 
-      const routingDecision = this.policyEngine.makeRoutingDecision(routingContext);
-      logger.info("Provider routing decision", { itemId, decision: routingDecision });
-
-      const primaryProvider = this.providerFactory.create(routingDecision.primaryProvider);
-      this.providerRouter.registerProvider(primaryProvider);
-
-      if (routingDecision.fallbackProvider) {
-        try {
-          const fallbackProvider = this.providerFactory.create(routingDecision.fallbackProvider);
-          this.providerRouter.registerProvider(fallbackProvider);
-        } catch (err) {
-          logger.warn("Failed to register fallback provider", { itemId, provider: routingDecision.fallbackProvider, error: err instanceof Error ? err.message : String(err) });
-        }
-      }
-
-      const result = await this.providerRouter.route(
+      const pipelineResult = await this.pipelineOrchestrator.execute(
         {
           image: original.body,
           contentType: item.mimeType || "image/jpeg",
           fileName: `restoration-${itemId}.jpg`,
         },
-        routingContext,
-        routingDecision
+        pipelineTier
       );
 
-      processedBuffer = result.image;
-      processedContentType = result.contentType;
-      providersUsed = result.stages;
-      logger.info("Restoration completed via provider router", {
+      processedBuffer = pipelineResult.final.image;
+      processedContentType = pipelineResult.final.contentType;
+      providersUsed = pipelineResult.final.stages;
+      logger.info("Restoration completed via hybrid pipeline", {
         itemId,
-        provider: result.providerName,
+        tier: pipelineTier,
         stages: providersUsed,
-        processingTimeMs: result.processingTimeMs,
-        estimatedCost: result.estimatedCost,
+        totalProcessingTimeMs: pipelineResult.totalProcessingTimeMs,
+        totalCost: pipelineResult.totalActualCost,
       });
 
       providersUsed.sort((a, b) => {
-        const order = ["damage_detection", "lama_inpaint", "face_restoration_gfpgan", "face_restoration_codeformer", "colorization_ddcolor", "real_esrgan_upscale"];
+        const order = ["damage_detection", "lama_inpaint", "face_restoration_gfpgan", "colorization_ddcolor", "real_esrgan_upscale"];
         return (order.indexOf(a) - order.indexOf(b));
       });
 
-      providerUsedName = result.providerName;
+      providerUsedName = pipelineResult.final.providerName;
 
       for (const stage of providersUsed) {
         const mapped = stageMap[stage];
