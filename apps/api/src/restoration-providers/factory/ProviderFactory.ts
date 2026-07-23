@@ -6,6 +6,7 @@ import { OpenAIProvider } from "../providers/OpenAIProvider";
 import { FalAiProvider } from "../providers/FalAiProvider";
 import { ReplicateProvider } from "../providers/ReplicateProvider";
 import { FluxRestoreProvider } from "../providers/FluxRestoreProvider";
+import { ReplicatePipelineProvider } from "../providers/ReplicatePipelineProvider";
 import { GFPGANProvider } from "../providers/GFPGANProvider";
 import { DDColorProvider } from "../providers/DDColorProvider";
 import { NAFNetProvider } from "../providers/NAFNetProvider";
@@ -44,6 +45,9 @@ export class ProviderFactory {
         break;
       case "flux-restore":
         provider = new FluxRestoreProvider(this.config.REPLICATE_API_TOKEN);
+        break;
+      case "replicate-pipeline":
+        provider = new ReplicatePipelineProvider(this.config.REPLICATE_API_TOKEN);
         break;
       case "gfpgan":
         provider = new GFPGANProvider(this.config.REPLICATE_API_TOKEN);

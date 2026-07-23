@@ -62,6 +62,7 @@ const mockConfig: AppConfig = {
   queueDryRun: true,
   deliveryMode: "LOG_ONLY",
   providerMode: "manual" as const,
+  restorationPipeline: "replicate" as const,
 };
 
 // Generate a small test PNG (256x256 with colored noise)

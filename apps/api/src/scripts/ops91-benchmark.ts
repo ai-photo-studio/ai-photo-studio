@@ -93,6 +93,7 @@ const mockConfig: AppConfig = {
   queueDryRun: true,
   deliveryMode: "LOG_ONLY",
   providerMode: "automatic",
+  restorationPipeline: "replicate" as const,
 };
 
 async function getImageDimensions(input: string | Buffer): Promise<{ width: number; height: number }> {

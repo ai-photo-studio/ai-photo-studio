@@ -28,6 +28,7 @@ const mockConfig: AppConfig = {
   ADMIN_JWT_SECRET: "test", JWT_SECRET: "test", DELIVERY_MODE: "LOG_ONLY", ALLOWED_ORIGINS: "",
   aiProvider: "mock", paymentProvider: "manual", whatsappDryRun: true, storageDryRun: true,
   queueDryRun: true, deliveryMode: "LOG_ONLY", providerMode: "automatic",
+  restorationPipeline: "replicate" as const,
 };
 
 function timestamp(): string {

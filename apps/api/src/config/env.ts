@@ -34,6 +34,7 @@ const envSchema = z
     R2_ENDPOINT: z.string().optional().default(""),
     AI_PROVIDER_API_KEY: z.string().optional().default(""),
     RESTORATION_ENDPOINT_URL: z.string().optional().default(""),
+    RESTORATION_PIPELINE: z.enum(["replicate", "hybrid", "local"]).default("replicate"),
     QUEUE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(60),
     PROCESSING_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(90),
     ABSOLUTE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(150),
@@ -208,7 +209,61 @@ export type AppConfig = z.infer<typeof envSchema> & {
   queueDryRun: boolean;
   deliveryMode: "LOG_ONLY" | "WHATSAPP";
   providerMode: "automatic" | "manual" | "benchmark" | "shadow";
+  restorationPipeline: "replicate" | "hybrid" | "local";
 };
+
+// Helper to create a partial AppConfig with defaults for scripts/benchmarks
+export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => ({
+  NODE_ENV: "development",
+  PORT: 4000,
+  DATABASE_URL: "postgresql://placeholder",
+  REDIS_URL: "redis://placeholder",
+  STORAGE_PROVIDER: "mock",
+  BACKGROUND_API_URL: "",
+  PRODUCT_CLASSIFIER_URL: "",
+  REAL_ESRGAN_URL: "",
+  IC_LIGHT_LAB_URL: "",
+  WHATSAPP_VERIFY_TOKEN: "test",
+  WHATSAPP_ACCESS_TOKEN: "",
+  WHATSAPP_PHONE_NUMBER_ID: "",
+  PAYMENT_GATEWAY_NAME: "manual",
+  PAYMENT_GATEWAY_BASE_URL: "",
+  PAYMENT_GATEWAY_SECRET: "",
+  AI_PROVIDER: "mock",
+  AI_PROVIDER_NAME: "mock",
+  PHOTOROOM_API_KEY: "",
+  FAL_API_KEY: "",
+  FAL_AI_API_KEY: "",
+  OPENAI_API_KEY: "",
+  REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN || "",
+  PROVIDER_MODE: "automatic",
+  YOLO_DETECTOR_URL: "",
+  R2_ACCOUNT_ID: "",
+  R2_ACCESS_KEY_ID: "",
+  R2_SECRET_ACCESS_KEY: "",
+  R2_BUCKET_NAME: "",
+  R2_PUBLIC_BASE_URL: "",
+  R2_ENDPOINT: "",
+  AI_PROVIDER_API_KEY: "",
+  RESTORATION_ENDPOINT_URL: process.env.RESTORATION_ENDPOINT_URL || "",
+  RESTORATION_PIPELINE: "replicate",
+  QUEUE_TIMEOUT_SECONDS: 60,
+  PROCESSING_TIMEOUT_SECONDS: 90,
+  ABSOLUTE_TIMEOUT_SECONDS: 150,
+  ADMIN_JWT_SECRET: "test-admin-jwt",
+  JWT_SECRET: "test-jwt",
+  DELIVERY_MODE: "LOG_ONLY",
+  ALLOWED_ORIGINS: "",
+  aiProvider: "mock",
+  paymentProvider: "manual",
+  whatsappDryRun: true,
+  storageDryRun: true,
+  queueDryRun: true,
+  deliveryMode: "LOG_ONLY",
+  providerMode: "automatic",
+  restorationPipeline: (process.env.RESTORATION_PIPELINE as "replicate" | "hybrid" | "local") || "replicate",
+  ...overrides,
+});
 
 const toSafePreview = (key: string, value: string | number | boolean) => {
   if (/secret|token|key|password/i.test(key)) return "[hidden]";
@@ -245,7 +300,8 @@ export const loadConfig = (): AppConfig => {
       cfg.R2_ACCESS_KEY_ID === "replace_me",
     queueDryRun: !cfg.REDIS_URL || cfg.REDIS_URL.includes("replace_me"),
     deliveryMode: cfg.DELIVERY_MODE,
-    providerMode: cfg.PROVIDER_MODE
+    providerMode: cfg.PROVIDER_MODE,
+    restorationPipeline: cfg.RESTORATION_PIPELINE,
   };
 };
 

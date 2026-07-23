@@ -95,6 +95,7 @@ const mockConfig: AppConfig = {
   queueDryRun: true,
   deliveryMode: "LOG_ONLY",
   providerMode: "automatic",
+  restorationPipeline: "replicate" as const,
 };
 
 interface ProviderResult {

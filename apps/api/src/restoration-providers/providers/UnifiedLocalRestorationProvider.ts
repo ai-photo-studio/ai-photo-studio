@@ -15,6 +15,17 @@ interface DamageAnalysis {
 
 const SCRATCH_THRESHOLD = 15;
 
+/**
+ * LEGACY_LOCAL_PIPELINE — OPS-116 disabled by default.
+ *
+ * This provider routes GFPGAN, DDColor, and LaMa through RunPod
+ * via RESTORATION_ENDPOINT_URL. Requires RUNPOD_API_KEY.
+ *
+ * The default RESTORATION_PIPELINE=replicate bypasses this provider
+ * in favor of 3 direct Replicate calls (OPS-109 proven pipeline).
+ *
+ * Re-enable by setting RESTORATION_PIPELINE=hybrid or =local.
+ */
 export class UnifiedLocalRestorationProvider implements IRestorationProvider {
   readonly name = "unified-local";
   readonly type = "self-hosted" as const;

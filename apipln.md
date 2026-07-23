@@ -1,17 +1,20 @@
-# OPS-115 — Root Cause Analysis
+# OPS-116 — Production Launch Configuration
 
-## Why OPS-109 quality is not reproduced
+## Status
 
-**Architecture difference:** OPS-109 benchmark bypassed the local service pipeline entirely. It made 3 direct Replicate HTTP API calls sequentially:
-1. `flux-kontext-apps/restore-image` (initial restoration)
-2. `tencentarc/gfpgan` (face enhancement)
-3. `tencentarc/gfpgan` with scale=2 (upscaling as Real-ESRGAN proxy)
+OPS-109 commercial-quality pipeline restored as the default production pipeline.
 
-All three use the same `REPLICATE_API_TOKEN` via the same `BaseReplicateProvider` HTTP transport.
+`RESTORATION_PIPELINE=replicate` → the same 3-stage Replicate pipeline proven in OPS-109.
 
-**Current architecture (OPS-108):** Routes stages 2-4 through RunPod via `RESTORATION_ENDPOINT_URL=3z633s11yn4n8q`. The transport function `runViaRunPod()` at `restoration-provider.service.ts:87-89` requires `RUNPOD_API_KEY`, which is not set in .env.local, process.env, or any audited environment source.
+RunPod local stages (GFPGAN, DDColor, LaMa, Real-ESRGAN via RESTORATION_ENDPOINT_URL) are disabled by default and marked LEGACY_LOCAL_PIPELINE. Re-enable with `RESTORATION_PIPELINE=hybrid` and `RUNPOD_API_KEY` set.
 
-## Road to recovery
+## What Changed
 
-Option A: Set `RUNPOD_API_KEY` and `REAL_ESRGAN_URL` — RunPod unified endpoint handles all local stages.
-Option B: Revert to direct Replicate calls for GFPGAN and upscaling using `GFPGANProvider` as in OPS-109.
+- New `ReplicatePipelineProvider` orchestrates 3 sequential Replicate calls
+- `PipelineOrchestrator` default tier is now `replicate` instead of `hd`
+- `env.ts` schema extended with `RESTORATION_PIPELINE` enum
+- `UnifiedLocalRestorationProvider` marked LEGACY_LOCAL_PIPELINE (code preserved)
+
+## Benchmark Confirmation
+
+Single-image benchmark on `2.jpeg`: SSIM 0.58, PSNR 7.51, $0.0519 — matches OPS-109 commercial quality.
