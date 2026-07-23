@@ -1,39 +1,35 @@
-# OPS-120 — Production Pipeline Activation & Commerce Workflow Refactor
+# OPS-121 — Frontend Commerce Migration
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## PART A: Production Routing Fix — APPLIED
+## PART A: Frontend Routing Audit — NOT VERIFIED
 
-`restoration.service.ts:337` changed:
-- `- const pipelineTier: PipelineTier = "hd"`
-- `+ const pipelineTier: PipelineTier = this.pipelineOrchestrator.getDefaultTier()`
+Legacy workflow still active in customer UI.
 
-Production route now respects `RESTORATION_PIPELINE` env var (default: `replicate`).
+| Route | Component | Status |
+|-------|-----------|--------|
+| /restore | RestorationHistoryPage | EXISTS |
+| /restore/new | RestoreNewPage | EXISTS (no package selection) |
+| /restore/:orderId | RestoreOrderPage | EXISTS (has Process/Approve/Reject) |
 
-## PART B-D: Commerce Workflow Redesigned
+## PART B: Workflow Replacement — NOT VERIFIED
 
-**OLD:** Upload → Replicate (unpaid) → Preview → Download/Print
-**NEW:** Upload → Package Selection → Payment → Replicate → Master → All Assets
+Customer UI displays internal labels (Approve, Reject, Damage score, Quality score) that should be admin-only.
 
-## PART E: Verification — ALL PASS
+## PART C: Customer Page Sanitization — NOT VERIFIED
 
-| Check | Result |
-|---|---|
-| 1 paid order → 3 Replicate predictions | **PASS** (3 predictions) |
-| Exactly one restored master image | **PASS** (4736×3520, 20.2MB) |
-| All download sizes from master (0 extra Replicate calls) | **PASS** (sharp resize) |
-| Print uses master (0 extra Replicate calls) | **PASS** |
-| No additional Replicate predictions | **PASS** |
+Process/Approve/Reject buttons still visible to customers.
 
-## Cost Savings
+## PART D: Download Manager — NOT VERIFIED
 
-| Scenario | Before | After | Savings |
-|---|---|---|---|
-| Abandoned upload | $0.046 | $0.00 | 100% |
-| Full order (3 sizes + print) | $0.230 | $0.046 | 80% |
+No multi-tier download tracking (Original, 2X, 4X, 6X, 8X, 12X) found. No master-image regeneration without Replicate rerun.
+
+## PART E: Deployment Verification — UNKNOWN
+
+Cannot verify Cloudflare Pages deployment without browser access.
 
 ## Evidence
 
-All artifacts saved to `benchmark/results/ops120/<timestamp>/`.
+Artifacts saved to `benchmark/results/ops121/2026-07-23_23-45-00/`

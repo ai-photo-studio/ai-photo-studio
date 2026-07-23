@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-07-23T23-45-00",
+  "pipelineMode": "replicate",
+  "availableTiers": ["replicate", "light", "hd", "premium"],
+  "getDefaultTier": "basic",
+  "replicateStages": {
+    "flux-kontext-apps/restore-image": "USED",
+    "tencentarc/gfpgan": "USED via BaseReplicateProvider",
+    "piddnad/ddcolor": "USED via BaseReplicateProvider",
+    "megvii-research/nafnet": "USED via BaseReplicateProvider"
+  },
+  "localStages": {
+    "lama": "DEFINED in env.ts but not used in PipelineOrchestrator",
+    "realesrgan": "DEFINED in env.ts but not used in PipelineOrchestrator"
+  },
+  "hybridRequirement": "Flux only from Replicate, others local",
+  "actualImplementation": "Multiple Replicate models used (GFPGAN, DDColor, NAFNet via BaseReplicateProvider)"
+}

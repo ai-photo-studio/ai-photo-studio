@@ -1,14 +1,29 @@
-# OPS-120 — Production Pipeline Activation
+# OPS-121 — Frontend Commerce Migration Verification
 
-## Summary
+## PART A: Frontend Routing Audit — NOT VERIFIED
 
-**PART A (Fix):** Production routing now uses `pipelineOrchestrator.getDefaultTier()` instead of hardcoded `"hd"`. The `RESTORATION_PIPELINE` env var is now effective on the production POST /process route.
+Legacy workflow active. No package selection between upload and processing.
 
-**PART B-D (Workflow):** New paid-first flow. Replicate runs after payment, not before. Master image stored once. All download sizes and print assets generated locally via sharp (0 additional Replicate calls).
+## PART B: Workflow Replacement — NOT VERIFIED
 
-**PART E (Verification):** All checks pass. 3 predictions per paid order, 1 master image, all assets from master.
+Customer UI shows Process/Approve/Reject (internal admin steps).
 
-## Cost Impact
+## PART C: Customer Page Sanitization — NOT VERIFIED
 
-- Abandoned uploads: $0.046/ea → $0.00 (save 100%)
-- Completed orders: $0.230 → $0.046/ea (save 80%, $2,444/year at 1,000 orders/month)
+Damage/Quality scores displayed to customers.
+
+## PART D: Download Manager — NOT VERIFIED
+
+No tier tracking (Original, 2X, 4X, 6X, 8X, 12X). No master regeneration.
+
+## PART E: Deployment Verification — UNKNOWN
+
+Cannot verify live Cloudflare Pages without browser access.
+
+## Required Changes
+
+Frontend pages must be refactored to:
+1. Remove Process/Approve/Reject buttons from customer view
+2. Hide admin-only metrics (Damage score, Quality score)
+3. Add package selection before processing
+4. Implement download manager with tier support
