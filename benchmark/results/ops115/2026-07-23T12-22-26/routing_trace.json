@@ -1,0 +1,100 @@
+{
+  "title": "OPS-115 Routing Trace",
+  "timestamp": "2026-07-23T12:22:26.597Z",
+  "ops109": {
+    "description": "Direct Replicate calls for all stages",
+    "stages": [
+      {
+        "name": "flux_restore",
+        "provider": "FluxRestoreProvider",
+        "transport": "Replicate HTTP API",
+        "endpoint": "POST /v1/models/flux-kontext-apps/restore-image/versions/85ae4655.../predictions",
+        "model": "flux-kontext-apps/restore-image",
+        "apiKey": "REPLICATE_API_TOKEN",
+        "executed": true
+      },
+      {
+        "name": "gfpgan",
+        "provider": "GFPGANProvider",
+        "transport": "Replicate HTTP API",
+        "endpoint": "POST /v1/models/tencentarc/gfpgan/versions/0fbacf7a.../predictions",
+        "model": "tencentarc/gfpgan",
+        "apiKey": "REPLICATE_API_TOKEN",
+        "executed": true
+      },
+      {
+        "name": "realesrgan",
+        "provider": "GFPGANProvider (reused)",
+        "transport": "Replicate HTTP API",
+        "endpoint": "POST /v1/models/tencentarc/gfpgan/versions/0fbacf7a.../predictions",
+        "model": "tencentarc/gfpgan (scale=2)",
+        "apiKey": "REPLICATE_API_TOKEN",
+        "executed": true
+      }
+    ],
+    "credentials": {
+      "REPLICATE_API_TOKEN": "REQUIRED"
+    }
+  },
+  "current": {
+    "description": "OPS-108 hybrid: Replicate for flux, RunPod for local stages",
+    "stages": [
+      {
+        "name": "flux_restore",
+        "provider": "FluxRestoreProvider",
+        "transport": "Replicate HTTP API",
+        "endpoint": "POST /v1/models/flux-kontext-apps/restore-image/versions/85ae4655.../predictions",
+        "model": "flux-kontext-apps/restore-image",
+        "apiKey": "REPLICATE_API_TOKEN",
+        "executed": true
+      },
+      {
+        "name": "gfpgan",
+        "provider": "RestorationGfpganService → UnifiedRestorationService → postImage → runViaRunPod",
+        "transport": "RunPod SDK",
+        "endpoint": "https://api.runpod.ai/v2/3z633s11yn4n8q/runsync",
+        "model": "RunPod endpoint 3z633s11yn4n8q",
+        "apiKey": "RUNPOD_API_KEY + RESTORATION_ENDPOINT_URL",
+        "executed": false,
+        "failReason": "RUNPOD_API_KEY missing at restoration-provider.service.ts:88-89"
+      },
+      {
+        "name": "realesrgan",
+        "provider": "RealEsrganService",
+        "transport": "HTTP (if REAL_ESRGAN_URL set) / RunPod",
+        "endpoint": "REAL_ESRGAN_URL endpoint",
+        "model": "configurable",
+        "apiKey": "REAL_ESRGAN_URL",
+        "executed": false,
+        "failReason": "REAL_ESRGAN_URL empty → passthrough at real-esrgan.service.ts:27-33"
+      },
+      {
+        "name": "ddcolor",
+        "provider": "RestorationDdcolorService → UnifiedRestorationService → postImage → runViaRunPod",
+        "transport": "RunPod SDK",
+        "endpoint": "https://api.runpod.ai/v2/3z633s11yn4n8q/runsync",
+        "model": "RunPod endpoint 3z633s11yn4n8q",
+        "apiKey": "RUNPOD_API_KEY + RESTORATION_ENDPOINT_URL",
+        "executed": false,
+        "failReason": "RUNPOD_API_KEY missing + image not grayscale"
+      },
+      {
+        "name": "lama",
+        "provider": "RestorationInpaintService → UnifiedRestorationService → postImage → runViaRunPod",
+        "transport": "RunPod SDK",
+        "endpoint": "https://api.runpod.ai/v2/3z633s11yn4n8q/runsync",
+        "model": "RunPod endpoint 3z633s11yn4n8q",
+        "apiKey": "RUNPOD_API_KEY + RESTORATION_ENDPOINT_URL",
+        "executed": false,
+        "failReason": "RUNPOD_API_KEY missing"
+      }
+    ],
+    "credentials": {
+      "REPLICATE_API_TOKEN": "SET",
+      "RUNPOD_API_KEY": "NOT SET",
+      "RESTORATION_ENDPOINT_URL": "3z633s11yn4n8q",
+      "REAL_ESRGAN_URL": "NOT SET"
+    }
+  },
+  "conclusion": "The provider routing architecture changed from 3 direct Replicate calls (OPS-109) to 1 Replicate call + 4 RunPod calls (current). The RunPod calls fail because RUNPOD_API_KEY is absent from all audited environment sources. The pipeline degrades to a single FLUX Restore call with all local stages in passthrough mode."
+}
