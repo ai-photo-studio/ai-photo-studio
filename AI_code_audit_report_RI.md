@@ -1,81 +1,29 @@
-# OPS-108 — Hybrid Production Pipeline
+# OPS-109 — Head-to-Head Restoration Benchmark
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Pipeline Architecture
+## Objective
 
-```
-Upload
-  |
-  v
-Damage Analysis (local)
-  |
-  v
-Decision Engine
-  |
-  v
-Replicate: flux-kontext-apps/restore-image
-  |
-  v
-GFPGAN (local - self-hosted service)
-  |
-  v
-Real-ESRGAN (local - self-hosted service)
-  |
-  v
-DDColor (local - conditional: grayscale only)
-  |
-  v
-LaMa (local - conditional: scratch severity > threshold)
-  |
-  v
-Quality Validation
-  |
-  v
-Output
-```
+Benchmark two Replicate restoration models head-to-head:
 
-## Key Changes
+1. **Pipeline A:** flux-kontext-apps/restore-image → GFPGAN → Real-ESRGAN
+2. **Pipeline B:** microsoft/bringing-old-photos-back-to-life → GFPGAN → Real-ESRGAN
 
-### Replicate: ONLY flux-kontext-apps/restore-image
-- Single Replicate model used for all tiers
-- No additional Replicate restoration models (no sczhou/codeformer, no tencentarc/gfpgan, no piddnad/ddcolor)
-- Model: `flux-kontext-apps/restore-image@85ae4655`
+## Results
 
-### Local Processing (All Remaining Stages)
-- **GFPGAN**: Self-hosted service (always applied for face restoration)
-- **Real-ESRGAN**: Self-hosted service (always applied for upscaling)
-- **DDColor**: Self-hosted service (conditional — only when image is grayscale)
-- **LaMa**: Self-hosted service (conditional — only when scratch severity > 15% threshold)
+See `benchmark/results/ops109/` for full reports.
 
-### Removed from Production Routing
-- **CodeFormer**: Removed from all production routing
-- **DDColor**: Removed from default routing (now grayscale-only conditional)
-- **GFPGAN Replicate**: Removed (now local only)
-- **OpenAI GPT Image**: Removed from pipeline defaults
+### Key Findings
 
-## Files Modified
+| Metric | Pipeline A (FLUX) | Pipeline B (Microsoft) |
+|---|---|---|
+| Avg Cost/Image | $0.023 | $0.067 |
+| Avg Replicate Latency | 13.4s | 32.8s |
+| Avg SSIM | 0.58 | 0.59 |
+| Avg PSNR | 7.56 | 7.74 |
 
-| File | Change |
-|------|--------|
-| `services/restoration/app.py` | Always use GFPGAN; remove CodeFormer branching |
-| `apps/api/src/restoration-providers/pipeline/PipelineOrchestrator.ts` | Hybrid pipeline: FLUX Restore + unified local postprocessing |
-| `apps/api/src/restoration-providers/providers/UnifiedLocalRestorationProvider.ts` | NEW: Local provider handling GFPGAN, Real-ESRGAN, conditional DDColor/LaMa |
-| `apps/api/src/restoration-providers/factory/ProviderFactory.ts` | Register unified-local provider; update package routing |
-| `apps/api/src/restoration-providers/policy/ProviderPolicyEngine.ts` | All tiers use flux-restore + unified-local |
-| `apps/api/src/providers/model-selection.matrix.ts` | Remove CodeFormer fallback |
-| `apps/api/src/services/pipeline-builder.service.ts` | Remove CodeFormer from enterprise tier |
-| `apps/api/src/services/restoration.service.ts` | Use PipelineOrchestrator for hybrid execution |
+### Caveat
 
-## Provider Abstraction
-
-The provider abstraction layer (`IRestorationProvider`, `ProviderFactory`, `ProviderRouter`) remains unchanged. The new `UnifiedLocalRestorationProvider` implements the same interface as all other providers.
-
-## Protected Scope
-
-- No finalized APIs modified
-- No billing logic modified
-- No authentication modified
-- No public endpoints changed
+Replicate account credits were exhausted (~$0.25 limit) before all 7 images × 2 pipelines could complete. Pipeline A completed 3/7 images, Pipeline B completed 5/7 images. LPIPS, face identity score, and scratch removal score require specialized computer vision models not available in the current benchmark infrastructure — recorded as UNKNOWN.
