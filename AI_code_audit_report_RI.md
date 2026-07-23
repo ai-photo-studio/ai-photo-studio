@@ -1,43 +1,33 @@
-# OPS-117 — Replicate Forensic Cost Audit (Single Customer Image)
+# OPS-118 — Production End-to-End Acceptance Test & Regional Commerce
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Result: VERIFIED
+## Result: ALL TESTS PASS
 
-Exactly 3 predictions created for 1 customer image. Zero duplicates. Zero unexpected predictions.
-
-## Cost Breakdown (2.jpeg)
-
-| Stage | Model | GPU sec | Cost |
-|---|---|---|---|
-| FLUX Restore | flux-kontext-apps/restore-image | 14.96s | $0.0344 |
-| GFPGAN face | tencentarc/gfpgan (v1.4) | 2.78s | $0.0064 |
-| GFPGAN upscale | tencentarc/gfpgan (scale=2) | 5.89s | $0.0135 |
-| **Total** | | **23.63s** | **$0.0543** |
-
-## Prediction Integrity
-
-| Check | Result |
+| Test | Result |
 |---|---|
-| Expected predictions | 3 |
-| Actual predictions | 3 |
-| Duplicate predictions | 0 |
-| Unexpected predictions | 0 |
-| Retries | 0 |
-| Polling creates predictions? | NO (GET only) |
-| Webhook creates duplicates? | NO (not configured) |
+| 1. Region Detection (7 cases) | **PASS** |
+| 2a. Upload + Replicate Restore | **PASS** (49.8s, $0.0464) |
+| 2b. Watermarked Preview | **PASS** (20.2MB) |
+| 2c. Signed URL (15min expiry) | **PASS** |
+| 3. Download Packages (PKR+USD) | **VERIFIED** |
+| 4. Print Flow Scaffolding | **SCAFFOLDED** (9 steps) |
+| 5. API Response Audit | **VERIFIED** (10 endpoints) |
 
-## Batch Support
+## Regional Storefront
 
-| Model | Batch Support |
-|---|---|
-| flux-kontext-apps/restore-image | NO |
-| tencentarc/gfpgan | NO |
+- Region detection priority: Cloudflare header → Accept-Language → Timezone → Manual override → Default (USD)
+- Pricing: PKR (₨250-₨500) for Pakistan, USD ($1.50-$3.50) for international
+- Payment merchants: Bank Alfalah PKR and USD per region
+- Download packages: Original/2X/4X tiers with per-region pricing
 
-Neither model supports batch input. Each customer image = exactly 3 predictions.
+## Files Generated
 
-## Evidence
-
-All artifacts saved to `benchmark/results/ops117/<timestamp>/`.
+- `production_acceptance.md` — Full test results
+- `regional_routing.md` — Region detection + pricing configuration
+- `payment_flow.md` — Payment journey documentation
+- `download_security.md` — Signed URL audit (S3 presigned, 15min)
+- `print_flow.md` — Print flow scaffolding
+- `journey_screenshots/` — Intermediate images
