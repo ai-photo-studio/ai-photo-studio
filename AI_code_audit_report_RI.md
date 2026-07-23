@@ -1,45 +1,43 @@
-# OPS-116 — Restore OPS-109 Commercial Pipeline as Production Launch Configuration
+# OPS-117 — Replicate Forensic Cost Audit (Single Customer Image)
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Result: DONE
+## Result: VERIFIED
 
-OPS-109 commercial-quality pipeline restored as production default.
+Exactly 3 predictions created for 1 customer image. Zero duplicates. Zero unexpected predictions.
 
-## Feature Flag
+## Cost Breakdown (2.jpeg)
 
-`RESTORATION_PIPELINE=replicate` (default) — 3 sequential Replicate calls.
-
-| Value | Pipeline | Status |
-|---|---|---|
-| `replicate` | flux → gfpgan → upscale (3 Replicate calls) | **ACTIVE (default)** |
-| `hybrid` | Flux via Replicate, local via RunPod | LEGACY_LOCAL_PIPELINE (needs RUNPOD_API_KEY) |
-| `local` | FLUX Restore only | LEGACY_LOCAL_PIPELINE |
-
-## Benchmark (2.jpeg)
-
-| Metric | OPS-116 | OPS-109 Pipeline A | OPS-112/114 (flux only) |
+| Stage | Model | GPU sec | Cost |
 |---|---|---|---|
-| SSIM | 0.58 | 0.58 | 0.56–0.57 |
-| PSNR | 7.51 | 7.56 | 7.24–7.29 |
-| Cost | $0.0519 | $0.0252 | ~$0.036 |
-| Runtime | 46.4s | 96.3s | ~80s |
-| Resolution | 4736×3520 | 4736×3520 | 1184×880 |
+| FLUX Restore | flux-kontext-apps/restore-image | 14.96s | $0.0344 |
+| GFPGAN face | tencentarc/gfpgan (v1.4) | 2.78s | $0.0064 |
+| GFPGAN upscale | tencentarc/gfpgan (scale=2) | 5.89s | $0.0135 |
+| **Total** | | **23.63s** | **$0.0543** |
 
-OPS-116 matches OPS-109 quality (SSIM 0.58, PSNR ~7.5). The prior benchmarks (OPS-112/113/114) showed degraded metrics because local RunPod stages were disabled.
+## Prediction Integrity
 
-## Changed Files
-
-| File | Change |
+| Check | Result |
 |---|---|
-| `config/env.ts` | Added `RESTORATION_PIPELINE` env var |
-| `providers/ReplicatePipelineProvider.ts` | NEW — 3-stage Replicate pipeline |
-| `pipeline/PipelineOrchestrator.ts` | Added `replicate` tier, feature flag routing |
-| `factory/ProviderFactory.ts` | Added `replicate-pipeline` provider |
-| `providers/UnifiedLocalRestorationProvider.ts` | Marked LEGACY_LOCAL_PIPELINE |
+| Expected predictions | 3 |
+| Actual predictions | 3 |
+| Duplicate predictions | 0 |
+| Unexpected predictions | 0 |
+| Retries | 0 |
+| Polling creates predictions? | NO (GET only) |
+| Webhook creates duplicates? | NO (not configured) |
+
+## Batch Support
+
+| Model | Batch Support |
+|---|---|
+| flux-kontext-apps/restore-image | NO |
+| tencentarc/gfpgan | NO |
+
+Neither model supports batch input. Each customer image = exactly 3 predictions.
 
 ## Evidence
 
-All artifacts saved to `benchmark/results/ops116/2026-07-23T13-11-39/`.
+All artifacts saved to `benchmark/results/ops117/<timestamp>/`.

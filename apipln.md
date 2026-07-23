@@ -1,20 +1,16 @@
-# OPS-116 — Production Launch Configuration
+# OPS-117 — Replicate Forensic Cost Audit
 
-## Status
+## Verdict
 
-OPS-109 commercial-quality pipeline restored as the default production pipeline.
+3 predictions per image, no duplicates, no batching.
 
-`RESTORATION_PIPELINE=replicate` → the same 3-stage Replicate pipeline proven in OPS-109.
+Per-customer cost for the `replicate` pipeline on image 2.jpeg:
+- FLUX Restore: $0.0344 (14.96 GPU sec)
+- GFPGAN face: $0.0064 (2.78 GPU sec)
+- GFPGAN upscale: $0.0135 (5.89 GPU sec)
+- Total: **$0.0543 per image** (23.63 GPU sec)
 
-RunPod local stages (GFPGAN, DDColor, LaMa, Real-ESRGAN via RESTORATION_ENDPOINT_URL) are disabled by default and marked LEGACY_LOCAL_PIPELINE. Re-enable with `RESTORATION_PIPELINE=hybrid` and `RUNPOD_API_KEY` set.
+Polling is read-only (GET), no webhooks active, no duplicate predictions detected.
+Both models confirmed batch-unsupported via schema inspection.
 
-## What Changed
-
-- New `ReplicatePipelineProvider` orchestrates 3 sequential Replicate calls
-- `PipelineOrchestrator` default tier is now `replicate` instead of `hd`
-- `env.ts` schema extended with `RESTORATION_PIPELINE` enum
-- `UnifiedLocalRestorationProvider` marked LEGACY_LOCAL_PIPELINE (code preserved)
-
-## Benchmark Confirmation
-
-Single-image benchmark on `2.jpeg`: SSIM 0.58, PSNR 7.51, $0.0519 — matches OPS-109 commercial quality.
+Cost is predictably 3× the per-prediction Replicate pricing.
