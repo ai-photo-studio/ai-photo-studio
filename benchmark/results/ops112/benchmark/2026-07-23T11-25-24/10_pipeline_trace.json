@@ -1,0 +1,31 @@
+{
+  "tier": "hd",
+  "steps": [
+    {
+      "name": "flux-restore",
+      "provider": "FluxRestoreProvider",
+      "isReplicate": true
+    },
+    {
+      "name": "unified-local-postprocessing",
+      "provider": "UnifiedLocalRestorationProvider",
+      "isReplicate": false,
+      "subStages": [
+        "real_esrgan_upscale"
+      ]
+    }
+  ],
+  "stageTimings": {
+    "flux_restore": {
+      "start": "2026-07-23T11:26:24.921Z",
+      "end": "2026-07-23T11:26:45.246Z",
+      "durationMs": 20325
+    },
+    "unified_local": {
+      "start": "2026-07-23T11:26:45.679Z",
+      "end": "2026-07-23T11:26:45.684Z",
+      "durationMs": 5
+    }
+  },
+  "totalProcessingTimeMs": 80784
+}

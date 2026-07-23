@@ -1,28 +1,32 @@
-# OPS-111 — Production End-to-End Benchmark Plan & Results
+# OPS-112 — Production Environment Validation & Full Benchmark
 
 ## PLAN
-
-1. Execute production pipeline on old images/2.jpeg
-2. Capture 21 artifacts in benchmark/runtime/TIMESTAMP/
-3. Generate latest_report.md
-4. Commit and push
+1. Audit all required env vars (REPLICATE_API_TOKEN, RESTORATION_ENDPOINT_URL, REAL_ESRGAN_URL)
+2. Health-check local endpoints
+3. Verify Replicate availability and credits
+4. Execute full benchmark on old images/2.jpeg if all prerequisites met
+5. Document blocking reasons if benchmark cannot run
 
 ## RESULTS
 
-### Replicate
-- Account credits exhausted (OPS-109 consumed ~$0.25)
-- All Replicate values recorded as UNKNOWN per requirements
+### Environment: VERIFIED
+- REPLICATE_API_TOKEN: PRESENT
+- RESTORATION_ENDPOINT_URL: MISSING (not configured locally)
+- REAL_ESRGAN_URL: NOT SET
 
-### Local
-- Partial execution (RESTORATION_ENDPOINT_URL not configured in benchmark environment)
-- GFPGAN, DDColor, LaMa: not executed
-- Real-ESRGAN: pass-through mode
-- Output identical to input (SSIM=1.0, PSNR=50.0)
+### Local Services: NOT CONFIGURED
+Local endpoints unavailable in benchmark environment; passthrough used.
+
+### Replicate: AVAILABLE
+- Authentication: PASS
+- Credits: PASS
+- FLUX Restore prediction succeeded: 17.8s, $0.0362
+
+### Benchmark: EXECUTED (partial)
+- FLUX Restore completed successfully
+- Local stages used passthrough (no RESTORATION_ENDPOINT_URL configured)
 
 ### Artifacts
-16/21 files generated in benchmark/runtime/2026-07-23T10-34-05/
-
-### To Re-Run with Live Data
-1. Add credits to Replicate account
-2. Set RESTORATION_ENDPOINT_URL and REAL_ESRGAN_URL env vars
-3. Run: npx tsx apps/api/src/scripts/ops111-benchmark.ts
+benchmark/results/ops112/environment_audit.md
+benchmark/results/ops112/local_services.json
+benchmark/results/ops112/benchmark/2026-07-23T11-25-24/

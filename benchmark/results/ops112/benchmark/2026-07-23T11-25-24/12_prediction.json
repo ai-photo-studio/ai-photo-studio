@@ -1,0 +1,10 @@
+{
+  "model": "flux-kontext-apps/restore-image",
+  "version": "85ae4655",
+  "predictionId": "k148f1gghsrmt0czhtxbppz87w",
+  "gpuSeconds": 15.726561298,
+  "actualCost": 0.0362,
+  "estimatedCost": 0.009,
+  "processingTimeMs": 17805,
+  "requestId": "k148f1gghsrmt0czhtxbppz87w"
+}

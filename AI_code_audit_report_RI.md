@@ -1,36 +1,34 @@
-# OPS-111 — Production End-to-End Benchmark & Evidence Capture
+# OPS-112 — Production Environment Validation & Full Benchmark
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Objective
-
-Execute one complete production benchmark of the current production pipeline (flux-kontext-apps/restore-image → unified-local) with full evidence capture.
-
 ## Results
 
-### Replicate Stage
-- **Status:** UNKNOWN (Replicate account credits exhausted by OPS-109)
-- **Model:** flux-kontext-apps/restore-image would emit exactly 1 prediction
-- **Cost:** UNKNOWN
+### Environment Audit
+| Variable | Status |
+|---|---|
+| REPLICATE_API_TOKEN | PRESENT |
+| RESTORATION_ENDPOINT_URL | MISSING (not set in local environment) |
+| REAL_ESRGAN_URL | NOT SET (optional) |
 
-### Local Stage
-- **Status:** Partially executed (RESTORATION_ENDPOINT_URL not configured in benchmark environment)
-- **Stages attempted:** real_esrgan_upscale (pass-through because REAL_ESRGAN_URL not set)
-- **Local services (GFPGAN, DDColor, LaMa):** Not executed because RESTORATION_ENDPOINT_URL is empty
+### Local Services
+- Restoration Unified (RunPod): NOT CONFIGURED
+- Real-ESRGAN: NOT CONFIGURED
 
-### Quality Metrics (original vs final — identical due to pass-through)
-- SSIM: 1.0 (identical images)
-- PSNR: 50.0 (identical images)
-- LPIPS: UNKNOWN
-- Face Identity: UNKNOWN
-- Scratch Removal: UNKNOWN
+### Replicate
+- Authentication: PASS
+- Credits: PASS (available)
+- Rate limit: active (burst 1/60s while < $5 credit)
+- FLUX Restore prediction: SUCCESS (17.8s, $0.0362)
 
-### Runtime
-- Total: 1,109ms (Replicate failed immediately, local 2ms pass-through)
-- Expected with funded account: ~60-120s (Replicate ~13s + local services ~30-90s)
+### Benchmark (2.jpeg)
+- FLUX Restore (Replicate): 17,805ms, $0.0362
+- UnifiedLocalPostProcessing: 5ms (pass-through — RESTORATION_ENDPOINT_URL not set)
+- GFPGAN/DDColor/LaMa: skipped (no local endpoint configured)
+- SSIM: 1.0, PSNR: 50.0 (identical output — local passthrough)
 
-## Output
 
-`benchmark/runtime/2026-07-23T10-34-05/` containing 16/21 artifacts (02_flux_restore.png missing because Replicate call could not execute).
+Full report: `benchmark/results/ops112/environment_audit.md`
+Artifacts: `benchmark/results/ops112/benchmark/2026-07-23T11-25-24/`
