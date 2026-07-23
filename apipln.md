@@ -1,32 +1,27 @@
-# OPS-112 — Production Environment Validation & Full Benchmark
+# OPS-113 — Hybrid Pipeline Stage Verification
 
-## PLAN
-1. Audit all required env vars (REPLICATE_API_TOKEN, RESTORATION_ENDPOINT_URL, REAL_ESRGAN_URL)
-2. Health-check local endpoints
-3. Verify Replicate availability and credits
-4. Execute full benchmark on old images/2.jpeg if all prerequisites met
-5. Document blocking reasons if benchmark cannot run
+## Root Cause: Why Pipeline A Quality Is Not Reproduced
 
-## RESULTS
+### Missing Production Environment Variables
 
-### Environment: VERIFIED
-- REPLICATE_API_TOKEN: PRESENT
-- RESTORATION_ENDPOINT_URL: MISSING (not configured locally)
-- REAL_ESRGAN_URL: NOT SET
+The hybrid pipeline (OPS-108) correctly routes images through FLUX Restore → UnifiedLocalRestorationProvider. However, the local post-processing stages require these environment variables that are not set:
 
-### Local Services: NOT CONFIGURED
-Local endpoints unavailable in benchmark environment; passthrough used.
+1. **RUNPOD_API_KEY** — Required by RunPod transport for GFPGAN, DDColor, LaMa
+2. **REAL_ESRGAN_URL** — Required for Real-ESRGAN upscaling
 
-### Replicate: AVAILABLE
-- Authentication: PASS
-- Credits: PASS
-- FLUX Restore prediction succeeded: 17.8s, $0.0362
+### Call Flow for Blocked Stages
 
-### Benchmark: EXECUTED (partial)
-- FLUX Restore completed successfully
-- Local stages used passthrough (no RESTORATION_ENDPOINT_URL configured)
+```
+RestorationGfpganService.enhance()
+  → UnifiedRestorationService.restore()
+    → postImage()
+      → isRunPodEndpointId("3z633s11yn4n8q") = true
+        → runViaRunPod()
+          → process.env.RUNPOD_API_KEY missing → throw AppError(503, "RUNPOD_API_KEY_MISSING")
+```
 
-### Artifacts
-benchmark/results/ops112/environment_audit.md
-benchmark/results/ops112/local_services.json
-benchmark/results/ops112/benchmark/2026-07-23T11-25-24/
+### Verdict
+
+The commercial-quality Pipeline A output from OPS-109 was produced by a different architecture (separate Replicate models for each stage) that bypassed RunPod entirely. The current OPS-108 hybrid architecture correctly routes to local services via RunPod, but the environment is missing the required credentials.
+
+**PASS condition:** All stages are proven skipped with exact reasons documented.

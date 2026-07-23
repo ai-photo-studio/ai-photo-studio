@@ -1,34 +1,43 @@
-# OPS-112 — Production Environment Validation & Full Benchmark
+# OPS-113 — Hybrid Pipeline Stage Verification
 
 **Date:** 2026-07-23
 **Model:** DeepSeek
 **Mode:** Code
 
-## Results
+## Result
 
-### Environment Audit
-| Variable | Status |
-|---|---|
-| REPLICATE_API_TOKEN | PRESENT |
-| RESTORATION_ENDPOINT_URL | MISSING (not set in local environment) |
-| REAL_ESRGAN_URL | NOT SET (optional) |
+The commercial-quality Pipeline A is **not reproduced** because the local post-processing stages (GFPGAN, Real-ESRGAN, DDColor, LaMa) never execute. The pipeline degenerates to a single Replicate call.
 
-### Local Services
-- Restoration Unified (RunPod): NOT CONFIGURED
-- Real-ESRGAN: NOT CONFIGURED
+## Root Cause
 
-### Replicate
-- Authentication: PASS
-- Credits: PASS (available)
-- Rate limit: active (burst 1/60s while < $5 credit)
-- FLUX Restore prediction: SUCCESS (17.8s, $0.0362)
+| Stage | Env Var Missing | Source Location | Why Skipped |
+|---|---|---|---|
+| GFPGAN | RUNPOD_API_KEY | restoration-provider.service.ts:88-89 | RESTORATION_ENDPOINT_URL resolves to RunPod endpoint ID, but runViaRunPod requires RUNPOD_API_KEY |
+| DDColor | RUNPOD_API_KEY | restoration-provider.service.ts:88-89 | Same RunPod transport failure; also image is not grayscale |
+| LaMa | RUNPOD_API_KEY | restoration-provider.service.ts:88-89 | Same RunPod transport failure; scratch=47% >15% threshold would trigger if RunPod worked |
+| Real-ESRGAN | REAL_ESRGAN_URL | real-esrgan.service.ts:27-33 | Empty URL → pass-through mode (returns source unchanged) |
 
-### Benchmark (2.jpeg)
-- FLUX Restore (Replicate): 17,805ms, $0.0362
-- UnifiedLocalPostProcessing: 5ms (pass-through — RESTORATION_ENDPOINT_URL not set)
-- GFPGAN/DDColor/LaMa: skipped (no local endpoint configured)
-- SSIM: 1.0, PSNR: 50.0 (identical output — local passthrough)
+## Pipeline Executed
 
+FLUX Restore (Replicate, flux-kontext-apps/restore-image) → passthrough (all 4 local stages skipped)
 
-Full report: `benchmark/results/ops112/environment_audit.md`
-Artifacts: `benchmark/results/ops112/benchmark/2026-07-23T11-25-24/`
+## Comparison with Pipeline A (OPS-109)
+
+| Metric | Current (OPS-113) | Pipeline A (OPS-109) |
+|---|---|---|
+| SSIM vs original | 0.57 | 0.58 |
+| PSNR vs original | 7.29 | 7.56 |
+| Stages executed | FLUX Restore only | FLUX Restore + GFPGAN + Real-ESRGAN (all Replicate) |
+
+## Evidence
+
+All artifacts saved to `benchmark/results/ops113/2026-07-23T11-53-11/`:
+- Intermediate images: 01-08
+- Stage trace: `10_stage_trace.json`
+- Metrics: `09_metrics.json`
+- Verification report: `15_verification.md`
+- Environment audit: `20_environment.json`
+
+## Fix Required
+
+Set `RUNPOD_API_KEY` and `REAL_ESRGAN_URL` in the benchmark/production environment.
