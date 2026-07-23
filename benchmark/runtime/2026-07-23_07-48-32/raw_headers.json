@@ -1,0 +1,20 @@
+{
+  "access-control-expose-headers": "X-Request-ID, CF-Ray",
+  "alt-svc": "h3=\":443\"; ma=86400",
+  "cf-cache-status": "DYNAMIC",
+  "cf-ray": "a1f911479c8f1988-MRS",
+  "connection": "keep-alive",
+  "content-encoding": "br",
+  "content-type": "application/json",
+  "date": "Thu, 23 Jul 2026 07:48:34 GMT",
+  "openai-organization": "user-5xx16vw3xfxihoc0fwlyqtna",
+  "openai-processing-ms": "167866",
+  "openai-project": "proj_oUuE5x3RFzH67SI8HUsf8WVH",
+  "openai-version": "2020-10-01",
+  "server": "cloudflare",
+  "set-cookie": "__cf_bm=upKyRuDapmolcqmLPwA66MjVG2kXr0QnarAHAwtSBPc-1784792746.1764643-1.0.1.1-4d4T1p6ZT_lO3owg9K_d8q0tHybx5iL8u3baLntEaeOnCyHO5OlLU3gC34KmafEegoHenfAmm3A6c97qJh8leocdYckEg6LJyP4xr2UxGq77B75d3ClE2LU3t05Mo0si; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com; Expires=Thu, 23 Jul 2026 08:18:34 GMT",
+  "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+  "transfer-encoding": "chunked",
+  "x-content-type-options": "nosniff",
+  "x-request-id": "req_c0ee1833550442e9a87c88a53c206eef"
+}

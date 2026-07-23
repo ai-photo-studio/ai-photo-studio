@@ -1,0 +1,13 @@
+{
+  "input_tokens": 805,
+  "input_tokens_details": {
+    "image_tokens": 768,
+    "text_tokens": 37
+  },
+  "output_tokens": 1756,
+  "output_tokens_details": {
+    "image_tokens": 1756,
+    "text_tokens": 0
+  },
+  "total_tokens": 2561
+}
