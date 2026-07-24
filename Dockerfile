@@ -1,30 +1,31 @@
-from node:24-slim
+FROM node:24-slim AS builder
 RUN apt-get update && apt-get install -y openssl libssl3
-WORKDIR /app
 
-# Copy all config files needed for installation
-COPY tsconfig.base.json package.json package-lock.json ./
-COPY apps/api/package.json ./apps/api/package.json
-COPY apps/api/tsconfig.json ./apps/api/tsconfig.json
+WORKDIR /build
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY apps/api/package.json apps/api/tsconfig.json ./apps/api/
 
-# Install dependencies (inside apps/api where package.json is)
-WORKDIR /app/apps/api
-RUN npm install --include=dev
+RUN cd apps/api && npm install --include=dev
 
-# Generate Prisma client
-COPY apps/api/prisma ./prisma
-RUN npx prisma@5.20.0 generate
+COPY apps/api/prisma ./apps/api/prisma
+RUN npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
 
-# Copy source and build
-COPY apps/api/src ./src
-RUN node node_modules/.bin/tsc -p tsconfig.json
+COPY apps/api/src ./apps/api/src
+RUN cd apps/api && npx tsc -p tsconfig.json
 
-# Prune to production dependencies only
-RUN npm install --production
+# Production runtime image
+FROM node:24-slim
+RUN apt-get update && apt-get install -y openssl libssl3
 
 WORKDIR /app
+COPY --from=builder /build/apps/api/dist ./apps/api/dist
+COPY --from=builder /build/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /build/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /build/package.json /app/package.json
+
 RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 USER nodejs
+
 EXPOSE ${PORT:-8080}
 ENV NODE_ENV=production
 ENV SKIP_MIGRATIONS=true
