@@ -5,32 +5,27 @@ import { customerApi } from "../services/customerApi";
 import type { RestorationItemRecord } from "../lib/portal-types";
 import { formatDateTime } from "../lib/format";
 
-const STAGES = [
-  { key: "RESTORATION_ANALYSIS", label: "Analyzing" },
-  { key: "RESTORATION_INPAINT", label: "Repairing" },
-  { key: "RESTORATION_PROCESSING", label: "Processing" },
-  { key: "RESTORATION_FACE", label: "Enhancing" },
-  { key: "RESTORATION_COLORIZE", label: "Improving" },
-  { key: "RESTORATION_UPSCALE", label: "Improving" },
-  { key: "RESTORATION_PREVIEW", label: "Generating Preview" }
+const DOWNLOAD_TIERS = [
+  { key: "original", label: "Original", description: "Source resolution" },
+  { key: "2x", label: "2X", description: "2× upscale" },
+  { key: "4x", label: "4X", description: "4× upscale" },
+  { key: "6x", label: "6X", description: "6× upscale" },
+  { key: "8x", label: "8X", description: "8× upscale" },
+  { key: "12x", label: "12X", description: "12× upscale" },
 ];
 
-const STAGE_ORDER = STAGES.map((s) => s.key);
+const PRINT_SIZES = [
+  { key: "4x6", label: "4×6", price: "500", description: "Standard print" },
+  { key: "5x7", label: "5×7", price: "700", description: "Medium print" },
+  { key: "8x10", label: "8×10", price: "1,000", description: "Large print" },
+  { key: "a4", label: "A4", price: "1,200", description: "A4 print" },
+  { key: "a3", label: "A3", price: "2,000", description: "A3 print" },
+  { key: "canvas", label: "Canvas", price: "3,500", description: "Canvas wrap" },
+  { key: "frame", label: "Frame", price: "5,000", description: "Framed print" },
+  { key: "album", label: "Album", price: "8,000", description: "Album page" },
+];
 
-function stageProgress(stage: string | null): { current: number; total: number } {
-  const idx = stage ? STAGE_ORDER.indexOf(stage) : -1;
-  return { current: Math.max(0, idx + 1), total: STAGE_ORDER.length };
-}
-
-type ImageLoadState = "idle" | "loading" | "loaded" | "error";
-
-function formatScore(value: number | null | undefined): string {
-  if (value == null) return "--";
-  if (value >= 80) return "Excellent";
-  if (value >= 60) return "Good";
-  if (value >= 40) return "Fair";
-  return "Poor";
-}
+type ItemTierState = "locked" | "purchased" | "upgrade-available";
 
 export function RestoreOrderPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -46,14 +41,10 @@ export function RestoreOrderPage() {
   const [selectedItem, setSelectedItem] = useState<RestorationItemRecord | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [originalLoading, setOriginalLoading] = useState(false);
-  const [compareValue, setCompareValue] = useState(50);
-  const [fullScreen, setFullScreen] = useState(false);
-  const [processing, setProcessing] = useState(false);
   const [bothReady, setBothReady] = useState(false);
-  const [restoredLoadState, setRestoredLoadState] = useState<ImageLoadState>("idle");
-  const [originalLoadState, setOriginalLoadState] = useState<ImageLoadState>("idle");
+  const [purchasedTiers, setPurchasedTiers] = useState<Set<string>>(new Set(["original"]));
+  const [selectedPrintSize, setSelectedPrintSize] = useState<string | null>(null);
+  const [printBusy, setPrintBusy] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -68,7 +59,7 @@ export function RestoreOrderPage() {
       if (data.items.length > 0 && !selectedItem) {
         setSelectedItem(data.items[0]);
       }
-      if (data.items.some(i => i.status === "COMPLETED" || i.status === "APPROVED")) {
+      if (data.items.some(i => i.status === "COMPLETED")) {
         if (pollingRef.current) {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
@@ -92,109 +83,73 @@ export function RestoreOrderPage() {
     };
   }, [loadOrder]);
 
-  const handleProcess = async () => {
-    if (!token || !orderId || !selectedItem) return;
-    setProcessing(true);
-    setError(null);
-    try {
-      await customerApi.processRestorationItem(token, orderId, selectedItem.id);
-      setTimeout(() => void loadOrder(), 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Processing failed");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const handlePreview = async (item: RestorationItemRecord) => {
     if (!token || !orderId) return;
     setPreviewLoading(true);
     setPreviewUrl(null);
-    setOriginalUrl(null);
     setBothReady(false);
-    setRestoredLoadState("loading");
-    setOriginalLoadState("loading");
     setSelectedItem(item);
     setError(null);
     try {
       const result = await customerApi.getRestorationPreview(token, orderId, item.id);
       setPreviewUrl(result.previewUrl);
     } catch (err) {
-      setPreviewUrl(null);
-      setRestoredLoadState("error");
       setError(err instanceof Error ? err.message : "Failed to load preview");
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  const handleApprove = async (itemId: string, approved: boolean) => {
+  const handleUpgradeTier = async (tierKey: string) => {
     if (!token || !orderId) return;
     try {
-      await customerApi.approveRestorationItem(token, orderId, itemId, approved);
-      void loadOrder();
+      setPurchasedTiers(prev => new Set(prev).add(tierKey));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Approval failed");
+      setError(err instanceof Error ? err.message : "Upgrade failed");
     }
   };
 
-  const handleDownload = async (item: RestorationItemRecord) => {
-    if (!token || !orderId) return;
+  const handlePrintOrder = async () => {
+    if (!token || !orderId || !selectedPrintSize) return;
+    setPrintBusy(true);
     try {
-      const result = await customerApi.getRestorationDownload(token, orderId, item.id);
-      window.open(result.downloadUrl, "_blank");
+      setPrintBusy(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
+      setError(err instanceof Error ? err.message : "Print order failed");
+      setPrintBusy(false);
     }
   };
 
-  const handleRestoredLoad = () => {
-    setRestoredLoadState("loaded");
-    if (originalLoadState === "loaded") setBothReady(true);
+  const getItemStatus = (item: RestorationItemRecord): string => {
+    if (item.status === "COMPLETED") return "Completed";
+    if (item.status === "FAILED") return "Failed";
+    if (item.status === "PROCESSING") return "Processing";
+    if (item.status === "QUEUED") return "Queued";
+    return "Pending";
   };
 
-  const handleRestoredError = () => {
-    setRestoredLoadState("error");
-    setError("Failed to load restored image");
-  };
-
-  const handleOriginalLoad = () => {
-    setOriginalLoadState("loaded");
-    if (restoredLoadState === "loaded") setBothReady(true);
-  };
-
-  const handleOriginalError = () => {
-    setOriginalLoadState("error");
+  const getTierState = (tierKey: string): ItemTierState => {
+    if (purchasedTiers.has(tierKey)) return "purchased";
+    if (tierKey === "2x" && purchasedTiers.has("original")) return "upgrade-available";
+    if (tierKey === "4x" && purchasedTiers.has("2x")) return "upgrade-available";
+    if (tierKey === "6x" && purchasedTiers.has("4x")) return "upgrade-available";
+    if (tierKey === "8x" && purchasedTiers.has("6x")) return "upgrade-available";
+    if (tierKey === "12x" && purchasedTiers.has("8x")) return "upgrade-available";
+    return "locked";
   };
 
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading restoration order...</p></div></section>;
   if (error && !order) return <section className="page-stack"><div className="state-panel state-panel-error"><p>{error}</p></div></section>;
   if (!order) return <section className="page-stack"><div className="state-panel"><p>Order not found.</p></div></section>;
 
-  const isTerminal = (status: string) => ["COMPLETED", "FAILED", "APPROVED", "REJECTED", "DEAD_LETTER"].includes(status);
-  const canProcess = (status: string) => !isTerminal(status) && !["PROCESSING", "QUEUED", "ANALYZING"].includes(status);
+  const isCompleted = order.items.some(i => i.status === "COMPLETED");
+  const isProcessing = order.items.some(i => i.status === "PROCESSING" || i.status === "QUEUED");
   const currentItem = selectedItem || order.items[0];
-
-  const statusColor = (status: string) => {
-    if (status === "COMPLETED" || status === "APPROVED") return "var(--success)";
-    if (status === "FAILED" || status === "REJECTED") return "var(--error)";
-    if (status === "PROCESSING" || status === "QUEUED" || status === "ANALYZING") return "var(--accent)";
-    return "var(--muted)";
-  };
-
-  const statusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      PENDING: "Pending", PROCESSING: "Processing", QUEUED: "Queued",
-      ANALYZING: "Analyzing", COMPLETED: "Completed", FAILED: "Failed",
-      APPROVED: "Approved", REJECTED: "Rejected"
-    };
-    return labels[status] || status;
-  };
 
   return (
     <section className="page-stack">
       <div className="section-heading">
-        <p className="eyebrow">Restoration Order</p>
+        <p className="eyebrow">Photo Restoration</p>
         <h1>{order.title || `Order ${order.orderNo}`}</h1>
         <p>Created {formatDateTime(order.createdAt)}</p>
       </div>
@@ -205,134 +160,88 @@ export function RestoreOrderPage() {
         </div>
       )}
 
-      <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-        <article className="card"><div><p className="eyebrow">Status</p><h3 style={{ color: statusColor(order.status) }}>{statusLabel(order.status)}</h3></div></article>
-        <article className="card"><div><p className="eyebrow">Photos</p><h3>{order.totalItems}</h3></div></article>
-        <article className="card"><div><p className="eyebrow">Restored</p><h3>{order.completedItems}</h3></div></article>
-        <article className="card"><div><p className="eyebrow">Failed</p><h3>{order.failedItems}</h3></div></article>
+      <div className="metric-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+        <article className="card">
+          <div>
+            <p className="eyebrow">Status</p>
+            <h3 style={{ color: isCompleted ? "var(--success)" : isProcessing ? "var(--accent)" : "var(--muted)" }}>
+              {isCompleted ? "Ready" : isProcessing ? "Processing" : "Pending"}
+            </h3>
+          </div>
+        </article>
+        <article className="card">
+          <div>
+            <p className="eyebrow">Images</p>
+            <h3>{order.totalItems}</h3>
+          </div>
+        </article>
+        <article className="card">
+          <div>
+            <p className="eyebrow">Restored</p>
+            <h3>{order.completedItems}</h3>
+          </div>
+        </article>
+        <article className="card">
+          <div>
+            <p className="eyebrow">Estimated Time</p>
+            <h3>{isProcessing ? "~2-3 min" : isCompleted ? "Complete" : "Pending upload"}</h3>
+          </div>
+        </article>
       </div>
 
-      {currentItem.status === "PROCESSING" && currentItem && (
-        <div className="restore-progress" style={{ marginTop: "1rem" }}>
-          <h3>Processing</h3>
-          <div className="restore-progress-track">
-            <div className="restore-progress-bar" style={{
-              width: `${(stageProgress(currentItem.processingStage).current / stageProgress(currentItem.processingStage).total) * 100}%`
+      {isProcessing && (
+        <div className="state-panel" style={{ background: "var(--surface)", marginTop: "1rem", padding: "1rem 1.5rem", borderRadius: "var(--radius)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: "50%",
+              border: "3px solid var(--accent)", borderTopColor: "transparent",
+              animation: "spin 0.8s linear infinite"
             }} />
+            <p style={{ fontWeight: 600 }}>Your images are being restored. This takes approximately 2-3 minutes.</p>
           </div>
-          {STAGES.map((stage) => {
-            const idx = STAGE_ORDER.indexOf(stage.key);
-            const currentIdx = currentItem.processingStage ? STAGE_ORDER.indexOf(currentItem.processingStage) : -1;
-            let state = "pending";
-            if (idx < currentIdx) state = "completed";
-            else if (idx === currentIdx) state = "active";
-            return (
-              <div key={stage.key} className="restore-stage" style={{
-                display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0",
-                opacity: state === "pending" ? 0.4 : 1
-              }}>
-                <span style={{
-                  width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700,
-                  background: state === "completed" ? "var(--success)" : state === "active" ? "var(--accent)" : "var(--line)",
-                  color: state === "pending" ? "var(--muted)" : "#fff"
-                }}>
-                  {state === "completed" ? "✓" : state === "active" ? "●" : "○"}
-                </span>
-                <span style={{ fontWeight: state === "active" ? 600 : 400 }}>{stage.label}</span>
-              </div>
-            );
-          })}
-          <p className="eyebrow" style={{ marginTop: "0.5rem", textAlign: "center" }}>
-            {stageProgress(currentItem.processingStage).current} of {stageProgress(currentItem.processingStage).total} steps completed
-          </p>
         </div>
       )}
 
       {order.items.length > 0 && (
         <div style={{ marginTop: "1.5rem" }}>
-          <h3>Photos</h3>
+          <h3>Your Images</h3>
           <div className="admin-card-grid">
             {order.items.map((item) => {
               const isSelected = selectedItem?.id === item.id;
+              const status = getItemStatus(item);
               return (
                 <article key={item.id} className={`card admin-record-card ${isSelected ? "card-selected" : ""}`}
                   style={{ border: isSelected ? "2px solid var(--accent)" : undefined, cursor: "pointer" }}
                   onClick={() => {
                     setSelectedItem(item);
                     setPreviewUrl(null);
-                    setOriginalUrl(null);
                     setBothReady(false);
                     setError(null);
                   }}
                 >
                   <div className="card-top">
                     <div><h3>{item.imageCategory || "Photo"}</h3></div>
-                    <span className={`pill ${item.status === "COMPLETED" || item.status === "APPROVED" ? "" : item.status === "FAILED" || item.status === "REJECTED" ? "pill-error" : ""}`}>{statusLabel(item.status)}</span>
+                    <span className={`pill ${status === "Completed" ? "" : status === "Failed" ? "pill-error" : ""}`}>{status}</span>
                   </div>
                   <dl className="detail-grid">
-                    <div><dt>Stage</dt><dd>{item.processingStage ? statusLabel(item.processingStage) : "Pending"}</dd></div>
-                    <div><dt>Duration</dt><dd>{item.totalDurationMs ? `${(item.totalDurationMs / 1000).toFixed(1)}s` : "-"}</dd></div>
-                    {item.qualityScore != null && (
-                      <>
-                        <div><dt>Photo Condition</dt><dd>{formatScore(item.beforeQualityScore)} ({item.qualityScore})</dd></div>
-                        <div><dt>Restored Quality</dt><dd style={{ color: "var(--accent)", fontWeight: 600 }}>{formatScore(item.afterQualityScore)} ({item.afterQualityScore ?? "-"})</dd></div>
-                      </>
+                    <div><dt>Original</dt><dd>{item.originalStorageKey ? "Uploaded" : "-"}</dd></div>
+                    {item.totalDurationMs != null && (
+                      <div><dt>Processed</dt><dd>{(item.totalDurationMs / 1000).toFixed(1)}s</dd></div>
                     )}
-                    {item.afterQualityScore != null && item.qualityScore != null && (
-                      <div><dt>Improvement</dt><dd style={{ color: (item.afterQualityScore - item.qualityScore) >= 5 ? "var(--success)" : "var(--warn)" }}>
-                        {item.afterQualityScore - item.qualityScore >= 0 ? "+" : ""}{item.afterQualityScore - item.qualityScore} pts
-                      </dd></div>
-                    )}
-                    {item.qualityRegressionStage && (
-                      <div><dt>⚠️ Regression</dt><dd style={{ color: "var(--warn)", fontSize: "0.85rem" }}>{item.qualityRegressionDetail}</dd></div>
-                    )}
-                    {item.beforeSharpnessScore != null && (
-                      <div><dt>Sharpness</dt><dd>{item.beforeSharpnessScore} → {item.afterSharpnessScore ?? "—"}</dd></div>
-                    )}
-                    {item.beforeBlurScore != null && (
-                      <div><dt>Blur</dt><dd>{item.beforeBlurScore} → {item.afterBlurScore ?? "—"}</dd></div>
-                    )}
-                    {item.beforeNoiseScore != null && (
-                      <div><dt>Noise</dt><dd>{item.beforeNoiseScore} → {item.afterNoiseScore ?? "—"}</dd></div>
-                    )}
-                    {item.beforeContrastScore != null && (
-                      <div><dt>Contrast</dt><dd>{item.beforeContrastScore} → {item.afterContrastScore ?? "—"}</dd></div>
-                    )}
-                    {item.beforeBrightnessScore != null && (
-                      <div><dt>Brightness</dt><dd>{item.beforeBrightnessScore} → {item.afterBrightnessScore ?? "—"}</dd></div>
-                    )}
-                    {item.faceCount != null && (
-                      <div><dt>Faces</dt><dd>{item.faceCount} ({Math.round(item.faceConfidence * 100)}%)</dd></div>
-                    )}
-                    {item.damageScore != null && (
-                      <div><dt>Damage</dt><dd>{item.damageScore}/100 ({item.damageSeverity})</dd></div>
-                    )}
-                    {item.finalStorageKey && <div><dt>Print Ready</dt><dd style={{ color: (item.afterQualityScore ?? 0) >= 60 ? "var(--accent)" : "var(--muted)" }}>{(item.afterQualityScore ?? 0) >= 60 ? "Yes" : "Standard"}</dd></div>}
+                    {item.finalStorageKey && <div><dt>Ready</dt><dd style={{ color: "var(--accent)", fontWeight: 600 }}>Yes</dd></div>}
                   </dl>
-                  <div className="button-row">
-                    {!isTerminal(item.status) && !["PROCESSING", "QUEUED", "ANALYZING"].includes(item.status) && (
-                      <button type="button" className="button button-small" disabled={processing} onClick={(e) => { e.stopPropagation(); setSelectedItem(item); handleProcess(); }}>
-                        {processing ? "Starting..." : "Process"}
+                  {status === "Completed" && (
+                    <div className="button-row">
+                      <button type="button" className="button button-small" onClick={(e) => { e.stopPropagation(); void handlePreview(item); }} disabled={previewLoading}>
+                        {previewLoading ? "Loading..." : "Preview"}
                       </button>
-                    )}
-                    {(item.status === "COMPLETED" || item.status === "APPROVED") && (
-                      <>
-                        <button type="button" className="button button-small" onClick={(e) => { e.stopPropagation(); void handlePreview(item); }} disabled={previewLoading}>
-                          {previewLoading ? "Loading..." : "Preview"}
-                        </button>
-                        <button type="button" className="button button-small button-secondary" onClick={(e) => { e.stopPropagation(); void handleDownload(item); }}>Download</button>
-                        {item.status === "COMPLETED" && (
-                          <button type="button" className="button button-small" onClick={(e) => { e.stopPropagation(); void handleApprove(item.id, true); }}>Approve</button>
-                        )}
-                      </>
-                    )}
-                    {item.status === "COMPLETED" && (
-                      <button type="button" className="button button-small button-secondary" onClick={(e) => { e.stopPropagation(); void handleApprove(item.id, false); }}>Reject</button>
-                    )}
-                    {item.status === "FAILED" && (
-                      <button type="button" className="button button-small" onClick={(e) => { e.stopPropagation(); handleProcess(); }}>Retry</button>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                  {status === "Failed" && (
+                    <div className="state-panel state-panel-error" style={{ padding: "0.5rem", margin: "0.5rem 0", fontSize: "0.85rem" }}>
+                      <p>Processing failed. Please contact support.</p>
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -340,66 +249,103 @@ export function RestoreOrderPage() {
         </div>
       )}
 
-      {(previewLoading || bothReady || previewUrl) && currentItem && (
-        <div style={{ marginTop: "1.5rem", position: "relative" }}>
-          <div className="section-heading-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3>Before / After</h3>
-            <div className="button-row">
-              <button type="button" className="button button-small button-secondary" onClick={() => setCompareValue(0)}>Original</button>
-              <button type="button" className="button button-small button-secondary" onClick={() => setCompareValue(100)}>Restored</button>
-              {bothReady && (
-                <button type="button" className="button button-small button-secondary" onClick={() => setFullScreen(!fullScreen)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
-              )}
+      {(previewLoading || previewUrl) && currentItem && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h3>Preview</h3>
+          {previewLoading ? (
+            <div className="state-panel" style={{ padding: "2rem", textAlign: "center" }}>
+              <p>Loading preview...</p>
             </div>
-          </div>
-
-          {!bothReady && (previewLoading || restoredLoadState === "loading") && (
-            <div className="restore-compare" style={{
-              position: "relative", width: "100%", maxWidth: 800, margin: "1rem auto",
-              height: fullScreen ? "90vh" : 500, background: "var(--bg)",
-              borderRadius: "var(--radius)", display: "flex", alignItems: "center", justifyContent: "center"
-            }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{
-                  width: 40, height: 40, border: "3px solid var(--line)", borderTopColor: "var(--accent)",
-                  borderRadius: "50%", margin: "0 auto 1rem", animation: "spin 0.8s linear infinite"
-                }} />
-                <p className="eyebrow">Loading preview...</p>
-              </div>
+          ) : previewUrl ? (
+            <div style={{ maxWidth: 800, margin: "0 auto" }}>
+              <img src={previewUrl} alt="Restored preview" style={{ width: "100%", height: "auto", borderRadius: "var(--radius)" }} />
             </div>
-          )}
-
-          {previewUrl && bothReady && (
-            <div className="restore-compare" style={{
-              position: "relative", width: "100%", maxWidth: 800, margin: "1rem auto", overflow: "hidden",
-              borderRadius: "var(--radius)", cursor: "ew-resize", userSelect: "none",
-              height: fullScreen ? "90vh" : 500, background: "var(--bg)"
-            }}>
-              <img src={previewUrl} alt="Restored" style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", top: 0, left: 0 }}
-                onLoad={handleRestoredLoad} onError={handleRestoredError} />
-              <div style={{
-                position: "absolute", top: 0, left: 0, width: `${compareValue}%`, height: "100%", overflow: "hidden",
-                borderRight: "2px solid var(--accent)"
-              }}>
-                <img src={originalUrl || previewUrl} alt="Original" style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", top: 0, left: 0 }}
-                  onLoad={handleOriginalLoad} onError={handleOriginalError} />
-              </div>
-              <input type="range" min={0} max={100} value={compareValue}
-                onChange={(e) => setCompareValue(Number(e.target.value))}
-                style={{ position: "absolute", bottom: 10, left: "10%", width: "80%", zIndex: 10 }} />
-            </div>
-          )}
-
-          {restoredLoadState === "error" && (
-            <div className="state-panel state-panel-error" style={{ marginTop: "1rem" }}>
-              <p>Failed to load restored image. The preview link may have expired. Try generating a new preview.</p>
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
-      <div style={{ marginTop: "1rem" }}>
-        <Link to="/history/restorations" className="button button-secondary">← Back to History</Link>
+      {isCompleted && (
+        <>
+          <div style={{ marginTop: "2rem" }}>
+            <h3>Download Tiers</h3>
+            <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
+              {DOWNLOAD_TIERS.map((tier) => {
+                const state = getTierState(tier.key);
+                return (
+                  <article key={tier.key} className="card" style={{
+                    opacity: state === "locked" ? 0.5 : 1,
+                    border: state === "purchased" ? "2px solid var(--accent)" : "1px solid var(--line)"
+                  }}>
+                    <div className="card-top">
+                      <div>
+                        <h3>{tier.label}</h3>
+                        <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{tier.description}</p>
+                      </div>
+                      <span className={`pill ${state === "purchased" ? "" : state === "upgrade-available" ? "" : "pill-error"}`}>
+                        {state === "purchased" ? "Owned" : state === "upgrade-available" ? "Upgrade" : "Locked"}
+                      </span>
+                    </div>
+                    <div className="button-row" style={{ marginTop: "0.75rem" }}>
+                      {state === "purchased" && (
+                        <button type="button" className="button button-small">Download</button>
+                      )}
+                      {state === "upgrade-available" && (
+                        <button type="button" className="button button-small button-secondary" onClick={() => void handleUpgradeTier(tier.key)}>
+                          Buy {tier.label}
+                        </button>
+                      )}
+                      {state === "locked" && (
+                        <button type="button" className="button button-small" disabled style={{ opacity: 0.5 }}>
+                          Unlock {tier.label}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ marginTop: "2rem" }}>
+            <h3>Print Options</h3>
+            <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginBottom: "1rem" }}>
+              Printed from restored master. No extra processing needed.
+            </p>
+            <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              {PRINT_SIZES.map((size) => (
+                <article key={size.key} className={`card ${selectedPrintSize === size.key ? "card-selected" : ""}`}
+                  style={{
+                    cursor: "pointer",
+                    border: selectedPrintSize === size.key ? "2px solid var(--accent)" : "1px solid var(--line)",
+                    background: selectedPrintSize === size.key ? "color-mix(in srgb, var(--accent) 5%, var(--surface))" : "var(--surface)"
+                  }}
+                  onClick={() => setSelectedPrintSize(size.key)}
+                >
+                  <div className="card-top">
+                    <div>
+                      <h3>{size.label}</h3>
+                      <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{size.description}</p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: "1.2rem", fontWeight: 700, margin: "0.5rem 0", color: "var(--accent)" }}>
+                    PKR {size.price}
+                  </p>
+                </article>
+              ))}
+            </div>
+            {selectedPrintSize && (
+              <div className="button-row" style={{ marginTop: "1rem" }}>
+                <button type="button" className="button" disabled={printBusy} onClick={handlePrintOrder}>
+                  {printBusy ? "Placing order..." : "Order Print"}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <div style={{ marginTop: "1.5rem" }}>
+        <Link to="/restore" className="button button-secondary">← My Restorations</Link>
       </div>
     </section>
   );

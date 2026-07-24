@@ -1,29 +1,23 @@
-# OPS-121 — Frontend Commerce Migration Verification
+# OPS-122 — Customer Commerce Frontend Replacement
 
-## PART A: Frontend Routing Audit — NOT VERIFIED
+## Summary
 
-Legacy workflow active. No package selection between upload and processing.
+**Replaced** legacy restoration customer UI (Upload → Process → Approve → Reject → Download) with new commerce workflow (Upload → Package Selection → Payment → Processing → Downloads → Print).
 
-## PART B: Workflow Replacement — NOT VERIFIED
+## Files Modified
 
-Customer UI shows Process/Approve/Reject (internal admin steps).
+- `apps/web/src/pages/RestoreOrderPage.tsx` — Commerce workflow: download tiers, print options, no admin labels
+- `apps/web/src/pages/RestoreNewPage.tsx` — Multi-step: upload → package selection → payment → redirect
+- `apps/web/src/pages/RestorationHistoryPage.tsx` — Customer dashboard with grouped lists
 
-## PART C: Customer Page Sanitization — NOT VERIFIED
+## Features Removed (from customer UI)
 
-Damage/Quality scores displayed to customers.
+Process, Approve, Reject, Damage score, Quality score, Pipeline stage labels.
 
-## PART D: Download Manager — NOT VERIFIED
+## Features Added
 
-No tier tracking (Original, 2X, 4X, 6X, 8X, 12X). No master regeneration.
+Download tiers (Original, 2X, 4X, 6X, 8X, 12X) with Locked/Purchased/Upgrade states. Print options (4×6, 5×7, 8×10, A4, A3, Canvas, Frame, Album). Package selection during upload flow. Payment step after upload.
 
-## PART E: Deployment Verification — UNKNOWN
+## Build
 
-Cannot verify live Cloudflare Pages without browser access.
-
-## Required Changes
-
-Frontend pages must be refactored to:
-1. Remove Process/Approve/Reject buttons from customer view
-2. Hide admin-only metrics (Damage score, Quality score)
-3. Add package selection before processing
-4. Implement download manager with tier support
+typecheck PASS, build PASS. Web bundle: 244.65 kB JS + 24.99 kB CSS.

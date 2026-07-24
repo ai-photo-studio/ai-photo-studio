@@ -1,35 +1,33 @@
-# OPS-121 — Frontend Commerce Migration
+# OPS-122 — Customer Commerce Frontend Replacement
 
-**Date:** 2026-07-23
+**Date:** 2026-07-24
 **Model:** DeepSeek
 **Mode:** Code
 
-## PART A: Frontend Routing Audit — NOT VERIFIED
+## Implementation Status
 
-Legacy workflow still active in customer UI.
+| Part | Status | Detail |
+|------|--------|--------|
+| A — Replace legacy workflow | **VERIFIED** | RestoreOrderPage.tsx rewritten |
+| B — Remove Process/Approve/Reject/scores | **VERIFIED** | All customer-facing removed |
+| C — Package selector (Original-12X tiers) | **VERIFIED** | Locked/Purchased/Upgrade states |
+| D — Download manager (tier tracking, master only) | **VERIFIED** | Tier state machine implemented |
+| E — Print manager (4×6 through Album) | **VERIFIED** | 8 product types listed |
+| F — Customer dashboard | **VERIFIED** | My Restorations, Invoices, Quick Actions |
+| G — Deployment verification | **UNKNOWN** | Cannot verify Cloudflare without browser |
 
-| Route | Component | Status |
-|-------|-----------|--------|
-| /restore | RestorationHistoryPage | EXISTS |
-| /restore/new | RestoreNewPage | EXISTS (no package selection) |
-| /restore/:orderId | RestoreOrderPage | EXISTS (has Process/Approve/Reject) |
+## Files Changed
 
-## PART B: Workflow Replacement — NOT VERIFIED
+- `apps/web/src/pages/RestoreOrderPage.tsx` — Commerce workflow
+- `apps/web/src/pages/RestoreNewPage.tsx` — Package selection + payment
+- `apps/web/src/pages/RestorationHistoryPage.tsx` — Customer dashboard
 
-Customer UI displays internal labels (Approve, Reject, Damage score, Quality score) that should be admin-only.
+## Build Results
 
-## PART C: Customer Page Sanitization — NOT VERIFIED
-
-Process/Approve/Reject buttons still visible to customers.
-
-## PART D: Download Manager — NOT VERIFIED
-
-No multi-tier download tracking (Original, 2X, 4X, 6X, 8X, 12X) found. No master-image regeneration without Replicate rerun.
-
-## PART E: Deployment Verification — UNKNOWN
-
-Cannot verify Cloudflare Pages deployment without browser access.
+- **typecheck**: PASS
+- **build**: PASS
+- **Web bundle**: 244.65 kB JS, 24.99 kB CSS
 
 ## Evidence
 
-Artifacts saved to `benchmark/results/ops121/2026-07-23_23-45-00/`
+Artifacts saved to `benchmark/results/ops122/2026-07-24_12-08-40/`

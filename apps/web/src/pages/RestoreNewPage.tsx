@@ -2,16 +2,20 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { customerApi } from "../services/customerApi";
-import type { RestorationOrderSummary, RestorationItemRecord } from "../lib/portal-types";
+import { usePackages } from "../lib/packages";
+import type { PackageSummary } from "../lib/api";
 
 export function RestoreNewPage() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
+  const { packages, loading: pkgLoading } = usePackages();
   const [files, setFiles] = useState<{ file: File; base64: string; name: string; size: number }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadResults, setUploadResults] = useState<{ orderId: string; count: number } | null>(null);
+  const [step, setStep] = useState<"upload" | "package" | "payment" | "complete">("upload");
+  const [selectedPackage, setSelectedPackage] = useState<PackageSummary | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   const readFile = (file: File): Promise<{ base64: string; name: string; size: number }> =>
     new Promise((resolve, reject) => {
@@ -75,7 +79,8 @@ export function RestoreNewPage() {
           setError(`Failed to upload ${f.name}: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
       }
-      setUploadResults({ orderId: order.id, count });
+      setOrderId(order.id);
+      setStep("package");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create restoration order");
     } finally {
@@ -83,17 +88,82 @@ export function RestoreNewPage() {
     }
   };
 
-  if (uploadResults) {
-    setTimeout(() => navigate(`/restore/${uploadResults.orderId}`), 1500);
+  const handleSelectPackage = (pkg: PackageSummary) => {
+    setSelectedPackage(pkg);
+    setStep("payment");
+  };
+
+  const handlePaymentComplete = () => {
+    if (orderId) {
+      navigate(`/restore/${orderId}`);
+    }
+  };
+
+  if (step === "package" && orderId) {
     return (
       <section className="page-stack">
         <div className="section-heading">
           <p className="eyebrow">Photo Restoration</p>
-          <h1>Upload Complete</h1>
+          <h1>Choose Your Package</h1>
+          <p>Select the download tier that matches your needs.</p>
         </div>
-        <div className="state-panel" style={{ background: "var(--surface)", padding: "2rem", borderRadius: "var(--radius)" }}>
-          <p style={{ fontSize: "1.2rem", fontWeight: 600 }}>✅ {uploadResults.count} image(s) uploaded successfully</p>
-          <p>Redirecting to restoration order...</p>
+
+        <div className="pricing-grid" style={{
+          display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: "1rem", marginTop: "1.5rem"
+        }}>
+          {packages.map((pkg) => (
+            <article key={pkg.id} className="card" style={{ cursor: "pointer" }}
+              onClick={() => handleSelectPackage(pkg)}
+            >
+              <div className="card-top">
+                <div>
+                  <p className="eyebrow">{pkg.code}</p>
+                  <h3>{pkg.name}</h3>
+                </div>
+              </div>
+              <p style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--accent)", margin: "0.5rem 0" }}>
+                {pkg.currency} {pkg.price}
+              </p>
+              <p>{pkg.description || `${pkg.creditsIncluded || 0} credits included`}</p>
+              <div className="button-row" style={{ marginTop: "0.75rem" }}>
+                <button type="button" className="button button-block">Select Package</button>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div style={{ marginTop: "1rem" }}>
+          <button type="button" className="button button-secondary" onClick={() => setStep("upload")}>← Back to Upload</button>
+        </div>
+      </section>
+    );
+  }
+
+  if (step === "payment") {
+    return (
+      <section className="page-stack">
+        <div className="section-heading">
+          <p className="eyebrow">Photo Restoration</p>
+          <h1>Payment</h1>
+          <p>Selected package: {selectedPackage?.name} ({selectedPackage?.currency} {selectedPackage?.price})</p>
+        </div>
+
+        <div className="card" style={{ maxWidth: 500, margin: "1.5rem auto", textAlign: "center", padding: "2rem" }}>
+          <p style={{ fontSize: "2rem", fontWeight: 700, color: "var(--accent)", marginBottom: "1rem" }}>
+            {selectedPackage?.currency} {selectedPackage?.price}
+          </p>
+          <p style={{ marginBottom: "1.5rem", color: "var(--muted)" }}>
+            {selectedPackage?.description || `Package: ${selectedPackage?.name}`}
+          </p>
+          <div className="button-row" style={{ justifyContent: "center" }}>
+            <button type="button" className="button" onClick={handlePaymentComplete}>
+              Complete Payment
+            </button>
+            <button type="button" className="button button-secondary" onClick={() => setStep("package")}>
+              ← Change Package
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -156,8 +226,8 @@ export function RestoreNewPage() {
 
       {files.length > 0 && (
         <div className="button-row" style={{ marginTop: "1rem" }}>
-          <button type="button" className="button" disabled={uploading} onClick={handleUpload}>
-            {uploading ? "Uploading..." : `Upload ${files.length} image(s) & Start Restoration`}
+          <button type="button" className="button" disabled={uploading || pkgLoading} onClick={handleUpload}>
+            {uploading ? "Uploading..." : `Upload ${files.length} image(s) & Choose Package`}
           </button>
         </div>
       )}
