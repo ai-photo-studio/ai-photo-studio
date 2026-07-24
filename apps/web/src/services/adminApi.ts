@@ -119,5 +119,8 @@ export const adminApi = {
   restorationDetail: (id: string) => request<RestorationOrderSummary & { items: RestorationItemRecord[] }>(`/api/admin/restorations/${id}`),
   restorationStats: () => request<{ total: number; completed: number; processing: number; failed: number; pending: number }>("/api/admin/restoration-stats"),
   retryRestorationOrder: (id: string) => request<any>(`/api/admin/restorations/${id}/retry`, { method: "POST" }),
-  retryRestorationItem: (id: string) => request<any>(`/api/admin/restoration-items/${id}/retry`, { method: "POST" })
+  retryRestorationItem: (id: string) => request<any>(`/api/admin/restoration-items/${id}/retry`, { method: "POST" }),
+
+  businessMetrics: (hours = 24) => request<any>(`/api/admin/business-metrics?hours=${hours}`),
+  analytics: (hours = 24) => request<any>(`/api/admin/analytics?hours=${hours}`),
 };

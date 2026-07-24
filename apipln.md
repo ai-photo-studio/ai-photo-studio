@@ -1,28 +1,19 @@
-# OPS-124 — Launch Readiness & Beta Operations
+# OPS-125 — Closed Beta Launch & Business Analytics
 
 ## Summary
 
-Production deployment verified. Cloudflare Pages updated to serve latest commerce UI.
+Business analytics system implemented. Admin dashboard extended with real-time metrics.
 
-## Deployment Action Taken
+## What Was Built
 
-Frontend deployment was stale (commit `f9db43f`, 2 days old). Deployed OPS-122/OPS-123 code (commit `f1271bb`) to Cloudflare Pages Production.
+| Component | Files | Status |
+|-----------|-------|--------|
+| Business Analytics Service | `services/business-analytics.service.ts` | VERIFIED |
+| Admin Analytics Endpoint | `controllers/admin.controller.ts` (businessMetrics) | VERIFIED |
+| Admin Analytics Route | `routes/admin.routes.ts` (GET /admin/business-metrics) | VERIFIED |
+| Admin Dashboard Extension | `pages/AdminDashboard.tsx` (3 new sections) | VERIFIED |
+| Frontend API Methods | `services/adminApi.ts` (businessMetrics, analytics) | VERIFIED |
 
-## Status
+## Metrics Available
 
-| Area | VERIFIED | UNKNOWN |
-|------|----------|---------|
-| Live Deployment | 11 | 2 |
-| Payments | 10 | 0 |
-| Commerce Journey | 10 | 0 |
-| Storage | 7 | 1 |
-| Monitoring | 17 | 1 |
-| Backups | 6 | 1 |
-| **Total** | **61** | **5** |
-
-## Unknown Items
-
-1. External uptime monitoring — not configured
-2. Alerting integration — not configured
-3. Bank Alfalah merchant live URLs
-4. R2 bucket versioning
+Daily: uploads, paid orders, conversion, AOV, revenue PKR/USD, Replicate cost, gross margin, print orders, repeat customers. Operations: queue states, storage counts, failures. Totals: lifetime orders, revenue, cost, customers.

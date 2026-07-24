@@ -42,6 +42,8 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.get("/admin/queue-health", requireAdminAuth(config, opsRoles), controller.getQueueHealthStatus);
   router.get("/admin/cost-metrics", requireAdminAuth(config, adminRoles), controller.costMetrics);
   router.get("/admin/creative-cost-metrics", requireAdminAuth(config, adminRoles), controller.creativeCostMetrics);
+  router.get("/admin/business-metrics", requireAdminAuth(config, adminRoles), controller.businessMetrics);
+  router.get("/admin/analytics", requireAdminAuth(config, adminRoles), controller.businessMetrics);
   router.post("/admin/orders/:id/retry", requireAdminAuth(config, opsRoles), controller.retryOrder);
   router.post("/admin/orders/:id/approve-manual-payment", requireAdminAuth(config, financeRoles), controller.approveManualPayment);
   router.post("/admin/orders/:id/reject-manual-payment", requireAdminAuth(config, financeRoles), controller.rejectManualPayment);

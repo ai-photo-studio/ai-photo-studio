@@ -3,6 +3,7 @@ import type { AppConfig } from "../config/env";
 import { AppError, toErrorMessage } from "../utils/errors";
 import { AdminService } from "../services/admin.service";
 import { QueueHealthService } from "../services/queue-health.service";
+import { BusinessAnalyticsService } from "../services/business-analytics.service";
 
 export class AdminController {
   private readonly adminService: AdminService;
@@ -11,7 +12,10 @@ export class AdminController {
   constructor(config: AppConfig) {
     this.adminService = new AdminService(config);
     this.queueHealth = new QueueHealthService(config);
+    this.businessAnalytics = new BusinessAnalyticsService();
   }
+
+  private readonly businessAnalytics: BusinessAnalyticsService;
 
   dashboard = async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -306,6 +310,16 @@ creativeCostMetrics = async (req: Request, res: Response): Promise<void> => {
   getQueueHealthStatus = async (_req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.adminService.getQueueHealth();
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  businessMetrics = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const hoursBack = req.query.hours ? Number(req.query.hours) : 24;
+      const data = await this.businessAnalytics.getBusinessMetrics(hoursBack);
       res.json({ success: true, data });
     } catch (error) {
       this.handleError(res, error);
