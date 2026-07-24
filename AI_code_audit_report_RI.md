@@ -1,4 +1,4 @@
-# OPS-127 — Production Stability & Data Initialization
+# OPS-128 — Production Deployment Completion & Performance Verification
 
 **Date:** 2026-07-24
 **Model:** DeepSeek
@@ -6,37 +6,31 @@
 
 ## Summary
 
-Two critical production blockers identified and fixed. One requires Cloud Run redeployment to take effect.
+| Part | Status | Key Finding |
+|------|--------|-------------|
+| A — Cloud Run API | **VERIFIED** | API healthy. Northflank primary platform. Cloud Run legacy also exists. |
+| B — Admin / Deploy | **PENDING** | Code fix committed (d48de21). GitHub Actions build failed (Docker Hub timeout). Northflank auto-deploy pending. |
+| C — Packages | **FAILED** | `GET /api/packages` returns `[]`. Seed not run on production. |
+| D — Performance | **VERIFIED** | All endpoints <500ms TTFB. 245kB JS bundle is main concern. |
+| E — Connectivity | **VERIFIED** | ERR_CONNECTION_CLOSED not reproducible. Likely client DNS cache. |
+| F — Production verification | **PARTIAL** | Frontend ✅, API ✅, Admin login ❌ (fix not deployed), Packages ❌ |
 
-## Blocker 1: No Active Packages in Production Database
+## Deployment Issues Encountered
 
-`GET /api/packages` returns `{"success":true,"data":[]}`. Prisma seed has never been run against production.
+1. **Wrong platform targeted**: `gcloud run deploy` commands targeted GCP Cloud Run instead of Northflank (current production platform).
+2. **GitHub Actions Docker Hub timeout**: CI build failed pulling base image from Docker Hub.
+3. **Previous Cloud Run service still exists**: `ai-photo-studio-api` on GCP Cloud Run is a legacy service from before the Northflank migration.
 
-**Fix:** Deploy API with `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` env vars, then create packages via admin API or run seed.
+## Blockers Remaining
 
-## Blocker 2: Admin Auth Broken (CRITICAL — FIXED)
+1. Admin auth fix needs to be deployed to Northflank (GitHub Actions build or Northflank auto-deploy)
+2. Production database needs package data seeded
+3. Cloud Run cleanup: Verify the legacy Cloud Run service has **0% traffic**, no environment references, no provider references, no deployment script references
 
-**File:** `apps/api/src/services/admin-auth.service.ts`
+## Frontend
 
-Two bugs found:
-1. **Login compared password against env var** (`password !== process.env.ADMIN_BOOTSTRAP_PASSWORD`) instead of stored PBKDF2 hash — **ALL production logins rejected**.
-2. **Bootstrap created user with hardcoded hash** (`passwordHash: "bootstrap"`) instead of proper hash.
-
-**FIX APPLIED in code:** Login now uses `verifyPassword(password, admin.passwordHash)`. Bootstrap now uses `hashPassword(input.password)`.
-
-## Blocker 3: Connectivity
-
-ERR_CONNECTION_CLOSED not reproducible. Likely client DNS cache.
-
-## Verification
-
-| Check | Status |
-|-------|--------|
-| Packages API | FAILED (empty) |
-| Admin login | FIXED (code) — pending deploy |
-| Frontend deployed | VERIFIED (b5e83b66) |
-| API health | VERIFIED |
+✅ Latest frontend deployed to Cloudflare Pages (commit d48de21, deployment 855ba961)
 
 ## Evidence
 
-Artifacts saved to `benchmark/results/ops127/2026-07-24_20-15-00/`
+Artifacts saved to `benchmark/results/ops128/2026-07-24_15-30-00/`

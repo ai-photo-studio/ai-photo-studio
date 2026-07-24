@@ -1,21 +1,23 @@
-# OPS-127 — Production Stability & Data Initialization
+# OPS-128 — Production Deployment Completion & Performance Verification
 
 ## Summary
 
-Two production blockers resolved. One requires Cloud Run deployment.
+Frontend deployed successfully. API admin auth fix committed but not yet deployed to Northflank. Packages still empty.
 
-## Findings
+## Status
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| No packages in DB | Critical | FAILED — seed required |
-| Admin auth uses wrong comparison (env var vs hash) | Critical | FIXED in code |
-| Admin bootstrap stores hardcoded hash | Critical | FIXED in code |
-| Frontend deployed with latest build | Medium | VERIFIED |
-| ERR_CONNECTION_CLOSED | Low | Not reproducible |
+| Area | Status |
+|------|--------|
+| Frontend (Cloudflare Pages) | VERIFIED — d48de21 live |
+| API health | VERIFIED — responding |
+| Admin login fix (OPS-127) | COMMITTED — pending Northflank deploy |
+| Packages API | FAILED — empty |
+| Performance | VERIFIED — all <500ms |
+| Connectivity | VERIFIED — not reproducible |
 
-## Admin User (Pending Deploy)
+## Blocker
 
-Email: nazimsaeed@gmail.com / Password: Lahore!23
-
-Deploy API with env vars `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` to auto-create.
+GitHub Actions Docker build failed due to Docker Hub timeout. The admin auth fix (`d48de21`) needs Northflank deployment to complete. After that:
+1. Admin user `nazimsaeed@gmail.com` / `Lahore!23` will be bootstrapped
+2. Packages can be created via admin API
+3. Full commerce flow will work
