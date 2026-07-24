@@ -5,7 +5,7 @@ WORKDIR /build
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/api/package.json apps/api/tsconfig.json ./apps/api/
 
-RUN cd apps/api && npm install --include=dev
+RUN cd apps/api && npm install --include=dev && npm install --include=dev sharp
 
 COPY apps/api/prisma ./apps/api/prisma
 RUN npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
