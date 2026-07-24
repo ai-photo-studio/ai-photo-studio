@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import type { AppConfig } from "../config/env";
 import { prisma } from "../db/prisma";
 import { AppError } from "../utils/errors";
+import { hashPassword, verifyPassword } from "./auth.service";
 
 export type AdminRole = "SUPER_ADMIN" | "OPERATIONS" | "FINANCE" | "SUPPORT" | "READ_ONLY";
 
@@ -29,7 +30,7 @@ export class AdminAuthService {
     if (!admin || !admin.isActive) {
       throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
-    if (password !== process.env.ADMIN_BOOTSTRAP_PASSWORD) {
+    if (!verifyPassword(password, admin.passwordHash)) {
       throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
     const sessionId = randomUUID();
@@ -90,10 +91,12 @@ export class AdminAuthService {
   async bootstrapFirstAdmin(input: { email: string; password: string; name?: string; role: AdminRole }) {
     const existing = await prisma.adminUser.findUnique({ where: { email: input.email } });
     if (existing) return existing;
+    if (!input.email || !input.password) return null;
+    const passwordHash = hashPassword(input.password);
     return prisma.adminUser.create({
       data: {
         email: input.email,
-        passwordHash: "bootstrap",
+        passwordHash,
         name: input.name,
         role: input.role,
         isActive: true
