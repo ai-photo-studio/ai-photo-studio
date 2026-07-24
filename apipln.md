@@ -1,19 +1,21 @@
-# OPS-125 — Closed Beta Launch & Business Analytics
+# OPS-126 — Production Deployment Forensic Investigation
 
 ## Summary
 
-Business analytics system implemented. Admin dashboard extended with real-time metrics.
+Three issues identified:
 
-## What Was Built
+1. **Commerce UI: Package selection empty** — GET /api/packages returns `[]`. Root cause: No active Package records in production database. Fix: Run `npx prisma db seed`.
 
-| Component | Files | Status |
-|-----------|-------|--------|
-| Business Analytics Service | `services/business-analytics.service.ts` | VERIFIED |
-| Admin Analytics Endpoint | `controllers/admin.controller.ts` (businessMetrics) | VERIFIED |
-| Admin Analytics Route | `routes/admin.routes.ts` (GET /admin/business-metrics) | VERIFIED |
-| Admin Dashboard Extension | `pages/AdminDashboard.tsx` (3 new sections) | VERIFIED |
-| Frontend API Methods | `services/adminApi.ts` (businessMetrics, analytics) | VERIFIED |
+2. **Frontend deployment stale** — Production at commit `f1271bb` (OPS-123). OPS-125 business analytics changes (`5d690c2`) not deployed.
 
-## Metrics Available
+3. **ERR_CONNECTION_CLOSED** — Not reproducible. thannow.com resolves and serves content correctly.
 
-Daily: uploads, paid orders, conversion, AOV, revenue PKR/USD, Replicate cost, gross margin, print orders, repeat customers. Operations: queue states, storage counts, failures. Totals: lifetime orders, revenue, cost, customers.
+## Findings
+
+| Item | Status |
+|------|--------|
+| Root domain (thannow.com) | VERIFIED — OK |
+| Frontend bundle content | VERIFIED — Commerce UI confirmed |
+| Package API response | FAILED — Empty array |
+| Package data in DB | FAILED — Seed not run |
+| OPS-125 deployed | UNKNOWN — Still on f1271bb |

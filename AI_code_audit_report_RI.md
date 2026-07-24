@@ -1,26 +1,32 @@
-# OPS-125 — Closed Beta Launch & Business Analytics
+# OPS-126 — Production Deployment Forensic Investigation
 
 **Date:** 2026-07-24
 **Model:** DeepSeek
-**Mode:** Code
+**Mode:** Debug
 
-## Analytics Implementation
+## Findings Summary
 
-- **Backend service**: `services/business-analytics.service.ts` — computes daily and lifetime business metrics
-- **Admin controller**: Added `businessMetrics` endpoint for `GET /admin/business-metrics`
-- **Admin routes**: Registered as `/admin/business-metrics` and `/admin/analytics`
-- **Frontend**: Extended `AdminDashboard.tsx` with Business Analytics, Operations, and Totals sections
-- **Frontend API**: Added `adminApi.businessMetrics(hours)` and `adminApi.analytics(hours)`
+| Part | Status | Key Finding |
+|------|--------|-------------|
+| A — Root domain | VERIFIED | thannow.com, www.thannow.com, api.thannow.com all respond correctly. ERR_CONNECTION_CLOSED not reproducible. |
+| B — Frontend deployment | VERIFIED | Commit f1271bb, bundle index-BR7fkVl4.js, commerce UI confirmed (no Process/Approve/Reject strings) |
+| C — Browser runtime | VERIFIED | All requests succeed except packages endpoint returns empty |
+| D — Commerce UI | **FAILED** | Package selection step renders zero cards because GET /api/packages returns empty array |
+| E — Backend | **FAILED** | No active packages in production database — seed has never been run |
+| F — Redeploy | PENDING | Deploy OPS-125 commit to add business analytics to admin dashboard |
 
-## Dashboard Sections Added
+## Critical Bug Identified
 
-| Section | Metrics |
-|---------|---------|
-| Daily Summary | Today orders, revenue, pending, processing, completed, failed, failed jobs, images |
-| Business Analytics | Uploads, paid orders, conversion rate, AOV, revenue PKR/USD, Replicate cost, gross margin, print orders, repeat customers |
-| Operations | Queue states, storage counts, restore failures, Replicate failures |
-| Lifetime Totals | Total orders/paid/revenue PKR/USD/Replicate cost/customers |
+**The "Choose Your Package" page shows NO package cards.**
 
-## Build
+Root cause: `GET /api/packages` returns `{"success":true,"data":[]}` because the production database has no `Package` records with `active: true`. The Prisma seed (`prisma/seed.ts`) defines 4 packages but has never been run against production.
 
-typecheck PASS, build PASS
+## Fix Required
+
+```bash
+npx prisma db seed
+```
+
+## Evidence
+
+Artifacts saved to `benchmark/results/ops126/2026-07-24_19-00-00/`
