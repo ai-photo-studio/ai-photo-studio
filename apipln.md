@@ -1,24 +1,28 @@
-# OPS-123 — Production Readiness Certification
+# OPS-124 — Launch Readiness & Beta Operations
 
 ## Summary
 
-Production readiness audit complete: **58 VERIFIED**, 10 UNKNOWN, 0 FAILED.
+Production deployment verified. Cloudflare Pages updated to serve latest commerce UI.
 
-## Areas Verified
+## Deployment Action Taken
 
-| Area | Status | Key Findings |
-|------|--------|--------------|
-| Deployment | 4/7 VERIFIED | Build passes, commerce bundle confirmed; Cloudflare UNKNOWN |
-| Payment | 12/14 VERIFIED | JazzCash/EasyPaisa/Manual, webhooks, duplicate protection |
-| Download | 8/8 VERIFIED | Signed URLs (15-min), tier validation, auth-gated |
-| Print | 3/7 VERIFIED | Sizes/prices defined; fulfillment UNKNOWN |
-| Storage | 7/7 VERIFIED | R2, retention 72h/30d/7d/24h, cleanup worker active |
-| Operations | 10/10 VERIFIED | Structured logs, health endpoints, watchdogs, retry |
-| Security | 14/15 VERIFIED | Auth, RBAC, rate limiting, signed URLs, validation |
+Frontend deployment was stale (commit `f9db43f`, 2 days old). Deployed OPS-122/OPS-123 code (commit `f1271bb`) to Cloudflare Pages Production.
+
+## Status
+
+| Area | VERIFIED | UNKNOWN |
+|------|----------|---------|
+| Live Deployment | 11 | 2 |
+| Payments | 10 | 0 |
+| Commerce Journey | 10 | 0 |
+| Storage | 7 | 1 |
+| Monitoring | 17 | 1 |
+| Backups | 6 | 1 |
+| **Total** | **61** | **5** |
 
 ## Unknown Items
 
-- Cloudflare Pages deployment (requires dashboard)
-- CSRF token (mitigated by Bearer token + CORS)
-- Print fulfillment integration
-- Live payment merchant configuration
+1. External uptime monitoring — not configured
+2. Alerting integration — not configured
+3. Bank Alfalah merchant live URLs
+4. R2 bucket versioning
