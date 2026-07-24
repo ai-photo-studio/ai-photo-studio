@@ -1,23 +1,24 @@
-# OPS-122 — Customer Commerce Frontend Replacement
+# OPS-123 — Production Readiness Certification
 
 ## Summary
 
-**Replaced** legacy restoration customer UI (Upload → Process → Approve → Reject → Download) with new commerce workflow (Upload → Package Selection → Payment → Processing → Downloads → Print).
+Production readiness audit complete: **58 VERIFIED**, 10 UNKNOWN, 0 FAILED.
 
-## Files Modified
+## Areas Verified
 
-- `apps/web/src/pages/RestoreOrderPage.tsx` — Commerce workflow: download tiers, print options, no admin labels
-- `apps/web/src/pages/RestoreNewPage.tsx` — Multi-step: upload → package selection → payment → redirect
-- `apps/web/src/pages/RestorationHistoryPage.tsx` — Customer dashboard with grouped lists
+| Area | Status | Key Findings |
+|------|--------|--------------|
+| Deployment | 4/7 VERIFIED | Build passes, commerce bundle confirmed; Cloudflare UNKNOWN |
+| Payment | 12/14 VERIFIED | JazzCash/EasyPaisa/Manual, webhooks, duplicate protection |
+| Download | 8/8 VERIFIED | Signed URLs (15-min), tier validation, auth-gated |
+| Print | 3/7 VERIFIED | Sizes/prices defined; fulfillment UNKNOWN |
+| Storage | 7/7 VERIFIED | R2, retention 72h/30d/7d/24h, cleanup worker active |
+| Operations | 10/10 VERIFIED | Structured logs, health endpoints, watchdogs, retry |
+| Security | 14/15 VERIFIED | Auth, RBAC, rate limiting, signed URLs, validation |
 
-## Features Removed (from customer UI)
+## Unknown Items
 
-Process, Approve, Reject, Damage score, Quality score, Pipeline stage labels.
-
-## Features Added
-
-Download tiers (Original, 2X, 4X, 6X, 8X, 12X) with Locked/Purchased/Upgrade states. Print options (4×6, 5×7, 8×10, A4, A3, Canvas, Frame, Album). Package selection during upload flow. Payment step after upload.
-
-## Build
-
-typecheck PASS, build PASS. Web bundle: 244.65 kB JS + 24.99 kB CSS.
+- Cloudflare Pages deployment (requires dashboard)
+- CSRF token (mitigated by Bearer token + CORS)
+- Print fulfillment integration
+- Live payment merchant configuration
