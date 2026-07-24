@@ -1,24 +1,21 @@
-# OPS-129 — Northflank Production Recovery
+# OPS-130 — Production Infrastructure Forensic Verification
 
 ## Summary
 
-Dockerfile fixed after 4+ days of failed production deployments. Northflank was confirmed as the production platform (not Cloud Run). Admin auth fix built and pushed. Two remaining blockers documented.
+Forensic investigation complete. Production API runs on **Google Cloud Run**, NOT Northflank. All production blockers resolved.
 
-## Findings
+## Key Findings
 
-| Item | Status |
-|------|--------|
-| Dockerfile bug fixed | VERIFIED — real package.json, sharp installed |
-| GitHub Actions Docker build | VERIFIED — passes in 1m51s |
-| Northflank auto-deploy triggered | VERIFIED |
-| Frontend deployed (Cloudflare) | VERIFIED — commit 204a926 |
-| Admin login working | FAILED — env vars not set on Northflank |
-| Packages in DB | FAILED — seed not run |
+| Finding | Status |
+|---------|--------|
+| Production platform | VERIFIED — Google Cloud Run (revision 00096-gkh / 00097-29z) |
+| Northflank implementation | FAILED — DNS does not resolve, never in production |
+| Admin login | VERIFIED — Works with nazimsaeed@gmail.com |
+| Packages API | VERIFIED — Returns 4 active packages |
+| Cloud Run retirement | NOT RECOMMENDED — It IS production |
 
-## Next Steps
+## Actions Taken
 
-1. Set env vars on Northflank: `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`
-2. Restart Northflank service
-3. Login as `nazimsaeed@gmail.com` / `Lahore!23`
-4. Create packages via admin API
-5. Verify commerce flow
+1. Set `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` on Cloud Run → admin user auto-created
+2. Created 4 packages via admin API (STARTER, PRO, BUSINESS, DEALER)
+3. Commerce flow unblocked — packages render in UI
