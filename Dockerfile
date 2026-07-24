@@ -2,29 +2,27 @@ from node:24-slim
 RUN apt-get update && apt-get install -y openssl libssl3
 WORKDIR /app
 
-# Copy workspace root config
+# Copy all config files needed for installation
 COPY tsconfig.base.json package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/api/tsconfig.json ./apps/api/tsconfig.json
 
-# Install all dependencies (including devDependencies for TypeScript build)
+# Install dependencies (inside apps/api where package.json is)
 WORKDIR /app/apps/api
 RUN npm install --include=dev
-WORKDIR /app
 
 # Generate Prisma client
-COPY apps/api/prisma ./apps/api/prisma
-RUN npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
+COPY apps/api/prisma ./prisma
+RUN npx prisma@5.20.0 generate
 
-# Copy and build
-COPY apps/api/src ./apps/api/src
-RUN node apps/api/node_modules/.bin/tsc -p apps/api/tsconfig.json
+# Copy source and build
+COPY apps/api/src ./src
+RUN node node_modules/.bin/tsc -p tsconfig.json
 
-# Prune to production dependencies
-WORKDIR /app/apps/api
+# Prune to production dependencies only
 RUN npm install --production
-WORKDIR /app
 
+WORKDIR /app
 RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 USER nodejs
 EXPOSE ${PORT:-8080}
