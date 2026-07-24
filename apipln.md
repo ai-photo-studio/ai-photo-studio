@@ -1,23 +1,24 @@
-# OPS-128 — Production Deployment Completion & Performance Verification
+# OPS-129 — Northflank Production Recovery
 
 ## Summary
 
-Frontend deployed successfully. API admin auth fix committed but not yet deployed to Northflank. Packages still empty.
+Dockerfile fixed after 4+ days of failed production deployments. Northflank was confirmed as the production platform (not Cloud Run). Admin auth fix built and pushed. Two remaining blockers documented.
 
-## Status
+## Findings
 
-| Area | Status |
+| Item | Status |
 |------|--------|
-| Frontend (Cloudflare Pages) | VERIFIED — d48de21 live |
-| API health | VERIFIED — responding |
-| Admin login fix (OPS-127) | COMMITTED — pending Northflank deploy |
-| Packages API | FAILED — empty |
-| Performance | VERIFIED — all <500ms |
-| Connectivity | VERIFIED — not reproducible |
+| Dockerfile bug fixed | VERIFIED — real package.json, sharp installed |
+| GitHub Actions Docker build | VERIFIED — passes in 1m51s |
+| Northflank auto-deploy triggered | VERIFIED |
+| Frontend deployed (Cloudflare) | VERIFIED — commit 204a926 |
+| Admin login working | FAILED — env vars not set on Northflank |
+| Packages in DB | FAILED — seed not run |
 
-## Blocker
+## Next Steps
 
-GitHub Actions Docker build failed due to Docker Hub timeout. The admin auth fix (`d48de21`) needs Northflank deployment to complete. After that:
-1. Admin user `nazimsaeed@gmail.com` / `Lahore!23` will be bootstrapped
-2. Packages can be created via admin API
-3. Full commerce flow will work
+1. Set env vars on Northflank: `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`
+2. Restart Northflank service
+3. Login as `nazimsaeed@gmail.com` / `Lahore!23`
+4. Create packages via admin API
+5. Verify commerce flow
