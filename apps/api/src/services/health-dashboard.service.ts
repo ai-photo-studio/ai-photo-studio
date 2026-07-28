@@ -5,7 +5,6 @@ import { QueueHealthService } from "./queue-health.service";
 import { QueueMetricsService } from "./queue-metrics.service";
 import { MonitoringService } from "./monitoring.service";
 import { ReplicateProvider } from "../restoration-providers/providers/ReplicateProvider";
-import { ProviderCertifier } from "../restoration-providers/certification/ProviderCertifier";
 import { logger } from "../utils/logger";
 
 export interface ProviderHealthSummary {
@@ -80,18 +79,14 @@ export class HealthDashboardService {
   }
 
   async getProviderHealth(): Promise<ProviderHealthSummary[]> {
-    const certifier = new ProviderCertifier();
-
     const providerNames = ["replicate"];
     const summaries: ProviderHealthSummary[] = [];
 
     for (const name of providerNames) {
       try {
         const provider = new ReplicateProvider(this.config.REPLICATE_API_TOKEN);
-        certifier.registerProvider(provider);
 
         const health = await provider.health();
-        const cred = await certifier.verifyCredentials(name);
 
         summaries.push({
           providerName: name,
@@ -101,7 +96,7 @@ export class HealthDashboardService {
           totalRequests: 0,
           successfulRequests: 0,
           failedRequests: 0,
-          certified: cred.found && health.status === "active",
+          certified: health.status === "active",
           lastChecked: health.lastChecked,
         });
       } catch (err) {

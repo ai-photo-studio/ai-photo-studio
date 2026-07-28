@@ -1,7 +1,6 @@
 import type { CreativeType, CreativeSceneType, LifestyleTemplate } from "./creative-types";
 import { prisma } from "../../db/prisma";
 import { logger } from "../../utils/logger";
-import { CreativeProviderFactory } from "../../providers/creative-provider.factory";
 import type { AppConfig } from "../../config/env";
 
 export type LifestyleSceneInput = {
@@ -24,21 +23,17 @@ export type LifestyleSceneOutput = {
 };
 
 export class LifestyleSceneService {
-  private readonly providerFactory: CreativeProviderFactory;
-
   constructor(config: AppConfig) {
-    this.providerFactory = new CreativeProviderFactory(config);
   }
 
   async generate(input: LifestyleSceneInput): Promise<LifestyleSceneOutput> {
     const startTime = Date.now();
     const requestId = `lifestyle-scene-${Date.now()}`;
     const template = input.template || "home";
-    const provider = this.providerFactory.create("mock");
 
     try {
-      const result = await provider.generateLifestyleScene({ body: input.body, sceneType: template });
-      const resultBuffer = result.body;
+      // Mock result — no creative provider configured
+      const resultBuffer = input.body;
       const durationMs = Date.now() - startTime;
       const outputContentType = input.contentType || "image/png";
 
@@ -49,7 +44,7 @@ export class LifestyleSceneService {
         creativeType: "LIFESTYLE_SCENE",
         sceneType: this.mapTemplateToSceneType(template),
         template,
-        providerUsed: provider.name,
+        providerUsed: "mock",
         status: "COMPLETED",
         durationMs,
         inputSizeBytes: input.body.length,
@@ -77,7 +72,7 @@ export class LifestyleSceneService {
         creativeType: "LIFESTYLE_SCENE",
         sceneType: this.mapTemplateToSceneType(template),
         template,
-        providerUsed: provider.name,
+        providerUsed: "mock",
         status: "FAILED",
         durationMs,
         inputSizeBytes: input.body.length

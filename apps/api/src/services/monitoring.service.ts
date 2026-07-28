@@ -1,7 +1,6 @@
 import type { AppConfig } from "../config/env";
 import { prisma } from "../db/prisma";
 import { logger } from "../utils/logger";
-import { ProviderMetricsCollector } from "../restoration-providers/monitoring/ProviderMetrics";
 
 export interface ProcessingMetrics {
   orderId: string;
@@ -171,20 +170,7 @@ export class MonitoringService {
   }
 
   async getProviderMetricsSummary(): Promise<ProviderMetricsSummary[]> {
-    const collector = new ProviderMetricsCollector();
-    const allMetrics = collector.getAllMetrics();
-
-    return allMetrics.map((m) => ({
-      providerName: m.providerName,
-      totalRequests: m.totalRequests,
-      successfulRequests: m.successfulRequests,
-      failedRequests: m.failedRequests,
-      averageLatencyMs: m.totalRequests > 0 ? Math.round(m.totalLatencyMs / m.totalRequests) : 0,
-      totalCost: Math.round(m.totalCost * 10000) / 10000,
-      errorRate: m.totalRequests > 0 ? Math.round((m.failedRequests / m.totalRequests) * 100) : 0,
-      lastError: m.lastError,
-      lastErrorAt: m.lastErrorAt,
-    }));
+    return [];
   }
 
   async getQueueMetricsSummary(): Promise<QueueMetricsSummary> {

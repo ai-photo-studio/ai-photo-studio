@@ -1,7 +1,6 @@
 import type { CreativeType, CreativeSceneType, FlatLayTemplate } from "./creative-types";
 import { prisma } from "../../db/prisma";
 import { logger } from "../../utils/logger";
-import { CreativeProviderFactory } from "../../providers/creative-provider.factory";
 import type { AppConfig } from "../../config/env";
 
 export type FlatLayBackground = "white" | "marble" | "wood" | "ecommerce";
@@ -27,21 +26,17 @@ export type FlatLayOutput = {
 };
 
 export class FlatLayService {
-  private readonly providerFactory: CreativeProviderFactory;
-
   constructor(config: AppConfig) {
-    this.providerFactory = new CreativeProviderFactory(config);
   }
 
   async generate(input: FlatLayInput): Promise<FlatLayOutput> {
     const startTime = Date.now();
     const requestId = `flat-lay-${Date.now()}`;
     const background = input.background || "white";
-    const provider = this.providerFactory.create("mock");
 
     try {
-      const result = await provider.generateFlatLay({ body: input.body, background });
-      const resultBuffer = result.body;
+      // Mock result — no creative provider configured
+      const resultBuffer = input.body;
       const durationMs = Date.now() - startTime;
       const outputContentType = input.contentType || "image/png";
 
@@ -53,7 +48,7 @@ export class FlatLayService {
         sceneType: "TABLETOP",
         template: input.template || "ecommerce-flatlay",
         background,
-        providerUsed: provider.name,
+        providerUsed: "mock",
         status: "COMPLETED",
         durationMs,
         inputSizeBytes: input.body.length,
@@ -82,7 +77,7 @@ export class FlatLayService {
         sceneType: "TABLETOP",
         template: input.template || "ecommerce-flatlay",
         background,
-        providerUsed: provider.name,
+        providerUsed: "mock",
         status: "FAILED",
         durationMs,
         inputSizeBytes: input.body.length

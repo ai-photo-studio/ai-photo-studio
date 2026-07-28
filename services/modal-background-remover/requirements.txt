@@ -1,4 +1,0 @@
-rembg
-pillow
-fastapi
-uvicorn

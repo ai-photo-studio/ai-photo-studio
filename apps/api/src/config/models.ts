@@ -1,17 +1,13 @@
 /**
- * Model path configuration.
- * All production model checkpoints are installed under D:\models.
- * This file defines the expected paths — no checkpoints are downloaded
- * during Sprint 1.
+ * Model path configuration (legacy — not used by production Replicate pipeline).
  */
 
 import path from "node:path";
-import type { ModelName } from "../providers/model-selection.matrix";
 
 const MODELS_ROOT = "D:/models";
 
 export interface ModelPathConfig {
-  modelName: ModelName;
+  modelName: string;
   relativePath: string;
   fullPath: string;
   expectedSha256?: string;
@@ -28,7 +24,7 @@ const MODEL_PATHS: ModelPathConfig[] = [
   { modelName: "real-esrgan", relativePath: "esrgan/RealESRGAN_x4plus.pth", fullPath: path.join(MODELS_ROOT, "esrgan", "RealESRGAN_x4plus.pth") }
 ];
 
-export function getModelPath(modelName: ModelName): string {
+export function getModelPath(modelName: string): string {
   const entry = MODEL_PATHS.find((m) => m.modelName === modelName);
   if (!entry) {
     throw new Error(`No path configured for model: ${modelName}`);
