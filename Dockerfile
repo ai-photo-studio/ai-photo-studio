@@ -1,11 +1,11 @@
-FROM node:24-slim
+FROM node:23-slim
 RUN apt-get update && apt-get install -y openssl libssl3
 
 WORKDIR /app/apps/api
 COPY apps/api/package.json apps/api/tsconfig.json ./
 COPY package.json package-lock.json tsconfig.base.json /app/
 
-RUN npm ci --include=dev
+RUN npm install --include=dev
 
 COPY apps/api/prisma ./prisma
 RUN npx prisma@5.20.0 generate
@@ -13,7 +13,7 @@ RUN npx prisma@5.20.0 generate
 COPY apps/api/src ./src
 RUN npx tsc -p tsconfig.json
 
-RUN npm ci --omit=dev
+RUN npm install --production
 
 RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 USER nodejs
