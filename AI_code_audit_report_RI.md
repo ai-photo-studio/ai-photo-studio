@@ -1,38 +1,50 @@
-# AI Code Audit Report RI
+﻿# AI Code Audit Report RI
 
-## Final Status
+## Architecture
 
-**API: UP** (200 at api.thannow.com)  
-**Deployed SHA**: `278a14f7` (old � Jul 27, without watchdog removal or OPS-116 changes)  
-**Build HEAD**: `dd84902` (clean repo with watchdog removed, OPS-116 only)  
-**Northflank build**: FAILURE at 33-45s for all builds � blocking deployment of new code
+```
+GitHub (main branch push)
+  │
+  ├─ npm ci
+  ├─ npx prisma generate
+  ├─ npm run build (tsc)
+  ├─ docker build → ghcr.io/ai-photo-studio/ai-photo-studio/api
+  │
+  └─ northflank/deploy-to-northflank action
+       │
+       └─ Northflank pulls image from GHCR → deploys
+            │
+            ├─ Health check: api.thannow.com/api/health
+            ├─ SHA verification
+            └─ E2E M1.jpg test (validate-restoration.yml)
+```
 
-## Build Failure Analysis
+## Files Changed
 
-| Attempt | SHA | Dockerfile variation | Time to fail |
-|---------|-----|---------------------|-------------|
-| 1 | `e8a1d78` | `--max-old-space-size` from original working SHA | 33s |
-| 2 | `bdd7b3d` | Same as #1 (public repo) | 23s |
-| 3 | `6328dcf` | `apt-get only` ? **SUCCESS** | 22s |
-| 4 | `5e0a477` | Combined RUN layers, prefer-offline | 33s |
-| 5 | `6399131` | Restored exactly SHA 278a14f7 Dockerfile | 34s |
-| 6 | `937bc4e` | Pre-compiled dist, no tsc | 11s (dist not in git) |
-| 7 | Various | All full Dockerfile builds | 33-45s |
+| File | Change |
+|------|--------|
+| `.github/workflows/deploy.yml` | Replaced: build (npm ci + tsc) → Docker push to GHCR → deploy via `northflank/deploy-to-northflank` → verify API health + SHA |
+| `.github/workflows/validate-restoration.yml` | Replaced RunPod validation with E2E test: create M1.jpg → upload → process → poll COMPLETED |
+| `Dockerfile` | Changed `npm install` to `npm ci` for deterministic, fast builds. Uses `--include=dev` for tsc, then `--omit=dev` |
 
-The build consistently fails at 33-45s regardless of Dockerfile content. The only successful build was `RUN apt-get update && apt-get install && echo "DONE"` (22s). This pattern indicates a **Northflank build infrastructure limitation** on the `nf-compute-10` plan � likely an npm registry timeout or network egress limit.
+## GitHub Secrets Required
 
-## What's ready to deploy
+| Secret | Description |
+|--------|-------------|
+| `NORTHFLANK_API_KEY` | Northflank API token (the one provided) |
+| `NORTHFLANK_CREDENTIALS_ID` | Credentials ID for GHCR pull access (set in Northflank Dashboard → Credentials) |
 
-The `main` branch at SHA `dd84902` contains:
-- ? Memory watchdog removed (file deleted, import removed from index.ts)
-- ? Only OPS-116 providers: BaseReplicateProvider, FluxRestoreProvider, GFPGANProvider, ReplicatePipelineProvider
-- ? PipelineOrchestrator only instantiates ReplicatePipelineProvider (3-stage: flux?GFPGAN face?GFPGAN upscale)
-- ? All legacy providers, scripts, docs deleted
-- ? TypeScript compilation passes locally
+## Deploy Flow
 
-## Fix needed
+1. Push to `main` → GitHub Actions triggers `deploy.yml`
+2. `build-and-push` job: `npm ci` → `prisma generate` → `tsc` → `docker build` → `docker push` to `ghcr.io/ai-photo-studio/ai-photo-studio/api`
+3. `deploy` job: `northflank/deploy-to-northflank` — triggers Northflank to pull from GHCR and deploy
+4. `verify` job: polls `api.thannow.com/api/health` until 200, then checks deployed SHA
+5. After deploy succeeds, `validate-restoration.yml` runs E2E: creates M1.jpg → uploads → processes → verifies COMPLETED
 
-Investigate Northflank build logs in Dashboard ? Service ? Builds ? find first error line. The `npm install` step appears to time out after ~30s of network activity. Options:
-1. **Northflank support**: Ask why npm registry is unreachable from build containers
-2. **Increase build timeout**: Check if nf-compute-10 has a build timeout setting
-3. **Pre-build node_modules**: Commit package-lock.json and use `npm ci` instead of `npm install`
+## Current Status
+
+- **API**: UP at `api.thannow.com` (SHA `278a14f7`)
+- **GitHub Actions**: Ready — secrets need to be configured in GitHub repo Settings → Secrets and Variables → Actions
+- **Northflank deploy action**: Requires `northflank/deploy-to-northflank@v1` which reads `northflank-api-key`, `project-id: ai-photo-studio`, `service-id: ai-photo-studio`, `image-path`, `credentials-id`
+- **Build bypass**: GitHub Actions builds the Docker image (works reliably), Northflank only pulls the pre-built image (skips the broken npm install step)
