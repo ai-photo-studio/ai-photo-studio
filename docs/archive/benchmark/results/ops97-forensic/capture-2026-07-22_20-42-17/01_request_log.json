@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-07-22_20-42-17",
+  "method": "POST",
+  "endpoint": "https://api.openai.com/v1/images/edits",
+  "headers": {
+    "Authorization": "Bearer sk-...REDACTED... (key present, length=165)",
+    "Content-Type": "multipart/form-data (auto-set by browser/node FormData)"
+  },
+  "bodyFields": [
+    {
+      "field": "model",
+      "value": "gpt-image-2",
+      "type": "string"
+    },
+    {
+      "field": "prompt",
+      "value": "Restore this damaged photograph. Remove scratches, reduce noise, enhance contras...",
+      "type": "string",
+      "fullLength": 178
+    },
+    {
+      "field": "n",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "field": "size",
+      "value": "1024x1024",
+      "type": "string"
+    },
+    {
+      "field": "quality",
+      "value": "auto",
+      "type": "string"
+    },
+    {
+      "field": "output_format",
+      "value": "png",
+      "type": "string"
+    },
+    {
+      "field": "image",
+      "value": "input.png (binary)",
+      "type": "Blob(image/jpeg)",
+      "bytes": 38247
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>OPS-109 Benchmark — Head-to-Head</title>
+<style>
+body{font-family:sans-serif;margin:20px;background:#f5f5f5}
+h1{color:#333}.gallery{display:flex;flex-wrap:wrap;gap:24px}
+.card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:16px;max-width:900px;flex:1 1 850px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.card h3{margin:0 0 12px;border-bottom:2px solid #eee;padding-bottom:8px}
+.comparison{display:flex;gap:12px;flex-wrap:wrap}
+.comparison figure{margin:0;flex:1;min-width:250px}
+.comparison figcaption{font-size:12px;color:#666;margin-top:4px;text-align:center}
+.comparison img{max-width:100%;height:auto;border-radius:6px;border:1px solid #eee}
+.card table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.card td,.card th{border:1px solid #eee;padding:6px 10px;text-align:left}
+.card th{background:#f8f8f8;font-weight:600}
+.pass{color:#090;font-weight:bold}.fail{color:#c00;font-weight:bold}
+.winner{background:#e8f5e9!important}
+.unknown{color:#999;font-style:italic}
+.warning{background:#fff3cd;border:1px solid #ffeeba;padding:12px;border-radius:8px;margin:16px 0}
+</style></head><body>
+<h1>OPS-109 Head-to-Head Restoration Benchmark</h1>
+<p>Generated: 2026-07-23T14:46:00.000Z</p>
+<p><strong>WARNING:</strong> Replicate account ran out of credits after ~$0.25 total spend. Not all images have both pipeline results. UNKNOWN shown where no measured data available.</p>
+<p><strong>Pipeline A:</strong> FLUX Restore (Replicate) → GFPGAN (Replicate) → Real-ESRGAN (Replicate)</p>
+<p><strong>Pipeline B:</strong> Microsoft Bringing Old Photos Back to Life (Replicate) → GFPGAN (Replicate) → Real-ESRGAN (Replicate)</p>
+<div class='gallery'>
+
+<div class='card'>
+<h3>2.jpeg (B&W portrait)</h3>
+<div class='comparison'>
+<figure><img src='original/2.jpeg' alt='Original'><figcaption>Original (38KB)</figcaption></figure>
+<figure><img src='pipeline-a/2.jpeg' alt='Pipeline A'><figcaption>Pipeline A: FLUX Restore (20.6MB)</figcaption></figure>
+<figure><img src='pipeline-b/2.jpeg' alt='Pipeline B'><figcaption>Pipeline B: Microsoft (4.5MB)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='pass'>PASS</td><td class='pass'>PASS</td><td>-</td></tr>
+<tr><td>Total Latency</td><td>96,263ms</td><td>69,084ms</td><td>B</td></tr>
+<tr><td>Replicate Latency</td><td>14,093ms</td><td>28,891ms</td><td>A</td></tr>
+<tr><td>Replicate Cost</td><td>$0.0252</td><td>$0.0613</td><td class='winner'>A</td></tr>
+<tr><td>SSIM</td><td>0.58</td><td>0.58</td><td>Tie</td></tr>
+<tr><td>PSNR</td><td>7.56</td><td>7.62</td><td>B</td></tr>
+<tr><td>Output Resolution</td><td>4736x3520</td><td>3072x2304</td><td>A</td></tr>
+<tr><td>Output Size</td><td>20.6MB</td><td>4.5MB</td><td>B (smaller)</td></tr>
+<tr><td>LPIPS</td><td class='unknown'>UNKNOWN</td><td class='unknown'>UNKNOWN</td><td class='unknown'>UNKNOWN</td></tr>
+<tr><td>Face Identity</td><td class='unknown'>UNKNOWN</td><td class='unknown'>UNKNOWN</td><td class='unknown'>UNKNOWN</td></tr>
+<tr><td>Scratch Removal</td><td class='unknown'>UNKNOWN</td><td class='unknown'>UNKNOWN</td><td class='unknown'>UNKNOWN</td></tr>
+<tr><td>Human Review</td><td class='unknown'>PLACEHOLDER</td><td class='unknown'>PLACEHOLDER</td><td class='unknown'>UNKNOWN</td></tr>
+</table></div>
+
+<div class='card'>
+<h3>3.jpeg (Family photo)</h3>
+<div class='comparison'>
+<figure><img src='original/3.jpeg' alt='Original'><figcaption>Original (34KB)</figcaption></figure>
+<figure><figcaption>Pipeline A: NO DATA (credits exhausted)</figcaption></figure>
+<figure><img src='pipeline-b/3.jpeg' alt='Pipeline B'><figcaption>Pipeline B: Microsoft (5.6MB)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='fail'>FAIL</td><td class='pass'>PASS</td><td>-</td></tr>
+<tr><td>Total Latency</td><td class='unknown'>UNKNOWN</td><td>92,677ms</td><td>-</td></tr>
+<tr><td>Replicate Cost</td><td class='unknown'>UNKNOWN</td><td>$0.0719</td><td>-</td></tr>
+<tr><td>SSIM</td><td class='unknown'>UNKNOWN</td><td>0.61</td><td>-</td></tr>
+<tr><td>PSNR</td><td class='unknown'>UNKNOWN</td><td>8.11</td><td>-</td></tr>
+<tr><td>Output Size</td><td class='unknown'>-</td><td>5.6MB</td><td>-</td></tr>
+</table></div>
+
+<div class='card'>
+<h3>4.jpg (Landscape)</h3>
+<div class='comparison'>
+<figure><img src='original/4.jpg' alt='Original'><figcaption>Original (141KB)</figcaption></figure>
+<figure><figcaption>Pipeline A: NO DATA (credits exhausted)</figcaption></figure>
+<figure><img src='pipeline-b/4.jpg' alt='Pipeline B'><figcaption>Pipeline B: Microsoft (9.7MB)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='fail'>FAIL</td><td class='pass'>PASS</td><td>-</td></tr>
+<tr><td>Total Latency</td><td class='unknown'>UNKNOWN</td><td>106,428ms</td><td>-</td></tr>
+<tr><td>Replicate Cost</td><td class='unknown'>UNKNOWN</td><td>$0.0707</td><td>-</td></tr>
+<tr><td>SSIM</td><td class='unknown'>UNKNOWN</td><td>0.60</td><td>-</td></tr>
+<tr><td>PSNR</td><td class='unknown'>UNKNOWN</td><td>7.85</td><td>-</td></tr>
+</table></div>
+
+<div class='card'>
+<h3>5.jpeg (Portrait)</h3>
+<div class='comparison'>
+<figure><img src='original/5.jpeg' alt='Original'><figcaption>Original (30KB)</figcaption></figure>
+<figure><img src='pipeline-a/5.jpeg' alt='Pipeline A'><figcaption>Pipeline A: FLUX Restore (13.9MB)</figcaption></figure>
+<figure><img src='pipeline-b/5.jpeg' alt='Pipeline B'><figcaption>Pipeline B: Microsoft (2.9MB)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='pass'>PASS</td><td class='pass'>PASS</td><td>-</td></tr>
+<tr><td>Total Latency</td><td>83,685ms</td><td>72,772ms</td><td>B</td></tr>
+<tr><td>Replicate Latency</td><td>13,954ms</td><td>34,811ms</td><td>A</td></tr>
+<tr><td>Replicate Cost</td><td>$0.0229</td><td>$0.0631</td><td class='winner'>A</td></tr>
+<tr><td>SSIM</td><td>0.58</td><td>0.58</td><td>Tie</td></tr>
+<tr><td>PSNR</td><td>7.49</td><td>7.49</td><td>Tie</td></tr>
+<tr><td>Output Resolution</td><td>4736x3520</td><td>2304x1728</td><td>A</td></tr>
+</table></div>
+
+<div class='card'>
+<h3>6.jpeg (Portrait)</h3>
+<div class='comparison'>
+<figure><img src='original/6.jpeg' alt='Original'><figcaption>Original (18KB)</figcaption></figure>
+<figure><figcaption>Pipeline A: NO DATA (credits exhausted)</figcaption></figure>
+<figure><img src='pipeline-b/6.jpeg' alt='Pipeline B'><figcaption>Pipeline B: Microsoft (2.8MB)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='fail'>FAIL</td><td class='pass'>PASS</td><td>-</td></tr>
+<tr><td>Total Latency</td><td class='unknown'>UNKNOWN</td><td>68,458ms</td><td>-</td></tr>
+<tr><td>Replicate Cost</td><td class='unknown'>UNKNOWN</td><td>$0.0672</td><td>-</td></tr>
+</table></div>
+
+<div class='card'>
+<h3>images.jpeg (Group photo)</h3>
+<div class='comparison'>
+<figure><img src='original/images.jpeg' alt='Original'><figcaption>Original (31KB)</figcaption></figure>
+<figure><figcaption>Both pipelines: NO DATA (credits exhausted)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='fail'>FAIL</td><td class='fail'>FAIL</td><td>-</td></tr>
+<tr><td colspan='4' class='unknown'>No data — account credits exhausted before this image</td></tr>
+</table></div>
+
+<div class='card'>
+<h3>lahore.jpeg (Cityscape)</h3>
+<div class='comparison'>
+<figure><img src='original/lahore.jpeg' alt='Original'><figcaption>Original (49KB)</figcaption></figure>
+<figure><img src='pipeline-a/lahore.jpeg' alt='Pipeline A'><figcaption>Pipeline A: FLUX Restore (20.1MB)</figcaption></figure>
+<figure><figcaption>Pipeline B: NO DATA (credits exhausted)</figcaption></figure>
+</div>
+<table><tr><th>Metric</th><th>Pipeline A (FLUX)</th><th>Pipeline B (Microsoft)</th><th>Winner</th></tr>
+<tr><td>Status</td><td class='pass'>PASS</td><td class='fail'>FAIL</td><td>-</td></tr>
+<tr><td>Total Latency</td><td>128,284ms</td><td class='unknown'>UNKNOWN</td><td>-</td></tr>
+<tr><td>Replicate Cost</td><td>$0.0199</td><td class='unknown'>UNKNOWN</td><td>-</td></tr>
+<tr><td>SSIM</td><td>0.58</td><td class='unknown'>UNKNOWN</td><td>-</td></tr>
+<tr><td>PSNR</td><td>7.64</td><td class='unknown'>UNKNOWN</td><td>-</td></tr>
+</table></div>
+
+</div>
+
+<div class='warning'>
+<h3>Benchmark Caveats</h3>
+<ul>
+<li><strong>Replicate credits exhausted</strong> after ~$0.25 total spend covering 8 of 14 pipeline runs (3 Pipeline A + 5 Pipeline B)</li>
+<li><strong>SSIM/PSNR values are similar</strong> across both pipelines (~0.58 SSIM, ~7.5-8.1 PSNR), suggesting comparable restoration quality at the pixel level</li>
+<li><strong>Pipeline A produces much larger outputs</strong> (13-20MB vs 3-10MB for Pipeline B), suggesting higher upscaling factors</li>
+<li><strong>Pipeline A is significantly cheaper</strong> ($0.023 vs $0.067 avg) and faster at the Replicate stage (13.4s vs 32.8s)</li>
+<li><strong>LPIPS, face identity, scratch removal</strong> require specialized CV models not available in this benchmark infrastructure</li>
+</ul>
+</div>
+</body></html>

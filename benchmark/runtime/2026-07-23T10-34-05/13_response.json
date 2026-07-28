@@ -1,0 +1,37 @@
+{
+  "finalImage": {
+    "sizeBytes": 38247,
+    "dimensions": {
+      "width": 525,
+      "height": 380
+    },
+    "contentType": "image/jpeg",
+    "stages": [
+      "real_esrgan_upscale"
+    ],
+    "providerName": "unified-local",
+    "processingTimeMs": 2
+  },
+  "replicateResult": {
+    "providerName": "flux-restore",
+    "providerVersion": "flux-kontext-apps/restore-image@85ae4655",
+    "processingTimeMs": "UNKNOWN",
+    "estimatedCost": "UNKNOWN",
+    "actualCost": "UNKNOWN",
+    "actualGPUSeconds": "UNKNOWN",
+    "costSource": "UNKNOWN",
+    "stages": [
+      "UNKNOWN"
+    ],
+    "requestId": "UNKNOWN"
+  },
+  "qualityMetrics": {
+    "ssim": 1,
+    "psnr": 50,
+    "sharpness": 100,
+    "noise": 100,
+    "contrast": 100,
+    "brightness": 100,
+    "printQuality": 100
+  }
+}

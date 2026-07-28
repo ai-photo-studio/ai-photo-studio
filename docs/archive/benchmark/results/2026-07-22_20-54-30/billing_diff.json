@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-07-22_20-54-30",
+  "request": {
+    "endpoint": "https://api.openai.com/v1/images/edits",
+    "method": "POST",
+    "model": "gpt-image-2",
+    "requestId": "req_24cf5ae53bd54e1bab7f9bab9b0bfe80"
+  },
+  "dashboard": {
+    "before": "UNKNOWN",
+    "after_2min": "UNKNOWN",
+    "after_10min": "UNKNOWN",
+    "spendDelta": "UNKNOWN",
+    "requestDelta": "UNKNOWN",
+    "tokenDelta": "UNKNOWN",
+    "imagesDelta": "UNKNOWN"
+  },
+  "apiUsage": {
+    "input_tokens": 805,
+    "input_tokens_details": {
+      "image_tokens": 768,
+      "text_tokens": 37
+    },
+    "output_tokens": 1756,
+    "output_tokens_details": {
+      "image_tokens": 1756,
+      "text_tokens": 0
+    },
+    "total_tokens": 2561
+  },
+  "calculatedCost": {
+    "inputTokens": 805,
+    "outputTokens": 1756,
+    "totalTokens": 2561,
+    "inputCost": 0.00000644,
+    "outputCost": 0.00005268,
+    "totalCost": 0.00005912
+  },
+  "verdict": {
+    "dashboardCountsAsImages": "UNKNOWN",
+    "billingBasedOnReturnedUsageTokens": "VERIFIED",
+    "hiddenResponsesApiRequest": "NO"
+  }
+}

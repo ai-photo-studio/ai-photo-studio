@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-22_20-54-30",
+  "root": {
+    "id": "openai-images-edit",
+    "provider": "openai",
+    "method": "POST",
+    "endpoint": "https://api.openai.com/v1/images/edits",
+    "model": "gpt-image-2",
+    "requestId": "req_24cf5ae53bd54e1bab7f9bab9b0bfe80",
+    "caller": "apps/api/src/scripts/ops98-benchmark.ts",
+    "stackTrace": "UNKNOWN",
+    "reason": "Single direct Images API edit request captured in raw_openai_response.json",
+    "children": []
+  }
+}

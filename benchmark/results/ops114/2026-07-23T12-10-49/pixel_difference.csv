@@ -1,0 +1,7 @@
+fromStage,toStage,avgRgbDelta,pixelDiffPercent,ssimFromPrev,psnrFromPrev,hashChainMatch,negligibleChange,chainBroken
+01_original,02_flux_restore,90.68,98.02,0.05,7.24,false,false,true
+02_flux_restore,03_gfpgan,0,0,1,50,true,true,false
+03_gfpgan,04_realesrgan,0,0,1,50,true,true,false
+04_realesrgan,05_ddcolor,0,0,1,50,true,true,false
+05_ddcolor,06_lama,0,0,1,50,true,true,false
+06_lama,07_final,0,0,1,50,true,true,false

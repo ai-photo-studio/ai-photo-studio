@@ -1,0 +1,74 @@
+{
+  "benchmark": "OPS-111 Production End-to-End Benchmark",
+  "timestamp": "2026-07-23T10:34:08.400Z",
+  "image": "old images/2.jpeg",
+  "pipeline": "flux-restore (Replicate) → unified-local (GFPGAN + Real-ESRGAN + DDColor + LaMa)",
+  "replicateCallCount": 1,
+  "files": [
+    {
+      "name": "01_original.jpg",
+      "exists": true
+    },
+    {
+      "name": "07_final_output.png",
+      "exists": true
+    },
+    {
+      "name": "08_side_by_side.png",
+      "exists": true
+    },
+    {
+      "name": "09_metrics.json",
+      "exists": true
+    },
+    {
+      "name": "10_pipeline_trace.json",
+      "exists": true
+    },
+    {
+      "name": "11_provider_trace.json",
+      "exists": true
+    },
+    {
+      "name": "12_request.json",
+      "exists": true
+    },
+    {
+      "name": "13_response.json",
+      "exists": true
+    },
+    {
+      "name": "14_headers.json",
+      "exists": true
+    },
+    {
+      "name": "15_prediction.json",
+      "exists": true
+    },
+    {
+      "name": "16_runtime.json",
+      "exists": true
+    },
+    {
+      "name": "17_cost.json",
+      "exists": true
+    },
+    {
+      "name": "18_manifest.json",
+      "exists": false
+    },
+    {
+      "name": "19_sha256.txt",
+      "exists": true
+    },
+    {
+      "name": "20_environment.json",
+      "exists": false
+    },
+    {
+      "name": "21_verification_report.md",
+      "exists": false
+    }
+  ],
+  "totalRuntimeMs": 1109
+}

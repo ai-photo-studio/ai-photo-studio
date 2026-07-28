@@ -1,0 +1,21 @@
+{
+  "imageName": "2.jpeg",
+  "originalDimensions": {
+    "width": 525,
+    "height": 380
+  },
+  "finalDimensions": {
+    "width": 525,
+    "height": 380
+  },
+  "ssim": 1,
+  "psnr": 50,
+  "lpips": "UNKNOWN",
+  "faceIdentityScore": "UNKNOWN",
+  "scratchRemovalScore": "UNKNOWN",
+  "sharpness": 100,
+  "noise": 100,
+  "contrast": 100,
+  "brightness": 100,
+  "printQuality": 100
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "service": "Restoration Unified (RunPod)",
+    "url": "NOT CONFIGURED",
+    "healthy": false,
+    "latencyMs": 0,
+    "details": "No URL configured",
+    "gpuAvailable": "UNKNOWN",
+    "cudaVersion": "UNKNOWN",
+    "memoryAvailable": "UNKNOWN"
+  },
+  {
+    "service": "Real-ESRGAN",
+    "url": "NOT CONFIGURED",
+    "healthy": false,
+    "latencyMs": 0,
+    "details": "No URL configured",
+    "gpuAvailable": "UNKNOWN",
+    "cudaVersion": "UNKNOWN",
+    "memoryAvailable": "UNKNOWN"
+  }
+]

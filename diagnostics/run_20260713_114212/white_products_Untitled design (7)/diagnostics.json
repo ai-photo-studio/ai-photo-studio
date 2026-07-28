@@ -1,0 +1,36 @@
+{
+  "image_name": "Untitled design (7).png",
+  "timestamp": "2026-07-13T11:42:32.140123",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\white_products_Untitled design (7)\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.3685253772290809,
+    "edge_continuity": 0.0,
+    "connected_components": 2,
+    "largest_component_pct": 0.9992974260668888,
+    "alpha_entropy": 0.32648825350542776,
+    "bg_leakage": 0.09734139231824417,
+    "mask_confidence": 0.9698945473251028,
+    "mask_smoothness": 0.9985604882240295,
+    "boundary_f1": 0.09980272096182836,
+    "rgba_integrity": 0.5,
+    "iqs": 27.67867463033536
+  },
+  "sha256": "33234dae3928f5dbfc310fb9cd35260351bc5ce00b76bf8647ef364ea1b52d91",
+  "status": "FAIL"
+}

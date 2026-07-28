@@ -1,0 +1,30 @@
+node_modules/
+.kilo/
+.codex/
+diagnostics/
+old images/
+test images/
+golden_dataset/
+validation_output/
+services/
+cleanup/
+notebooks/
+.wrangler/
+.wrangler*
+.wrangler-config/
+.agents/
+.vscode/
+benchmarks/
+docs/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.csv
+*.xlsx
+*.pyc
+.git
+.project-lock
+__pycache__
+.gitignore
+.railwayignore

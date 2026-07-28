@@ -1,0 +1,17 @@
+{
+  "totalRuntimeMs": 80784,
+  "replicateRuntimeMs": 17805,
+  "localRuntimeMs": 5,
+  "stageTimings": {
+    "flux_restore": {
+      "start": "2026-07-23T11:26:24.921Z",
+      "end": "2026-07-23T11:26:45.246Z",
+      "durationMs": 20325
+    },
+    "unified_local": {
+      "start": "2026-07-23T11:26:45.679Z",
+      "end": "2026-07-23T11:26:45.684Z",
+      "durationMs": 5
+    }
+  }
+}

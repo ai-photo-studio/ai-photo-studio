@@ -1,0 +1,148 @@
+{
+  "timestamp": "2026-07-22_22-43-56",
+  "entries": [
+    {
+      "file": "01_original.png",
+      "bytes": 38247,
+      "sha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+      "width": 525,
+      "height": 380
+    },
+    {
+      "file": "02_openai.png",
+      "bytes": 1680485,
+      "sha256": "26c9ae0109664cbd05d2df43fe028f41a8df60de2bb49d6e1719d008b3d77f06",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "file": "03_flux.png",
+      "bytes": 1695970,
+      "sha256": "8bb9da83eca4be5a6108b932ce9d8c6d172ef8e50fabc0deed1087cba63d305b",
+      "width": 1184,
+      "height": 880
+    },
+    {
+      "file": "04_lama.png",
+      "bytes": 1695970,
+      "sha256": "8bb9da83eca4be5a6108b932ce9d8c6d172ef8e50fabc0deed1087cba63d305b",
+      "width": 1184,
+      "height": 880
+    },
+    {
+      "file": "05_gfpgan.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "06_realesrgan.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "07_ddcolor.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "08_final.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "09_side_by_side.png",
+      "bytes": 1807816,
+      "sha256": "0582717cdb8653c32ff0e0f723e899123c4174d8abdf9d1965ada1a223c2b9dd",
+      "width": 1040,
+      "height": 1040
+    },
+    {
+      "file": "10_metrics.json",
+      "bytes": 1876,
+      "sha256": "34a90e8e39e59391f0770a52f17d028bc076a1b67397fe33d92efac526bea252"
+    },
+    {
+      "file": "11_cost.json",
+      "bytes": 2018,
+      "sha256": "b248bd76cddacb7cb0fd1db66e19e2278dcb2230c20783de5853837806143e05"
+    },
+    {
+      "file": "12_manifest.json",
+      "bytes": 2894,
+      "sha256": "649625175098cfe441b31f6dd6b2d68450d29ff0031e456684bb567da15064bf"
+    },
+    {
+      "file": "13_pipeline_manifest.json",
+      "bytes": 1202,
+      "sha256": "c382fdf6d6879f17561976ced9e9959db5eb10c1bfc6bb2faf189d042cb2ab90"
+    },
+    {
+      "file": "14_billing_reconciliation.json",
+      "bytes": 487,
+      "sha256": "1b138e4358995ef495cc87fc5851a5f5eec8e5aa67c985150c95b112e7e294f4"
+    },
+    {
+      "file": "15_request.log",
+      "bytes": 276,
+      "sha256": "91e34c1e3193a7190254bcc94942c06360d261b02c083399a7184b4372d1f1fd"
+    },
+    {
+      "file": "dashboard_before.json",
+      "bytes": 25,
+      "sha256": "e1d2f0d7d0efa0773a93762cec2667fa922748f0ea00c75987eaadd12c1f89c6"
+    },
+    {
+      "file": "dashboard_after_2min.json",
+      "bytes": 25,
+      "sha256": "e1d2f0d7d0efa0773a93762cec2667fa922748f0ea00c75987eaadd12c1f89c6"
+    },
+    {
+      "file": "dashboard_after_10min.json",
+      "bytes": 25,
+      "sha256": "e1d2f0d7d0efa0773a93762cec2667fa922748f0ea00c75987eaadd12c1f89c6"
+    },
+    {
+      "file": "dashboard_diff.json",
+      "bytes": 175,
+      "sha256": "d2fc02f8ab2789fb8ae54caee20081b97aff31f9c689a177eb014db9c9c30214"
+    },
+    {
+      "file": "cost_validation.json",
+      "bytes": 504,
+      "sha256": "13040da79b4d783c59384ccbef440bbab2b82afc963b8784a4270c8954b0ad79"
+    },
+    {
+      "file": "pipeline_execution.json",
+      "bytes": 1332,
+      "sha256": "9833fe7411f43dbd99b5b3c860bc18933cf4d3d750c76a0c0a391daeb661f505"
+    },
+    {
+      "file": "raw_openai_response.json",
+      "bytes": 2410823,
+      "sha256": "fc7cdcdea0e3f45fb162e43607b927a4b5cbf34dddfe91d34cb84a3e62febdd6"
+    },
+    {
+      "file": "raw_flux_response.json",
+      "bytes": 105,
+      "sha256": "223559a7f1b26b4e1914b1c1181a689fd7c26c1f91c07535edb01d4bddd47069"
+    },
+    {
+      "file": "responses_api_scan.json",
+      "bytes": 266,
+      "sha256": "d4ede6b729e16f499e80acd72b94fdf2401dd3b537cc83399e99b29c62c03ab4"
+    },
+    {
+      "file": "request_tree.json",
+      "bytes": 477,
+      "sha256": "55ac553e68e4a60512851ee5f6c0a715449d78443fe8634a6cee34c1b8968185"
+    }
+  ]
+}

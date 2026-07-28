@@ -1,0 +1,38 @@
+{
+  "openai": {
+    "sessionDir": "D:\\AI Product Photo Studio on WhatsApp\\benchmark\\runtime\\2026-07-23_07-27-11",
+    "requestId": "req_6986761c82474b5fabfb3e4af6aa5d03",
+    "model": "gpt-image-2",
+    "processingTimeMs": 58338,
+    "usage": {
+      "input_tokens": 805,
+      "output_tokens": 1756,
+      "total_tokens": 2561
+    },
+    "costEstimated": 0.00006,
+    "imageSha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454"
+  },
+  "replicate": null,
+  "localRestoration": {
+    "outputPath": "D:\\AI Product Photo Studio on WhatsApp\\benchmark\\runtime\\2026-07-23_07-27-11\\local_restored.jpg",
+    "stages": [],
+    "success": false
+  },
+  "dashboard": {
+    "before": {
+      "timestamp": "2026-07-23T07:28:11.421Z",
+      "source": "manual",
+      "notes": "OPS-106: This must be captured from the OpenAI dashboard BEFORE the request. See dashboard_before.json for the timestamp to record."
+    },
+    "after": {
+      "timestamp": "2026-07-23T07:28:11.421Z",
+      "source": "manual",
+      "notes": "OPS-106: This must be captured from the OpenAI dashboard AFTER the request. See dashboard_after.json for the timestamp to record."
+    },
+    "reconciled": false,
+    "discrepancies": [
+      "Dashboard snapshots require manual capture from https://platform.openai.com/usage"
+    ]
+  },
+  "errors": []
+}

@@ -1,0 +1,8 @@
+SHA256 Manifest
+==============
+
+78ebf933205174c53f09d59d4f597c93c880c9a34bd95bbc0061a500d8daac80  production_activation.md
+43b0bce4988766766da7915e8d082932633de25db5b6487cd847af63a9efc5d1  commerce_workflow.md
+fcce885b7cd38343cc558c827a7b9b538365923bb16a8795abd75d8db13593b1  master_asset_strategy.md
+120e87ab9c332f256ec0737fe33c7eabe4d3938bd25c668ea084d3b6b5fe2e38  ui_refactor.md
+ef1320b7f3d5f656f525b87818cabf34c610367e5c8f88533a687b501cffe993  cost_savings.md

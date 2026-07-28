@@ -1,0 +1,36 @@
+{
+  "image_name": "Whisk_3c6d2723a940b79b68b48377dc2a57fedr.jpeg",
+  "timestamp": "2026-07-13T11:43:22.779640",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\white_products_Whisk_3c6d2723a940b79b68b48377dc2a57fedr\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.09463119506835938,
+    "edge_continuity": 0.2095947265625,
+    "connected_components": 1,
+    "largest_component_pct": 1.0,
+    "alpha_entropy": 0.1051991902864227,
+    "bg_leakage": 0.023128509521484375,
+    "mask_confidence": 0.9944124221801758,
+    "mask_smoothness": 0.9988065361976624,
+    "boundary_f1": 0.08352481154512839,
+    "rgba_integrity": 0.5,
+    "iqs": 24.339197346733627
+  },
+  "sha256": "31d68c6b2855df5c22c07f3e653320b57d7eff96de0a5740e5c4da15729c58a7",
+  "status": "FAIL"
+}

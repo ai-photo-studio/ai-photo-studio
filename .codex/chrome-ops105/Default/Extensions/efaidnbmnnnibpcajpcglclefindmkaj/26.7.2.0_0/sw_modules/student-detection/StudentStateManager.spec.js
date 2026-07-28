@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{StudentStateManager as e}from"./StudentStateManager.js";import{DEFAULT_CLASSIFICATION_RULES as t,ENGAGEMENT_STATE_TAG_FIELD as n,ENGAGEMENT_STATE_IDENTIFIED_AT_FIELD as a,ENGAGEMENT_STATE_EVENT_SENT_FIELD as o,ENGAGEMENT_STATE_ROLLING_WINDOW_FIELD as s,STUDENT_STATUS_UPDATED_EVENT as r,STUDENT_STATUS_PROP_KEY as l,BROWSER_STUDENT_STATE_KEY as c}from"./constants.js";import{dcLocalStorage as i}from"../../common/local-storage.js";import{analytics as m}from"../../common/analytics.js";import{syncStudySpaceExperiencePreferenceFromDetection as d}from"../../common/study-space-experience.js";jest.mock("../../common/local-storage.js",()=>({dcLocalStorage:{init:jest.fn().mockResolvedValue(void 0),getItem:jest.fn(),setItem:jest.fn(),removeItem:jest.fn()}})),jest.mock("../../common/analytics.js",()=>({analytics:{addUserTags:jest.fn(),removeUserTags:jest.fn(),getStoredUserTags:jest.fn(()=>["learner"]),event:jest.fn()}})),jest.mock("../add-webpage-to-project.js",()=>({refreshAddWebpageContextMenusForAllTabs:jest.fn().mockResolvedValue(void 0)})),jest.mock("../floodgate.js",()=>({floodgate:{hasFlag:jest.fn().mockResolvedValue(!0),getFeatureMeta:jest.fn().mockReturnValue(null)}})),jest.mock("../../common/study-space-experience.js",()=>({syncStudySpaceExperiencePreferenceFromDetection:jest.fn().mockResolvedValue(void 0),resolveStudySpaceExperienceEnabled:jest.fn().mockResolvedValue(!0)})),describe("StudentStateManager retention expiry",()=>{beforeEach(()=>{jest.clearAllMocks(),m.getStoredUserTags.mockReturnValue(["learner"]),i.getItem.mockReturnValue(null)}),it("downgrades learner analytics when retention expires",async()=>{const t=new Date;t.setUTCDate(t.getUTCDate()-366);const f={[n]:"learner",[a]:t.toISOString(),[o]:!0,[s]:{}},g={getState:jest.fn().mockResolvedValue(f),saveState:jest.fn().mockResolvedValue(void 0)};i.getItem.mockImplementation(e=>e===c?JSON.stringify({...f,[n]:"non_learner",[a]:void 0,[o]:!1}):null);const v=new e(g);await v.downgradeExpiredLearner(f,{learnerRetentionDays:365}),expect(m.removeUserTags).toHaveBeenCalledWith("learner"),expect(m.addUserTags).toHaveBeenCalledWith("non_learner"),expect(m.event).toHaveBeenCalledWith(r,{[l]:"non_learner"}),expect(d).toHaveBeenCalled()}),it("applyClassification uses classification tag for analytics instead of effective learner preference",async()=>{const f={getState:jest.fn(),saveState:jest.fn().mockResolvedValue(void 0)},g=new e(f),v=new Date;v.setUTCDate(v.getUTCDate()-366);const j={[n]:"learner",[a]:v.toISOString(),[o]:!0,[s]:{}};i.getItem.mockImplementation(e=>e===c?JSON.stringify({...j,[n]:"non_learner",[a]:void 0,[o]:!1}):null),await g.applyClassification(j,{version:"1.0.0",rules:t,entries:[]},{detectionConfig:{learnerRetentionDays:365}}),expect(m.removeUserTags).toHaveBeenCalledWith("learner"),expect(m.addUserTags).toHaveBeenCalledWith("non_learner"),expect(m.event).toHaveBeenCalledWith(r,{[l]:"non_learner"}),expect(d).toHaveBeenCalled()})});

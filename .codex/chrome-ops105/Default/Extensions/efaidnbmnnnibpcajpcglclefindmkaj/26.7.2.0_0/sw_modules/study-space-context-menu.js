@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{dcLocalStorage as e}from"../common/local-storage.js";import{loggingApi as t}from"../common/loggingApi.js";import{analytics as a}from"../common/analytics.js";import{registerRequestId as o}from"./request-validator.js";import{common as n}from"./common.js";import{floodgate as r}from"./floodgate.js";import{handleAddWebpageToProjectContextMenu as s,ensureAndExtractWebpageHTML as i}from"./add-webpage-to-project.js";import{STORAGE_KEYS as c,CACHE_PURGE_SCHEME as d}from"./constant.js";import{PAYLOAD_NO_TABID_FLAG as p}from"../common/constant.js";export const ADD_WEBPAGE_TO_NEW_STUDY_SPACE_CONTEXT_MENU="addWebpageToNewStudySpace";export const ADD_WEBPAGE_TO_EXISTING_STUDY_SPACE_CONTEXT_MENU="addWebpageToExistingStudySpace";export const CREATE_NEW_STUDY_SPACE_WEB_PATH="/studentspaces/collection/create-new-project";export async function createStudySpaceContextMenuItems({createContextMenuItem:e,parentMenuId:t,useNewContextMenuLabel:a,htmlURL:o,util:n}){const r=a&&t?t:void 0;await e({id:"addWebpageToNewStudySpaceContextMenu",parentId:r,title:n.getTranslation("addWebpageToNewStudySpaceContextMenu"),contexts:["page"],documentUrlPatterns:o,visible:!1}),await e({id:"addWebpageToExistingStudySpaceContextMenu",parentId:r,title:n.getTranslation("addWebpageToExistingStudySpaceContextMenu"),contexts:["page"],documentUrlPatterns:o,visible:!1}),await e({id:"separatorForStudySpaceMenu",parentId:r,type:"separator",contexts:["page"],documentUrlPatterns:o,visible:!1})}async function m(a,s,c){try{const a=await async function(t,a){const s=e.getItem("appLocale")||chrome.i18n.getMessage("@@ui_locale"),i=chrome.runtime.id,c=`req_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;o(c,a,t.id);const m=n.getWelcomePdfUrlHost(),_={...await r.hasFlag(p,d.NO_CALL)?{}:{tabId:t.id},title:t.title,locale:s,extensionId:i,requestId:c},E=JSON.stringify(_),u=btoa(E),S=new URL(`${m}${CREATE_NEW_STUDY_SPACE_WEB_PATH}`);return S.searchParams.set("context",a),S.searchParams.set("payload",u),S.searchParams.set("isNew","1"),S.toString()}(s,c);i(s.id),chrome.tabs.create({url:a,active:!0}),t.info({message:"Direct create new Study Space initiated",tabId:s.id})}catch(e){t.error({message:"Error in direct create new Study Space",error:e?.message})}}export async function handleAddWebpageToNewStudySpaceContextMenu(t,o,n){await e.init();const r=e.getItem(c.KW_FTE_COMPLETED);a.event(a.e.CONTEXT_MENU_ADD_WEB_PAGE_TO_NEW_STUDY_SPACE,{FTE_COMPLETED:r?"true":"false"}),r?await m(0,o,n):s(t,o,n,{studyFlow:!0})}export function handleAddWebpageToExistingStudySpaceContextMenu(e,t,o){a.event(a.e.CONTEXT_MENU_ADD_WEB_PAGE_TO_EXISTING_STUDY_SPACE,{context:o}),s(e,t,o,{studyFlow:!0})}

@@ -1,0 +1,18 @@
+{
+  "benchmarkTimestamp": "2026-07-23T10:34:08.398Z",
+  "image": "2.jpeg",
+  "totalRuntimeMs": 1109,
+  "totalLocalRuntimeMs": 2,
+  "totalReplicateRuntimeMs": "UNKNOWN",
+  "stageTimings": {
+    "02_unified_local": {
+      "startTime": "2026-07-23T10:34:08.196Z",
+      "finishTime": "2026-07-23T10:34:08.198Z",
+      "durationMs": 2,
+      "outputWidth": 0,
+      "outputHeight": 0,
+      "outputSizeBytes": 38247,
+      "status": "completed"
+    }
+  }
+}

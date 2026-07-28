@@ -1,0 +1,184 @@
+{
+  "01_original": {
+    "inputFile": "2.jpeg",
+    "outputFile": "01_original.png",
+    "inputSha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+    "outputSha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+    "inputResolution": {
+      "width": 525,
+      "height": 380
+    },
+    "outputResolution": {
+      "width": 525,
+      "height": 380
+    },
+    "inputSizeBytes": 38247,
+    "outputSizeBytes": 38247,
+    "processingTimeMs": 0,
+    "serviceUrl": "N/A (source)",
+    "provider": "N/A",
+    "executed": true,
+    "skipped": false,
+    "skipReason": null,
+    "skipEnvVar": null,
+    "skipCondition": null,
+    "skipSourceFile": null,
+    "skipSourceLine": null
+  },
+  "02_flux_restore": {
+    "inputFile": "01_original.png",
+    "outputFile": "02_flux_restore.png",
+    "inputSha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+    "outputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "inputResolution": {
+      "width": 525,
+      "height": 380
+    },
+    "outputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "inputSizeBytes": 38247,
+    "outputSizeBytes": 1640247,
+    "processingTimeMs": 17056,
+    "serviceUrl": "https://api.replicate.com/v1/models/flux-kontext-apps/restore-image/versions/85ae46551612b8f778348846b6ce1ce1b340e384fe2062399c0c412be29e107d/predictions",
+    "provider": "FluxRestoreProvider (Replicate)",
+    "executed": true,
+    "skipped": false,
+    "skipReason": null,
+    "skipEnvVar": null,
+    "skipCondition": null,
+    "skipSourceFile": null,
+    "skipSourceLine": null
+  },
+  "03_gfpgan": {
+    "inputFile": "02_flux_restore.png",
+    "outputFile": "03_gfpgan.png",
+    "inputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "outputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "inputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "outputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "inputSizeBytes": 1640247,
+    "outputSizeBytes": 1640247,
+    "processingTimeMs": 3,
+    "serviceUrl": "RESTORATION_ENDPOINT_URL=3z633s11yn4n8q... (via UnifiedRestorationService.restore)",
+    "provider": "RestorationGfpganService → UnifiedRestorationService",
+    "executed": false,
+    "skipped": true,
+    "skipReason": "RunPod endpoint ID is set but RUNPOD_API_KEY is missing — runViaRunPod at restoration-provider.service.ts:88-89 throws AppError(503, RUNPOD_API_KEY_MISSING)",
+    "skipEnvVar": "RUNPOD_API_KEY",
+    "skipCondition": "process.env.RUNPOD_API_KEY is empty in runViaRunPod",
+    "skipSourceFile": "restoration-provider.service.ts:88-89",
+    "skipSourceLine": 88
+  },
+  "04_realesrgan": {
+    "inputFile": "03_gfpgan.png",
+    "outputFile": "04_realesrgan.png",
+    "inputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "outputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "inputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "outputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "inputSizeBytes": 1640247,
+    "outputSizeBytes": 1640247,
+    "processingTimeMs": 2,
+    "serviceUrl": "NOT SET",
+    "provider": "RealEsrganService",
+    "executed": true,
+    "skipped": false,
+    "skipReason": null,
+    "skipEnvVar": "REAL_ESRGAN_URL",
+    "skipCondition": "config.REAL_ESRGAN_URL.trim() is empty string in RealEsrganService.enhance",
+    "skipSourceFile": "real-esrgan.service.ts:27-33",
+    "skipSourceLine": 27
+  },
+  "05_ddcolor": {
+    "inputFile": "04_realesrgan.png",
+    "outputFile": "05_ddcolor.png",
+    "inputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "outputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "inputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "outputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "inputSizeBytes": 1640247,
+    "outputSizeBytes": 1640247,
+    "processingTimeMs": 1,
+    "serviceUrl": "RESTORATION_ENDPOINT_URL=3z633s11yn4n8q...",
+    "provider": "RestorationDdcolorService → UnifiedRestorationService",
+    "executed": false,
+    "skipped": true,
+    "skipReason": "RunPod endpoint ID is set but RUNPOD_API_KEY is missing — runViaRunPod at restoration-provider.service.ts:88-89 throws AppError(503, RUNPOD_API_KEY_MISSING)",
+    "skipEnvVar": "RUNPOD_API_KEY",
+    "skipCondition": "process.env.RUNPOD_API_KEY is empty in runViaRunPod",
+    "skipSourceFile": "restoration-provider.service.ts:88-89",
+    "skipSourceLine": 88
+  },
+  "06_lama": {
+    "inputFile": "05_ddcolor.png",
+    "outputFile": "06_lama.png",
+    "inputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "outputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "inputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "outputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "inputSizeBytes": 1640247,
+    "outputSizeBytes": 1640247,
+    "processingTimeMs": 2,
+    "serviceUrl": "RESTORATION_ENDPOINT_URL=3z633s11yn4n8q...",
+    "provider": "RestorationInpaintService → UnifiedRestorationService",
+    "executed": false,
+    "skipped": true,
+    "skipReason": "RunPod endpoint ID is set but RUNPOD_API_KEY is missing — runViaRunPod at restoration-provider.service.ts:88-89 throws AppError(503, RUNPOD_API_KEY_MISSING)",
+    "skipEnvVar": "RUNPOD_API_KEY",
+    "skipCondition": "process.env.RUNPOD_API_KEY is empty in runViaRunPod",
+    "skipSourceFile": "restoration-provider.service.ts:88-89",
+    "skipSourceLine": 88
+  },
+  "07_final_output": {
+    "inputFile": "06_lama.png",
+    "outputFile": "07_final_output.png",
+    "inputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "outputSha256": "cd0d7e24db798b0ded7e3c170813b624fd8e740fb3a653f8a793dc87d072a444",
+    "inputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "outputResolution": {
+      "width": 1184,
+      "height": 880
+    },
+    "inputSizeBytes": 1640247,
+    "outputSizeBytes": 1640247,
+    "processingTimeMs": 2,
+    "serviceUrl": "N/A (composite)",
+    "provider": "N/A (pipeline final)",
+    "executed": true,
+    "skipped": false,
+    "skipReason": null,
+    "skipEnvVar": null,
+    "skipCondition": null,
+    "skipSourceFile": null,
+    "skipSourceLine": null
+  }
+}

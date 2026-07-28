@@ -1,0 +1,11 @@
+{
+  "providers": [
+    "flux-restore",
+    "unified-local"
+  ],
+  "replicateCalls": 1,
+  "localCalls": 1,
+  "stages": [
+    "real_esrgan_upscale"
+  ]
+}

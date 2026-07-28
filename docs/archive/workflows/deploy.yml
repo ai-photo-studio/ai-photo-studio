@@ -1,0 +1,161 @@
+# =============================================================================
+# AI Photo Studio — Production Deployment Workflow
+# =============================================================================
+# TARGET:    https://www.thannow.com (frontend)
+#            https://api.thannow.com (API)
+# PLATFORM:  Google Cloud Run (backend API) — Cloud Build + Artifact Registry
+#            Cloudflare Pages (frontend)
+# TRIGGER:   GitHub Actions on push to main
+# =============================================================================
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment target"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".kilo/**"
+
+env:
+  NODE_VERSION: "24"
+  PROJECT_ID: "project-9540c255-c960-4fa0-a91"
+  SERVICE_NAME: "ai-photo-studio-api"
+  REGION: "us-central1"
+  REGISTRY: "us-central1-docker.pkg.dev"
+  REPO: "ai-photo-studio-api"
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+  build-and-deploy-api:
+    name: Build & Deploy API to Cloud Run
+    needs: [verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        continue-on-error: true
+
+      - name: Check GCP auth result
+        if: steps.auth.outcome == 'failure'
+        run: |
+          echo "WARNING: GCP_SERVICE_ACCOUNT_KEY secret is not configured."
+          echo "API deploy to Cloud Run will be SKIPPED."
+          echo "To fix, add the GCP service account key as a GitHub secret."
+          echo "Frontend deploy will continue independently."
+
+      - name: Set up Cloud SDK
+        if: steps.auth.outcome != 'failure'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        if: steps.auth.outcome != 'failure'
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Build and push
+        if: steps.auth.outcome != 'failure'
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/latest .
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/latest
+
+      - name: Deploy to Cloud Run
+        if: steps.auth.outcome != 'failure'
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/latest \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=1 \
+            --memory=2Gi \
+            --min-instances=1 \
+            --max-instances=10
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: [verify]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    concurrency: production
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=ai-photo-studio-frontend
+          workingDirectory: apps/web
+
+  post-deploy-verify:
+    name: Post-Deploy Verification
+    needs: [deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify API health
+        run: |
+          echo "Checking API health at https://api.thannow.com/api/health"
+          curl -sf -o /dev/null -w "HTTP %{http_code}\n" "https://api.thannow.com/api/health" || echo "API health check failed"
+
+      - name: Verify frontend
+        run: |
+          echo "Checking frontend at https://www.thannow.com"
+          curl -sf -o /dev/null -w "HTTP %{http_code}\n" "https://www.thannow.com" || echo "Frontend check failed"

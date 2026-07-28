@@ -1,0 +1,31 @@
+{
+  "headers": {
+    "date": "Wed, 22 Jul 2026 14:38:44 GMT",
+    "content-type": "application/json",
+    "content-length": "331",
+    "connection": "keep-alive",
+    "cf-ray": "a1f330d83d90e284-MRS",
+    "cf-cache-status": "DYNAMIC",
+    "server": "cloudflare",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "x-content-type-options": "nosniff",
+    "access-control-expose-headers": "X-Request-ID, CF-Ray, CF-Ray",
+    "openai-organization": "user-5xx16vw3xfxihoc0fwlyqtna",
+    "openai-processing-ms": "252",
+    "openai-project": "proj_oUuE5x3RFzH67SI8HUsf8WVH",
+    "openai-version": "2020-10-01",
+    "x-request-id": "req_106242a707934a1ea5fb01b259a14c91",
+    "set-cookie": [
+      "__cf_bm=1znYYgPiKbSsJCbxu1zMsDS1OolPlOWpRKqfvG..G50-1784731124.5173423-1.0.1.1-UdJ13nsIzwMJcB5DoWYSV03rjYwzsVXG7LnoPAgm63_Wk92FEZR0QfjR9ZUjTVZ38JMV3tef2M4h3scOb.TEc7qHwU9qCW4_cUh76pqoSiQt_0eYRtYzT05CEMpRq_5l; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Wed, 22 Jul 2026 15:08:44 GMT"
+    ],
+    "alt-svc": "h3=\":443\"; ma=86400"
+  },
+  "body": {
+    "error": {
+      "message": "Invalid image file or mode for image 1, please check your image file. If you believe this is an error, contact us at help.openai.com and include the request ID req_106242a707934a1ea5fb01b259a14c91.",
+      "type": "image_generation_user_error",
+      "param": null,
+      "code": "invalid_image_file"
+    }
+  }
+}

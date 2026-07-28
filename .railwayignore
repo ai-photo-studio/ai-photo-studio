@@ -1,0 +1,25 @@
+# Exclude large directories not needed for build
+node_modules
+.kilo
+.codex
+diagnostics
+old images
+test images
+golden_dataset
+validation_output
+services
+cleanup
+notebooks
+.wrangler
+.wrangler*
+.wrangler-config
+.agents
+.vscode
+.project-lock
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.csv
+*.xlsx
+.git

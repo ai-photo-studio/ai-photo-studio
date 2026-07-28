@@ -1,0 +1,14 @@
+# Colab validation stack for Python 3.12
+# Pinning these avoids the rembg / pymatting / SciPy / NumPy resolver drift.
+numpy==1.26.4
+scipy==1.13.1
+numba==0.60.0
+pymatting==1.1.13
+pillow==10.4.0
+onnxruntime==1.18.1
+rembg==2.0.61
+ultralytics==8.2.103
+open_clip_torch==2.30.0
+realesrgan==0.3.0
+pynvml==11.5.3
+pandas==2.2.2

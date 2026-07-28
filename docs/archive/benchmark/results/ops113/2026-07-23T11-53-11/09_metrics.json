@@ -1,0 +1,13 @@
+{
+  "ssim": 0.57,
+  "psnr": 7.29,
+  "sharpness": 100,
+  "noise": 100,
+  "contrast": 100,
+  "brightness": 100,
+  "printQuality": 100,
+  "comparisonWithPipelineA": {
+    "ssim": 0.58,
+    "psnr": 7.49
+  }
+}

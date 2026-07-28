@@ -1,0 +1,12 @@
+Provider,Type,InProductionPath,ReplicateModel,ReplicateCostPerRun,LocalImplementation,LocalEndpoint,CanRemoveSafely,Notes
+FluxRestoreProvider,replicate,YES,flux-kontext-apps/restore-image,$0.009-0.025,NO,N/A,NO,Primary restoration model — must remain
+UnifiedLocalRestorationProvider,self-hosted,YES,N/A,$0.000,YES,RESTORATION_ENDPOINT_URL,N/A,Handles all post-Replicate stages locally
+OpenAIProvider,openai,NO,gpt-image-2,$0.032-0.04,NO,N/A,YES,Removed from default routing
+ReplicateProvider,replicate,NO,sczhou/codeformer,$0.0034-0.0037,YES (local-codeformer via RESTORATION_ENDPOINT_URL),RESTORATION_ENDPOINT_URL,YES,Removed from default routing
+GFPGANProvider,replicate,NO,tencentarc/gfpgan,$0.005-0.006,YES (local-gfpgan via RESTORATION_ENDPOINT_URL),RESTORATION_ENDPOINT_URL,YES,Removed from default routing
+DDColorProvider,replicate,NO,piddnad/ddcolor,$0.001-0.004,YES (local-ddcolor via RESTORATION_ENDPOINT_URL),RESTORATION_ENDPOINT_URL,YES,Removed from default routing
+NAFNetProvider,replicate,NO,megvii-research/nafnet,$0.003-0.005,YES (local-lama via RESTORATION_ENDPOINT_URL),RESTORATION_ENDPOINT_URL,YES,Removed from default routing
+MicrosoftBringOldPhotosProvider,replicate,NO,microsoft/bringing-old-photos-back-to-life,$0.015-0.071,NO,N/A,YES,Not in default routing
+FalAiProvider,fal-ai,NO,N/A,$0.04,NO,N/A,YES,Not in default routing
+RunPodProvider,runpod,NO,N/A,$0.003-0.015,N/A,RESTORATION_ENDPOINT_URL,YES,Not in default routing
+MockProvider,mock,NO,N/A,$0.000,N/A,N/A,YES,Test only

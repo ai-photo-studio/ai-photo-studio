@@ -1,0 +1,36 @@
+{
+  "image_name": "0edaa9fa4d67ab7482a9f10c49d8fcbe.jpeg",
+  "timestamp": "2026-07-13T11:42:24.572169",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\white_products_0edaa9fa4d67ab7482a9f10c49d8fcbe\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.5104955643927807,
+    "edge_continuity": 0.0,
+    "connected_components": 1,
+    "largest_component_pct": 1.0,
+    "alpha_entropy": 0.3036190910397005,
+    "bg_leakage": 0.08032731722239217,
+    "mask_confidence": 0.9734536555521566,
+    "mask_smoothness": 0.9988526701927185,
+    "boundary_f1": 0.0574481217154739,
+    "rgba_integrity": 0.5649219944937289,
+    "iqs": 29.108166026345764
+  },
+  "sha256": "06d0294368e7f29f9d4fa5adaea19d42745ab2419782862172c8363558f61b1e",
+  "status": "FAIL"
+}

@@ -1,0 +1,32 @@
+{
+  "sessionId": "2026-07-23_07-27-11",
+  "sessionDir": "D:\\AI Product Photo Studio on WhatsApp\\benchmark\\runtime\\2026-07-23_07-27-11",
+  "timestamp": "2026-07-23T07:28:11.419Z",
+  "artifacts": [
+    "headers.json",
+    "image_sha256.txt",
+    "request.json",
+    "response.json",
+    "returned_image.png",
+    "usage.json"
+  ],
+  "summary": {
+    "request": {
+      "method": "POST",
+      "url": "https://api.openai.com/v1/images/edits",
+      "model": "gpt-image-2",
+      "imageSha256": "3f6b0d3fd482e1f5"
+    },
+    "response": {
+      "status": 200,
+      "requestId": "req_6986761c82474b5fabfb3e4af6aa5d03",
+      "processingTimeMs": 58338,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 1756,
+        "total_tokens": 2561
+      }
+    },
+    "dashboardDelta": null
+  }
+}

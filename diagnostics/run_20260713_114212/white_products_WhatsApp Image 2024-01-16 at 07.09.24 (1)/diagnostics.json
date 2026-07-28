@@ -1,0 +1,36 @@
+{
+  "image_name": "WhatsApp Image 2024-01-16 at 07.09.24 (1).jpeg",
+  "timestamp": "2026-07-13T11:42:39.049326",
+  "stages": {
+    "original": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\original.png",
+    "raw_logits": null,
+    "raw_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_114212\\white_products_WhatsApp Image 2024-01-16 at 07.09.24 (1)\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.30986145833333334,
+    "edge_continuity": 0.0,
+    "connected_components": 1,
+    "largest_component_pct": 1.0,
+    "alpha_entropy": 0.20292005717469974,
+    "bg_leakage": 0.04176927083333333,
+    "mask_confidence": 0.9847223958333333,
+    "mask_smoothness": 0.9988048672676086,
+    "boundary_f1": 0.03749323454366367,
+    "rgba_integrity": 0.5,
+    "iqs": 26.18410900750786
+  },
+  "sha256": "491cbcf06aa526bf7020fa45f336e20f2635717823e9b732da14f018dd7f0cc9",
+  "status": "FAIL"
+}

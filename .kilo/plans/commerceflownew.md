@@ -1,0 +1,122 @@
+    # Commerce Flow — Authoritative Business Specification
+
+> **Status:** Frozen. Do not edit without board approval.
+> **Date:** 2026-07-28
+> **Source documents:** international_strategy.md, regional_routing.md, payment_gateway.md, MASTER_PRICING_MODEL.md, MASTER_CUSTOMER_JOURNEY.md, docs_03-PRICING-PACKAGES.md, docs_07-PAYMENT-FLOW.md, PrintPipeline.md, cost_savings.md, production_acceptance.md, MASTER_PRODUCT_VISION.md, docs_01-MVP-SCOPE.md, commerce.md (previous), pricing_forensics.md
+
+---
+
+## 1. Project Scope
+
+Two services: **AI Product Photo Studio** (ecommerce sellers, credit-based packages) and **AI Old Photo Restoration** (per-image resolution tiers, Replicate, print).
+
+## 2. Markets
+
+| | Pakistan | International |
+|---|----------|---------------|
+| Currency | PKR | USD (derived from PKR base) |
+| Payment | Bank Alfalah (JazzCash via Bank Alfalah) | Bank Alfalah USD. If unsupported: Stripe/PayPal (documented) |
+| Delivery | Pakistan Post, download link | DHL, FedEx, UPS, download link |
+| Printing | Local partners | International partners or digital-only |
+
+## 3. Region Detection
+
+`cf-ipcountry=PK` / `Accept-Language=ur` / `timezone=Asia/Karachi` → PKR. All others → USD. `x-region` header overrides. Default: USD.
+
+## 4. PKR Model
+
+### Download Pricing (Per Image)
+
+| Resolution | PKR | USD | Replicate Cost | Margin (PKR) |
+|-----------|-----|-----|---------------|-------------|
+| Original | 250 | $1.50 | $0.046 (12.9) | 237 |
+| 2X / 2HD | 350 | $2.50 | $0.046 (12.9) | 337 |
+| 4X / 4HD | 500 | $3.50 | $0.046 (12.9) | 487 |
+| 6X / 6HD | 750 | $3.50 | $0.046 | ~737 |
+| 8X / 8HD | 1,000 | $4.50 | $0.046 | ~987 |
+| 10X / 10HD | 1,250 | $5.50 | $0.046 | ~1,237 |
+| 12X / 12HD | 1,500 | $6.50 | $0.046 | ~1,487 |
+
+### Package Pricing (Product Photo Studio)
+
+| Package | Price PKR | CreditsIncluded | MaxImages |
+|---------|----------|-----------------|-----------|
+| STARTER | 1,499 | 10 | 3 |
+| PRO | 3,499 | 25 | 10 |
+| BUSINESS | 6,999 | 60 | 25 |
+| DEALER | 9,999 | 100 | 50 |
+
+### Print Pricing
+
+| Size | PKR (from) | USD (from) |
+|------|-----------|-----------|
+| 4x6 | 800 | $5 |
+| 5x7 | 1,200 | $8 |
+| 8x10 | 1,800 | $12 |
+| A4 | 2,000 | $15 |
+| A3 | 3,500 | $25 |
+
+### Add-On Credits
+
+Mini (499/3cr), Seller (999/8cr), Growth (2,499/25cr)
+
+### Subscriptions
+
+Seller Monthly (2,999/25cr), Store Monthly (5,999/60cr), Brand Monthly (12,999/150cr)
+
+## 5. USD Model
+
+**Found in archived documents.** USD pricing exists in:
+- `international_strategy.md` — "USD prices derived from PKR base at current exchange rate"
+- `regional_routing.md` — download pricing: $1.50, $2.50, $3.50; print pricing: $5-$25
+- `MASTER_PRICING_MODEL.md` — "USD for international ecommerce sellers"
+- `cost_savings.md` — revenue table with USD column ($1.50-$3.50)
+- `payment_gateway.md` — "PKR (local), USD (international)"
+
+USD is derived from PKR base pricing. Not a separate model. No separate USD-only packages exist.
+
+## 6. Upgrade Rules
+
+**Full-price rule:** Paying for an upgrade (e.g., single to multi-image, or lower to higher tier) requires the full price of the new tier/package. No discount for previous purchase.
+
+## 7. Guest Flow
+
+Upload (1 free preview/session), view watermarked preview, view client-side metadata, create order — all without auth. Download full-resolution, view history, purchase credits — require signup.
+
+## 8. Registered User Flow
+
+Register → Login → Upload → Select style → Credits deducted → Queue → Replicate → R2 → Download. Wallet shows balance. Payment via manual proof.
+
+## 9. Admin Flow
+
+Dashboard (PKR/USD revenue, pending payments), Orders (approve/reject, retry), Customers, Packages CRUD, Payments, Wallets (credit/refund), Subscriptions, Jobs, Logs, Settings.
+
+## 10. Print Model
+
+Print sizes exist in code. Print order flow NOT implemented. Print options (paper, frame, album, courier, shipping) NOT implemented.
+
+## 11. Payment Model
+
+Manual proof: ✅ Active. JazzCash/Easypaisa provider classes: ✅ Exist (inactive). Bank Alfalah gateway: ❌ Not implemented. Demo auto-approve: ❌ Not implemented. Payment guard on processItem: ✅ Active.
+
+## 12. Code Mapping
+
+| Business Rule | Code Status |
+|--------------|------------|
+| Package catalog with creditsIncluded | ✅ prisma/seed.ts, Package model. Prod values = 0 |
+| Wallet/credit system | ✅ WalletService, WalletTransaction model |
+| Manual payment proof | ✅ ManualPaymentProvider, admin approval routes |
+| Free preview | ✅ preview.controller.ts |
+| Print sizes | ✅ print-preparation.service.ts |
+| Region detection | ❌ Missing |
+| Demo payment mode | ❌ Missing |
+| Print order flow | ❌ Missing |
+| Sharp tier generation | ❌ Missing |
+| Package creditsIncluded > 0 | ❌ All 0 in prod |
+
+## 13. Missing Features (P0)
+
+1. Package `creditsIncluded` > 0 in production database
+2. Demo payment mode implementation
+3. `api.thannow.com` linked to Northflank port 8080
+4. Cloudflare Pages `/api/*` proxy to Northflank

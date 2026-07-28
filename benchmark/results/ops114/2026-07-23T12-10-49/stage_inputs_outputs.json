@@ -1,0 +1,93 @@
+[
+  {
+    "label": "01_original",
+    "file": "01_original.png",
+    "sha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+    "width": 525,
+    "height": 380,
+    "sizeBytes": 38247,
+    "processingTimeMs": 0,
+    "serviceUrl": "N/A",
+    "provider": "N/A",
+    "executed": true,
+    "error": null
+  },
+  {
+    "label": "02_flux_restore",
+    "file": "02_flux_restore.png",
+    "sha256": "da50e0e1e5047252e4f3d4270e8027cbd273844b0552acf2bfd9028fa9d8d778",
+    "width": 1184,
+    "height": 880,
+    "sizeBytes": 1693507,
+    "processingTimeMs": 22024,
+    "serviceUrl": "https://api.replicate.com/v1/models/flux-kontext-apps/restore-image",
+    "provider": "FluxRestoreProvider (Replicate)",
+    "executed": true,
+    "error": null
+  },
+  {
+    "label": "03_gfpgan",
+    "file": "03_gfpgan.png",
+    "sha256": "da50e0e1e5047252e4f3d4270e8027cbd273844b0552acf2bfd9028fa9d8d778",
+    "width": 1184,
+    "height": 880,
+    "sizeBytes": 1693507,
+    "processingTimeMs": 2,
+    "serviceUrl": "RESTORATION_ENDPOINT_URL=3z633s11yn4n8q",
+    "provider": "RestorationGfpganService",
+    "executed": false,
+    "error": "RunPod API key not configured"
+  },
+  {
+    "label": "04_realesrgan",
+    "file": "04_realesrgan.png",
+    "sha256": "da50e0e1e5047252e4f3d4270e8027cbd273844b0552acf2bfd9028fa9d8d778",
+    "width": 1184,
+    "height": 880,
+    "sizeBytes": 1693507,
+    "processingTimeMs": 2,
+    "serviceUrl": "NOT SET",
+    "provider": "RealEsrganService",
+    "executed": true,
+    "error": null
+  },
+  {
+    "label": "05_ddcolor",
+    "file": "05_ddcolor.png",
+    "sha256": "da50e0e1e5047252e4f3d4270e8027cbd273844b0552acf2bfd9028fa9d8d778",
+    "width": 1184,
+    "height": 880,
+    "sizeBytes": 1693507,
+    "processingTimeMs": 21,
+    "serviceUrl": "RESTORATION_ENDPOINT_URL=3z633s11yn4n8q",
+    "provider": "RestorationDdcolorService",
+    "executed": false,
+    "error": "RunPod API key not configured"
+  },
+  {
+    "label": "06_lama",
+    "file": "06_lama.png",
+    "sha256": "da50e0e1e5047252e4f3d4270e8027cbd273844b0552acf2bfd9028fa9d8d778",
+    "width": 1184,
+    "height": 880,
+    "sizeBytes": 1693507,
+    "processingTimeMs": 2,
+    "serviceUrl": "RESTORATION_ENDPOINT_URL=3z633s11yn4n8q",
+    "provider": "RestorationInpaintService",
+    "executed": false,
+    "error": "RunPod API key not configured"
+  },
+  {
+    "label": "07_final",
+    "file": "07_final.png",
+    "sha256": "da50e0e1e5047252e4f3d4270e8027cbd273844b0552acf2bfd9028fa9d8d778",
+    "width": 1184,
+    "height": 880,
+    "sizeBytes": 1693507,
+    "processingTimeMs": 0,
+    "serviceUrl": "N/A",
+    "provider": "N/A (pipeline final)",
+    "executed": true,
+    "error": null
+  }
+]

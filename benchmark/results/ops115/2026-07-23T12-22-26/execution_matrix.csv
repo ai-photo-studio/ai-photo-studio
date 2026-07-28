@@ -1,0 +1,6 @@
+stage,ops109_provider,ops109_executed,ops114_provider,ops114_executed,reason_current_not_executing
+flux_restore,FluxRestoreProvider (Replicate),YES,FluxRestoreProvider (Replicate),YES,OK
+gfpgan,GFPGANProvider (Replicate tencentarc/gfpgan),YES,RestorationGfpganService (RunPod 3z633s11yn4n8q),NO,RUNPOD_API_KEY missing — runViaRunPod throws 503 at restoration-provider.service.ts:88-89
+realesrgan,GFPGANProvider (Replicate tencentarc/gfpgan scale=2),YES,RealEsrganService (REAL_ESRGAN_URL),NO,REAL_ESRGAN_URL empty — passthrough at real-esrgan.service.ts:27-33
+ddcolor,N/A (not executed in OPS-109),NO,RestorationDdcolorService (RunPod 3z633s11yn4n8q),NO,RUNPOD_API_KEY missing + image not grayscale
+lama,N/A (not executed in OPS-109),NO,RestorationInpaintService (RunPod 3z633s11yn4n8q),NO,RUNPOD_API_KEY missing

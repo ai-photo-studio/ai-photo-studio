@@ -1,0 +1,4 @@
+predictionId,stage,model,version,created,completed,runtimeMs,gpuSeconds,estimatedCost,actualCost,inputSha,outputSha,outputBytes,status
+8gdp09x219rmw0czhwtr39sz9c,flux_restore,flux-kontext-apps/restore-image,85ae46551612b8f778348846b6ce1ce1b340e384fe2062399c0c412be29e107d,2026-07-23T13:41:22.618Z,2026-07-23T13:41:42.696Z,20078,14.961973066,0.009,0.0344,3f6b0d3fd482e1f5,dffe5e684edfe927,1662435,succeeded
+4a0m3gzfk1rmw0czhwtvfn7zer,gfpgan_face,tencentarc/gfpgan,0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c,2026-07-23T13:41:42.700Z,2026-07-23T13:41:51.394Z,8694,2.775360975,0.005,0.0064,dffe5e684edfe927,5568d37ab35ac4e0,6390219,succeeded
+50x0tmsa71rmy0czhwvbraraw4,gfpgan_upscale,tencentarc/gfpgan,0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c,2026-07-23T13:41:51.428Z,2026-07-23T13:42:15.366Z,23937,5.890432252,0.005,0.0135,5568d37ab35ac4e0,942c6bd3168744f3,20565609,succeeded

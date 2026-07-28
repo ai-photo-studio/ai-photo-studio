@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{dcLocalStorage as e}from"./local-storage.js";import{isEdgeBrowser as t}from"./util.js";import{MIME_HANDLER_STORAGE_KEY as r,MIME_HANDLER_USER_PREF_KEY as i}from"./constant.js";const n=t(),a="undefined"==typeof window,o={setViewerState:async function(t){if(n){if(!a){if("true"===e.getItem("cdnFailure"))try{200===(await fetch("https://acrobat.adobe.com/dc-chrome-extension/index.html",{method:"GET"})).status&&e.setItem("cdnFailure","false")}catch(e){}return await this._setViewerStateInternal(t)}"true"!==e.getItem("cdnFailure")&&chrome.runtime.getExtensionStatePrivate&&chrome.runtime.getExtensionStatePrivate(function(e){chrome.runtime.setExtensionStatePrivate({userState:e.userState,viewerState:t})})}else chrome.mimeHandler?.setMimeHandlerOptions&&await chrome.mimeHandler.setMimeHandlerOptions("application/pdf",{enabled:"enabled"===t})},_setViewerStateInternal:async function(t){const r=await this.getEdgeUserState();if(void 0!==r&&chrome.runtime.setExtensionStatePrivate){const i=e.getItem("cdnFailure");return chrome.runtime.setExtensionStatePrivate({userState:r.userState,viewerState:"true"===i?"disabled":t}),t}},setEdgeUserState:async function(t){n&&("true"===e.getItem("cdnFailure")&&(t.viewerState="disabled"),chrome.runtime.setExtensionStatePrivate&&chrome.runtime.setExtensionStatePrivate({...t}))},getEdgeUserState:function(){return new Promise(e=>{n&&chrome.runtime.getExtensionStatePrivate?chrome.runtime.getExtensionStatePrivate(e):e(!!n&&void 0)})},isChromeMimeHandlerFeatureEnabled:function({checkUserPref:t=!0}={}){return!(!e.getItem(r)||!chrome.mimeHandler)&&(!t||"false"!==e.getItem(i))},isInMimeHandlerSubFrame:function(){return"undefined"!=typeof window&&window.parent!==window&&!!chrome.mimeHandler},isMimeHandlerAvailable:async function({isViewerPage:t=!1}={}){return new Promise(async a=>{await e.init();const o=!!e.getItem(r),m="false"!==e.getItem(i);if(n)chrome.runtime.isMimeHandlerFeatureAvailable?chrome.runtime.isMimeHandlerFeatureAvailable(a):a(!0);else if(t){if(!o||!m||window.parent===window)return void a(!1);a(o&&m&&!!chrome.mimeHandler)}else a(o&&m&&!!chrome.mimeHandler)})},getStreamInfo:function(){const e=n?chrome.mimeHandlerPrivate:chrome.mimeHandler;return new Promise(t=>{e?.getStreamInfo?n?e.getStreamInfo(t):e.getStreamInfo().then(t).catch(()=>t(void 0)):t(void 0)})},reloadWithNativeViewer:async function(e,t){n?chrome.tabs.reloadWithNativePDFViewer&&chrome.tabs.reloadWithNativePDFViewer(e,t):chrome.mimeHandler?.abortAndFallbackToNativeHandler&&await chrome.mimeHandler.abortAndFallbackToNativeHandler()},isInstalledViaUpsell:function(){return new Promise(e=>{n&&chrome.runtime.isInstalledViaPromotionPrivate?chrome.runtime.isInstalledViaPromotionPrivate(e):e(!1)})},validateCertificate:function(e){return new Promise(t=>{n&&chrome.edgeCertVerifierPrivate?.getResult?chrome.edgeCertVerifierPrivate.getResult(e.buffer,t):t(null)})}};export{o as privateApi};

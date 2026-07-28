@@ -1,0 +1,20 @@
+{
+  "apiUsage": {
+    "input_tokens": 805,
+    "input_tokens_details": {
+      "image_tokens": 768,
+      "text_tokens": 37
+    },
+    "output_tokens": 1756,
+    "output_tokens_details": {
+      "image_tokens": 1756,
+      "text_tokens": 0
+    },
+    "total_tokens": 2561
+  },
+  "publishedFormula": "gpt-image-2 pricing: $0.000008/input token, $0.000030/output token",
+  "calculatedCost": 0.00005912,
+  "observedDashboardIncrease": "UNKNOWN",
+  "difference": "UNKNOWN",
+  "differencePercent": "UNKNOWN"
+}

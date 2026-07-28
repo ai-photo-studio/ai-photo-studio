@@ -1,0 +1,35 @@
+{
+  "image_name": "001.png",
+  "timestamp": "2026-07-13T11:40:18.271539",
+  "stages": {
+    "original": "diagnostics\\run_20260713_113853\\001\\original.png",
+    "preprocessed_input": "diagnostics\\run_20260713_113853\\001\\original.png",
+    "raw_mask": "diagnostics\\run_20260713_113853\\001\\alpha.png",
+    "candidate_masks": "diagnostics\\run_20260713_113853\\001\\alpha.png",
+    "chosen_mask": "diagnostics\\run_20260713_113853\\001\\alpha.png",
+    "refined_mask": "diagnostics\\run_20260713_113853\\001\\alpha.png",
+    "alpha": "diagnostics\\run_20260713_113853\\001\\alpha.png",
+    "foreground": "diagnostics\\run_20260713_113853\\001\\foreground.png",
+    "rgba": "diagnostics\\run_20260713_113853\\001\\returned_png.png",
+    "returned_png": "diagnostics\\run_20260713_113853\\001\\returned_png.png",
+    "browser_png": "diagnostics\\run_20260713_113853\\001\\browser_png.png",
+    "overlay_mask": "diagnostics\\run_20260713_113853\\001\\overlay_mask.png"
+  },
+  "provider": "rembg-u2netp",
+  "model": "u2netp",
+  "iqs": {
+    "foreground_coverage": 0.26007080078125,
+    "edge_continuity": 0.0,
+    "connected_components": 1,
+    "largest_component_pct": 1.0,
+    "alpha_entropy": 0.18900556941125596,
+    "bg_leakage": 0.044597625732421875,
+    "mask_confidence": 0.9906578063964844,
+    "mask_smoothness": 0.9991263151168823,
+    "boundary_f1": 0.06075451771884534,
+    "rgba_integrity": 0.5,
+    "iqs": 25.92768430613052
+  },
+  "sha256": "e0ffcfcba111642f591970cb0c4e12297fd9d814dc73571ac145cdc7c604cc4d",
+  "status": "FAIL"
+}

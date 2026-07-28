@@ -1,0 +1,9 @@
+[
+  {"content": "Verify Repository HEAD vs Origin/main vs Production deployment status", "status": "in_progress", "priority": "critical"},
+  {"content": "Build Docker image from Repository HEAD and deploy", "status": "pending", "priority": "critical"},
+  {"content": "Verify full deployment synchronization (all metrics match)", "status": "pending", "priority": "critical"},
+  {"content": "Add runtime diagnostics endpoints", "status": "pending", "priority": "high"},
+  {"content": "Test live execution and capture intermediate stages", "status": "pending", "priority": "high"},
+  {"content": "Measure latency profile and explain 10-15 second runtime", "status": "pending", "priority": "medium"},
+  {"content": "Update AI_code_audit_report.md with findings", "status": "pending", "priority": "medium"}
+]

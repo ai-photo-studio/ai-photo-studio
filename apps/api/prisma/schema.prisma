@@ -1,0 +1,829 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  NEW
+  PAYMENT_PENDING
+  PAID
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  DELIVERED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+}
+
+enum WalletTransactionState {
+  RESERVED
+  SETTLED
+  RELEASED
+  FAILED
+}
+
+enum CreditSourceType {
+  FREE
+  PURCHASED
+  PROMOTIONAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
+}
+
+enum ImageKind {
+  ORIGINAL
+  PREVIEW
+  FINAL
+}
+
+enum JobStatus {
+  QUEUED
+  RETRYING
+  RUNNING
+  COMPLETED
+  FAILED
+  DEAD_LETTER
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+  FINANCE
+  SUPPORT
+  READ_ONLY
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  whatsappNumber String   @unique
+  name           String?
+  locale         String?  @default("en-PK")
+  isTestAccount  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders Order[]
+  user   User?   @relation("CustomerUser")
+}
+
+model AdminUser {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String?
+  role         AdminRole   @default(READ_ONLY)
+  isActive     Boolean     @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions AdminSession[]
+  auditLogs AdminAuditLog[]
+
+  @@index([role, isActive])
+}
+
+model AdminSession {
+  id               String    @id @default(cuid())
+  adminUserId      String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+  @@index([revokedAt, expiresAt])
+}
+
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  adminUserId String?
+  action       String
+  entityType   String?
+  entityId     String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  adminUser AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([adminUserId, createdAt])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  customerId   String?  @unique
+  customer     Customer? @relation("CustomerUser", fields: [customerId], references: [id])
+  wallet       Wallet?
+  subscriptions Subscription[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders Order[] @relation("UserOrders")
+}
+
+model Order {
+  id             String   @id @default(cuid())
+  orderNo       String       @unique
+  customerId    String
+  userId        String?
+  packageId     String
+  whatsappSenderNumber String?
+  whatsappMessageId     String? @unique
+  whatsappMediaId       String?
+  orderStatus   OrderStatus  @default(NEW)
+  paymentStatus PaymentStatus @default(PENDING)
+  currency      String       @default("PKR")
+  subtotal      Decimal      @db.Decimal(10, 2)
+  total         Decimal      @db.Decimal(10, 2)
+  notes         String?
+  originalStorageKey   String?
+  originalUrl          String?
+  originalExpiresAt    DateTime?
+  processedStorageKey  String?
+  processedUrl         String?
+  processedExpiresAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  customer Customer     @relation(fields: [customerId], references: [id])
+  user     User?        @relation("UserOrders", fields: [userId], references: [id])
+  package  Package      @relation(fields: [packageId], references: [id])
+  items    OrderItem[]
+  images   OrderImage[]
+  payments Payment[]
+  walletTransactions WalletTransaction[]
+  aiJobs   AiJob[]
+  processingJobs ProcessingJob[]
+  imageQualityScores ImageQualityScore[]
+  statusHistory OrderStatusHistory[]
+  creativeStudioJobs CreativeStudioJob[]
+  providerCostLogs ProviderCostLog[]
+
+  @@index([customerId, createdAt])
+  @@index([orderStatus, paymentStatus])
+  @@index([userId, createdAt])
+  @@index([whatsappSenderNumber, createdAt])
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  itemType        String
+  title           String
+  quantity        Int      @default(1)
+  unitPrice       Decimal? @db.Decimal(10, 2)
+  currency        String   @default("PKR")
+  metadata        Json?
+  sourceMessageId String?
+  sourceMediaId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  processingJobs ProcessingJob[]
+
+  @@index([orderId, createdAt])
+  @@index([sourceMessageId])
+}
+
+model ProcessingJob {
+  id              String    @id @default(cuid())
+  orderId         String
+  orderItemId     String?
+  queueName       String
+  jobName         String
+  providerName    String?
+  workflowType    String?
+  workflowMode    String?
+  status          JobStatus @default(QUEUED)
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(5)
+  queueJobId      String?   @unique
+  errorMessage    String?
+  deadLetterReason String?
+  failureStage    String?
+  lastHeartbeat   DateTime?
+  processingStartedAt DateTime?
+  processingWorkerId String?
+  gpuSecondsSpent Int       @default(0)
+  estimatedGpuCost Decimal? @db.Decimal(10, 4)
+  cloudRunCost    Decimal?  @db.Decimal(10, 4)
+  runpodCost      Decimal?  @db.Decimal(10, 4)
+  refundProcessed Boolean   @default(false)
+  refundNote      String?
+  payload         Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  imageQualityScores ImageQualityScore[]
+  providerCostLogs ProviderCostLog[]
+
+  @@index([orderId, status])
+  @@index([queueName, status])
+  @@index([orderItemId, status])
+  @@index([status, lastHeartbeat])
+  @@index([status, processingStartedAt])
+}
+
+model OrderStatusHistory {
+  id         String      @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  source     String
+  reason     String?
+  meta       Json?
+  createdAt  DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([toStatus, createdAt])
+}
+
+model OrderImage {
+  id            String    @id @default(cuid())
+  orderId       String
+  kind          ImageKind @default(ORIGINAL)
+  storageKey    String
+  mimeType      String?
+  width         Int?
+  height        Int?
+  fileSizeBytes Int?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+  creativeStudioJobs CreativeStudioJob[]
+
+  @@index([orderId, kind])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String
+  provider        String
+  providerRef     String?
+  checkoutUrl     String?
+  status          PaymentStatus @default(PENDING)
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("PKR")
+  screenshotPath  String?
+  screenshotStorageKey String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewNotes     String?
+  rawPayload      Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+  walletTransactions WalletTransaction[]
+
+  @@index([orderId, createdAt])
+  @@index([provider, providerRef])
+}
+
+model Package {
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  name                String
+  description         String?
+  price               Decimal  @db.Decimal(10, 2)
+  currency            String   @default("PKR")
+  active              Boolean  @default(true)
+  featured            Boolean  @default(false)
+  sortOrder           Int      @default(0)
+  maxImages           Int?
+  creditsIncluded     Int      @default(0)
+  monthlyCreditLimit  Int      @default(0)
+  workflowType        String   @default("PRODUCT")
+  workflowMode        String   @default("PRODUCT_STUDIO")
+  includesJson        Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orders       Order[]
+  subscriptions Subscription[]
+  sampleAssets SampleAsset[]
+}
+
+model Wallet {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  balance          Int      @default(0)
+  reservedBalance  Int      @default(0)
+  lifetimeSpent    Int      @default(0)
+  lifetimeCredited Int      @default(0)
+  currency         String   @default("PKR")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   WalletTransaction[]
+  subscriptions  Subscription[]
+
+  @@index([balance])
+}
+
+model WalletTransaction {
+  id              String                @id @default(cuid())
+  walletId        String
+  paymentId       String?
+  orderId         String?
+  subscriptionId  String?
+  type            WalletTransactionType
+  state           WalletTransactionState @default(SETTLED)
+  creditSource    CreditSourceType?
+  amount          Int
+  balanceBefore   Int
+  balanceAfter    Int
+  reservedBefore  Int                  @default(0)
+  reservedAfter   Int                  @default(0)
+  referenceType   String?
+  referenceId     String?
+  note            String?
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  wallet         Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  payment        Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  order          Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt])
+  @@index([referenceType, referenceId])
+  @@index([paymentId, createdAt])
+  @@index([orderId, createdAt])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  walletId             String
+  packageId            String
+  planCode             String
+  status               SubscriptionStatus @default(ACTIVE)
+  monthlyCreditLimit   Int                @default(0)
+  monthlyCreditsUsed   Int                @default(0)
+  monthlyCreditsReserved Int              @default(0)
+  periodStart          DateTime
+  periodEnd            DateTime
+  nextResetAt          DateTime
+  lastResetAt          DateTime?
+  startedAt            DateTime           @default(now())
+  endedAt              DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  package       Package           @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  usage         SubscriptionUsage[]
+  walletTransactions WalletTransaction[]
+
+  @@index([userId, status])
+  @@index([walletId, status])
+  @@index([planCode, status])
+  @@index([nextResetAt])
+}
+
+model SubscriptionUsage {
+  id                String   @id @default(cuid())
+  subscriptionId    String
+  periodStart       DateTime
+  periodEnd         DateTime
+  creditsReserved   Int      @default(0)
+  creditsSpent      Int      @default(0)
+  creditsReleased   Int      @default(0)
+  jobsReserved      Int      @default(0)
+  jobsCompleted     Int      @default(0)
+  jobsFailed        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, periodStart])
+  @@index([subscriptionId, periodEnd])
+}
+
+model SampleAsset {
+  id          String   @id @default(cuid())
+  packageId   String?
+  title       String
+  type        String
+  storageKey  String
+  publicUrl   String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  package Package? @relation(fields: [packageId], references: [id])
+
+  @@index([packageId, active])
+}
+
+model ImageQualityScore {
+  id                String   @id @default(cuid())
+  orderId           String
+  processingJobId   String
+  providerName      String
+  imageStorageKey   String?
+  category          String?
+  classificationConfidence Float?
+  pipelineUsed      String?
+  processingProfile String?
+  productDetected   Boolean  @default(true)
+  confidence        Float
+  processingStage   String?
+  beforeBlurScore   Float?
+  beforeBrightnessScore Float?
+  beforeContrastScore   Float?
+  beforeVisibilityScore Float?
+  beforeCropQualityScore Float?
+  beforeOverallScore Int?
+  blurScore         Float
+  brightnessScore   Float
+  contrastScore     Float
+  visibilityScore   Float
+  cropQualityScore  Float
+  overallScore      Int
+  enhancementScore  Int?
+  enhancementDelta  Int?
+  boundingBoxLeft   Int?
+  boundingBoxTop    Int?
+  boundingBoxWidth  Int?
+  boundingBoxHeight Int?
+  cropLeft          Int?
+  cropTop           Int?
+  cropRight         Int?
+  cropBottom        Int?
+  sourceWidth       Int?
+  sourceHeight      Int?
+  canvasWidth       Int?
+  canvasHeight      Int?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  processingJob ProcessingJob @relation(fields: [processingJobId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([processingJobId, createdAt])
+  @@index([providerName, createdAt])
+}
+
+model AiJob {
+  id             String    @id @default(cuid())
+  orderId        String
+  orderImageId   String?
+  provider       String
+  operation      String
+  status         JobStatus @default(QUEUED)
+  attempts       Int       @default(0)
+  errorMessage   String?
+  inputKey       String?
+  outputKey      String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+  providerCostLogs ProviderCostLog[]
+
+  @@index([orderId, status])
+}
+
+model WebhookEvent {
+  id               String   @id @default(cuid())
+  source           String
+  providerEventId  String
+  eventType        String
+  payload          Json
+  processed        Boolean  @default(false)
+  processedAt      DateTime?
+  createdAt        DateTime @default(now())
+
+  @@unique([source, providerEventId])
+  @@index([source, eventType, createdAt])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorType   String
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorType, createdAt])
+}
+
+enum RestorationStatus {
+  PENDING
+  QUEUED
+  ANALYZING
+  PROCESSING
+  REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum DamageSeverity {
+  LIGHT
+  MEDIUM
+  HEAVY
+  UNKNOWN
+}
+
+enum ImageCategory {
+  FACE
+  DOCUMENT
+  LANDSCAPE
+  PORTRAIT
+  BLACK_WHITE
+  COLOR
+  WEDDING
+  GROUP_PHOTO
+  GENERAL
+}
+
+model RestorationOrder {
+  id              String            @id @default(cuid())
+  orderNo         String            @unique
+  userId          String?
+  customerId      String?
+  packageId       String?
+  title           String?
+  notes           String?
+  status          RestorationStatus @default(PENDING)
+  totalItems      Int               @default(0)
+  completedItems  Int               @default(0)
+  failedItems     Int               @default(0)
+  totalDurationMs Int?
+  qualityImprovement Int?
+  estimatedCost   Decimal?          @db.Decimal(10, 4)
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  items RestorationItem[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([orderNo])
+}
+
+model RestorationItem {
+  id                    String           @id @default(cuid())
+  restorationOrderId    String
+  originalStorageKey    String
+  previewStorageKey     String?
+  finalStorageKey       String?
+  maskStorageKey        String?
+  damageMaskStorageKey  String?
+  mimeType              String?
+  width                 Int?
+  height                Int?
+  fileSizeBytes         Int?
+  status                RestorationStatus @default(PENDING)
+  damageSeverity        DamageSeverity   @default(UNKNOWN)
+  imageCategory         ImageCategory    @default(GENERAL)
+  damageScore           Float?
+  qualityScore          Int?
+  beforeQualityScore    Int?
+  afterQualityScore     Int?
+  afterBlurScore        Int?
+  afterNoiseScore       Int?
+  afterSharpnessScore   Int?
+  afterBrightnessScore  Int?
+  afterContrastScore    Int?
+  afterColorCastScore   Int?
+  beforeEntropy         Float?
+  afterEntropy          Float?
+  beforeEdgeDensity     Float?
+  afterEdgeDensity      Float?
+  beforeTextureEnergy   Float?
+  afterTextureEnergy    Float?
+  beforeLaplacianVar    Float?
+  afterLaplacianVar     Float?
+  beforeHistogramSpread Float?
+  afterHistogramSpread  Float?
+  beforeLocalContrast   Float?
+  afterLocalContrast    Float?
+  qualityRegressionStage String?
+  qualityRegressionDetail String?
+  beforeBlurScore       Int?
+  beforeNoiseScore      Int?
+  beforeSharpnessScore  Int?
+  beforeBrightnessScore Int?
+  beforeContrastScore   Int?
+  beforeColorCastScore  Int?
+  faceCount             Int?
+  faceConfidence        Float?
+  imageResolutionWidth  Int?
+  imageResolutionHeight Int?
+  colorMode             String?
+  artifactScore         Int?
+  printQuality          Int?
+  ssimScore             Float?
+  psnrScore             Float?
+  revisionCount         Int               @default(0)
+  processingStage       String?
+  providerUsed          String?
+  totalDurationMs       Int?
+  errorMessage          String?
+  retryCount            Int              @default(0)
+  packageTier           String?
+  metadata              Json?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  restorationOrder RestorationOrder @relation(fields: [restorationOrderId], references: [id], onDelete: Cascade)
+  providerCostLogs ProviderCostLog[]
+
+  @@index([restorationOrderId, status])
+  @@index([status, createdAt])
+  @@index([packageTier])
+}
+
+enum ProviderCostType {
+  BACKGROUND_REMOVAL
+  CLASSIFICATION
+  CROP_CENTER
+  ENHANCEMENT
+  RELIGHTING
+  SHADOW_GENERATION
+  FLAT_LAY
+  LIFESTYLE_SCENE
+  VIRTUAL_MODEL
+  VIDEO_GENERATION
+  RESTORATION_INPAINT
+  RESTORATION_FACE
+  RESTORATION_COLORIZE
+  RESTORATION_UPSCALE
+  RESTORATION_ANALYSIS
+}
+
+model ProviderCostLog {
+  id              String           @id @default(cuid())
+  provider        String
+  operation       String
+  costType        ProviderCostType?
+  durationMs      Int
+  inputSizeBytes  Int?
+  outputSizeBytes Int?
+  estimatedCost   Decimal        @db.Decimal(10, 4) @default(0)
+  actualCost      Decimal?       @db.Decimal(10, 4)
+  orderId         String?
+  processingJobId String?
+  aiJobId         String?
+  creativeStudioJobId String?
+  restorationItemId String?
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  processingJob ProcessingJob? @relation(fields: [processingJobId], references: [id], onDelete: SetNull)
+  aiJob AiJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
+  creativeStudioJob CreativeStudioJob? @relation(fields: [creativeStudioJobId], references: [id], onDelete: SetNull)
+  restorationItem RestorationItem? @relation(fields: [restorationItemId], references: [id], onDelete: SetNull)
+
+  @@index([provider, createdAt])
+  @@index([orderId, createdAt])
+  @@index([processingJobId, createdAt])
+  @@index([aiJobId, createdAt])
+  @@index([creativeStudioJobId, createdAt])
+  @@index([restorationItemId, createdAt])
+}
+
+enum CreativeType {
+  FLAT_LAY
+  LIFESTYLE_SCENE
+  VIRTUAL_MODEL
+  PRODUCT_VIDEO
+}
+
+enum CreativeSceneType {
+  STUDIO
+  TABLETOP
+  LIFESTYLE
+  MODEL
+  VIDEO_LOOP
+}
+
+enum CreativeGenerationStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CreativeStudioJob {
+  id                String                  @id @default(cuid())
+  orderId           String?
+  orderImageId      String?
+  creativeType      CreativeType
+  sceneType         CreativeSceneType
+  generationStatus  CreativeGenerationStatus @default(PENDING)
+  providerUsed      String
+  inputStorageKey   String?
+  outputStorageKey  String?
+  promptSummary     String?
+  durationMs        Int?
+  estimatedCost     Decimal                 @db.Decimal(10, 4) @default(0)
+  actualCost        Decimal?                @db.Decimal(10, 4)
+  metadata          Json?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  order       Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderImage  OrderImage?  @relation(fields: [orderImageId], references: [id], onDelete: SetNull)
+  providerCostLogs ProviderCostLog[]
+
+  @@index([orderId, createdAt])
+  @@index([orderImageId, createdAt])
+  @@index([creativeType, generationStatus])
+  @@index([providerUsed, createdAt])
+}
+
+model ProviderPerformance {
+  id              String   @id @default(cuid())
+  provider        String
+  imageCategory   String
+  benchmarkVersion String
+  avgScore        Float
+  avgLatencyMs    Int
+  avgCost         Decimal  @db.Decimal(10, 4)
+  successRate     Float
+  lastBenchmarkAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([provider, imageCategory, benchmarkVersion])
+  @@index([provider, benchmarkVersion])
+  @@index([imageCategory, benchmarkVersion])
+  @@index([avgScore])
+}

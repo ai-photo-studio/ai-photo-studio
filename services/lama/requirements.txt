@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+pillow
+runpod>=1.7.3

@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-07-22_22-35-45",
+  "stages": [
+    {
+      "provider": "openai",
+      "runtime": "remote",
+      "input": "old images/2.jpeg",
+      "output": "02_openai.png",
+      "latency": 222524
+    },
+    {
+      "provider": "flux-kontext-apps/restore-image",
+      "runtime": "remote",
+      "input": "02_openai.png",
+      "output": "03_flux.png",
+      "latency": "UNKNOWN"
+    },
+    {
+      "provider": "lama",
+      "runtime": "local",
+      "input": "03_flux.png",
+      "output": "04_lama.png",
+      "latency": "UNKNOWN"
+    },
+    {
+      "provider": "gfpgan",
+      "runtime": "local",
+      "input": "04_lama.png",
+      "output": "05_gfpgan.png",
+      "latency": "UNKNOWN"
+    },
+    {
+      "provider": "realesrgan",
+      "runtime": "local",
+      "input": "05_gfpgan.png",
+      "output": "06_realesrgan.png",
+      "latency": "UNKNOWN"
+    },
+    {
+      "provider": "ddcolor",
+      "runtime": "local",
+      "input": "06_realesrgan.png",
+      "output": "07_ddcolor.png",
+      "latency": "UNKNOWN"
+    },
+    {
+      "provider": "final",
+      "runtime": "local",
+      "input": "07_ddcolor.png",
+      "output": "08_final.png",
+      "latency": "UNKNOWN"
+    }
+  ]
+}

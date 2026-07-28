@@ -1,0 +1,20 @@
+{
+  "ssim": 0.56,
+  "psnr": 7.24,
+  "lpips": "UNKNOWN",
+  "faceIdentityScore": "UNKNOWN",
+  "scratchRemovalScore": "UNKNOWN",
+  "sharpness": 100,
+  "noise": 100,
+  "contrast": 100,
+  "brightness": 100,
+  "printQuality": 100,
+  "originalDimensions": {
+    "width": 525,
+    "height": 380
+  },
+  "finalDimensions": {
+    "width": 1184,
+    "height": 880
+  }
+}

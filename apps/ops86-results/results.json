@@ -1,0 +1,41 @@
+[
+  {
+    "providerName": "mock",
+    "status": "success",
+    "latencyMs": 2,
+    "estimatedCost": 0,
+    "outputSizeBytes": 69
+  },
+  {
+    "providerName": "openai",
+    "status": "error",
+    "latencyMs": 21320,
+    "estimatedCost": 0,
+    "outputSizeBytes": 0,
+    "error": "fetch failed"
+  },
+  {
+    "providerName": "fal-ai",
+    "status": "error",
+    "latencyMs": 3125,
+    "estimatedCost": 0,
+    "outputSizeBytes": 0,
+    "error": "fal.ai API failed (403): {\"detail\": \"User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.\"}"
+  },
+  {
+    "providerName": "replicate",
+    "status": "error",
+    "latencyMs": 21171,
+    "estimatedCost": 0,
+    "outputSizeBytes": 0,
+    "error": "fetch failed"
+  },
+  {
+    "providerName": "runpod",
+    "status": "error",
+    "latencyMs": 3,
+    "estimatedCost": 0,
+    "outputSizeBytes": 0,
+    "error": "restore service is not configured"
+  }
+]

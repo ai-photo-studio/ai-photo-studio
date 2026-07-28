@@ -1,0 +1,6 @@
+{
+  "timestamp": "2026-07-22_20-54-30",
+  "stage": "production-hybrid-pipeline",
+  "status": "unknown",
+  "reason": "Missing runtime evidence for LaMa, DDColor, Real-ESRGAN, and NAFNet stages in the current benchmark folder."
+}

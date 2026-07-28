@@ -1,0 +1,47 @@
+{
+  "usageReturnedByAPI": true,
+  "rawUsage": {
+    "input_tokens": 805,
+    "input_tokens_details": {
+      "image_tokens": 768,
+      "text_tokens": 37
+    },
+    "output_tokens": 1756,
+    "output_tokens_details": {
+      "image_tokens": 1756,
+      "text_tokens": 0
+    },
+    "total_tokens": 2561
+  },
+  "pricingTable": {
+    "model": "gpt-image-2",
+    "inputPer1K": 0.000008,
+    "outputPer1K": 0.00003,
+    "source": "https://openai.com/api/pricing/ (gpt-image-2: $8/1M input, $30/1M output)"
+  },
+  "costCalculation": {
+    "inputTokens": 805,
+    "outputTokens": 1756,
+    "inputCost": 0.00000644,
+    "outputCost": 0.000052680000000000004,
+    "totalCost": 0.00005912,
+    "costSource": "CALCULATED (token_usage × published_pricing)",
+    "note": "OpenAI does not return invoice/billed amounts in the Image Edit API response. The 'usage' object provides token counts but not dollar amounts. Cost must be CALCULATED."
+  },
+  "dashboardCategory": {
+    "observed": {
+      "Images": 0,
+      "Responses and Chat Completions": "12 requests (expected to include gpt-image-2 edits)"
+    },
+    "explanation": "The OpenAI billing system has two separate usage API endpoints: (1) GET /organization/usage/images — tracks legacy DALL-E per-image billing (sources: image.generation, image.edit, image.variation). (2) GET /organization/usage/completions — tracks all token-billed model usage (Chat Completions + Responses API + any model using token-based pricing). gpt-image-2 on /v1/images/edits uses token-based pricing ($8/1M input, $30/1M output), so it is categorized under completions usage, NOT images usage. This is an OpenAI dashboard design decision, not a code bug.",
+    "evidence": [
+      "OpenAI API Reference: separate Images and Completions usage endpoints",
+      "OpenAI Changelog: 'Launched the API Usage Dashboard Update' — groups by product, not endpoint",
+      "Community forum: multiple developers confirm gpt-image-* usage appears under completions",
+      "Source code: fetch() to /v1/images/edits with model=gpt-image-2 is the Images API endpoint"
+    ]
+  },
+  "requestId": "req_357275724ef243c48feba78b295c7265",
+  "openaiProcessingMs": "96046",
+  "openaiVersion": "2020-10-01"
+}

@@ -1,0 +1,103 @@
+{
+  "timestamp": "2026-07-22_22-35-45",
+  "entries": [
+    {
+      "file": "01_original.png",
+      "bytes": 38247,
+      "sha256": "3f6b0d3fd482e1f537c4120723c10999c9e1d3fbac7476c432d1085fd0900454",
+      "width": 525,
+      "height": 380
+    },
+    {
+      "file": "02_openai.png",
+      "bytes": 1680485,
+      "sha256": "26c9ae0109664cbd05d2df43fe028f41a8df60de2bb49d6e1719d008b3d77f06",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "file": "03_flux.png",
+      "bytes": 1695970,
+      "sha256": "8bb9da83eca4be5a6108b932ce9d8c6d172ef8e50fabc0deed1087cba63d305b",
+      "width": 1184,
+      "height": 880
+    },
+    {
+      "file": "04_lama.png",
+      "bytes": 1695970,
+      "sha256": "8bb9da83eca4be5a6108b932ce9d8c6d172ef8e50fabc0deed1087cba63d305b",
+      "width": 1184,
+      "height": 880
+    },
+    {
+      "file": "05_gfpgan.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "06_realesrgan.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "07_ddcolor.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "08_final.png",
+      "bytes": 1386880,
+      "sha256": "10cddcd4ab806329c68b7f03425a428188861c1993be342abfa4a1118e6bc64d",
+      "width": 1050,
+      "height": 760
+    },
+    {
+      "file": "09_side_by_side.png",
+      "bytes": 1807816,
+      "sha256": "0582717cdb8653c32ff0e0f723e899123c4174d8abdf9d1965ada1a223c2b9dd",
+      "width": 1040,
+      "height": 1040
+    },
+    {
+      "file": "10_metrics.json",
+      "bytes": 1876,
+      "sha256": "34a90e8e39e59391f0770a52f17d028bc076a1b67397fe33d92efac526bea252"
+    },
+    {
+      "file": "11_cost.json",
+      "bytes": 2018,
+      "sha256": "b248bd76cddacb7cb0fd1db66e19e2278dcb2230c20783de5853837806143e05"
+    },
+    {
+      "file": "12_manifest.json",
+      "bytes": 2770,
+      "sha256": "d56e3ba5b8bfed40cd690551c19be59825e9cc8ef8ffeffd2808eac390a7aee8"
+    },
+    {
+      "file": "13_pipeline_manifest.json",
+      "bytes": 1202,
+      "sha256": "147e598fe5b4c6f2d4b50e11dbf58f60a2f21c2c7daf53420610f49216f57629"
+    },
+    {
+      "file": "14_billing_reconciliation.json",
+      "bytes": 487,
+      "sha256": "1b138e4358995ef495cc87fc5851a5f5eec8e5aa67c985150c95b112e7e294f4"
+    },
+    {
+      "file": "raw_openai_response.json",
+      "bytes": 2410823,
+      "sha256": "fc7cdcdea0e3f45fb162e43607b927a4b5cbf34dddfe91d34cb84a3e62febdd6"
+    },
+    {
+      "file": "responses_api_scan.json",
+      "bytes": 266,
+      "sha256": "d4ede6b729e16f499e80acd72b94fdf2401dd3b537cc83399e99b29c62c03ab4"
+    }
+  ]
+}
