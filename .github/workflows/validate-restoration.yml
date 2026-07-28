@@ -1,202 +1,105 @@
-name: Validate Unified Restoration Endpoint
+name: Validate End-to-End Restoration
 on:
+  workflow_run:
+    workflows: ["Deploy to Northflank"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
-  validate:
+  e2e:
+    name: E2E M1.jpg Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          pip install pillow numpy
-
-      - name: Create test image
+      - name: Create M1.jpg test image
         run: |
           python3 -c "
           from PIL import Image
-          import numpy as np, random, io
-          img = Image.new('RGB', (640, 480), color=(180, 160, 140))
-          arr = np.array(img)
-          noise = np.random.randint(0, 30, arr.shape, dtype=np.uint8)
-          arr = np.clip(arr.astype(np.int16) + noise.astype(np.int16), 0, 255).astype(np.uint8)
-          for _ in range(5):
-              y = np.random.randint(0, 480)
-              x = np.random.randint(0, 100)
-              arr[y, x:x+random.randint(10, 50)] = [255, 255, 255]
-          img = Image.fromarray(arr)
-          buf = io.BytesIO()
-          img.save(buf, format='JPEG', quality=85)
-          with open('/tmp/test_photo.jpg', 'wb') as f:
-              f.write(buf.getvalue())
+          import io
+          img = Image.new('RGB', (1080, 720), color=(160, 140, 120))
+          arr = bytearray(img.tobytes())
+          # Add some JPEG-like artifacts
+          for i in range(0, len(arr), 3):
+              arr[i] = min(255, max(0, arr[i] + (-1 if i%2==0 else 1)))
+          img = Image.frombuffer('RGB', (1080, 720), bytes(arr))
           import base64
-          with open('/tmp/test_photo.b64', 'w') as f:
+          buf = io.BytesIO()
+          img.save(buf, format='JPEG', quality=80)
+          with open('/tmp/m1.jpg', 'wb') as f:
+              f.write(buf.getvalue())
+          with open('/tmp/m1.b64', 'w') as f:
               f.write(base64.b64encode(buf.getvalue()).decode())
-          print(f'Image size: {len(buf.getvalue())} bytes')
+          print(f'M1.jpg: {len(buf.getvalue())} bytes')
           "
 
-      - name: Send cold-start restore request
-        id: cold
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          ENDPOINT_ID: 3z633s11yn4n8q
+      - name: Run E2E Pipeline
+        id: e2e
         run: |
-          B64=$(cat /tmp/test_photo.b64)
-          START=$(date +%s%3N)
-          curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "{\"input\":{\"action\":\"restore\",\"image\":\"data:image/jpeg;base64,${B64}\",\"file_name\":\"cold-test.jpg\"}}" \
-            > /tmp/cold_response.json 2>&1
-          END=$(date +%s%3N)
-          echo "cold_ms=$((END - START))" >> $GITHUB_OUTPUT
-          python3 -c "
-import json
-with open('/tmp/cold_response.json') as f:
-    d = json.load(f)
-print(f'Status: {d.get(\"status\",\"?\")}')
-if d.get('output'):
-    o = d['output']
-    print(f'Stages: {o.get(\"processing_stages\",[])}')
-    print(f'Credits: {o.get(\"credits_used\")}')
-    print(f'Latency: {o.get(\"latency_seconds\",\"?\")}s')
-    print(f'Output size: ' + ('~' + str(len(o.get(\"image\",\"\"))*3//4) + ' bytes' if o.get(\"image\") else 'N/A'))
-else:
-    print(f'Full: {json.dumps(d, indent=2)[:1000]}')
-"
+          API="https://api.thannow.com"
+          B64=$(cat /tmp/m1.b64)
 
-      - name: Send warm-start restore request
-        id: warm
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          ENDPOINT_ID: 3z633s11yn4n8q
-        run: |
-          B64=$(cat /tmp/test_photo.b64)
-          START=$(date +%s%3N)
-          curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+          # Register test user
+          REG=$(curl -s -X POST "$API/api/auth/register" \
             -H "Content-Type: application/json" \
-            -d "{\"input\":{\"action\":\"restore\",\"image\":\"data:image/jpeg;base64,${B64}\",\"file_name\":\"warm-test.jpg\"}}" \
-            > /tmp/warm_response.json 2>&1
-          END=$(date +%s%3N)
-          echo "warm_ms=$((END - START))" >> $GITHUB_OUTPUT
-          python3 -c "
-import json
-with open('/tmp/warm_response.json') as f:
-    d = json.load(f)
-print(f'Status: {d.get(\"status\",\"?\")}')
-if d.get('output'):
-    o = d['output']
-    print(f'Stages: {o.get(\"processing_stages\",[])}')
-    print(f'Latency: {o.get(\"latency_seconds\",\"?\")}s')
-else:
-    print(f'Full: {json.dumps(d, indent=2)[:1000]}')
-"
+            -d '{"email":"e2e-github-test@test.com","password":"E2ETest123!","name":"E2E Test"}')
+          TOKEN=$(echo "$REG" | jq -r '.data.token // empty')
 
-      - name: Send health check
-        id: health
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          ENDPOINT_ID: 3z633s11yn4n8q
-        run: |
-          curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+          if [ -z "$TOKEN" ]; then
+            # Login if already exists
+            LOGIN=$(curl -s -X POST "$API/api/auth/login" \
+              -H "Content-Type: application/json" \
+              -d '{"email":"e2e-github-test@test.com","password":"E2ETest123!"}')
+            TOKEN=$(echo "$LOGIN" | jq -r '.data.token // empty')
+          fi
+
+          if [ -z "$TOKEN" ]; then
+            echo "FAILED: Cannot authenticate"
+            exit 1
+          fi
+          echo "TOKEN=$TOKEN"
+
+          # Create order
+          ORDER=$(curl -s -X POST "$API/api/restorations" \
             -H "Content-Type: application/json" \
-            -d '{"input":{"action":"health"}}' \
-            > /tmp/health_response.json 2>&1
-          python3 -c "
-import json
-with open('/tmp/health_response.json') as f:
-    d = json.load(f)
-print(f'Status: {d.get(\"status\",\"?\")}')
-if d.get('output'):
-    o = d['output']
-    print(f'Device: {o.get(\"device\",\"?\")}')
-    print(f'GPU: {o.get(\"gpu_name\",\"?\")}')
-    print(f'VRAM: {o.get(\"vram_total_gb\",\"?\")} GB')
-    print(f'Models loaded:')
-    for k,v in o.get('models_loaded',{}).items():
-        print(f'  {k}: {\"YES\" if v else \"NO\"} ')
-    if not all(o.get('models_loaded',{}).values()):
-        missing = [k for k,v in o.get('models_loaded',{}).items() if not v]
-        print(f'  ** WARNING: PIL FALLBACK for: {missing}')
-else:
-    print(f'Full: {json.dumps(d, indent=2)[:1000]}')
-"
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{}')
+          ORDER_ID=$(echo "$ORDER" | jq -r '.data.id')
+          echo "ORDER=$ORDER_ID"
 
-      - name: Send GPU info
-        id: gpu_info
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          ENDPOINT_ID: 3z633s11yn4n8q
-        run: |
-          curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+          # Upload image
+          UPLOAD=$(curl -s -X POST "$API/api/restorations/$ORDER_ID/items" \
             -H "Content-Type: application/json" \
-            -d '{"input":{"action":"gpu_info"}}' \
-            > /tmp/gpu_response.json 2>&1
-          python3 -c "
-import json
-with open('/tmp/gpu_response.json') as f:
-    d = json.load(f)
-print(json.dumps(d, indent=2))
-"
+            -H "Authorization: Bearer $TOKEN" \
+            -d "{\"fileName\":\"M1.jpg\",\"contentType\":\"image/jpeg\",\"bodyBase64\":\"${B64}\"}")
+          ITEM_ID=$(echo "$UPLOAD" | jq -r '.data.item.id // .data.id // empty')
+          echo "ITEM=$ITEM_ID"
 
-      - name: Send model info
-        id: model_info
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-          ENDPOINT_ID: 3z633s11yn4n8q
-        run: |
-          curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+          # Trigger process
+          curl -s -X POST "$API/api/restorations/$ORDER_ID/items/$ITEM_ID/process" \
             -H "Content-Type: application/json" \
-            -d '{"input":{"action":"model_info"}}' \
-            > /tmp/model_response.json 2>&1
-          python3 -c "
-import json
-with open('/tmp/model_response.json') as f:
-    d = json.load(f)
-print(json.dumps(d, indent=2))
-"
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{}' > /dev/null
 
-      - name: Produce summary
-        run: |
-          echo "============================================"
-          echo " CERTIFICATION SUMMARY"
-          echo "============================================"
-          echo ""
-          echo "=== Cold Start ==="
-          python3 -c "import json; d=json.load(open('/tmp/cold_response.json')); o=d.get('output',{}); print(f'Status: {d.get(\"status\")}'); print(f'Latency: {o.get(\"latency_seconds\")}s'); print(f'Stages: {o.get(\"processing_stages\")}')"
-          echo ""
-          echo "=== Warm Start ==="
-          python3 -c "import json; d=json.load(open('/tmp/warm_response.json')); o=d.get('output',{}); print(f'Status: {d.get(\"status\")}'); print(f'Latency: {o.get(\"latency_seconds\")}s'); print(f'Stages: {o.get(\"processing_stages\")}')"
-          echo ""
-          echo "=== Health ==="
-          python3 -c "import json; d=json.load(open('/tmp/health_response.json')); o=d.get('output',{}); print(f'Device: {o.get(\"device\")}'); print(f'GPU: {o.get(\"gpu_name\")}'); print(f'VRAM Total: {o.get(\"vram_total_gb\")} GB'); print(f'Models: {o.get(\"models_loaded\")}'); missing=[k for k,v in (o.get(\"models_loaded\") or {}).items() if not v]; print(f'PIL FALLBACK: {\"YES - \" + str(missing) if missing else \"NO\"}')"
-          echo ""
-          echo "=== GPU Info ==="
-          python3 -c "import json; d=json.load(open('/tmp/gpu_response.json')); print(json.dumps(d.get('output',d), indent=2))"
-          echo ""
-          echo "=== Model Info ==="
-          python3 -c "import json; d=json.load(open('/tmp/model_response.json')); print(json.dumps(d.get('output',d), indent=2))"
-          echo ""
-          echo "============================================"
-          echo "PASS RATE: "
-          python3 -c "
-import json
-d1=json.load(open('/tmp/cold_response.json'))
-d2=json.load(open('/tmp/warm_response.json'))
-dh=json.load(open('/tmp/health_response.json'))
-ok=0
-total=4
-if d1.get('status')=='COMPLETED': ok+=1
-if d2.get('status')=='COMPLETED': ok+=1
-if dh.get('status')=='COMPLETED': ok+=1
-ho=dh.get('output',{})
-if all(ho.get('models_loaded',{}).values()): ok+=1
-print(f'{ok}/{total}')
-if ok==4: print('GO FOR PRODUCTION')
-else: print(f'ISSUES: {4-ok} checks failed')
-"
+          # Poll for completion (up to 180s)
+          for i in $(seq 1 36); do
+            sleep 5
+            RESULT=$(curl -s "$API/api/restorations/$ORDER_ID" \
+              -H "Authorization: Bearer $TOKEN")
+            STATUS=$(echo "$RESULT" | jq -r '.data.items[0].status')
+            KEY=$(echo "$RESULT" | jq -r '.data.items[0].finalStorageKey // "null"')
+            ERROR=$(echo "$RESULT" | jq -r '.data.items[0].errorMessage // ""')
+            PROVIDER=$(echo "$RESULT" | jq -r '.data.items[0].providerUsed // "null"')
+            echo "[$((i*5))s] STATUS=$STATUS KEY=$KEY PROVIDER=$PROVIDER"
+            if [ "$STATUS" = "COMPLETED" ]; then
+              echo "E2E PASSED: STATUS=$STATUS PROVIDER=$PROVIDER KEY=$KEY"
+              exit 0
+            fi
+            if [ "$STATUS" = "FAILED" ]; then
+              echo "E2E FAILED: $ERROR"
+              echo "$RESULT" | jq '.'
+              exit 1
+            fi
+          done
+          echo "E2E FAILED: timed out"
+          exit 1

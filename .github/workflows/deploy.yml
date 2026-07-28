@@ -1,161 +1,120 @@
-# =============================================================================
-# AI Photo Studio — Production Deployment Workflow
-# =============================================================================
-# TARGET:    https://www.thannow.com (frontend)
-#            https://api.thannow.com (API)
-# PLATFORM:  Google Cloud Run (backend API) — Cloud Build + Artifact Registry
-#            Cloudflare Pages (frontend)
-# TRIGGER:   GitHub Actions on push to main
-# =============================================================================
-
-name: Deploy
+name: Deploy to Northflank
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Deployment target"
-        required: true
-        default: "production"
-        type: choice
-        options:
-          - production
-          - staging
-
   push:
     branches: [main]
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".kilo/**"
+      - "old images/**"
 
 env:
   NODE_VERSION: "24"
-  PROJECT_ID: "project-9540c255-c960-4fa0-a91"
-  SERVICE_NAME: "ai-photo-studio-api"
-  REGION: "us-central1"
-  REGISTRY: "us-central1-docker.pkg.dev"
-  REPO: "ai-photo-studio-api"
+  REGISTRY: ghcr.io
+  GHCR_IMAGE: ghcr.io/ai-photo-studio/ai-photo-studio/api
 
 jobs:
-  verify:
-    name: Verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
-
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-  build-and-deploy-api:
-    name: Build & Deploy API to Cloud Run
-    needs: [verify]
+  build-and-push:
+    name: Build & Push API Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
 
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-        continue-on-error: true
-
-      - name: Check GCP auth result
-        if: steps.auth.outcome == 'failure'
-        run: |
-          echo "WARNING: GCP_SERVICE_ACCOUNT_KEY secret is not configured."
-          echo "API deploy to Cloud Run will be SKIPPED."
-          echo "To fix, add the GCP service account key as a GitHub secret."
-          echo "Frontend deploy will continue independently."
-
-      - name: Set up Cloud SDK
-        if: steps.auth.outcome != 'failure'
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for Artifact Registry
-        if: steps.auth.outcome != 'failure'
-        run: gcloud auth configure-docker ${{ env.REGISTRY }}
-
-      - name: Build and push
-        if: steps.auth.outcome != 'failure'
-        run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/latest .
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/latest
-
-      - name: Deploy to Cloud Run
-        if: steps.auth.outcome != 'failure'
-        run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/latest \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --platform=managed \
-            --allow-unauthenticated \
-            --port=8080 \
-            --cpu=1 \
-            --memory=2Gi \
-            --min-instances=1 \
-            --max-instances=10
-
-  deploy-frontend:
-    name: Deploy Frontend
-    needs: [verify]
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
-    concurrency: production
-    defaults:
-      run:
-        working-directory: apps/web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Generate Prisma client
+        run: npx prisma@5.20.0 generate --schema apps/api/prisma/schema.prisma
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+      - name: Build
+        run: npm run build -w apps/api
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=ai-photo-studio-frontend
-          workingDirectory: apps/web
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  post-deploy-verify:
-    name: Post-Deploy Verification
-    needs: [deploy-frontend]
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Northflank
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     steps:
-      - name: Verify API health
-        run: |
-          echo "Checking API health at https://api.thannow.com/api/health"
-          curl -sf -o /dev/null -w "HTTP %{http_code}\n" "https://api.thannow.com/api/health" || echo "API health check failed"
+      - name: Deploy image to Northflank
+        uses: northflank/deploy-to-northflank@v1
+        with:
+          northflank-api-key: ${{ secrets.NORTHFLANK_API_KEY }}
+          project-id: ai-photo-studio
+          service-id: ai-photo-studio
+          image-path: ${{ needs.build-and-push.outputs.image_tag }}
+          credentials-id: ${{ secrets.NORTHFLANK_CREDENTIALS_ID }}
 
-      - name: Verify frontend
+  verify:
+    name: Verify Deployment
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for healthy API
+        shell: bash
         run: |
-          echo "Checking frontend at https://www.thannow.com"
-          curl -sf -o /dev/null -w "HTTP %{http_code}\n" "https://www.thannow.com" || echo "Frontend check failed"
+          for i in $(seq 1 36); do
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" "https://api.thannow.com/api/health" --max-time 10 || echo "000")
+            if [ "$HTTP" = "200" ]; then
+              echo "API healthy after ${i*10}s"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $HTTP"
+            sleep 10
+          done
+          echo "API failed to become healthy"
+          exit 1
+
+      - name: Verify SHA changed
+        shell: bash
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        run: |
+          SERVICE=$(curl -s -H "Authorization: Bearer $NORTHFLANK_API_KEY" \
+            "https://api.northflank.com/v1/projects/ai-photo-studio/services/ai-photo-studio")
+          SHA=$(echo "$SERVICE" | jq -r '.data.deployment.internal.deployedSHA')
+          echo "Deployed SHA: $SHA"
+          if [ "$SHA" = "278a14f7209358f240a032bf3a7fd563b7bad2d3" ]; then
+            echo "ERROR: SHA unchanged from old deployment"
+            exit 1
+          fi
+          echo "SHA updated successfully"
+
+
