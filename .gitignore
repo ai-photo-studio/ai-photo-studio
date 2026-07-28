@@ -43,6 +43,10 @@ secrets/
 tokens/
 .project-secrets/
 node_modules/
+.tools/
+.northflank-home/
+.northflank-swagger.json
+.npm-cache/
 dist/
 build/
 coverage/

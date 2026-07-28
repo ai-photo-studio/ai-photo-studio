@@ -165,6 +165,7 @@ model Order {
   whatsappSenderNumber String?
   whatsappMessageId     String? @unique
   whatsappMediaId       String?
+  guestOwnershipTokenHash String?
   orderStatus   OrderStatus  @default(NEW)
   paymentStatus PaymentStatus @default(PENDING)
   currency      String       @default("PKR")
@@ -198,6 +199,7 @@ model Order {
   @@index([orderStatus, paymentStatus])
   @@index([userId, createdAt])
   @@index([whatsappSenderNumber, createdAt])
+  @@index([guestOwnershipTokenHash])
 }
 
 model OrderItem {
@@ -614,6 +616,7 @@ model RestorationOrder {
   userId          String?
   customerId      String?
   packageId       String?
+  guestOwnershipTokenHash String?
   title           String?
   notes           String?
   status          RestorationStatus @default(PENDING)
@@ -632,6 +635,7 @@ model RestorationOrder {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([orderNo])
+  @@index([guestOwnershipTokenHash])
 }
 
 model RestorationItem {

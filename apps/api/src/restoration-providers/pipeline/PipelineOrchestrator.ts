@@ -1,9 +1,6 @@
 import type { IRestorationProvider, RestorationRequest, RestorationResult } from "../interfaces/IRestorationProvider";
 import type { AppConfig } from "../../config/env";
-import { ReplicateProvider } from "../providers/ReplicateProvider";
-import { FluxRestoreProvider } from "../providers/FluxRestoreProvider";
 import { ReplicatePipelineProvider } from "../providers/ReplicatePipelineProvider";
-import { UnifiedLocalRestorationProvider } from "../providers/UnifiedLocalRestorationProvider";
 import { logger } from "../../utils/logger";
 
 export type PipelineTier = "light" | "hd" | "premium" | "replicate";
@@ -49,10 +46,6 @@ export class PipelineOrchestrator {
     // flux → gfpgan face → gfpgan upscale
     const replicatePipeline = new ReplicatePipelineProvider(apiKey);
 
-    // LEGACY_LOCAL_PIPELINE: kept for rollback, disabled by default
-    const unifiedLocal = new UnifiedLocalRestorationProvider(this.config);
-    const fluxRestore = new FluxRestoreProvider(apiKey);
-
     // Replicate tier (DEFAULT) — OPS-109 commercial quality: 3 stages
     this.configPipelines.set("replicate", {
       tier: "replicate",
@@ -65,7 +58,7 @@ export class PipelineOrchestrator {
     this.configPipelines.set("light", {
       tier: "light",
       steps: [
-        { provider: fluxRestore, label: "flux-restore" },
+        { provider: replicatePipeline, label: "replicate-pipeline" },
       ],
     });
 
@@ -73,8 +66,7 @@ export class PipelineOrchestrator {
     this.configPipelines.set("hd", {
       tier: "hd",
       steps: [
-        { provider: fluxRestore, label: "flux-restore" },
-        { provider: unifiedLocal, label: "unified-local-postprocessing" },
+        { provider: replicatePipeline, label: "replicate-pipeline" },
       ],
     });
 
@@ -82,8 +74,7 @@ export class PipelineOrchestrator {
     this.configPipelines.set("premium", {
       tier: "premium",
       steps: [
-        { provider: fluxRestore, label: "flux-restore" },
-        { provider: unifiedLocal, label: "unified-local-postprocessing" },
+        { provider: replicatePipeline, label: "replicate-pipeline" },
       ],
     });
   }
@@ -177,9 +168,6 @@ export class PipelineOrchestrator {
    * Get the default tier based on the RESTORATION_PIPELINE feature flag.
    */
   getDefaultTier(): PipelineTier {
-    if (this.pipelineMode === "replicate") return "replicate";
-    if (this.pipelineMode === "hybrid") return "hd";
-    if (this.pipelineMode === "local") return "light";
     return "replicate";
   }
 
