@@ -1,5 +1,4 @@
 FROM node:24-slim
-# Build: production deploy 2026-07-27
 RUN apt-get update && apt-get install -y openssl libssl3
 
 WORKDIR /app/apps/api
@@ -7,7 +6,6 @@ COPY apps/api/package.json apps/api/tsconfig.json ./
 COPY package.json package-lock.json tsconfig.base.json /app/
 
 RUN npm install --include=dev
-RUN npm install --include=dev sharp
 
 COPY apps/api/prisma ./prisma
 RUN npx prisma@5.20.0 generate
