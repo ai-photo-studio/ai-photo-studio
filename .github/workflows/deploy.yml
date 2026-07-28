@@ -13,9 +13,10 @@ on:
 env:
   NODE_VERSION: "24"
   NF_REGISTRY: registry.northflank.com
-  NF_IMAGE: registry.northflank.com/northflank/service/6a63423ce0a13e54221997ad
   NF_PROJECT_ID: ai-photo-studio
   NF_SERVICE_ID: ai-photo-studio
+  NF_REGISTRY_USERNAME: ai-photo-studio
+  NF_IMAGE: registry.northflank.com/ai-photo-studio/ai-photo-studio
 
 jobs:
   build-and-deploy:
@@ -49,7 +50,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.NF_REGISTRY }}
-          username: northflank
+          username: ${{ env.NF_REGISTRY_USERNAME }}
           password: ${{ secrets.NORTHFLANK_API_KEY }}
 
       - name: Build and push to Northflank registry

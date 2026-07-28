@@ -2,7 +2,7 @@
 
 ## Status
 
-Direct GitHub Actions deployment workflow was repaired locally, but deployment was not executed from this session.
+Direct GitHub Actions deployment workflow is under repair. First pushed run failed at Docker build/push authorization.
 
 ## Evidence
 
@@ -13,17 +13,21 @@ Direct GitHub Actions deployment workflow was repaired locally, but deployment w
 - API health before deploy: `https://api.thannow.com/api/health` returned HTTP `200`
 - Local Prisma generate: PASS
 - Local API build: PASS via `npm run build -w apps/api`
+- GitHub Actions run ID: `30409476784`
+- GitHub Actions first failure step: `Build and push to Northflank registry`
+- First exact Actions error: `failed to fetch oauth token: unexpected status from GET request to https://registry.northflank.com/v2/token?scope=repository%3Anorthflank%2Fservice%2F6a63423ce0a13e54221997ad%3Apull%2Cpush&service=registry.northflank.com: 403 Forbidden`
 
 ## Workflow Repair
 
 - Workflow: `.github/workflows/deploy.yml`
 - Registry: `registry.northflank.com`
-- Image tag: `${{ github.sha }}`
+- Image tag: `registry.northflank.com/ai-photo-studio/ai-photo-studio:${{ github.sha }}`
 - GHCR usage: none in deploy workflow
 - `NORTHFLANK_CREDENTIALS_ID`: not used
 - Northflank source builds: not used
 - Deployment update: direct Northflank API `PATCH /v1/projects/{projectId}/services/deployment/{serviceId}`
 - Deployment payload: `deployment.external.imagePath`
+- Repair after run `30409476784`: changed the image path from `registry.northflank.com/northflank/service/6a63423ce0a13e54221997ad` to documented Northflank registry format `registry.northflank.com/ai-photo-studio/ai-photo-studio`.
 
 ## Build Repairs
 
@@ -46,9 +50,7 @@ Direct GitHub Actions deployment workflow was repaired locally, but deployment w
 
 ## Not Completed
 
-- Latest GitHub Actions run could not be checked because local GitHub CLI auth is invalid.
-- Commit push could not be completed from this session for the same reason.
-- Workflow run ID: not available.
+- Latest GitHub Actions run was checked through the GitHub REST API because local GitHub CLI auth is invalid.
 - New Northflank image push: not available.
 - Deployed SHA: not available.
 - M1.jpg live run: not executed.
