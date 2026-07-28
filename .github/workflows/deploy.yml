@@ -12,18 +12,16 @@ on:
 
 env:
   NODE_VERSION: "24"
-  REGISTRY: ghcr.io
-  GHCR_IMAGE: ghcr.io/ai-photo-studio/ai-photo-studio/api
+  NF_REGISTRY: registry.northflank.com
+  NF_IMAGE: registry.northflank.com/northflank/service/6a63423ce0a13e54221997ad
 
 jobs:
-  build-and-push:
-    name: Build & Push API Image
+  build-and-deploy:
+    name: Build & Deploy API
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,49 +40,52 @@ jobs:
       - name: Build
         run: npm run build -w apps/api
 
-      - name: Log in to GitHub Container Registry
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Northflank Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.NF_REGISTRY }}
+          username: northflank
+          password: ${{ secrets.NORTHFLANK_API_KEY }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.GHCR_IMAGE }}
-          tags: |
-            type=sha,format=long
-            type=ref,event=branch
-
-      - name: Build and push Docker image
+      - name: Build and push to Northflank registry
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.NF_IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    name: Deploy to Northflank
-    needs: [build-and-push]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy image to Northflank
-        uses: northflank/deploy-to-northflank@v1
-        with:
-          northflank-api-key: ${{ secrets.NORTHFLANK_API_KEY }}
-          project-id: ai-photo-studio
-          service-id: ai-photo-studio
-          image-path: ${{ needs.build-and-push.outputs.image_tag }}
-          credentials-id: ${{ secrets.NORTHFLANK_CREDENTIALS_ID }}
+      - name: Install Northflank CLI
+        run: npm install -g @northflank/cli
+
+      - name: Deploy the new image
+        run: |
+          cat <<'EOF' > /tmp/deploy.json
+          {
+            "image": "${{ env.NF_IMAGE }}:${{ github.sha }}",
+            "storage": {
+              "shmSize": 64,
+              "ephemeralStorage": {
+                "storageSize": 1024
+              }
+            },
+            "instances": 1
+          }
+          EOF
+          npx northflank update service deployment \
+            --projectId ai-photo-studio \
+            --serviceId ai-photo-studio \
+            --file /tmp/deploy.json \
+            --skipValidation
 
   verify:
     name: Verify Deployment
-    needs: [deploy]
+    needs: [build-and-deploy]
     runs-on: ubuntu-latest
     steps:
       - name: Wait for healthy API
@@ -93,7 +94,7 @@ jobs:
           for i in $(seq 1 36); do
             HTTP=$(curl -s -o /dev/null -w "%{http_code}" "https://api.thannow.com/api/health" --max-time 10 || echo "000")
             if [ "$HTTP" = "200" ]; then
-              echo "API healthy after ${i*10}s"
+              echo "API healthy after $((i*10))s"
               exit 0
             fi
             echo "Attempt $i: HTTP $HTTP"
@@ -107,14 +108,25 @@ jobs:
         env:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
         run: |
-          SERVICE=$(curl -s -H "Authorization: Bearer $NORTHFLANK_API_KEY" \
-            "https://api.northflank.com/v1/projects/ai-photo-studio/services/ai-photo-studio")
-          SHA=$(echo "$SERVICE" | jq -r '.data.deployment.internal.deployedSHA')
-          echo "Deployed SHA: $SHA"
-          if [ "$SHA" = "278a14f7209358f240a032bf3a7fd563b7bad2d3" ]; then
-            echo "ERROR: SHA unchanged from old deployment"
-            exit 1
-          fi
-          echo "SHA updated successfully"
+          for i in $(seq 1 12); do
+            sleep 10
+            SERVICE=$(curl -s -H "Authorization: Bearer $NORTHFLANK_API_KEY" \
+              "https://api.northflank.com/v1/projects/ai-photo-studio/services/ai-photo-studio")
+            STATUS=$(echo "$SERVICE" | jq -r '.data.status.deployment.status // "unknown"')
+            SHA=$(echo "$SERVICE" | jq -r '.data.deployment.internal.deployedSHA // "unknown"')
+            echo "Attempt $i: Status=$STATUS SHA=$SHA"
+            if [ "$STATUS" = "COMPLETED" ] || [ "$STATUS" = "DEPLOYING" ]; then
+              if [ "$SHA" != "278a14f7209358f240a032bf3a7fd563b7bad2d3" ]; then
+                echo "SHA updated: $SHA"
+                exit 0
+              fi
+            fi
+            if [ "$STATUS" = "FAILURE" ]; then
+              echo "Deployment FAILED"
+              exit 1
+            fi
+          done
+          echo "SHA check timeout"
+          exit 1
 
 
