@@ -431,8 +431,9 @@ export class RestorationService {
     logger.info(STEP("R2 upload END"), { itemId, finalStorageKey: processedUpload.key });
 
     const variants: Record<string, { key: string; width: number; height: number; contentType: string }> = {};
+    let exportSource = processedBuffer;
     for (const definition of RESTORATION_EXPORTS) {
-      const resized = await sharp(processedBuffer)
+      const resized = await sharp(exportSource, { sequentialRead: true })
         .rotate()
         .resize({ width: definition.width })
         .jpeg({ quality: 90 })
@@ -450,6 +451,10 @@ export class RestorationService {
         contentType: "image/jpeg"
       };
       logger.info(STEP("R2 variant upload END"), { itemId, tier: definition.key, key: upload.key, width: resized.info.width, height: resized.info.height });
+      if (definition.key === "2hd") {
+        exportSource = resized.data;
+        processedBuffer = Buffer.alloc(0);
+      }
       releaseUnusedMemory();
     }
 
