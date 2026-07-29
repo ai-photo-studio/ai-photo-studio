@@ -21,6 +21,8 @@ USER nodejs
 ENV NODE_ENV=production
 ENV SKIP_MIGRATIONS=true
 ENV PORT=8080
+ARG BUILD_SHA=unknown
+ENV BUILD_SHA=$BUILD_SHA
 EXPOSE 8080
 CMD ["node", "dist/index.js"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

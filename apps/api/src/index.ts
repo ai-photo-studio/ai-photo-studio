@@ -90,7 +90,8 @@ const bootstrap = async () => {
       message: "AI Photo Studio API is running",
       provider: process.env.RESTORATION_PIPELINE || "replicate",
       model_slug: process.env.REPLICATE_RESTORATION_MODEL_SLUG || "",
-      payment_mode: process.env.PAYMENT_GATEWAY_NAME || "manual"
+      payment_mode: process.env.PAYMENT_GATEWAY_NAME || "manual",
+      build_sha: process.env.BUILD_SHA || "unknown"
     });
   });
 
@@ -99,7 +100,8 @@ const bootstrap = async () => {
       success: true,
       service: "api",
       version: "0.1.0",
-      env: config.NODE_ENV
+      env: config.NODE_ENV,
+      buildSha: process.env.BUILD_SHA || "unknown"
     });
   });
 

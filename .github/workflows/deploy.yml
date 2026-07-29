@@ -57,6 +57,8 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
           push: true
           tags: |
             ${{ env.GHCR_IMAGE }}:${{ github.sha }}
@@ -116,29 +118,20 @@ jobs:
           echo "API failed to become healthy"
           exit 1
 
-      - name: Verify SHA changed
+      - name: Verify runtime SHA
         shell: bash
-        env:
-          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
         run: |
           for i in $(seq 1 12); do
             sleep 10
-            SERVICE=$(curl -s -H "Authorization: Bearer $NORTHFLANK_API_KEY" \
-              "https://api.northflank.com/v1/projects/${{ env.NF_PROJECT_ID }}/services/${{ env.NF_SERVICE_ID }}")
-            STATUS=$(echo "$SERVICE" | jq -r '.data.status.deployment.status // "unknown"')
-            IMAGE=$(echo "$SERVICE" | jq -r '.data.deployment.external.imagePath // "unknown"')
-            SHA=${IMAGE##*:}
-            echo "Attempt $i: Status=$STATUS Image=$IMAGE SHA=$SHA"
-            if [ "$STATUS" = "COMPLETED" ] || [ "$STATUS" = "DEPLOYING" ]; then
-              if [ "$SHA" = "${{ github.sha }}" ] && [ "$SHA" != "278a14f7209358f240a032bf3a7fd563b7bad2d3" ]; then
-                echo "SHA updated: $SHA"
-                exit 0
-              fi
-            fi
-            if [ "$STATUS" = "FAILURE" ]; then
-              echo "Deployment FAILED"
-              exit 1
+            VERSION=$(curl -sS --max-time 10 "https://api.thannow.com/api/version" || true)
+            HEALTH=$(curl -sS --max-time 10 "https://api.thannow.com/api/health" || true)
+            BUILD_SHA=$(printf '%s' "$VERSION" | jq -r '.buildSha // .data.buildSha // "unknown"' 2>/dev/null || echo "unknown")
+            HEALTH_SHA=$(printf '%s' "$HEALTH" | jq -r '.build_sha // .data.build_sha // "unknown"' 2>/dev/null || echo "unknown")
+            echo "Attempt $i: version_sha=$BUILD_SHA health_sha=$HEALTH_SHA"
+            if [ "$BUILD_SHA" = "${{ github.sha }}" ] || [ "$HEALTH_SHA" = "${{ github.sha }}" ]; then
+              echo "Runtime SHA matched: ${{ github.sha }}"
+              exit 0
             fi
           done
-          echo "SHA check timeout"
+          echo "Runtime SHA check timeout"
           exit 1
