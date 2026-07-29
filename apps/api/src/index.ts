@@ -152,10 +152,11 @@ const bootstrap = async () => {
             { name: "restoration-download", path: "/api/restorations/:id/items/:itemId/download" },
             { name: "restoration-process", path: "/api/restorations/:id/items/:itemId/process" },
             { name: "admin-restorations", path: "/api/admin/restorations" },
-            { name: "admin-restoration-detail", path: "/api/admin/restorations/:id" },
-            { name: "admin-restoration-stats", path: "/api/admin/restoration-stats" },
-            { name: "admin-restoration-retry", path: "/api/admin/restorations/:id/retry" },
-            { name: "admin-restoration-item-retry", path: "/api/admin/restoration-items/:id/retry" }
+          { name: "admin-restoration-detail", path: "/api/admin/restorations/:id" },
+          { name: "admin-restoration-stats", path: "/api/admin/restoration-stats" },
+          { name: "admin-restoration-retry", path: "/api/admin/restorations/:id/retry" },
+          { name: "admin-restoration-item-retry", path: "/api/admin/restoration-items/:id/retry" },
+          { name: "admin-runtime-diagnostic", path: "/api/admin/runtime-diagnostic" }
         ]
       }
     });
