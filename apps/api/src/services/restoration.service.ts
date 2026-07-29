@@ -431,32 +431,38 @@ export class RestorationService {
     logger.info(STEP("R2 upload END"), { itemId, finalStorageKey: processedUpload.key });
 
     const variants: Record<string, { key: string; width: number; height: number; contentType: string }> = {};
-    let exportSource = processedBuffer;
-    for (const definition of RESTORATION_EXPORTS) {
-      const resized = await sharp(exportSource, { sequentialRead: true })
-        .rotate()
-        .resize({ width: definition.width })
-        .jpeg({ quality: 90 })
-        .toBuffer({ resolveWithObject: true });
-      const upload = await this.storage.uploadFile({
-        keyPrefix: "finals",
-        fileName: `${definition.key}-restoration-${itemId}-${Date.now()}.jpg`,
-        body: resized.data,
-        contentType: "image/jpeg"
-      });
-      variants[definition.key] = {
-        key: upload.key,
-        width: resized.info.width,
-        height: resized.info.height,
-        contentType: "image/jpeg"
-      };
-      logger.info(STEP("R2 variant upload END"), { itemId, tier: definition.key, key: upload.key, width: resized.info.width, height: resized.info.height });
-      if (definition.key === "2hd") {
-        exportSource = resized.data;
-        processedBuffer = Buffer.alloc(0);
-      }
-      releaseUnusedMemory();
-    }
+    const fourHdUpload = await this.storage.uploadFile({
+      keyPrefix: "finals",
+      fileName: `4hd-restoration-${itemId}-${Date.now()}.png`,
+      body: processedBuffer,
+      contentType: processedContentType
+    });
+    variants["4hd"] = {
+      key: fourHdUpload.key,
+      width: masterMetadata.width ?? 0,
+      height: masterMetadata.height ?? 0,
+      contentType: processedContentType
+    };
+
+    const twoHd = await sharp(processedBuffer, { sequentialRead: true })
+      .rotate()
+      .resize({ width: 2048 })
+      .jpeg({ quality: 90 })
+      .toBuffer({ resolveWithObject: true });
+    const twoHdUpload = await this.storage.uploadFile({
+      keyPrefix: "finals",
+      fileName: `2hd-restoration-${itemId}-${Date.now()}.jpg`,
+      body: twoHd.data,
+      contentType: "image/jpeg"
+    });
+    variants["2hd"] = {
+      key: twoHdUpload.key,
+      width: twoHd.info.width,
+      height: twoHd.info.height,
+      contentType: "image/jpeg"
+    };
+    processedBuffer = Buffer.alloc(0);
+    releaseUnusedMemory();
 
     const afterQuality = quality.overallScore < 50 ? quality.overallScore + 30 : Math.min(100, quality.overallScore + 10);
 
@@ -551,11 +557,6 @@ export class RestorationService {
     }
   }
 }
-
-const RESTORATION_EXPORTS = [
-  { key: "2hd", width: 2048 },
-  { key: "4hd", width: 4096 }
-] as const;
 
 type RestorationOutputs = {
   variants?: Record<string, { key: string; width: number; height: number; contentType: string }>;
