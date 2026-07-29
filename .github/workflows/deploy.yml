@@ -53,6 +53,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push to GitHub Container Registry
+        id: build_image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -69,7 +70,7 @@ jobs:
       - name: Update Northflank service deployment
         env:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
-          IMAGE_TAG: ${{ env.GHCR_IMAGE }}:latest
+          IMAGE_TAG: ${{ env.GHCR_IMAGE }}@${{ steps.build_image.outputs.digest }}
         run: |
           cat <<'EOF' > /tmp/deploy.json
           {
