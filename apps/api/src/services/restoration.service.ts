@@ -451,10 +451,9 @@ export class RestorationService {
     logger.info(STEP("R2 upload END"), { itemId, finalStorageKey: processedUpload.key });
 
     const variants: Record<string, { key: string; width: number; height: number; contentType: string; interpolated: boolean }> = {};
-    const fourHdInterpolated = (masterMetadata.width ?? 0) < 4096;
     const fourHd = await sharp(processedBuffer, { sequentialRead: true })
       .rotate()
-      .resize({ width: 4096, withoutEnlargement: !fourHdInterpolated })
+      .resize({ width: 4096, withoutEnlargement: true })
       .jpeg({ quality: 90 })
       .toBuffer({ resolveWithObject: true });
     const fourHdUpload = await this.storage.uploadFile({
@@ -468,7 +467,7 @@ export class RestorationService {
       width: fourHd.info.width,
       height: fourHd.info.height,
       contentType: "image/jpeg",
-      interpolated: fourHdInterpolated
+      interpolated: false
     };
 
     const twoHd = await sharp(processedBuffer, { sequentialRead: true })

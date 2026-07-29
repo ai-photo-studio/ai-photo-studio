@@ -9,7 +9,7 @@ import { formatDateTime } from "../lib/format";
 const DOWNLOAD_TIERS = [
   { key: "master", label: "Master", description: "Full restored master" },
   { key: "2hd", label: "2HD", description: "Up to 2048px wide" },
-  { key: "4hd", label: "4HD", description: "4096px Sharp resize (interpolated above master)" },
+  { key: "4hd", label: "4HD", description: "Up to 4096px Sharp export, capped at native master" },
 ];
 
 const PRINT_SIZES = [
