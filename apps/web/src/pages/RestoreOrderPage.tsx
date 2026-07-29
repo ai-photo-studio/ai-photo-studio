@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { ApiError } from "../lib/api";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi } from "../services/customerApi";
 import type { RestorationItemRecord } from "../lib/portal-types";
@@ -24,6 +25,29 @@ const PRINT_SIZES = [
 ];
 
 type ItemTierState = "locked" | "purchased" | "upgrade-available";
+
+const mapRestoreErrorMessage = (error: unknown): string => {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return "Session expired";
+    if (error.status === 402) return "Processing credit unavailable";
+    if (error.status === 404) return "Order not found";
+    if (error.status === 429) return "Service busy; retry later";
+    if (error.code && /FAILED$/i.test(error.code)) return "Restoration failed; retry available";
+    return error.message || "Restoration failed; retry available";
+  }
+
+  if (error instanceof Error) {
+    const text = error.message.toLowerCase();
+    if (text.includes("guest ownership token")) return "Session expired";
+    if (text.includes("insufficient credit") || text.includes("payment required")) return "Processing credit unavailable";
+    if (text.includes("rate limit") || text.includes("too many requests")) return "Service busy; retry later";
+    if (text.includes("not found")) return "Order not found";
+    if (text.includes("replicate") || text.includes("provider") || text.includes("processing failed")) return "Restoration failed; retry available";
+    return error.message;
+  }
+
+  return "Restoration failed; retry available";
+};
 
 export function RestoreOrderPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -93,7 +117,7 @@ export function RestoreOrderPage() {
       }
     } catch (err) {
       if ((err as Error)?.name !== "AbortError" && mountedRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to load order");
+        setError(mapRestoreErrorMessage(err));
       }
     } finally {
       if (!fromPoll && mountedRef.current) setLoading(false);
@@ -154,7 +178,7 @@ export function RestoreOrderPage() {
       const result = await customerApi.getRestorationPreview(token || undefined, orderId, item.id, guestToken || undefined);
       setPreviewUrl(result.previewUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load preview");
+      setError(mapRestoreErrorMessage(err));
     } finally {
       setPreviewLoading(false);
     }
@@ -184,7 +208,7 @@ export function RestoreOrderPage() {
       link.click();
       link.remove();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
+      setError(mapRestoreErrorMessage(err));
     } finally {
       setDownloadBusy(null);
     }
@@ -221,7 +245,7 @@ export function RestoreOrderPage() {
 
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading restoration order...</p></div></section>;
   if (error && !order) return <section className="page-stack"><div className="state-panel state-panel-error"><p>{error}</p></div></section>;
-  if (!order) return <section className="page-stack"><div className="state-panel"><p>Order not found.</p></div></section>;
+  if (!order) return <section className="page-stack"><div className="state-panel state-panel-error"><p>Order not found</p></div></section>;
 
   const isCompleted = order.items.some(i => i.status === "COMPLETED");
   const isProcessing = order.items.some(i => i.status === "PROCESSING" || i.status === "QUEUED");
@@ -320,7 +344,7 @@ export function RestoreOrderPage() {
                   )}
                   {status === "Failed" && (
                     <div className="state-panel state-panel-error" style={{ padding: "0.5rem", margin: "0.5rem 0", fontSize: "0.85rem" }}>
-                      <p>Processing failed. Please contact support.</p>
+                      <p>{item.errorMessage ? mapRestoreErrorMessage(item.errorMessage) : "Restoration failed; retry available"}</p>
                     </div>
                   )}
                 </article>
