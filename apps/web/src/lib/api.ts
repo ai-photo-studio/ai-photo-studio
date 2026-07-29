@@ -85,13 +85,16 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   return (payload?.data ?? payload) as T;
 };
 
-export const apiRequest = async <T>(path: string, init: RequestInit = {}, token?: string): Promise<T> => {
+export const apiRequest = async <T>(path: string, init: RequestInit = {}, token?: string, guestToken?: string): Promise<T> => {
   const headers = new Headers(init.headers || {});
   if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (guestToken) {
+    headers.set("x-guest-ownership-token", guestToken);
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

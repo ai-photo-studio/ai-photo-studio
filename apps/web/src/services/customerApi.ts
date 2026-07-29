@@ -139,43 +139,47 @@ export const customerApi = {
       body: JSON.stringify({ refreshToken })
     }),
 
-  createRestorationOrder: (token: string, title?: string) =>
-    apiRequest<{ id: string; orderNo: string; status: string; title: string | null; createdAt: string }>(
+  createRestorationOrder: (token: string | undefined, title?: string, guestToken?: string) =>
+    apiRequest<{ id: string; orderNo: string; status: string; title: string | null; createdAt: string; guestOwnershipToken?: string }>(
       "/api/restorations",
       { method: "POST", body: JSON.stringify({ title: title || "Photo Restoration" }) },
-      token
+      token,
+      guestToken
     ),
 
-  getRestorationOrder: (token: string, id: string, signal?: AbortSignal) =>
+  getRestorationOrder: (token: string | undefined, id: string, signal?: AbortSignal, guestToken?: string) =>
     apiRequest<{ id: string; orderNo: string; title: string | null; status: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] }>(
-      `/api/restorations/${id}`, { signal }, token
+      `/api/restorations/${id}`, { signal }, token, guestToken
     ),
 
   listRestorationOrders: (token: string) =>
     apiRequest<RestorationOrderSummary[]>("/api/restorations", {}, token),
 
-  addRestorationItem: (token: string, orderId: string, fileName: string, contentType: string, bodyBase64: string) =>
+  addRestorationItem: (token: string | undefined, orderId: string, fileName: string, contentType: string, bodyBase64: string, guestToken?: string) =>
     apiRequest<RestoreUploadResult>(
       `/api/restorations/${orderId}/items`,
       {
         method: "POST",
         body: JSON.stringify({ fileName, contentType, bodyBase64 })
       },
-      token
+      token,
+      guestToken
     ),
 
-  processRestorationItem: (token: string, orderId: string, itemId: string) =>
+  processRestorationItem: (token: string | undefined, orderId: string, itemId: string, guestToken?: string) =>
     apiRequest<{ message: string }>(
       `/api/restorations/${orderId}/items/${itemId}/process`,
       { method: "POST", body: "{}" },
-      token
+      token,
+      guestToken
     ),
 
-  getRestorationPreview: (token: string, orderId: string, itemId: string) =>
+  getRestorationPreview: (token: string | undefined, orderId: string, itemId: string, guestToken?: string) =>
     apiRequest<{ previewKey: string; previewUrl: string }>(
       `/api/restorations/${orderId}/items/${itemId}/preview`,
       { method: "POST", body: "{}" },
-      token
+      token,
+      guestToken
     ),
 
   approveRestorationItem: (token: string, orderId: string, itemId: string, approved: boolean) =>
@@ -185,11 +189,12 @@ export const customerApi = {
       token
     ),
 
-  getRestorationDownload: (token: string, orderId: string, itemId: string) =>
+  getRestorationDownload: (token: string | undefined, orderId: string, itemId: string, tier = "master", guestToken?: string) =>
     apiRequest<{ downloadUrl: string }>(
       `/api/restorations/${orderId}/items/${itemId}/download`,
-      { method: "POST", body: "{}" },
-      token
+      { method: "POST", body: JSON.stringify({ tier }) },
+      token,
+      guestToken
     ),
 
   runQualityAnalysis: (token: string, orderId: string, itemId: string) =>

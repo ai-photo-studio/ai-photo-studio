@@ -7,12 +7,9 @@ import type { RestorationItemRecord } from "../lib/portal-types";
 import { formatDateTime } from "../lib/format";
 
 const DOWNLOAD_TIERS = [
-  { key: "original", label: "Original", description: "Source resolution" },
-  { key: "2x", label: "2X", description: "2× upscale" },
-  { key: "4x", label: "4X", description: "4× upscale" },
-  { key: "6x", label: "6X", description: "6× upscale" },
-  { key: "8x", label: "8X", description: "8× upscale" },
-  { key: "12x", label: "12X", description: "12× upscale" },
+  { key: "master", label: "Master", description: "Full restored master" },
+  { key: "2hd", label: "2HD", description: "Up to 2048px wide" },
+  { key: "4hd", label: "4HD", description: "Up to 4096px wide" },
 ];
 
 const PRINT_SIZES = [
@@ -43,7 +40,8 @@ export function RestoreOrderPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [bothReady, setBothReady] = useState(false);
-  const [purchasedTiers, setPurchasedTiers] = useState<Set<string>>(new Set(["original"]));
+  const [purchasedTiers, setPurchasedTiers] = useState<Set<string>>(new Set(["master", "2hd", "4hd"]));
+  const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [selectedPrintSize, setSelectedPrintSize] = useState<string | null>(null);
   const [printBusy, setPrintBusy] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -141,6 +139,21 @@ export function RestoreOrderPage() {
       setPurchasedTiers(prev => new Set(prev).add(tierKey));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upgrade failed");
+    }
+  };
+
+  const handleDownload = async (item: RestorationItemRecord, tier: string) => {
+    if (!orderId) return;
+    const guestToken = getGuestOwnershipToken(orderId);
+    setDownloadBusy(tier);
+    setError(null);
+    try {
+      const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, tier, guestToken || undefined);
+      window.location.assign(result.downloadUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloadBusy(null);
     }
   };
 
@@ -322,7 +335,14 @@ export function RestoreOrderPage() {
                     </div>
                     <div className="button-row" style={{ marginTop: "0.75rem" }}>
                       {state === "purchased" && (
-                        <button type="button" className="button button-small">Download</button>
+                        <button
+                          type="button"
+                          className="button button-small"
+                          disabled={!currentItem || downloadBusy === tier.key}
+                          onClick={() => currentItem && void handleDownload(currentItem, tier.key)}
+                        >
+                          {downloadBusy === tier.key ? "Preparing..." : "Download"}
+                        </button>
                       )}
                       {state === "upgrade-available" && (
                         <button type="button" className="button button-small button-secondary" onClick={() => void handleUpgradeTier(tier.key)}>

@@ -3,6 +3,7 @@ import { AppError } from "../utils/errors";
 import { StorageService } from "./storage.service";
 import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
+import sharp from "sharp";
 import { SubscriptionService } from "./subscription.service";
 import { NotificationService } from "./notification.service";
 import { PipelineOrchestrator } from "../restoration-providers/pipeline/PipelineOrchestrator";
@@ -217,12 +218,19 @@ export class RestorationService {
     return { previewKey: preview.key, previewUrl: signedUrl };
   }
 
-  async getDownloadUrl(itemId: string): Promise<string> {
+  async getDownloadUrl(itemId: string, requestedTier?: string): Promise<string> {
     const item = await prisma.restorationItem.findUnique({ where: { id: itemId } });
     if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
     if (!item.finalStorageKey) throw new AppError("Restoration not yet completed", 400, "RESTORATION_NOT_COMPLETED");
 
-    const url = await this.storage.generateDownloadUrl(item.finalStorageKey);
+    const tier = String(requestedTier || "master").trim().toLowerCase();
+    const outputs = readRestorationOutputs(item.metadata);
+    const storageKey = tier === "master" || tier === "original"
+      ? item.finalStorageKey
+      : outputs?.variants?.[tier]?.key;
+    if (!storageKey) throw new AppError(`Restoration tier ${tier} is not available`, 404, "RESTORATION_TIER_NOT_FOUND");
+
+    const url = await this.storage.generateDownloadUrl(storageKey);
 
     try {
       const order = await prisma.restorationOrder.findUnique({ where: { id: item.restorationOrderId } });
@@ -404,13 +412,36 @@ export class RestorationService {
     totalDurationMs = elapsed;
 
     logger.info(STEP("R2 upload START"), { itemId, keyPrefix: "finals", bodySizeBytes: processedBuffer.length });
+    const masterMetadata = await sharp(processedBuffer).metadata();
     const processedUpload = await this.storage.uploadFile({
       keyPrefix: "finals",
-      fileName: `restoration-${itemId}-${Date.now()}.jpg`,
+      fileName: `master-restoration-${itemId}-${Date.now()}.jpg`,
       body: processedBuffer,
       contentType: processedContentType
     });
     logger.info(STEP("R2 upload END"), { itemId, finalStorageKey: processedUpload.key });
+
+    const variants: Record<string, { key: string; width: number; height: number; contentType: string }> = {};
+    for (const definition of RESTORATION_EXPORTS) {
+      const resized = await sharp(processedBuffer)
+        .rotate()
+        .resize({ width: definition.width })
+        .jpeg({ quality: 92, mozjpeg: true })
+        .toBuffer({ resolveWithObject: true });
+      const upload = await this.storage.uploadFile({
+        keyPrefix: "finals",
+        fileName: `${definition.key}-restoration-${itemId}-${Date.now()}.jpg`,
+        body: resized.data,
+        contentType: "image/jpeg"
+      });
+      variants[definition.key] = {
+        key: upload.key,
+        width: resized.info.width,
+        height: resized.info.height,
+        contentType: "image/jpeg"
+      };
+      logger.info(STEP("R2 variant upload END"), { itemId, tier: definition.key, key: upload.key, width: resized.info.width, height: resized.info.height });
+    }
 
     const afterQuality = quality.overallScore < 50 ? quality.overallScore + 30 : Math.min(100, quality.overallScore + 10);
 
@@ -453,10 +484,22 @@ export class RestorationService {
       data: {
         status: succeeded ? "COMPLETED" : "FAILED",
         finalStorageKey: processedUpload.key,
+        metadata: {
+          restorationOutputs: {
+            master: {
+              key: processedUpload.key,
+              width: masterMetadata.width ?? null,
+              height: masterMetadata.height ?? null,
+              contentType: processedContentType
+            },
+            variants
+          }
+        },
         afterQualityScore: afterQuality,
          providerUsed: `${providerUsedName ?? "unknown"}:${providersUsed.join(",")}`,
         processingStage: succeeded ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
-        totalDurationMs
+        totalDurationMs,
+        errorMessage: null
       }
     });
     logger.info(STEP("DB update — status"), { itemId, status: succeeded ? "COMPLETED" : "FAILED", finalStorageKey: processedUpload.key });
@@ -492,3 +535,18 @@ export class RestorationService {
     }
   }
 }
+
+const RESTORATION_EXPORTS = [
+  { key: "2hd", width: 2048 },
+  { key: "4hd", width: 4096 }
+] as const;
+
+type RestorationOutputs = {
+  variants?: Record<string, { key: string; width: number; height: number; contentType: string }>;
+};
+
+const readRestorationOutputs = (metadata: unknown): RestorationOutputs | null => {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const outputs = (metadata as Record<string, unknown>).restorationOutputs;
+  return outputs && typeof outputs === "object" && !Array.isArray(outputs) ? outputs as RestorationOutputs : null;
+};

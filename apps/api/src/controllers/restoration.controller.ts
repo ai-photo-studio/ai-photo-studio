@@ -207,7 +207,7 @@ export class RestorationController {
         throw new AppError("Restoration not yet completed", 400, "RESTORATION_NOT_COMPLETED");
       }
 
-      const downloadUrl = await this.restoration.getDownloadUrl(itemId);
+      const downloadUrl = await this.restoration.getDownloadUrl(itemId, req.body?.tier);
 
       res.json({
         success: true,
