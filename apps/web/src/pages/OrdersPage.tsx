@@ -107,11 +107,35 @@ export function OrdersPage() {
 
   useEffect(() => {
     if (!currentOrderNo || !token) return;
-    void loadOrder(currentOrderNo);
-    const timer = window.setInterval(() => {
-      void loadOrder(currentOrderNo);
-    }, 7000);
-    return () => window.clearInterval(timer);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+    const clearPoll = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    };
+    const poll = async () => {
+      if (disposed || document.hidden) return;
+      const response = await customerApi.order(currentOrderNo, token).catch((pollError) => {
+        setError(pollError instanceof Error ? pollError.message : "Unable to load order status");
+        return null;
+      });
+      if (!response || disposed) return;
+      setOrder(response);
+      setError(null);
+      const terminal = ["COMPLETED", "FAILED", "CANCELLED"].includes(response.orderStatus);
+      if (!terminal) timer = setTimeout(poll, 7000);
+    };
+    const handleVisibilityChange = () => {
+      clearPoll();
+      if (!document.hidden) void poll();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    void poll();
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearPoll();
+    };
   }, [currentOrderNo, token]);
 
   const createOrder = async (event: FormEvent<HTMLFormElement>) => {

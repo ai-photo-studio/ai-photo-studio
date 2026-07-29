@@ -20,7 +20,7 @@ export class FluxRestoreProvider extends BaseReplicateProvider {
   };
 
   // Cost per GPU second for FLUX Kontext models (L40S GPU)
-  protected readonly costPerGpuSecond = 0.0023;
+  protected readonly costPerGpuSecond = 0.000975;
   // Estimated cost per run based on model page (~3-5 seconds on L40S)
   protected readonly estimatedCostPerRun = 0.009;
 

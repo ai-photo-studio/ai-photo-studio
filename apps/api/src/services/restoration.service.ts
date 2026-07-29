@@ -260,13 +260,20 @@ export class RestorationService {
   async processItem(itemId: string): Promise<void> {
     const STEP = (label: string) => `${new Date().toISOString()} E2E: ${label}`;
     logger.info(STEP("processItem START"), { itemId });
+    const claim = await prisma.restorationItem.updateMany({
+      where: { id: itemId, status: { in: ["PENDING", "QUEUED"] } },
+      data: { status: "PROCESSING", processingStage: "RESTORATION_ANALYSIS", errorMessage: null }
+    });
+    if (claim.count === 0) {
+      const current = await prisma.restorationItem.findUnique({ where: { id: itemId }, select: { status: true } });
+      if (current?.status === "PROCESSING" || current?.status === "COMPLETED") {
+        logger.info("Restoration processing trigger ignored after atomic claim", { itemId, status: current.status });
+        return;
+      }
+      throw new AppError("Restoration item is not eligible for processing", 409, "RESTORATION_PROCESSING_CONFLICT");
+    }
     const item = await prisma.restorationItem.findUnique({ where: { id: itemId } });
     if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
-
-    await prisma.restorationItem.update({
-      where: { id: itemId },
-      data: { status: "PROCESSING", processingStage: "RESTORATION_ANALYSIS" }
-    });
     logger.info(STEP("status→PROCESSING"), { itemId });
 
     const quality = await this.runQualityAnalysis(item.originalStorageKey);
@@ -317,6 +324,8 @@ export class RestorationService {
     const start = Date.now();
 
     const stageMap: Record<string, string> = {
+      flux_restore: "RESTORATION_INPAINT",
+      gfpgan_face: "RESTORATION_FACE",
       damage_detection: "RESTORATION_ANALYSIS",
       lama_inpaint: "RESTORATION_INPAINT",
       face_restoration_gfpgan: "RESTORATION_FACE",
@@ -333,11 +342,22 @@ export class RestorationService {
       const pipelineTier = this.pipelineOrchestrator.getDefaultTier();
       logger.info(STEP("pipelineOrchestrator.execute START"), { itemId, tier: pipelineTier });
 
+      const normalizedInput = await normalizeReplicateInput(original.body);
+      logger.info("Replicate input normalized", {
+        itemId,
+        originalSizeBytes: original.body.length,
+        normalizedSizeBytes: normalizedInput.data.length,
+        width: normalizedInput.info.width,
+        height: normalizedInput.info.height,
+        maximumDimension: 2048,
+      });
+
       const pipelineResult = await this.pipelineOrchestrator.execute(
         {
-          image: original.body,
-          contentType: item.mimeType || "image/jpeg",
+          image: normalizedInput.data,
+          contentType: "image/jpeg",
           fileName: `restoration-${itemId}.jpg`,
+          options: { orderId: item.restorationOrderId, itemId },
         },
         pipelineTier
       );
@@ -430,18 +450,25 @@ export class RestorationService {
     });
     logger.info(STEP("R2 upload END"), { itemId, finalStorageKey: processedUpload.key });
 
-    const variants: Record<string, { key: string; width: number; height: number; contentType: string }> = {};
+    const variants: Record<string, { key: string; width: number; height: number; contentType: string; interpolated: boolean }> = {};
+    const fourHdInterpolated = (masterMetadata.width ?? 0) < 4096;
+    const fourHd = await sharp(processedBuffer, { sequentialRead: true })
+      .rotate()
+      .resize({ width: 4096, withoutEnlargement: !fourHdInterpolated })
+      .jpeg({ quality: 90 })
+      .toBuffer({ resolveWithObject: true });
     const fourHdUpload = await this.storage.uploadFile({
       keyPrefix: "finals",
-      fileName: `4hd-restoration-${itemId}-${Date.now()}.png`,
-      body: processedBuffer,
-      contentType: processedContentType
+      fileName: `4hd-restoration-${itemId}-${Date.now()}.jpg`,
+      body: fourHd.data,
+      contentType: "image/jpeg"
     });
     variants["4hd"] = {
       key: fourHdUpload.key,
-      width: masterMetadata.width ?? 0,
-      height: masterMetadata.height ?? 0,
-      contentType: processedContentType
+      width: fourHd.info.width,
+      height: fourHd.info.height,
+      contentType: "image/jpeg",
+      interpolated: fourHdInterpolated
     };
 
     const twoHd = await sharp(processedBuffer, { sequentialRead: true })
@@ -459,7 +486,8 @@ export class RestorationService {
       key: twoHdUpload.key,
       width: twoHd.info.width,
       height: twoHd.info.height,
-      contentType: "image/jpeg"
+      contentType: "image/jpeg",
+      interpolated: false
     };
     processedBuffer = Buffer.alloc(0);
     releaseUnusedMemory();
@@ -488,22 +516,12 @@ export class RestorationService {
       } catch { /* non-critical */ }
     }
 
-    for (const [name, elapsed] of Object.entries(stageTimings)) {
-      const costTypeMap: Record<string, string> = { restoration: "RESTORATION_PROCESSING" };
-      try {
-        await prisma.providerCostLog.create({
-          data: {
-            provider: name, operation: name, costType: costTypeMap[name] as any, durationMs: elapsed,
-            estimatedCost: 0, restorationItemId: itemId
-          }
-        });
-      } catch { /* non-critical */ }
-    }
-
     if (succeeded) {
       await this.generatePreview(processedUpload.key, itemId);
     }
 
+    const itemWithAudit = await prisma.restorationItem.findUnique({ where: { id: itemId }, select: { metadata: true } });
+    const existingMetadata = asMetadataRecord(itemWithAudit?.metadata);
     await prisma.$transaction(async (tx) => {
       await tx.restorationItem.update({
         where: { id: itemId },
@@ -511,6 +529,7 @@ export class RestorationService {
           status: succeeded ? "COMPLETED" : "FAILED",
           finalStorageKey: processedUpload.key,
           metadata: {
+            ...existingMetadata,
             restorationOutputs: {
               master: {
                 key: processedUpload.key,
@@ -559,7 +578,7 @@ export class RestorationService {
 }
 
 type RestorationOutputs = {
-  variants?: Record<string, { key: string; width: number; height: number; contentType: string }>;
+  variants?: Record<string, { key: string; width: number; height: number; contentType: string; interpolated?: boolean }>;
 };
 
 const readRestorationOutputs = (metadata: unknown): RestorationOutputs | null => {
@@ -571,3 +590,12 @@ const readRestorationOutputs = (metadata: unknown): RestorationOutputs | null =>
 const releaseUnusedMemory = (): void => {
   if (typeof global.gc === "function") global.gc();
 };
+
+const normalizeReplicateInput = async (body: Buffer) => sharp(body, { sequentialRead: true, limitInputPixels: 40_000_000 })
+  .rotate()
+  .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
+  .jpeg({ quality: 92 })
+  .toBuffer({ resolveWithObject: true });
+
+const asMetadataRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : {};

@@ -25,6 +25,11 @@ export interface RestorationRequest {
     fidelity?: number;
     quality?: "low" | "medium" | "high" | "auto";
     outputFormat?: "png" | "webp" | "jpeg";
+    orderId?: string;
+    itemId?: string;
+    stageKey?: string;
+    existingPredictionId?: string;
+    onPredictionCreated?: (predictionId: string, retryCount: number) => Promise<void>;
   };
 }
 
@@ -43,6 +48,17 @@ export interface RestorationResult {
   actualProviderCharge?: number;
   requestId?: string;
   costSource?: "actual" | "calculated" | "estimated";
+  model?: string;
+  modelVersion?: string;
+  inputWidth?: number;
+  inputHeight?: number;
+  inputSizeBytes?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+  outputSizeBytes?: number;
+  queueTimeMs?: number;
+  runningTimeMs?: number;
+  retryCount?: number;
 }
 
 export interface ProviderHealth {

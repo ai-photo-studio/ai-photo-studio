@@ -22,7 +22,7 @@ export class GFPGANProvider extends BaseReplicateProvider {
   };
 
   // Cost per GPU second (L40S GPU)
-  protected readonly costPerGpuSecond = 0.0023;
+  protected readonly costPerGpuSecond = 0.000975;
   // Estimated cost per run (~2-3 seconds on L40S)
   protected readonly estimatedCostPerRun = 0.005;
 
@@ -31,7 +31,7 @@ export class GFPGANProvider extends BaseReplicateProvider {
     return {
       img: `data:${request.contentType || "image/png"};base64,${base64Image}`,
       version: "v1.4",
-      scale: request.options?.upscaleScale || 2,
+      scale: request.options?.upscaleScale ?? 2,
     };
   }
 }

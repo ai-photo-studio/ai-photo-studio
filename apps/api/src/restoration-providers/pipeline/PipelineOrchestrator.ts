@@ -26,7 +26,7 @@ export interface PipelineResult {
 
 /**
  * Phase 1 Replicate-only restoration orchestrator.
- * Default tier: "replicate" → OPS-109 quality pipeline (flux + gfpgan face + gfpgan upscale).
+ * Default tier: "replicate" -> Flux followed by one GFPGAN scale=2 pass.
  */
 export class PipelineOrchestrator {
   private readonly configPipelines: Map<PipelineTier, PipelineConfig> = new Map();
@@ -42,11 +42,10 @@ export class PipelineOrchestrator {
   private buildDefaultPipelines(): void {
     const apiKey = this.config.REPLICATE_API_TOKEN;
 
-    // OPS-109 proven commercial pipeline: 3 sequential Replicate calls
-    // flux → gfpgan face → gfpgan upscale
+    // Cost-controlled commercial pipeline: Flux -> one GFPGAN face/scale pass.
     const replicatePipeline = new ReplicatePipelineProvider(apiKey);
 
-    // Replicate tier (DEFAULT) — OPS-109 commercial quality: 3 stages
+    // Replicate tier (default): two AI predictions.
     this.configPipelines.set("replicate", {
       tier: "replicate",
       steps: [

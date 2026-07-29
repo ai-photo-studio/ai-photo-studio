@@ -9,7 +9,7 @@ import { formatDateTime } from "../lib/format";
 const DOWNLOAD_TIERS = [
   { key: "master", label: "Master", description: "Full restored master" },
   { key: "2hd", label: "2HD", description: "Up to 2048px wide" },
-  { key: "4hd", label: "4HD", description: "Up to 4096px wide" },
+  { key: "4hd", label: "4HD", description: "4096px Sharp resize (interpolated above master)" },
 ];
 
 const PRINT_SIZES = [
@@ -44,12 +44,13 @@ export function RestoreOrderPage() {
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [selectedPrintSize, setSelectedPrintSize] = useState<string | null>(null);
   const [printBusy, setPrintBusy] = useState(false);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
   const [polling, setPolling] = useState(false);
   const processingRef = useRef(false);
+  const terminalRef = useRef(false);
 
   const loadOrder = useCallback(async (fromPoll = false) => {
     if (!orderId) return;
@@ -83,8 +84,9 @@ export function RestoreOrderPage() {
       // Stop polling when all items are done OR if there was an error
       const hasError = data.items.some(i => i.status === "FAILED");
       if (hasError || data.items.every(i => i.status === "COMPLETED")) {
+        terminalRef.current = true;
         if (pollingRef.current) {
-          clearInterval(pollingRef.current);
+          clearTimeout(pollingRef.current);
           pollingRef.current = null;
         }
         setPolling(false);
@@ -103,15 +105,40 @@ export function RestoreOrderPage() {
     void loadOrder();
     return () => {
       mountedRef.current = false;
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (pollingRef.current) clearTimeout(pollingRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
   }, [loadOrder]);
 
   useEffect(() => {
-    pollingRef.current = setInterval(() => { void loadOrder(true); }, 4000);
+    let disposed = false;
+    const clearPoll = () => {
+      if (pollingRef.current) clearTimeout(pollingRef.current);
+      pollingRef.current = null;
+    };
+    const schedulePoll = (delayMs: number) => {
+      clearPoll();
+      if (disposed || document.hidden || terminalRef.current) return;
+      setPolling(true);
+      pollingRef.current = setTimeout(async () => {
+        await loadOrder(true);
+        if (!disposed && !terminalRef.current) schedulePoll(4000);
+      }, delayMs);
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearPoll();
+        setPolling(false);
+      } else {
+        schedulePoll(0);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    schedulePoll(4000);
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      disposed = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearPoll();
     };
   }, [loadOrder]);
 
@@ -149,7 +176,13 @@ export function RestoreOrderPage() {
     setError(null);
     try {
       const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, tier, guestToken || undefined);
-      window.location.assign(result.downloadUrl);
+      const link = document.createElement("a");
+      link.href = result.downloadUrl;
+      link.download = "";
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed");
     } finally {

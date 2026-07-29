@@ -6,13 +6,16 @@ export type CostMetrics = {
   totalActualCost: number;
   costByProvider: Record<string, number>;
   creditConsumption: number;
+  completedRestorationOrders: number;
+  costPerCompletedRestorationOrder: number;
+  durationAlertCount: number;
 };
 
 export class CostMetricsService {
   async getMetrics(hoursBack = 24): Promise<CostMetrics> {
     const since = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
 
-    const [providerCostLogs, providerBreakdown] = await Promise.all([
+    const [providerCostLogs, providerBreakdown, completedRestorationOrders] = await Promise.all([
       prisma.providerCostLog.findMany({
         where: { createdAt: { gte: since } }
       }),
@@ -20,11 +23,15 @@ export class CostMetricsService {
         by: ["provider"],
         where: { createdAt: { gte: since } },
         _sum: { estimatedCost: true, actualCost: true }
-      })
+      }),
+      prisma.restorationOrder.count({ where: { updatedAt: { gte: since }, status: "COMPLETED" } })
     ]);
 
     const totalEstimatedCost = providerCostLogs.reduce((sum, log) => sum + Number(log.estimatedCost), 0);
     const totalActualCost = providerCostLogs.reduce((sum, log) => sum + (Number(log.actualCost) || 0), 0);
+    const restorationActualCost = providerCostLogs
+      .filter((log) => !!log.restorationItemId)
+      .reduce((sum, log) => sum + (Number(log.actualCost) || 0), 0);
     const creditConsumption = providerCostLogs
       .filter((log) => log.costType === "FLAT_LAY" || log.costType === "LIFESTYLE_SCENE" || log.costType === "VIRTUAL_MODEL" || log.costType === "VIDEO_GENERATION")
       .reduce((sum, log) => sum + 1, 0);
@@ -38,7 +45,12 @@ export class CostMetricsService {
       totalEstimatedCost,
       totalActualCost,
       costByProvider,
-      creditConsumption
+      creditConsumption,
+      completedRestorationOrders,
+      costPerCompletedRestorationOrder: completedRestorationOrders > 0
+        ? Math.round((restorationActualCost / completedRestorationOrders) * 1_000_000) / 1_000_000
+        : 0,
+      durationAlertCount: providerCostLogs.filter((log) => log.durationMs >= 30_000).length
     };
   }
 
