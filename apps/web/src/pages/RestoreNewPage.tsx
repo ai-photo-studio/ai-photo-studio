@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { setGuestOwnershipToken } from "../lib/guest";
 import { customerApi } from "../services/customerApi";
 import { usePackages } from "../lib/packages";
 import type { PackageSummary } from "../lib/api";
@@ -158,6 +159,9 @@ export function RestoreNewPage() {
     setError(null);
     try {
       const order = await customerApi.createRestorationOrder(token, `Restoration - ${files.length} image(s)`);
+      if (order.guestOwnershipToken) {
+        setGuestOwnershipToken(order.id, order.guestOwnershipToken);
+      }
       const allItemIds: string[] = [];
       let firstItemId: string | null = null;
       const metas: FileMeta[] = [];
