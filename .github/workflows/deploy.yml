@@ -12,11 +12,10 @@ on:
 
 env:
   NODE_VERSION: "24"
-  NF_REGISTRY: registry.northflank.com
   NF_PROJECT_ID: ai-photo-studio
   NF_SERVICE_ID: ai-photo-studio
-  NF_REGISTRY_USERNAME: ai-photo-studio
-  NF_IMAGE: registry.northflank.com/ai-photo-studio/ai-photo-studio
+  GHCR_REGISTRY: ghcr.io
+  GHCR_IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
   build-and-deploy:
@@ -46,27 +45,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Northflank Registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.NF_REGISTRY }}
-          username: ${{ env.NF_REGISTRY_USERNAME }}
-          password: ${{ secrets.NORTHFLANK_API_KEY }}
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push to Northflank registry
+      - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ env.NF_IMAGE }}:${{ github.sha }}
+          tags: |
+            ${{ env.GHCR_IMAGE }}:${{ github.sha }}
+            ${{ env.GHCR_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Update Northflank service deployment
         env:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
-          IMAGE_TAG: ${{ env.NF_IMAGE }}:${{ github.sha }}
+          IMAGE_TAG: ${{ env.GHCR_IMAGE }}:latest
         run: |
           cat <<'EOF' > /tmp/deploy.json
           {
@@ -82,7 +83,8 @@ jobs:
                 }
               },
               "external": {
-                "imagePath": "__IMAGE_TAG__"
+                "imagePath": "__IMAGE_TAG__",
+                "credentials": "ghcr"
               }
             }
           }
