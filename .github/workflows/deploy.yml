@@ -70,8 +70,23 @@ jobs:
       - name: Update Northflank service deployment
         env:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+          BUILD_SHA: ${{ github.sha }}
           IMAGE_TAG: ${{ env.GHCR_IMAGE }}@${{ steps.build_image.outputs.digest }}
         run: |
+          cat <<'EOF' > /tmp/runtime.json
+          {
+            "runtimeEnvironment": {
+              "BUILD_SHA": "__BUILD_SHA__"
+            }
+          }
+          EOF
+          sed -i "s#__BUILD_SHA__#$BUILD_SHA#g" /tmp/runtime.json
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $NORTHFLANK_API_KEY" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/runtime.json \
+            "https://api.northflank.com/v1/projects/${{ env.NF_PROJECT_ID }}/services/${{ env.NF_SERVICE_ID }}/runtime-environment"
+
           cat <<'EOF' > /tmp/deploy.json
           {
             "deployment": {
