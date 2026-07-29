@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { AppError } from "../utils/errors";
@@ -13,13 +14,22 @@ declare global {
 }
 
 const extractToken = (req: Request): string => {
-  const header = String(req.headers.authorization || req.headers["x-admin-token"] || "");
+  const header = String(req.headers.authorization || "");
   if (!header) return "";
   const bearerPrefix = "bearer ";
   if (header.toLowerCase().startsWith(bearerPrefix)) {
     return header.slice(bearerPrefix.length).trim();
   }
   return header.trim();
+};
+
+const extractMachineToken = (req: Request): string => String(req.headers["x-admin-token"] || "").trim();
+
+export const matchesMachineToken = (candidate: string, configured: string): boolean => {
+  if (!candidate || !configured) return false;
+  const candidateBytes = Buffer.from(candidate, "utf8");
+  const configuredBytes = Buffer.from(configured, "utf8");
+  return candidateBytes.length === configuredBytes.length && timingSafeEqual(candidateBytes, configuredBytes);
 };
 
 export const verifyAdminToken = (config: AppConfig, token: string): AdminJwtPayload => {
@@ -57,5 +67,24 @@ export const requireAdminAuth = (config: AppConfig, allowedRoles: AdminRole[] = 
     } catch (error) {
       next(error instanceof AppError ? error : new AppError("Invalid admin token", 401, "INVALID_ADMIN_TOKEN"));
     }
+  };
+};
+
+// Machine authentication is intentionally scoped to the private runtime diagnostic.
+// It never grants access to the general admin router.
+export const requireRuntimeDiagnosticAuth = (config: AppConfig, allowedRoles: AdminRole[] = []) => {
+  const jwtAuth = requireAdminAuth(config, allowedRoles);
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const machineToken = extractMachineToken(req);
+    if (machineToken) {
+      if (matchesMachineToken(machineToken, process.env.ADMIN_AUTH_TOKEN || "")) {
+        next();
+        return;
+      }
+      next(new AppError("Invalid admin token", 401, "INVALID_ADMIN_TOKEN"));
+      return;
+    }
+
+    await jwtAuth(req, res, next);
   };
 };

@@ -5,7 +5,7 @@ import { AdminController } from "../controllers/admin.controller";
 import { AdminRestorationController } from "../controllers/admin-restoration.controller";
 import { RuntimeDiagnosticController } from "../controllers/runtime-diagnostic.controller";
 import type { AdminRole } from "../services/admin-auth.service";
-import { requireAdminAuth } from "../middleware/admin-auth.middleware";
+import { requireAdminAuth, requireRuntimeDiagnosticAuth } from "../middleware/admin-auth.middleware";
 
 export const createAdminRouter = (config: AppConfig): Router => {
   const router = Router();
@@ -61,7 +61,7 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.get("/admin/restoration-stats", requireAdminAuth(config, opsRoles), restorationController.getStats);
   router.post("/admin/restorations/:id/retry", requireAdminAuth(config, opsRoles), restorationController.retryOrder);
   router.post("/admin/restoration-items/:id/retry", requireAdminAuth(config, opsRoles), restorationController.retryItem);
-  router.get("/admin/runtime-diagnostic", requireAdminAuth(config, opsRoles), runtimeDiagnosticController.get);
+  router.get("/admin/runtime-diagnostic", requireRuntimeDiagnosticAuth(config, opsRoles), runtimeDiagnosticController.get);
 
   return router;
 };

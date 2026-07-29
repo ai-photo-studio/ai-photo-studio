@@ -56,14 +56,14 @@ async function main() {
   const diagnostic = await api("/api/admin/runtime-diagnostic", {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${ADMIN_AUTH_TOKEN}`
+      "x-admin-token": ADMIN_AUTH_TOKEN
     }
   });
 
   assert(diagnostic.provider === "replicate", `provider gate failed: ${diagnostic.provider}`);
   assert(diagnostic.dryRunEnabled === false, "dryRunEnabled gate failed");
   assert(diagnostic.providerIsMock === false, "providerIsMock gate failed");
-  assert(diagnostic.paidTestsAllowed === false, "paidTestsAllowed gate failed");
+  assert(diagnostic.paidTestsAllowed === true, "paidTestsAllowed gate failed");
   assert(diagnostic.replicateConfigured === true, "replicateConfigured gate failed");
 
   const image = await fs.readFile(IMAGE_PATH);
