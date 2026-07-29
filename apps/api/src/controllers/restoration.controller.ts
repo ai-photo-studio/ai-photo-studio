@@ -207,12 +207,14 @@ export class RestorationController {
         throw new AppError("Restoration not yet completed", 400, "RESTORATION_NOT_COMPLETED");
       }
 
-      const downloadUrl = await this.restoration.getDownloadUrl(itemId, req.body?.tier);
-
-      res.json({
-        success: true,
-        data: { downloadUrl }
-      });
+       const download = await this.restoration.resolveDownload(itemId, req.body?.tier || req.query.tier as string | undefined, this.config.allowUnpaidDownloads);
+       const file = await this.restoration.downloadFile(download.storageKey);
+       const safeName = download.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+       res.setHeader("Content-Type", file.contentType || download.contentType || "application/octet-stream");
+       res.setHeader("Content-Length", String(file.body.length));
+       res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+       res.setHeader("Cache-Control", "private, no-store");
+       res.status(200).send(file.body);
     } catch (error) {
       this.handleError(res, error);
     }

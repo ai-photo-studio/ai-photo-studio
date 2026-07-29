@@ -10,6 +10,7 @@ on:
       - ".kilo/**"
       - "old images/**"
 
+
 env:
   NODE_VERSION: "24"
   NF_PROJECT_ID: ai-photo-studio
@@ -133,6 +134,23 @@ jobs:
           done
           echo "API failed to become healthy"
           exit 1
+
+  paid-restoration-smoke:
+    name: Manual Paid Restoration Smoke Test
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-and-deploy, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Run guarded paid smoke test
+        env:
+          ADMIN_AUTH_TOKEN: ${{ secrets.ADMIN_AUTH_TOKEN }}
+        run: npm run test:restoration:paid-smoke
 
       - name: Verify runtime SHA
         shell: bash

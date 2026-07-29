@@ -24,7 +24,7 @@ const PRINT_SIZES = [
   { key: "album", label: "Album", price: "8,000", description: "Album page" },
 ];
 
-type ItemTierState = "locked" | "purchased" | "upgrade-available";
+type ItemTierState = "locked" | "unlocked";
 
 const mapRestoreErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError) {
@@ -63,8 +63,10 @@ export function RestoreOrderPage() {
   const [selectedItem, setSelectedItem] = useState<RestorationItemRecord | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewModal, setPreviewModal] = useState(false);
+  const [comparisonPosition, setComparisonPosition] = useState(50);
   const [bothReady, setBothReady] = useState(false);
-  const [purchasedTiers, setPurchasedTiers] = useState<Set<string>>(new Set(["master", "2hd", "4hd"]));
+  const [entitlement] = useState("PREVIEW_ONLY");
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [selectedPrintSize, setSelectedPrintSize] = useState<string | null>(null);
   const [printBusy, setPrintBusy] = useState(false);
@@ -184,15 +186,6 @@ export function RestoreOrderPage() {
     }
   };
 
-  const handleUpgradeTier = async (tierKey: string) => {
-    if (!orderId) return;
-    try {
-      setPurchasedTiers(prev => new Set(prev).add(tierKey));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upgrade failed");
-    }
-  };
-
   const handleDownload = async (item: RestorationItemRecord, tier: string) => {
     if (!orderId) return;
     const guestToken = getGuestOwnershipToken(orderId);
@@ -201,12 +194,13 @@ export function RestoreOrderPage() {
     try {
       const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, tier, guestToken || undefined);
       const link = document.createElement("a");
-      link.href = result.downloadUrl;
-      link.download = "";
-      link.rel = "noopener";
+      link.href = URL.createObjectURL(result.blob);
+      link.download = `restoration-${order.orderNo}-${tier}.jpg`;
       document.body.appendChild(link);
       link.click();
       link.remove();
+      URL.revokeObjectURL(link.href);
+      setError("Download started");
     } catch (err) {
       setError(mapRestoreErrorMessage(err));
     } finally {
@@ -234,13 +228,11 @@ export function RestoreOrderPage() {
   };
 
   const getTierState = (tierKey: string): ItemTierState => {
-    if (purchasedTiers.has(tierKey)) return "purchased";
-    if (tierKey === "2x" && purchasedTiers.has("original")) return "upgrade-available";
-    if (tierKey === "4x" && purchasedTiers.has("2x")) return "upgrade-available";
-    if (tierKey === "6x" && purchasedTiers.has("4x")) return "upgrade-available";
-    if (tierKey === "8x" && purchasedTiers.has("6x")) return "upgrade-available";
-    if (tierKey === "12x" && purchasedTiers.has("8x")) return "upgrade-available";
-    return "locked";
+    if (entitlement === "TEST_UNLOCKED" || entitlement === "ALL") return "unlocked";
+    if (entitlement === "MASTER" && tierKey === "master") return "unlocked";
+    if (entitlement === "HD_2" && ["master", "2hd"].includes(tierKey)) return "unlocked";
+    if (entitlement === "HD_4" && ["master", "2hd", "4hd"].includes(tierKey)) return "unlocked";
+    return tierKey === "master" && entitlement === "PREVIEW_ONLY" ? "locked" : "locked";
   };
 
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading restoration order...</p></div></section>;
@@ -289,7 +281,7 @@ export function RestoreOrderPage() {
         <article className="card">
           <div>
             <p className="eyebrow">Estimated Time</p>
-            <h3>{isProcessing ? "~2-3 min" : isCompleted ? "Complete" : "Pending upload"}</h3>
+         <h3>{isProcessing ? "~40 sec" : isCompleted ? "Complete" : "Pending upload"}</h3>
           </div>
         </article>
       </div>
@@ -302,7 +294,7 @@ export function RestoreOrderPage() {
               border: "3px solid var(--accent)", borderTopColor: "transparent",
               animation: "spin 0.8s linear infinite"
             }} />
-            <p style={{ fontWeight: 600 }}>Your images are being restored. This takes approximately 2-3 minutes.</p>
+             <p style={{ fontWeight: 600 }}>Preparing, restoring, enhancing faces, creating HD files, and finalizing. Typical completion is about 40 seconds.</p>
           </div>
         </div>
       )}
@@ -361,9 +353,14 @@ export function RestoreOrderPage() {
             <div className="state-panel" style={{ padding: "2rem", textAlign: "center" }}>
               <p>Loading preview...</p>
             </div>
-          ) : previewUrl ? (
+           ) : previewUrl ? (
             <div style={{ maxWidth: 800, margin: "0 auto" }}>
-              <img src={previewUrl} alt="Restored preview" style={{ width: "100%", height: "auto", borderRadius: "var(--radius)" }} />
+              <div style={{ position: "relative", overflow: "hidden", borderRadius: "var(--radius)" }}>
+                <img src={previewUrl} alt="Restored preview" style={{ width: "100%", height: "auto", display: "block" }} />
+                {currentItem.originalStorageKey && <div style={{ position: "absolute", inset: 0, width: `${comparisonPosition}%`, overflow: "hidden", borderRight: "2px solid white" }}><img src={previewUrl} alt="Original comparison" style={{ width: `${100 / (comparisonPosition / 100)}%`, maxWidth: "none", height: "100%", objectFit: "cover", filter: "grayscale(0.8) contrast(0.8)" }} /></div>}
+              </div>
+              <label style={{ display: "block", marginTop: "0.75rem" }}>Before / after comparison <input aria-label="Before and after comparison" type="range" min="10" max="90" value={comparisonPosition} onChange={(event) => setComparisonPosition(Number(event.target.value))} style={{ width: "100%" }} /></label>
+              <button type="button" className="button button-secondary" onClick={() => setPreviewModal(true)}>Open large preview</button>
             </div>
           ) : null}
         </div>
@@ -379,19 +376,19 @@ export function RestoreOrderPage() {
                 return (
                   <article key={tier.key} className="card" style={{
                     opacity: state === "locked" ? 0.5 : 1,
-                    border: state === "purchased" ? "2px solid var(--accent)" : "1px solid var(--line)"
+                     border: state === "unlocked" ? "2px solid var(--accent)" : "1px solid var(--line)"
                   }}>
                     <div className="card-top">
                       <div>
                         <h3>{tier.label}</h3>
                         <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{tier.description}</p>
                       </div>
-                      <span className={`pill ${state === "purchased" ? "" : state === "upgrade-available" ? "" : "pill-error"}`}>
-                        {state === "purchased" ? "Owned" : state === "upgrade-available" ? "Upgrade" : "Locked"}
+                       <span className={`pill ${state === "unlocked" ? "" : "pill-error"}`}>
+                         {state === "unlocked" ? "Unlocked" : "Locked until payment"}
                       </span>
                     </div>
                     <div className="button-row" style={{ marginTop: "0.75rem" }}>
-                      {state === "purchased" && (
+                       {state === "unlocked" && (
                         <button
                           type="button"
                           className="button button-small"
@@ -401,12 +398,7 @@ export function RestoreOrderPage() {
                           {downloadBusy === tier.key ? "Preparing..." : "Download"}
                         </button>
                       )}
-                      {state === "upgrade-available" && (
-                        <button type="button" className="button button-small button-secondary" onClick={() => void handleUpgradeTier(tier.key)}>
-                          Buy {tier.label}
-                        </button>
-                      )}
-                      {state === "locked" && (
+                       {state === "locked" && (
                         <button type="button" className="button button-small" disabled style={{ opacity: 0.5 }}>
                           Unlock {tier.label}
                         </button>
@@ -455,6 +447,8 @@ export function RestoreOrderPage() {
           </div>
         </>
       )}
+
+      {previewModal && previewUrl && <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, zIndex: 20, background: "rgba(0,0,0,.86)", display: "grid", placeItems: "center", padding: "1rem" }} onClick={() => setPreviewModal(false)}><img src={previewUrl} alt="Large restored preview" style={{ maxWidth: "95vw", maxHeight: "90vh", objectFit: "contain" }} /></div>}
 
       <div style={{ marginTop: "1.5rem" }}>
         <Link to="/restore" className="button button-secondary">← My Restorations</Link>

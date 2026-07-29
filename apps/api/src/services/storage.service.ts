@@ -29,6 +29,10 @@ export type DownloadFileResult = {
   contentType?: string;
 };
 
+export type DownloadObjectResult = DownloadFileResult & {
+  contentLength?: number;
+};
+
 export interface StorageProvider {
   uploadFile(params: UploadFileInput): Promise<UploadFileResult>;
   getSignedUrl(key: string): Promise<string>;

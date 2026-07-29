@@ -16,6 +16,7 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   router.post("/restorations/:id/items/:itemId/preview", controller.generatePreview);
   router.post("/restorations/:id/items/:itemId/approve", controller.approveItem);
   router.post("/restorations/:id/items/:itemId/download", rateLimit(60_000, 30), controller.getDownload);
+  router.get("/restorations/:id/items/:itemId/download", rateLimit(60_000, 30), controller.getDownload);
   router.post("/restorations/:id/items/:itemId/process", rateLimit(60_000, 60), controller.processItem);
 
   return router;

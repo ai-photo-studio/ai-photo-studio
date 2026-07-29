@@ -52,7 +52,8 @@ const envSchema = z
     PHASE1_REPLICATE_ONLY: z.string().optional().default(""),
     RESTORATION_DRY_RUN: z.string().optional().default(""),
     RESTORATION_PROVIDER: z.enum(["replicate", "mock"]).default("replicate"),
-    ALLOW_PAID_AI_TESTS: z.string().optional().default("false")
+     ALLOW_PAID_AI_TESTS: z.string().optional().default("false"),
+     ALLOW_UNPAID_DOWNLOADS: z.string().optional().default("false")
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
@@ -224,6 +225,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   restorationDryRun: boolean;
   restorationProvider: "replicate" | "mock";
   allowPaidAiTests: boolean;
+  allowUnpaidDownloads: boolean;
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -278,6 +280,7 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
   RESTORATION_DRY_RUN: "",
   RESTORATION_PROVIDER: "replicate",
   ALLOW_PAID_AI_TESTS: "false",
+  ALLOW_UNPAID_DOWNLOADS: "false",
   aiProvider: "mock",
   paymentProvider: "manual",
   whatsappDryRun: true,
@@ -328,7 +331,8 @@ export const loadConfig = (): AppConfig => {
     restorationPipeline: cfg.RESTORATION_PIPELINE,
     restorationDryRun: cfg.RESTORATION_DRY_RUN.trim().toLowerCase() === "true" || cfg.RESTORATION_PROVIDER === "mock",
     restorationProvider: cfg.RESTORATION_PROVIDER,
-    allowPaidAiTests: cfg.ALLOW_PAID_AI_TESTS.trim().toLowerCase() === "true"
+     allowPaidAiTests: cfg.ALLOW_PAID_AI_TESTS.trim().toLowerCase() === "true",
+     allowUnpaidDownloads: cfg.ALLOW_UNPAID_DOWNLOADS.trim().toLowerCase() === "true"
   };
 };
 

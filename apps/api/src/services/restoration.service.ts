@@ -226,35 +226,37 @@ export class RestorationService {
     return { previewKey: preview.key, previewUrl: signedUrl };
   }
 
-  async getDownloadUrl(itemId: string, requestedTier?: string): Promise<string> {
+  async resolveDownload(itemId: string, requestedTier: string | undefined, allowUnpaidDownloads: boolean) {
     const item = await prisma.restorationItem.findUnique({ where: { id: itemId } });
     if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
     if (!item.finalStorageKey) throw new AppError("Restoration not yet completed", 400, "RESTORATION_NOT_COMPLETED");
 
     const tier = String(requestedTier || "master").trim().toLowerCase();
     const outputs = readRestorationOutputs(item.metadata);
-    const storageKey = tier === "master" || tier === "original"
-      ? item.finalStorageKey
-      : outputs?.variants?.[tier]?.key;
-    if (!storageKey) throw new AppError(`Restoration tier ${tier} is not available`, 404, "RESTORATION_TIER_NOT_FOUND");
-
-    const url = await this.storage.generateDownloadUrl(storageKey);
-
-    try {
-      const order = await prisma.restorationOrder.findUnique({ where: { id: item.restorationOrderId } });
-      const user = order?.userId ? await prisma.user.findUnique({ where: { id: order.userId } }) : null;
-      if (user?.email) {
-        this.notificationService.sendEmail(
-          user.email,
-          `Your Restoration is Ready for Download: ${order?.orderNo ?? itemId}`,
-          `Your restored image is ready. Download it here: ${url}`
-        );
-      }
-    } catch (err) {
-      logger.warn("Failed to send DOWNLOAD_READY email notification", { itemId, error: err instanceof Error ? err.message : String(err) });
+    const order = await prisma.restorationOrder.findUnique({ where: { id: item.restorationOrderId } });
+    if (!order) throw new AppError("Restoration order not found", 404, "RESTORATION_ORDER_NOT_FOUND");
+    const entitlement = resolveRestorationEntitlement(order.metadata);
+    const allowed: Record<RestorationEntitlement, RestorationDownloadTier[]> = {
+      PREVIEW_ONLY: ["preview"], MASTER: ["preview", "master"], HD_2: ["preview", "master", "2hd"],
+      HD_4: ["preview", "master", "2hd", "4hd"], ALL: ["preview", "master", "2hd", "4hd"], TEST_UNLOCKED: ["preview", "master", "2hd", "4hd"]
+    };
+    const normalizedTier = (tier === "original" ? "master" : tier) as RestorationDownloadTier;
+    if (!allowed[entitlement]?.includes(normalizedTier) && !(allowUnpaidDownloads && normalizedTier !== "preview")) {
+      throw new AppError("This download is not unlocked for the current order", 402, "DOWNLOAD_ENTITLEMENT_REQUIRED");
     }
+    const storageKey = normalizedTier === "preview" ? item.previewStorageKey : normalizedTier === "master" ? item.finalStorageKey : outputs?.variants?.[normalizedTier]?.key;
+    if (!storageKey) throw new AppError(`Restoration tier ${normalizedTier} is not available`, 404, "RESTORATION_TIER_NOT_FOUND");
+    return {
+      storageKey,
+      tier: normalizedTier,
+      entitlement,
+      contentType: normalizedTier === "preview" ? "image/jpeg" : outputs?.variants?.[normalizedTier]?.contentType || "image/jpeg",
+      fileName: `restoration-${order.orderNo}-${normalizedTier}.jpg`
+    };
+  }
 
-    return url;
+  downloadFile(key: string) {
+    return this.storage.downloadFile(key);
   }
 
   async processItem(itemId: string): Promise<void> {
@@ -619,6 +621,17 @@ export class RestorationService {
 
 type RestorationOutputs = {
   variants?: Record<string, { key: string; width: number; height: number; contentType: string; interpolated?: boolean }>;
+};
+
+export type RestorationDownloadTier = "preview" | "master" | "2hd" | "4hd";
+export type RestorationEntitlement = "PREVIEW_ONLY" | "MASTER" | "HD_2" | "HD_4" | "ALL" | "TEST_UNLOCKED";
+
+export const resolveRestorationEntitlement = (metadata: unknown): RestorationEntitlement => {
+  const record = asMetadataRecord(metadata);
+  if (record.testOrder || record.testUnlocked || record.adminTestOrder) return "TEST_UNLOCKED";
+  const configured = String(record.entitlement || "").trim().toUpperCase();
+  if (["PREVIEW_ONLY", "MASTER", "HD_2", "HD_4", "ALL"].includes(configured)) return configured as RestorationEntitlement;
+  return ["PAID", "APPROVED"].includes(String(record.paymentStatus || "").trim().toUpperCase()) ? "ALL" : "PREVIEW_ONLY";
 };
 
 const readRestorationOutputs = (metadata: unknown): RestorationOutputs | null => {

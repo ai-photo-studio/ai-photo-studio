@@ -190,12 +190,21 @@ export const customerApi = {
     ),
 
   getRestorationDownload: (token: string | undefined, orderId: string, itemId: string, tier = "master", guestToken?: string) =>
-    apiRequest<{ downloadUrl: string }>(
-      `/api/restorations/${orderId}/items/${itemId}/download`,
-      { method: "POST", body: JSON.stringify({ tier }) },
-      token,
-      guestToken
-    ),
+    fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "https://api.thannow.com" : "http://localhost:4000")}/api/restorations/${orderId}/items/${itemId}/download`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(guestToken ? { "x-guest-ownership-token": guestToken } : {})
+      },
+      body: JSON.stringify({ tier })
+    }).then(async (response) => {
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || `Download failed (${response.status})`);
+      }
+      return { blob: await response.blob(), fileName: response.headers.get("Content-Disposition") || `restoration-${tier}.jpg` };
+    }),
 
   runQualityAnalysis: (token: string, orderId: string, itemId: string) =>
     apiRequest<{ quality: Record<string, number>; damage: Record<string, unknown> }>(
