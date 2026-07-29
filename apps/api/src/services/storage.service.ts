@@ -48,9 +48,10 @@ const retentionByPrefix: Record<UploadFileInput["keyPrefix"], number> = {
   artifacts: 24
 };
 
-const buildStorageKey = (params: UploadFileInput) => {
+const buildStorageKey = (params: UploadFileInput, namespace = "") => {
   const safeFileName = basename(params.fileName).replace(/[^a-zA-Z0-9._-]+/g, "_") || "file";
-  return `${params.keyPrefix}/${Date.now()}-${randomUUID()}-${safeFileName}`;
+  const prefix = namespace ? `${namespace.replace(/\/$/, "")}/${params.keyPrefix}` : params.keyPrefix;
+  return `${prefix}/${Date.now()}-${randomUUID()}-${safeFileName}`;
 };
 
 const buildRetentionDate = (keyPrefix: UploadFileInput["keyPrefix"]) =>
@@ -103,7 +104,7 @@ class MockStorageProvider implements StorageProvider {
   constructor(private readonly config: AppConfig) {}
 
   async uploadFile(params: UploadFileInput): Promise<UploadFileResult> {
-    const key = buildStorageKey(params);
+    const key = buildStorageKey(params, this.config.restorationDryRun ? "test" : "");
     const url = this.getPublicUrl(key);
     const expiresAt = buildRetentionDate(params.keyPrefix);
     if (typeof params.body === "string") {
@@ -175,7 +176,7 @@ class R2StorageProvider implements StorageProvider {
   }
 
   async uploadFile(params: UploadFileInput): Promise<UploadFileResult> {
-    const key = buildStorageKey(params);
+    const key = buildStorageKey(params, this.config.restorationDryRun ? "test" : "");
 
     try {
       await this.client.send(

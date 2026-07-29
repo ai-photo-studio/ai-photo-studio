@@ -1,6 +1,7 @@
 import type { IRestorationProvider, RestorationRequest, RestorationResult } from "../interfaces/IRestorationProvider";
 import type { AppConfig } from "../../config/env";
 import { ReplicatePipelineProvider } from "../providers/ReplicatePipelineProvider";
+import { DryRunRestorationProvider } from "../providers/DryRunRestorationProvider";
 import { logger } from "../../utils/logger";
 
 export type PipelineTier = "light" | "hd" | "premium" | "replicate";
@@ -35,46 +36,57 @@ export class PipelineOrchestrator {
 
   constructor(config: AppConfig) {
     this.config = config;
-    this.pipelineMode = config.restorationPipeline || "replicate";
+    this.pipelineMode = config.restorationDryRun ? "local" : (config.restorationPipeline || "replicate");
     this.buildDefaultPipelines();
   }
 
   private buildDefaultPipelines(): void {
     const apiKey = this.config.REPLICATE_API_TOKEN;
-
-    // Cost-controlled commercial pipeline: Flux -> one GFPGAN face/scale pass.
+    const dryRunProvider = new DryRunRestorationProvider();
     const replicatePipeline = new ReplicatePipelineProvider(apiKey);
+
+    if (this.config.restorationDryRun) {
+      this.configPipelines.set("replicate", {
+        tier: "replicate",
+        steps: [{ provider: dryRunProvider, label: "dry-run" }]
+      });
+      this.configPipelines.set("light", {
+        tier: "light",
+        steps: [{ provider: dryRunProvider, label: "dry-run" }]
+      });
+      this.configPipelines.set("hd", {
+        tier: "hd",
+        steps: [{ provider: dryRunProvider, label: "dry-run" }]
+      });
+      this.configPipelines.set("premium", {
+        tier: "premium",
+        steps: [{ provider: dryRunProvider, label: "dry-run" }]
+      });
+      return;
+    }
 
     // Replicate tier (default): two AI predictions.
     this.configPipelines.set("replicate", {
       tier: "replicate",
-      steps: [
-        { provider: replicatePipeline, label: "replicate-pipeline" },
-      ],
+      steps: [{ provider: replicatePipeline, label: "replicate-pipeline" }]
     });
 
     // Light: FLUX Restore only (single Replicate call)
     this.configPipelines.set("light", {
       tier: "light",
-      steps: [
-        { provider: replicatePipeline, label: "replicate-pipeline" },
-      ],
+      steps: [{ provider: replicatePipeline, label: "replicate-pipeline" }]
     });
 
     // HD: FLUX Restore (Replicate) → legacy unified-local
     this.configPipelines.set("hd", {
       tier: "hd",
-      steps: [
-        { provider: replicatePipeline, label: "replicate-pipeline" },
-      ],
+      steps: [{ provider: replicatePipeline, label: "replicate-pipeline" }]
     });
 
     // Premium: same as HD
     this.configPipelines.set("premium", {
       tier: "premium",
-      steps: [
-        { provider: replicatePipeline, label: "replicate-pipeline" },
-      ],
+      steps: [{ provider: replicatePipeline, label: "replicate-pipeline" }]
     });
   }
 
@@ -167,7 +179,7 @@ export class PipelineOrchestrator {
    * Get the default tier based on the RESTORATION_PIPELINE feature flag.
    */
   getDefaultTier(): PipelineTier {
-    return "replicate";
+    return this.config.restorationDryRun ? "replicate" : "replicate";
   }
 
   async executeAll(

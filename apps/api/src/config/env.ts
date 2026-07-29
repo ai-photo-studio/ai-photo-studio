@@ -49,7 +49,10 @@ const envSchema = z
     REPLICATE_BACKGROUND_REMOVAL_MODEL_VERSION: z.string().optional().default(""),
     ENABLE_REPLICATE_RESTORATION_PROVIDER: z.string().optional().default(""),
     ENABLE_REPLICATE_BACKGROUND_REMOVAL_PROVIDER: z.string().optional().default(""),
-    PHASE1_REPLICATE_ONLY: z.string().optional().default("")
+    PHASE1_REPLICATE_ONLY: z.string().optional().default(""),
+    RESTORATION_DRY_RUN: z.string().optional().default(""),
+    RESTORATION_PROVIDER: z.enum(["replicate", "mock"]).default("replicate"),
+    ALLOW_PAID_AI_TESTS: z.string().optional().default("false")
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
@@ -218,6 +221,9 @@ export type AppConfig = z.infer<typeof envSchema> & {
   deliveryMode: "LOG_ONLY" | "WHATSAPP";
   providerMode: "automatic" | "manual" | "benchmark" | "shadow";
   restorationPipeline: "replicate" | "hybrid" | "local";
+  restorationDryRun: boolean;
+  restorationProvider: "replicate" | "mock";
+  allowPaidAiTests: boolean;
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -269,6 +275,9 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
   ENABLE_REPLICATE_RESTORATION_PROVIDER: "",
   ENABLE_REPLICATE_BACKGROUND_REMOVAL_PROVIDER: "",
   PHASE1_REPLICATE_ONLY: "",
+  RESTORATION_DRY_RUN: "",
+  RESTORATION_PROVIDER: "replicate",
+  ALLOW_PAID_AI_TESTS: "false",
   aiProvider: "mock",
   paymentProvider: "manual",
   whatsappDryRun: true,
@@ -277,8 +286,8 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
   deliveryMode: "LOG_ONLY",
   providerMode: "automatic",
   restorationPipeline: (process.env.RESTORATION_PIPELINE as "replicate" | "hybrid" | "local") || "replicate",
-  ...overrides,
-});
+  ...(overrides || {}),
+}) as AppConfig;
 
 const toSafePreview = (key: string, value: string | number | boolean) => {
   if (/secret|token|key|password/i.test(key)) return "[hidden]";
@@ -317,6 +326,9 @@ export const loadConfig = (): AppConfig => {
     deliveryMode: cfg.DELIVERY_MODE,
     providerMode: cfg.PROVIDER_MODE,
     restorationPipeline: cfg.RESTORATION_PIPELINE,
+    restorationDryRun: cfg.RESTORATION_DRY_RUN.trim().toLowerCase() === "true" || cfg.RESTORATION_PROVIDER === "mock",
+    restorationProvider: cfg.RESTORATION_PROVIDER,
+    allowPaidAiTests: cfg.ALLOW_PAID_AI_TESTS.trim().toLowerCase() === "true"
   };
 };
 

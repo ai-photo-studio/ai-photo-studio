@@ -275,6 +275,14 @@ export class RestorationService {
     const item = await prisma.restorationItem.findUnique({ where: { id: itemId } });
     if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
     logger.info(STEP("status→PROCESSING"), { itemId });
+    if (this.config.restorationDryRun) {
+      logger.info("RESTORATION DRY RUN enabled", {
+        itemId,
+        orderId: item.restorationOrderId,
+        provider: this.config.restorationProvider,
+        dryRun: true
+      });
+    }
 
     const quality = await this.runQualityAnalysis(item.originalStorageKey);
     const damage = this.analyzeDamage(quality, item.originalStorageKey);
@@ -401,7 +409,15 @@ export class RestorationService {
         }
       }
     } catch (err) {
-      logger.error("E2E: pipelineOrchestrator.execute EXCEPTION", { itemId, error: err instanceof Error ? err.message : String(err) });
+      logger.error("E2E: pipelineOrchestrator.execute EXCEPTION", {
+        orderId: item.restorationOrderId,
+        itemId,
+        provider: providerUsedName ?? (this.config.restorationDryRun ? "dry-run" : "unknown"),
+        stage: "pipeline",
+        dryRun: this.config.restorationDryRun,
+        errorCode: err instanceof AppError ? err.code : "RESTORATION_PROVIDER_ERROR",
+        error: err instanceof Error ? err.message : String(err)
+      });
       try {
         await prisma.restorationItem.update({
           where: { id: itemId },
@@ -439,7 +455,15 @@ export class RestorationService {
     stageTimings["restoration"] = elapsed;
     totalDurationMs = elapsed;
 
-    logger.info(STEP("R2 upload START"), { itemId, keyPrefix: "finals", bodySizeBytes: processedBuffer.length });
+    logger.info(STEP("R2 upload START"), {
+      orderId: item.restorationOrderId,
+      itemId,
+      provider: providerUsedName,
+      stage: "master",
+      dryRun: this.config.restorationDryRun,
+      keyPrefix: "finals",
+      bodySizeBytes: processedBuffer.length
+    });
     releaseUnusedMemory();
     const masterMetadata = await sharp(processedBuffer).metadata();
     const processedUpload = await this.storage.uploadFile({
@@ -448,7 +472,14 @@ export class RestorationService {
       body: processedBuffer,
       contentType: processedContentType
     });
-    logger.info(STEP("R2 upload END"), { itemId, finalStorageKey: processedUpload.key });
+    logger.info(STEP("R2 upload END"), {
+      orderId: item.restorationOrderId,
+      itemId,
+      provider: providerUsedName,
+      stage: "master",
+      dryRun: this.config.restorationDryRun,
+      finalStorageKey: processedUpload.key
+    });
 
     const variants: Record<string, { key: string; width: number; height: number; contentType: string; interpolated: boolean }> = {};
     const fourHd = await sharp(processedBuffer, { sequentialRead: true })
@@ -529,6 +560,7 @@ export class RestorationService {
           finalStorageKey: processedUpload.key,
           metadata: {
             ...existingMetadata,
+            dryRun: this.config.restorationDryRun || undefined,
             restorationOutputs: {
               master: {
                 key: processedUpload.key,
@@ -557,7 +589,16 @@ export class RestorationService {
         });
       }
     });
-    logger.info(STEP("DB update — status"), { itemId, status: succeeded ? "COMPLETED" : "FAILED", finalStorageKey: processedUpload.key });
+    logger.info(STEP("DB update — status"), {
+      orderId: item.restorationOrderId,
+      itemId,
+      provider: providerUsedName,
+      stage: succeeded ? "completed" : "failed",
+      dryRun: this.config.restorationDryRun,
+      errorCode: succeeded ? undefined : "RESTORATION_PIPELINE_FAILED",
+      status: succeeded ? "COMPLETED" : "FAILED",
+      finalStorageKey: processedUpload.key
+    });
 
     try {
       const user = order?.userId ? await prisma.user.findUnique({ where: { id: order.userId } }) : null;

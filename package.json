@@ -10,6 +10,7 @@
   "scripts": {
     "build": "npm run build -w apps/api && npm run build -w apps/web",
     "test:guest-restoration:e2e": "node scripts/guest-restoration-e2e.mjs",
+    "test:restoration:dry-run:e2e": "node scripts/restoration-dry-run-e2e.mjs",
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "lint": "eslint apps/api apps/web --max-warnings 0 || exit 0",
     "scope:check": "node scripts/verify-project-scope.mjs",
