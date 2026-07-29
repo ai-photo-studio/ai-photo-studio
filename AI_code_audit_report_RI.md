@@ -2,7 +2,7 @@
 
 ## Status
 
-Direct GitHub Actions deployment workflow is under repair. First pushed run failed at Docker build/push authorization.
+Direct GitHub Actions deployment workflow is blocked at Northflank registry push authorization.
 
 ## Evidence
 
@@ -16,6 +16,9 @@ Direct GitHub Actions deployment workflow is under repair. First pushed run fail
 - GitHub Actions run ID: `30409476784`
 - GitHub Actions first failure step: `Build and push to Northflank registry`
 - First exact Actions error: `failed to fetch oauth token: unexpected status from GET request to https://registry.northflank.com/v2/token?scope=repository%3Anorthflank%2Fservice%2F6a63423ce0a13e54221997ad%3Apull%2Cpush&service=registry.northflank.com: 403 Forbidden`
+- Repair commit: `c7a32cc1736482c5c44756ca541d1bb1269d6d3f`
+- Second GitHub Actions run ID: `30409732729`
+- Second exact Actions error: `failed to fetch oauth token: unexpected status from GET request to https://registry.northflank.com/v2/token?scope=repository%3Aai-photo-studio%2Fai-photo-studio%3Apull%2Cpush&service=registry.northflank.com: 403 Forbidden`
 
 ## Workflow Repair
 
@@ -28,6 +31,7 @@ Direct GitHub Actions deployment workflow is under repair. First pushed run fail
 - Deployment update: direct Northflank API `PATCH /v1/projects/{projectId}/services/deployment/{serviceId}`
 - Deployment payload: `deployment.external.imagePath`
 - Repair after run `30409476784`: changed the image path from `registry.northflank.com/northflank/service/6a63423ce0a13e54221997ad` to documented Northflank registry format `registry.northflank.com/ai-photo-studio/ai-photo-studio`.
+- Result after run `30409732729`: registry path is now correct, but the token/registry account still lacks `pull,push` authorization for the repository scope.
 
 ## Build Repairs
 
@@ -51,7 +55,7 @@ Direct GitHub Actions deployment workflow is under repair. First pushed run fail
 ## Not Completed
 
 - Latest GitHub Actions run was checked through the GitHub REST API because local GitHub CLI auth is invalid.
-- New Northflank image push: not available.
+- New Northflank image push: FAILED at registry authorization.
 - Deployed SHA: not available.
 - M1.jpg live run: not executed.
 - R2 final output, DB `COMPLETED`, and download URL: not verified live.
@@ -60,4 +64,4 @@ Direct GitHub Actions deployment workflow is under repair. First pushed run fail
 
 Revoke the exposed Northflank token. The current evidence shows it is still active, so remote deployment should not proceed until that token returns `401` or `403`.
 
-After revocation, push the local commit and run the GitHub Actions workflow. The workflow should build with `npm ci`, run Prisma generate, build the API, push the SHA-tagged image to `registry.northflank.com`, patch the Northflank service to that image, and wait for health.
+Then fix Northflank registry push authorization. Current `NORTHFLANK_API_KEY` can authenticate the registry login step, but cannot obtain a push token for `registry.northflank.com/ai-photo-studio/ai-photo-studio`.
