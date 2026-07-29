@@ -81,24 +81,39 @@ export abstract class BaseReplicateProvider implements IRestorationProvider {
 
     const input = this.buildInput(request);
 
-    const response = await fetch(versionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.apiKey}`,
-        "Prefer": "wait=60",
-        "Cancel-After": `${cancelAfterSeconds}s`,
-      },
-      body: JSON.stringify({ input }),
-    });
+    for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
+      const response = await fetch(versionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.apiKey}`,
+          "Prefer": "wait=60",
+          "Cancel-After": `${cancelAfterSeconds}s`,
+        },
+        body: JSON.stringify({ input }),
+      });
 
-    if (!response.ok) {
+      if (response.ok) {
+        return (await response.json()) as ReplicatePrediction;
+      }
+
       const body = await response.text();
+      if (response.status === 429 && attempt < this.maxRetries) {
+        const retryAfterMs = Math.max(parseRetryAfterMs(response.headers.get("retry-after")), 12_000);
+        logger.warn("Replicate prediction creation rate limited", {
+          model: `${this.modelConfig.owner}/${this.modelConfig.name}`,
+          attempt: attempt + 1,
+          retryAfterMs
+        });
+        await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+        continue;
+      }
+
       logger.error("Replicate API request failed", { model: `${this.modelConfig.owner}/${this.modelConfig.name}`, status: response.status, body: body.slice(0, 300) });
       throw new Error(`Replicate API failed (${response.status}): ${body.slice(0, 200)}`);
     }
 
-    return (await response.json()) as ReplicatePrediction;
+    throw new Error("Replicate prediction retry limit exceeded");
   }
 
   private async pollPrediction(predictionId: string): Promise<ReplicatePrediction> {
@@ -251,3 +266,11 @@ export abstract class BaseReplicateProvider implements IRestorationProvider {
     return Math.round(gpuSeconds * this.costPerGpuSecond * 10000) / 10000;
   }
 }
+
+const parseRetryAfterMs = (value: string | null): number => {
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
+};
