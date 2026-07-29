@@ -479,45 +479,46 @@ export class RestorationService {
       } catch { /* non-critical */ }
     }
 
-    await prisma.restorationItem.update({
-      where: { id: itemId },
-      data: {
-        status: succeeded ? "COMPLETED" : "FAILED",
-        finalStorageKey: processedUpload.key,
-        metadata: {
-          restorationOutputs: {
-            master: {
-              key: processedUpload.key,
-              width: masterMetadata.width ?? null,
-              height: masterMetadata.height ?? null,
-              contentType: processedContentType
-            },
-            variants
-          }
-        },
-        afterQualityScore: afterQuality,
-         providerUsed: `${providerUsedName ?? "unknown"}:${providersUsed.join(",")}`,
-        processingStage: succeeded ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
-        totalDurationMs,
-        errorMessage: null
-      }
-    });
-    logger.info(STEP("DB update — status"), { itemId, status: succeeded ? "COMPLETED" : "FAILED", finalStorageKey: processedUpload.key });
-
     if (succeeded) {
       await this.generatePreview(processedUpload.key, itemId);
     }
 
-    if (order) {
-      await prisma.restorationOrder.update({
-        where: { id: order.id },
+    await prisma.$transaction(async (tx) => {
+      await tx.restorationItem.update({
+        where: { id: itemId },
         data: {
-          completedItems: { increment: succeeded ? 1 : 0 },
-          failedItems: { increment: succeeded ? 0 : 1 },
-          status: (succeeded ? "COMPLETED" : "FAILED") as any
+          status: succeeded ? "COMPLETED" : "FAILED",
+          finalStorageKey: processedUpload.key,
+          metadata: {
+            restorationOutputs: {
+              master: {
+                key: processedUpload.key,
+                width: masterMetadata.width ?? null,
+                height: masterMetadata.height ?? null,
+                contentType: processedContentType
+              },
+              variants
+            }
+          },
+          afterQualityScore: afterQuality,
+          providerUsed: `${providerUsedName ?? "unknown"}:${providersUsed.join(",")}`,
+          processingStage: succeeded ? "RESTORATION_PREVIEW" : "RESTORATION_FAILED",
+          totalDurationMs,
+          errorMessage: null
         }
       });
-    }
+      if (order) {
+        await tx.restorationOrder.update({
+          where: { id: order.id },
+          data: {
+            completedItems: { increment: succeeded ? 1 : 0 },
+            failedItems: { increment: succeeded ? 0 : 1 },
+            status: (succeeded ? "COMPLETED" : "FAILED") as any
+          }
+        });
+      }
+    });
+    logger.info(STEP("DB update — status"), { itemId, status: succeeded ? "COMPLETED" : "FAILED", finalStorageKey: processedUpload.key });
 
     try {
       const user = order?.userId ? await prisma.user.findUnique({ where: { id: order.userId } }) : null;
