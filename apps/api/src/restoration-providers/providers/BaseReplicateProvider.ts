@@ -6,7 +6,7 @@ const REPLICATE_API_BASE = "https://api.replicate.com/v1";
 
 interface ReplicatePrediction {
   id: string;
-  status: "starting" | "processing" | "succeeded" | "failed" | "canceled";
+  status: "starting" | "processing" | "succeeded" | "failed" | "canceled" | "aborted";
   output?: string | string[];
   error?: string | null;
   metrics?: {
@@ -162,6 +162,10 @@ export abstract class BaseReplicateProvider implements IRestorationProvider {
 
       if (prediction.status === "canceled") {
         throw new Error("Replicate prediction was canceled");
+      }
+
+      if (prediction.status === "aborted") {
+        throw new Error("Replicate prediction was aborted by the configured deadline");
       }
     }
 
