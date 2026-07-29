@@ -167,7 +167,14 @@ export function RestoreNewPage() {
       const metas: FileMeta[] = [];
       for (const f of files) {
         try {
-          const result = await customerApi.addRestorationItem(token, order.id, f.name, f.file.type || "image/jpeg", f.base64);
+          const result = await customerApi.addRestorationItem(
+            token,
+            order.id,
+            f.name,
+            f.file.type || "image/jpeg",
+            f.base64,
+            order.guestOwnershipToken
+          );
           allItemIds.push(result.item.id);
           if (!firstItemId) firstItemId = result.item.id;
           const objectUrl = URL.createObjectURL(f.file);
