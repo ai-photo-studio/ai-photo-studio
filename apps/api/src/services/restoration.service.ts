@@ -420,6 +420,7 @@ export class RestorationService {
     totalDurationMs = elapsed;
 
     logger.info(STEP("R2 upload START"), { itemId, keyPrefix: "finals", bodySizeBytes: processedBuffer.length });
+    releaseUnusedMemory();
     const masterMetadata = await sharp(processedBuffer).metadata();
     const processedUpload = await this.storage.uploadFile({
       keyPrefix: "finals",
@@ -449,6 +450,7 @@ export class RestorationService {
         contentType: "image/jpeg"
       };
       logger.info(STEP("R2 variant upload END"), { itemId, tier: definition.key, key: upload.key, width: resized.info.width, height: resized.info.height });
+      releaseUnusedMemory();
     }
 
     const afterQuality = quality.overallScore < 50 ? quality.overallScore + 30 : Math.min(100, quality.overallScore + 10);
@@ -558,4 +560,8 @@ const readRestorationOutputs = (metadata: unknown): RestorationOutputs | null =>
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
   const outputs = (metadata as Record<string, unknown>).restorationOutputs;
   return outputs && typeof outputs === "object" && !Array.isArray(outputs) ? outputs as RestorationOutputs : null;
+};
+
+const releaseUnusedMemory = (): void => {
+  if (typeof global.gc === "function") global.gc();
 };

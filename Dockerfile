@@ -24,6 +24,6 @@ ENV PORT=8080
 ARG BUILD_SHA=unknown
 ENV BUILD_SHA=$BUILD_SHA
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+CMD ["node", "--expose-gc", "dist/index.js"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:${PORT:-8080}/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
