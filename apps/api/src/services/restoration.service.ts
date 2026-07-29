@@ -4,6 +4,9 @@ import { StorageService } from "./storage.service";
 import type { AppConfig } from "../config/env";
 import { logger } from "../utils/logger";
 import sharp from "sharp";
+
+sharp.cache(false);
+sharp.concurrency(1);
 import { SubscriptionService } from "./subscription.service";
 import { NotificationService } from "./notification.service";
 import { PipelineOrchestrator } from "../restoration-providers/pipeline/PipelineOrchestrator";
@@ -200,12 +203,17 @@ export class RestorationService {
 
   async generatePreview(processedStorageKey: string, itemId: string): Promise<{ previewKey: string; previewUrl: string }> {
     const processed = await this.storage.downloadFile(processedStorageKey);
+    const previewBody = await sharp(processed.body)
+      .rotate()
+      .resize({ width: 1200, withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .toBuffer();
 
     const preview = await this.storage.uploadFile({
       keyPrefix: "previews",
       fileName: `restoration-${itemId}-${Date.now()}.jpg`,
-      body: processed.body,
-      contentType: processed.contentType || "image/jpeg"
+      body: previewBody,
+      contentType: "image/jpeg"
     });
 
     const signedUrl = await this.storage.getSignedUrl(preview.key);
@@ -426,7 +434,7 @@ export class RestorationService {
       const resized = await sharp(processedBuffer)
         .rotate()
         .resize({ width: definition.width })
-        .jpeg({ quality: 92, mozjpeg: true })
+        .jpeg({ quality: 90 })
         .toBuffer({ resolveWithObject: true });
       const upload = await this.storage.uploadFile({
         keyPrefix: "finals",
