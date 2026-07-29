@@ -234,20 +234,7 @@ export class RestorationController {
         throw new AppError("Payment and review must be completed before processing", 402, "PAYMENT_REQUIRED");
       }
 
-      void this.restoration.processItem(itemId).then(async () => {
-        try {
-          const item = await this.restoration.getOrder(id);
-          const restoredItem = item.items.find((i: { id: string }) => i.id === itemId);
-          if (restoredItem?.finalStorageKey) {
-            await this.engine.analyzeAndStore(restoredItem.finalStorageKey, restoredItem.mimeType || "image/jpeg", itemId, "after");
-            logger.info("E2E: after-quality metrics captured", { itemId });
-          }
-        } catch (inner) {
-          logger.warn("E2E: after-quality capture failed (non-critical)", {
-            itemId, error: toErrorMessage(inner)
-          });
-        }
-      }).catch(async (error) => {
+      void this.restoration.processItem(itemId).catch(async (error) => {
         logger.error("E2E: processItem CONTROLLER CATCH — restoration failed", {
           itemId,
           error: toErrorMessage(error)
