@@ -34,12 +34,14 @@ Current production stack (2026-07-28):
 - Bucket: `ai-photo-studio-storage`
 
 ### AI
-- Replicate API only (no RunPod, no local workers, no Cloud Run)
-- Active model: `sczhou/codeformer` (CodeFormer face restoration)
-- Token: `r8_[hidden]` (account: `ai-photo-studio`)
+- Replicate remains the active production fallback.
+- RunPod A4000 Serverless is approved only for development, local dry runs, offline benchmarks, and future canaries. RunPod production routing is prohibited until a benchmark passes and separate activation approval is recorded. No always-on Northflank CPU service is approved for development.
+- Local Windows CPU testing is approved for YuNet and SFace. Development RunPod Flex workers: active workers 0, maximum Flex workers 1.
+- No remote RunPod call without an explicit per-run budget. Never display, log, copy, or commit `RUNPOD_API_KEY`; workflows may reference only the existing secret.
 
 ### Payments
 - Manual proof mode (demo/free during development)
+- Original upload preview may appear before payment. Processed previews and provider processing require confirmed payment. Severe/torn images may offer Premium only. Download, upscale, and print each require verified purchased entitlement.
 
 ### Pipeline Flow
 ```

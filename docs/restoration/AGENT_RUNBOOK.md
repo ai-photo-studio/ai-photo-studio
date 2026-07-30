@@ -7,3 +7,5 @@ Run `npm run test:restoration:calibration` before changing Premium routing. Miss
 Use `npm run restoration:fixture-intake -- --id fixture-1 --category unclassified --original "C:\\path with spaces\\original.png"` for operator-categorized archived input. Do not add face models or dependencies without an approved benchmark-only design.
 
 Run `npm run test:restoration:review-queue` before registering discovered archived stages; do not group filename-only files.
+
+RunPod local worker dry-run is allowed; remote calls require an explicit per-run budget and must never expose keys. Keep RunPod and Premium routing disabled unless separately approved.
