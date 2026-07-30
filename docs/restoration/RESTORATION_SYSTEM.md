@@ -21,3 +21,7 @@ Before is the signed original key; After is signed final key. Missing original s
 Damage masks are Sharp-decoded grayscale PNGs and disabled by `RESTORATION_DAMAGE_MASK_ENABLED=false`. Face gate is disabled by `RESTORATION_FACE_GATE_ENABLED=false`. Premium Reconstruction is a separate disabled contract; it requires validated mask, preservation instruction, payment, and quality acceptance. `UnifiedLocalRestorationProvider` is unsafe/quarantined.
 
 Premium routing is Standard at 0-39, Standard or Premium at 40-79, and Premium-only at 80-100. Severe face loss or excessive mask coverage is Premium-only. Calibration evidence remains incomplete.
+
+Calibration intake: run `npm run restoration:fixture-intake -- --id <id> --category <category> --original <path>` with optional `--mask`, `--flux`, `--gfpgan`, and `--final`. Intake validates local image decoding/checksums but does not infer categories or identity metrics.
+
+Run `npm run test:restoration:review-queue` to generate a local operator contact sheet and evidence queue. Only trace-backed groups are registered; filename-only candidates remain ungrouped.

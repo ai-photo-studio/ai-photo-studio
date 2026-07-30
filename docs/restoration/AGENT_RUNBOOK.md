@@ -5,3 +5,5 @@ Read all restoration docs and `rules.md` before edits. Inspect exact diffs, stag
 Run `npm run test:restoration:calibration` before changing Premium routing. Missing evidence must remain explicit; synthetic fixtures are test-only and never calibration evidence.
 
 Use `npm run restoration:fixture-intake -- --id fixture-1 --category unclassified --original "C:\\path with spaces\\original.png"` for operator-categorized archived input. Do not add face models or dependencies without an approved benchmark-only design.
+
+Run `npm run test:restoration:review-queue` before registering discovered archived stages; do not group filename-only files.
