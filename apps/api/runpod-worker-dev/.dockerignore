@@ -1,0 +1,5 @@
+node_modules
+.env*
+*.log
+test.mjs
+README.md
