@@ -1,0 +1,104 @@
+name: verify-runpod-worker-dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Exact digest-pinned image reference
+        required: true
+        type: string
+      source_sha:
+        description: Validated worker source SHA
+        required: true
+        type: string
+      digest:
+        description: Approved registry digest
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  APPROVED_SHA: 9926ae6d1ff87e64c805e86c6d66e9c8ca6c2eb7
+  APPROVED_IMAGE: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-dev
+  APPROVED_DIGEST: sha256:2ae480156b955e10d5c678aa5600e23ae22139bf8cba78b9bf2144c1f96d1278
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate exact approved reference
+        env:
+          INPUT_IMAGE: ${{ inputs.image }}
+          INPUT_SOURCE_SHA: ${{ inputs.source_sha }}
+          INPUT_DIGEST: ${{ inputs.digest }}
+        run: |
+          test "$INPUT_SOURCE_SHA" = "$APPROVED_SHA"
+          test "$INPUT_DIGEST" = "$APPROVED_DIGEST"
+          test "$INPUT_IMAGE" = "$APPROVED_IMAGE@$APPROVED_DIGEST"
+
+      - name: Log in to GHCR read-only
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull exact digest
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: docker pull "$IMAGE"
+
+      - name: Verify digest and metadata
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          docker image inspect "$IMAGE" --format '{{json .RepoDigests}}' | tee repo-digests.json
+          grep -F "$APPROVED_IMAGE@$APPROVED_DIGEST" repo-digests.json
+          docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' | grep -Fx "$APPROVED_SHA"
+          docker image inspect "$IMAGE" --format 'architecture={{.Architecture}} os={{.Os}} size_bytes={{.Size}}'
+
+      - name: Scan metadata for prohibited secrets
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          metadata=$(docker image inspect "$IMAGE" --format '{{json .Config}}')
+          if printf '%s' "$metadata" | grep -Eiq 'API_KEY|TOKEN|SECRET|PASSWORD|PRIVATE_KEY'; then
+            echo 'prohibited secret reference found in image metadata'
+            exit 1
+          fi
+
+      - name: Generate safe fixture
+        run: |
+          printf '%s' '{"mode":"dry_run","imageBase64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="}' > request.json
+          printf '%s' '{"mode":"dry_run","imageBase64":"YmFk"}' > corrupt.json
+
+      - name: Verify health and dry run
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          health=$(printf '%s' '{"mode":"health"}' | docker run --rm --network none -i "$IMAGE" --stdin)
+          test "$health" = '{"ok":true,"mode":"health","providerPostCount":0}'
+          dry=$(docker run --rm --network none -i "$IMAGE" --input-file /request.json < request.json)
+          test "$(printf '%s' "$dry" | jq -S .)" = "$(printf '%s' '{"ok":true,"mode":"dry_run","providerPostCount":0,"gfpgan":"skipped","width":1,"height":1,"format":"png"}' | jq -S .)"
+
+      - name: Verify corrupt rejection and clean exit
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          set +e
+          docker run --rm --network none -i "$IMAGE" --input-file /corrupt.json < corrupt.json
+          status=$?
+          set -e
+          test "$status" -ne 0
+
+      - name: Record verification evidence
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          docker image inspect "$IMAGE" --format 'image={{index .RepoDigests 0}} revision={{index .Config.Labels "org.opencontainers.image.revision"}} architecture={{.Architecture}} os={{.Os}} size_bytes={{.Size}}' > verification-evidence.txt
+          cat verification-evidence.txt
+          echo 'provider_post_count=0'
+          echo 'runpod_contact=0'
