@@ -1,0 +1,10 @@
+import sharp from "sharp"; import { handle } from "./worker.mjs";
+import { execFileSync } from "node:child_process"; import fs from "node:fs";
+const image = await sharp({ create: { width: 8, height: 8, channels: 3, background: "#000" } }).png().toBuffer();
+if (!(await handle({ mode: "health" })).ok) throw new Error("health failed");
+const a = await handle({ mode: "dry_run", imageBase64: image.toString("base64") }); const b = await handle({ mode: "dry_run", imageBase64: image.toString("base64") });
+if (a.inputChecksum !== b.inputChecksum || a.providerPostCount !== 0 || a.gfpgan !== "skipped") throw new Error("dry-run contract failed");
+for (const input of [{ mode: "dry_run", imageBase64: "" }, { mode: "dry_run", imageBase64: Buffer.from("bad").toString("base64") }, { mode: "dry_run", imageBase64: Buffer.alloc(8_000_001).toString("base64") }]) await handle(input).then(() => { throw new Error("invalid input accepted"); }, () => undefined);
+const request = JSON.stringify({ mode: "health" }); if (!JSON.parse(execFileSync(process.execPath, ["worker.mjs", "--stdin"], { input: request, encoding: "utf8" })).ok) throw new Error("stdin health failed");
+const file = "worker-request with spaces.json"; fs.writeFileSync(file, request); if (!JSON.parse(execFileSync(process.execPath, ["worker.mjs", "--input-file", file], { encoding: "utf8" })).ok) throw new Error("file health failed"); fs.writeFileSync(file, `\uFEFF${request}`); if (!JSON.parse(execFileSync(process.execPath, ["worker.mjs", "--input-file", file], { encoding: "utf8" })).ok) throw new Error("BOM file failed"); fs.unlinkSync(file);
+console.log("isolated worker tests passed");

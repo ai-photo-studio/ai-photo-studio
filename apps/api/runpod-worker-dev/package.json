@@ -1,0 +1,1 @@
+{"name":"runpod-worker-dev","private":true,"type":"module","scripts":{"test":"node test.mjs","start":"node worker.mjs"},"dependencies":{"sharp":"0.34.5"}}
