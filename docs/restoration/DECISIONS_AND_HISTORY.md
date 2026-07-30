@@ -7,3 +7,5 @@
 - `f33d0948d25f090e364a3dbc0dd6b6db79defc3b`: disabled face-restoration scoring foundation.
 
 Rejected: Unified local restoration because one endpoint may rerun inpainting, face, color, and upscale transforms. Unresolved: offline detector/embedding calibration and verified legacy tier backfill.
+
+Premium routing was revised to 0-39 Standard, 40-79 Standard or Premium, and 80-100 Premium-only; this is a disabled policy foundation pending archived calibration evidence.
