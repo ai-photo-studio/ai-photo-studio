@@ -18,6 +18,7 @@ import { PricingPage } from "./pages/PricingPage";
 import { SignupPage } from "./pages/SignupPage";
 import { RestoreNewPage } from "./pages/RestoreNewPage";
 import { RestoreOrderPage } from "./pages/RestoreOrderPage";
+import { RestorePrintPage } from "./pages/RestorePrintPage";
 import { RestorationHistoryPage } from "./pages/RestorationHistoryPage";
 import { AccountPage } from "./pages/AccountPage";
 import { OrdersPage } from "./pages/OrdersPage";
@@ -44,6 +45,7 @@ export function App() {
         <Route path="restore" element={<RestorationHistoryPage />} />
         <Route path="restore/new" element={<RestoreNewPage />} />
         <Route path="restore/:orderId" element={<RestoreOrderPage />} />
+        <Route path="restore/:orderId/print" element={<RestorePrintPage />} />
         <Route path="history/restorations" element={<RestorationHistoryPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>

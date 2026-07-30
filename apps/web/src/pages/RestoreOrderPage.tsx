@@ -13,17 +13,6 @@ const DOWNLOAD_TIERS = [
   { key: "4hd", label: "4HD", description: "Up to 4096px Sharp export, capped at native master" },
 ];
 
-const PRINT_SIZES = [
-  { key: "4x6", label: "4×6", price: "500", description: "Standard print" },
-  { key: "5x7", label: "5×7", price: "700", description: "Medium print" },
-  { key: "8x10", label: "8×10", price: "1,000", description: "Large print" },
-  { key: "a4", label: "A4", price: "1,200", description: "A4 print" },
-  { key: "a3", label: "A3", price: "2,000", description: "A3 print" },
-  { key: "canvas", label: "Canvas", price: "3,500", description: "Canvas wrap" },
-  { key: "frame", label: "Frame", price: "5,000", description: "Framed print" },
-  { key: "album", label: "Album", price: "8,000", description: "Album page" },
-];
-
 type ItemTierState = "locked" | "unlocked";
 
 const mapRestoreErrorMessage = (error: unknown): string => {
@@ -69,12 +58,6 @@ export function RestoreOrderPage() {
   const [entitlement] = useState("PREVIEW_ONLY");
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [downloadAllState, setDownloadAllState] = useState<string | null>(null);
-  const [selectedPrintSize, setSelectedPrintSize] = useState<string | null>(null);
-  const [printQuantity, setPrintQuantity] = useState(1);
-  const [printFinish, setPrintFinish] = useState("matte");
-  const [frameOption, setFrameOption] = useState("none");
-  const [deliveryCity, setDeliveryCity] = useState("");
-  const [printBusy, setPrintBusy] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
@@ -98,6 +81,8 @@ export function RestoreOrderPage() {
       if (data.items.length > 0 && !selectedItem) {
         setSelectedItem(data.items[0]);
       }
+      const completedItem = data.items.find((item) => item.status === "COMPLETED");
+      if (completedItem && !previewUrl && !previewLoading) void handlePreview(completedItem);
       // Trigger processing for all items that are still PENDING (once only via ref)
       if (!processingRef.current) {
         const pendingItems = data.items.filter(i => i.status === "PENDING" || i.status === "QUEUED");
@@ -228,17 +213,6 @@ export function RestoreOrderPage() {
     setDownloadAllState(`${started} image${started === 1 ? "" : "s"} download started`);
   };
 
-  const handlePrintOrder = async () => {
-    if (!orderId || !selectedPrintSize) return;
-    setPrintBusy(true);
-    try {
-      setPrintBusy(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Print order failed");
-      setPrintBusy(false);
-    }
-  };
-
   const getItemStatus = (item: RestorationItemRecord): string => {
     if (item.status === "COMPLETED") return "Completed";
     if (item.status === "FAILED") return "Failed";
@@ -272,7 +246,7 @@ export function RestoreOrderPage() {
         <p>Created {formatDateTime(order.createdAt)}</p>
       </div>
 
-      {isCompleted && previewUrl && <div className="restoration-hero card"><img src={previewUrl} alt="Restored photo preview" /><div><p className="eyebrow">Your restored memory is ready</p><h2>Made to keep, share, and print.</h2><div className="button-row"><button className="button" type="button" onClick={() => currentItem && void handleDownload(currentItem, unlockedTiers[0]?.key || "master")}>Download</button><a className="button button-secondary" href="#print-options">Print with Home Delivery</a></div></div></div>}
+      {isCompleted && previewUrl && currentItem && <div className="restoration-result-hero card"><div className="comparison-stage"><img src={previewUrl} alt="Restored photo" className="comparison-image" /><div className="comparison-before" style={{ width: `${comparisonPosition}%` }}><img src={previewUrl} alt="Original photo comparison" className="comparison-image comparison-original" /></div><span className="comparison-label comparison-label-before">Before</span><span className="comparison-label comparison-label-after">After</span></div><label className="comparison-control">Before / after<input aria-label="Before and after comparison" type="range" min="0" max="100" value={comparisonPosition} onChange={(event) => setComparisonPosition(Number(event.target.value))} /></label><div className="result-actions"><div><p className="eyebrow">Restoration complete</p><h2>Your memory is ready.</h2></div><div className="button-row"><button className="button" type="button" onClick={() => void handleDownload(currentItem, unlockedTiers[0]?.key || "master")}>Download</button><Link className="button button-secondary" to={`/restore/${order.id}/print`}>Continue to Print</Link></div></div></div>}
 
       {error && (
         <div className="state-panel state-panel-error" style={{ marginBottom: "1rem" }}>
@@ -369,26 +343,6 @@ export function RestoreOrderPage() {
         </div>
       )}
 
-      {(previewLoading || previewUrl) && currentItem && (
-        <div style={{ marginTop: "1.5rem" }}>
-          <h3>Preview</h3>
-          {previewLoading ? (
-            <div className="state-panel" style={{ padding: "2rem", textAlign: "center" }}>
-              <p>Loading preview...</p>
-            </div>
-           ) : previewUrl ? (
-            <div style={{ maxWidth: 800, margin: "0 auto" }}>
-              <div style={{ position: "relative", overflow: "hidden", borderRadius: "var(--radius)" }}>
-                <img src={previewUrl} alt="Restored preview" style={{ width: "100%", height: "auto", display: "block" }} />
-                {currentItem.originalStorageKey && <div style={{ position: "absolute", inset: 0, width: `${comparisonPosition}%`, overflow: "hidden", borderRight: "2px solid white" }}><img src={previewUrl} alt="Original comparison" style={{ width: `${100 / (comparisonPosition / 100)}%`, maxWidth: "none", height: "100%", objectFit: "cover", filter: "grayscale(0.8) contrast(0.8)" }} /></div>}
-              </div>
-              <label style={{ display: "block", marginTop: "0.75rem" }}>Before / after comparison <input aria-label="Before and after comparison" type="range" min="10" max="90" value={comparisonPosition} onChange={(event) => setComparisonPosition(Number(event.target.value))} style={{ width: "100%" }} /></label>
-              <button type="button" className="button button-secondary" onClick={() => setPreviewModal(true)}>Open large preview</button>
-            </div>
-          ) : null}
-        </div>
-      )}
-
       {isCompleted && (
         <>
            <div style={{ marginTop: "2rem" }}>
@@ -435,49 +389,6 @@ export function RestoreOrderPage() {
             </div>
           </div>
 
-           <div id="print-options" style={{ marginTop: "2rem" }}>
-            <h3>Print Options</h3>
-            <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginBottom: "1rem" }}>
-              Printed from restored master. No extra processing needed.
-            </p>
-            <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-              {PRINT_SIZES.map((size) => (
-                <article key={size.key} className={`print-product-card card ${selectedPrintSize === size.key ? "card-selected" : ""}`}
-                  style={{
-                    cursor: "pointer",
-                    border: selectedPrintSize === size.key ? "2px solid var(--accent)" : "1px solid var(--line)",
-                    background: selectedPrintSize === size.key ? "color-mix(in srgb, var(--accent) 5%, var(--surface))" : "var(--surface)"
-                  }}
-                  onClick={() => setSelectedPrintSize(size.key)}
-                >
-                   <div className="print-sample" aria-hidden="true">{size.key === "canvas" ? "Living room wall" : size.key === "frame" ? "Ready-to-hang gift" : "Restored memory"}</div><div className="card-top">
-                    <div>
-                      <h3>{size.label}</h3>
-                       <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{size.description}</p><span className="pill">Home Delivery</span>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: "1.2rem", fontWeight: 700, margin: "0.5rem 0", color: "var(--accent)" }}>
-                    PKR {size.price}
-                  </p>
-                </article>
-              ))}
-            </div>
-            {selectedPrintSize && (
-              <div className="card" style={{ marginTop: "1rem" }}>
-                <label>Quantity <input type="number" min="1" max="20" value={printQuantity} onChange={(e) => setPrintQuantity(Math.max(1, Number(e.target.value)))} /></label>
-                <label>Finish <select value={printFinish} onChange={(e) => setPrintFinish(e.target.value)}><option value="matte">Matte</option><option value="glossy">Glossy</option></select></label>
-                <label>Frame <select value={frameOption} onChange={(e) => setFrameOption(e.target.value)}><option value="none">No frame</option><option value="black">Black frame</option><option value="wood">Wood frame</option></select></label>
-                <label>Delivery city <input value={deliveryCity} onChange={(e) => setDeliveryCity(e.target.value)} placeholder="City" /></label>
-              </div>
-            )}
-            {selectedPrintSize && (
-              <div className="button-row" style={{ marginTop: "1rem" }}>
-                <button type="button" className="button" disabled={printBusy || !deliveryCity} onClick={handlePrintOrder}>
-                  {printBusy ? "Adding..." : "Add to cart"}
-                </button>
-              </div>
-            )}
-          </div>
         </>
       )}
 
