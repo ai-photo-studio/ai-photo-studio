@@ -13,6 +13,7 @@
     "test:restoration-view": "tsx src/services/restoration-view.test.ts",
     "test:damage-mask": "tsx src/services/damage-mask.service.test.ts",
     "test:pipeline-safety": "tsx src/restoration-providers/pipeline/pipeline-safety.test.ts",
+    "test:face-gate": "tsx src/services/face-restoration-need.service.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"
