@@ -28,7 +28,7 @@ export interface PipelineResult {
 
 /**
  * Phase 1 Replicate-only restoration orchestrator.
- * Default tier: "replicate" -> Flux followed by one GFPGAN scale=2 pass.
+ * Production is Flux followed by one GFPGAN scale=1 pass. The quarantined unified-local provider is intentionally not imported or selectable.
  */
 export class PipelineOrchestrator {
   private readonly configPipelines: Map<PipelineTier, PipelineConfig> = new Map();
@@ -86,7 +86,7 @@ export class PipelineOrchestrator {
       steps: [{ provider: replicatePipeline, label: "replicate-pipeline" }]
     });
 
-    // HD: FLUX Restore (Replicate) → legacy unified-local
+    // HD remains the production Replicate lane; structural inpainting is not selectable.
     this.configPipelines.set("hd", {
       tier: "hd",
       steps: [{ provider: replicatePipeline, label: "replicate-pipeline" }]
