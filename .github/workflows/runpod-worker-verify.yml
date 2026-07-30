@@ -58,7 +58,7 @@ jobs:
           docker image inspect "$IMAGE" --format '{{json .RepoDigests}}' | tee repo-digests.json
           grep -F "$APPROVED_IMAGE@$APPROVED_DIGEST" repo-digests.json
           docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' | grep -Fx "$APPROVED_SHA"
-          docker image inspect "$IMAGE" --format 'architecture={{.Architecture}} os={{.Os}} size_bytes={{.Size}}'
+          docker image inspect "$IMAGE" --format 'image_id={{.Id}} architecture={{.Architecture}} os={{.Os}} size_bytes={{.Size}} entrypoint={{json .Config.Entrypoint}} cmd={{json .Config.Cmd}} working_dir={{.Config.WorkingDir}} user={{.Config.User}} revision={{index .Config.Labels "org.opencontainers.image.revision"}}' | tee image-metadata.txt
 
       - name: Scan metadata for prohibited secrets
         env:
@@ -79,26 +79,44 @@ jobs:
         env:
           IMAGE: ${{ inputs.image }}
         run: |
-          health=$(printf '%s' '{"mode":"health"}' | docker run --rm --network none -i "$IMAGE" --stdin)
-          test "$health" = '{"ok":true,"mode":"health","providerPostCount":0}'
-          dry=$(docker run --rm --network none -i -v "$PWD/request.json:/request.json:ro" "$IMAGE" --input-file /request.json)
-          test "$(printf '%s' "$dry" | jq -S .)" = "$(printf '%s' '{"ok":true,"mode":"dry_run","providerPostCount":0,"gfpgan":"skipped","width":1,"height":1,"format":"png"}' | jq -S .)"
+          set +e
+          printf '%s' '{"mode":"health"}' | docker run --rm --network none -i "$IMAGE" --stdin > health.stdout 2> health.stderr
+          health_status=$?
+          set -e
+          echo "health_exit=$health_status"
+          cat health.stdout
+          cat health.stderr >&2
+          test "$health_status" -eq 0
+          jq -e '.ok == true and .mode == "health" and .providerPostCount == 0' health.stdout
+          set +e
+          docker run --rm --network none -i --mount "type=bind,source=$PWD/request.json,target=/request.json,readonly" "$IMAGE" --input-file /request.json > dry.stdout 2> dry.stderr
+          dry_status=$?
+          set -e
+          echo "dry_run_exit=$dry_status"
+          cat dry.stdout
+          cat dry.stderr >&2
+          test "$dry_status" -eq 0
+          jq -e '.ok == true and .mode == "dry_run" and .providerPostCount == 0 and .gfpgan == "skipped" and .width == 1 and .height == 1 and .format == "png" and (.inputChecksum | type == "string" and length == 64)' dry.stdout
 
       - name: Verify corrupt rejection and clean exit
         env:
           IMAGE: ${{ inputs.image }}
         run: |
           set +e
-          docker run --rm --network none -i -v "$PWD/corrupt.json:/corrupt.json:ro" "$IMAGE" --input-file /corrupt.json
+          docker run --rm --network none -i --mount "type=bind,source=$PWD/corrupt.json,target=/corrupt.json,readonly" "$IMAGE" --input-file /corrupt.json > corrupt.stdout 2> corrupt.stderr
           status=$?
           set -e
+          echo "corrupt_exit=$status"
+          cat corrupt.stdout
+          cat corrupt.stderr >&2
           test "$status" -ne 0
+          grep -Fx 'invalid image' corrupt.stderr
 
       - name: Record verification evidence
         env:
           IMAGE: ${{ inputs.image }}
         run: |
-          docker image inspect "$IMAGE" --format 'image={{index .RepoDigests 0}} revision={{index .Config.Labels "org.opencontainers.image.revision"}} architecture={{.Architecture}} os={{.Os}} size_bytes={{.Size}}' > verification-evidence.txt
+          docker image inspect "$IMAGE" --format 'image={{index .RepoDigests 0}} image_id={{.Id}} revision={{index .Config.Labels "org.opencontainers.image.revision"}} architecture={{.Architecture}} os={{.Os}} size_bytes={{.Size}} entrypoint={{json .Config.Entrypoint}} cmd={{json .Config.Cmd}} working_dir={{.Config.WorkingDir}} user={{.Config.User}}' > verification-evidence.txt
           cat verification-evidence.txt
           echo 'provider_post_count=0'
           echo 'runpod_contact=0'
