@@ -1,0 +1,17 @@
+name: Validate Isolated RunPod Worker
+on: { workflow_dispatch: {} }
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build only
+        run: docker build --tag runpod-worker-dev:${{ github.sha }} apps/api/runpod-worker-dev
+      - name: Health and dry run
+        run: |
+          printf '%s' '{"mode":"health"}' | docker run --rm -i runpod-worker-dev:${{ github.sha }} --stdin
+          printf '%s' '{"mode":"dry_run","imageBase64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlH5tQAAAAASUVORK5CYII="}' > request.json
+          docker run --rm -i -v "$PWD/request.json:/tmp/request.json:ro" runpod-worker-dev:${{ github.sha }} --input-file /tmp/request.json
+          rm request.json
+      - name: Record tested image metadata
+        run: docker image inspect runpod-worker-dev:${{ github.sha }} --format='sha=${{ github.sha }} id={{.Id}} size={{.Size}} digest={{index .RepoDigests 0}}' || true

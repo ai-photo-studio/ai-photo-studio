@@ -17,6 +17,7 @@
     "test:premium-foundation": "tsx src/services/premium-restoration-foundation.test.ts",
     "test:runpod-worker": "tsx src/runpod/worker.test.ts",
     "test:runpod-isolation": "tsx src/runpod/runpod-isolation.test.ts",
+    "test:runpod-budget": "tsx src/runpod/budget-guard.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"

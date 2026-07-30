@@ -9,3 +9,7 @@ Use `npm run restoration:fixture-intake -- --id fixture-1 --category unclassifie
 Run `npm run test:restoration:review-queue` before registering discovered archived stages; do not group filename-only files.
 
 RunPod local worker dry-run is allowed; remote calls require an explicit per-run budget and must never expose keys. Keep RunPod and Premium routing disabled unless separately approved.
+
+Verify and create repository-relative directories before applying patches. Never use absolute Windows paths as patch targets. When Docker is unavailable locally, direct worker tests plus the build-only manual CI workflow are required; CI may not push, deploy, contact RunPod, or access secrets.
+
+Worker CLI validation uses PowerShell-safe stdin or file input: `'{"mode":"health"}' | node worker.mjs --stdin` or `node worker.mjs --input-file "C:\path with spaces\request.json"`.
