@@ -1,0 +1,22 @@
+{
+  "version": "1",
+  "fixtures": [
+    {
+      "id": "ops113-2jpeg",
+      "evidenceType": "archived",
+      "category": "not_classified",
+      "originalPath": "docs/archive/benchmark/results/ops113/2026-07-23T11-53-11/01_original.png",
+      "maskPath": null,
+      "fluxPath": "docs/archive/benchmark/results/ops113/2026-07-23T11-53-11/02_flux_restore.png",
+      "gfpganPath": null,
+      "finalPath": "docs/archive/benchmark/results/ops113/2026-07-23T11-53-11/07_final_output.png",
+      "availableStages": ["original", "flux", "final"],
+      "missingStages": ["damage_mask", "gfpgan"],
+      "componentScores": null,
+      "finalScore": null,
+      "route": null,
+      "evidenceLimitations": "Archived trace verifies Flux and final; GFPGAN and mask were skipped or absent. Category is not inferred."
+    }
+  ],
+  "missingEvidence": ["clear_face_background_damage", "blurred_face", "scratched_image", "torn_image", "severe_missing_region", "multiple_faces", "low_resolution_image"]
+}

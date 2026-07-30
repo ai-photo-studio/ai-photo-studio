@@ -1,0 +1,3 @@
+import sharp from "sharp";
+import { runLocalWorker } from "./worker";
+void (async () => { if (!(await runLocalWorker({ mode: "health" })).ok) throw new Error("health failed"); const image = await sharp({ create: { width: 8, height: 8, channels: 3, background: "#000" } }).png().toBuffer(); const result = await runLocalWorker({ mode: "dry_run", image }); if (result.providerPostCount !== 0 || result.gfpgan !== "skipped") throw new Error("dry run called provider"); await runLocalWorker({ mode: "dry_run", image: Buffer.from("bad") }).then(() => { throw new Error("invalid image accepted"); }, () => undefined); console.log("runpod worker tests passed"); })();

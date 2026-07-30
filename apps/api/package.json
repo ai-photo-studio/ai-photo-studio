@@ -11,6 +11,13 @@
     "test:download-entitlement": "tsx src/services/restoration-entitlement.test.ts",
     "test:image-binary": "tsx src/utils/image-binary.test.ts",
     "test:restoration-view": "tsx src/services/restoration-view.test.ts",
+    "test:damage-mask": "tsx src/services/damage-mask.service.test.ts",
+    "test:pipeline-safety": "tsx src/restoration-providers/pipeline/pipeline-safety.test.ts",
+    "test:face-gate": "tsx src/services/face-restoration-need.service.test.ts",
+    "test:premium-foundation": "tsx src/services/premium-restoration-foundation.test.ts",
+    "test:runpod-worker": "tsx src/runpod/worker.test.ts",
+    "test:runpod-isolation": "tsx src/runpod/runpod-isolation.test.ts",
+    "test:runpod-budget": "tsx src/runpod/budget-guard.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"

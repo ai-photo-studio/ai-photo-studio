@@ -1,0 +1,10 @@
+import { FaceRestorationNeedService } from "./face-restoration-need.service";
+const service = new FaceRestorationNeedService();
+const decide = (m: Partial<Parameters<typeof service.score>[0]>) => service.score({ blur: 0, pixelSize: 0, noise: 0, damageInsideFace: 0, landmarkConfidence: 100, exposureContrast: 0, ...m });
+if (decide({}).route !== "skip") throw new Error("clear face must skip");
+if (decide({ damageInsideFace: 0, blur: 5 }).route !== "skip") throw new Error("background-only damage must skip");
+if (decide({ blur: 100, pixelSize: 70, noise: 50, damageInsideFace: 40, landmarkConfidence: 70, exposureContrast: 30 }).route === "skip") throw new Error("blurred face must be candidate");
+if (decide({ blur: 100, pixelSize: 100, noise: 100, damageInsideFace: 100, landmarkConfidence: 0, exposureContrast: 100 }).route !== "manual_review") throw new Error("severe face must require review");
+if (service.validate({ identitySimilarity: .8, landmarkSimilarity: .99, sharpnessImprovement: 5, artifactIncrease: 0 }).accepted) throw new Error("identity failure must revert");
+if (!service.validate({ identitySimilarity: .95, landmarkSimilarity: .98, sharpnessImprovement: 4, artifactIncrease: 0 }).accepted) throw new Error("quality pass must accept");
+console.log("face restoration need tests passed");

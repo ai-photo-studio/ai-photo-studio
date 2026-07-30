@@ -1,0 +1,12 @@
+import { StructuralDamageScoreService } from "./structural-damage-score.service";
+import { acceptPremiumCandidate, canStartPremiumProcessing } from "./premium-restoration-gate.service";
+const score = new StructuralDamageScoreService(); const base = { missingTornArea: 0, faceRegionDamage: 0, scratchesCracks: 0, blurNoise: 0, lowResolution: 0, fadingExposure: 0 };
+if (score.score(base).baseRoute !== "standard") throw new Error("39 below must use standard");
+if (score.score({ ...base, missingTornArea: 50, faceRegionDamage: 75, scratchesCracks: 100, blurNoise: 100, lowResolution: 100, fadingExposure: 50 }).baseRoute !== "standard_or_premium") throw new Error("79 must allow standard or premium");
+if (score.score({ ...base, missingTornArea: 65, faceRegionDamage: 75, scratchesCracks: 100, blurNoise: 100, lowResolution: 100, fadingExposure: 70 }).baseRoute !== "premium_only") throw new Error("80 must be premium");
+if (score.score({ ...base, missingTornArea: 70 }).overrideReason !== "excessive_missing_torn_area") throw new Error("missing override failed");
+if (score.score({ ...base, faceRegionDamage: 80 }).overrideReason !== "severe_face_loss") throw new Error("face override failed");
+if (score.score(base, { maskCoverage: 35 }).overrideReason !== "excessive_mask_coverage") throw new Error("mask override failed");
+if (canStartPremiumProcessing(false, true) || !canStartPremiumProcessing(true, true)) throw new Error("payment gate failed");
+if (acceptPremiumCandidate({ identitySimilarity:.8, landmarkSimilarity:1, unchangedAreaPreservation:1, maskCompletion:1, artifactScore:0, ageExpressionConsistency:1, validImage:true })) throw new Error("failed candidate must reject");
+console.log("premium restoration foundation tests passed");

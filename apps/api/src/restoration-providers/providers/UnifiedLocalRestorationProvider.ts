@@ -16,7 +16,7 @@ interface DamageAnalysis {
 const SCRATCH_THRESHOLD = 15;
 
 /**
- * LEGACY_LOCAL_PIPELINE — OPS-116 disabled by default.
+ * QUARANTINED LEGACY PROVIDER — never select for production restoration.
  *
  * This provider routes GFPGAN, DDColor, and LaMa through RunPod
  * via RESTORATION_ENDPOINT_URL. Requires RUNPOD_API_KEY.

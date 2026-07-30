@@ -57,6 +57,19 @@ const envSchema = z
      ,GFPGAN_SCALE: z.coerce.number().int().min(1).max(2).default(1),
      RESTORATION_REPLAY_MODE: z.string().optional().default("false"),
      RESTORATION_REPLAY_FIXTURE: z.string().optional().default("")
+     ,RESTORATION_DAMAGE_MASK_ENABLED: z.string().optional().default("false"),
+      RESTORATION_DAMAGE_MASK_MAX_PERCENT: z.coerce.number().min(1).max(95).default(35)
+      ,RESTORATION_FACE_GATE_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_GPT_IMAGE_2_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_NANO_BANANA_PRO_ENABLED: z.string().optional().default("false"),
+       PREMIUM_RECONSTRUCTION_SEEDREAM_5_PRO_ENABLED: z.string().optional().default("false")
+      ,RUNPOD_ENABLED: z.string().optional().default("false"),
+       RUNPOD_GFPGAN_ENABLED: z.string().optional().default("false"),
+       RUNPOD_BENCHMARK_ENABLED: z.string().optional().default("false"),
+       RUNPOD_ENDPOINT_ID: z.string().optional().default(""),
+       RUNPOD_JOB_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(120).default(120),
+       RUNPOD_MAX_RETRIES: z.coerce.number().int().min(0).max(0).default(0)
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
@@ -232,6 +245,16 @@ export type AppConfig = z.infer<typeof envSchema> & {
   gfpganScale: number;
   restorationReplayMode: boolean;
   restorationReplayFixture: string;
+  restorationDamageMaskEnabled: boolean;
+  restorationDamageMaskMaxPercent: number;
+  restorationFaceGateEnabled: boolean;
+  premiumReconstructionEnabled: boolean;
+  runpodEnabled: boolean;
+  runpodGfpganEnabled: boolean;
+  runpodBenchmarkEnabled: boolean;
+  runpodEndpointId: string;
+  runpodJobTimeoutSeconds: number;
+  runpodMaxRetries: number;
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -286,7 +309,23 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
   RESTORATION_DRY_RUN: "",
   RESTORATION_PROVIDER: "replicate",
   ALLOW_PAID_AI_TESTS: "false",
-  ALLOW_UNPAID_DOWNLOADS: "false",
+  PREMIUM_RECONSTRUCTION_ENABLED: "false",
+  PREMIUM_RECONSTRUCTION_GPT_IMAGE_2_ENABLED: "false",
+  PREMIUM_RECONSTRUCTION_NANO_BANANA_PRO_ENABLED: "false",
+  PREMIUM_RECONSTRUCTION_SEEDREAM_5_PRO_ENABLED: "false",
+   ALLOW_UNPAID_DOWNLOADS: "false",
+   RUNPOD_ENABLED: "false",
+   RUNPOD_GFPGAN_ENABLED: "false",
+   RUNPOD_BENCHMARK_ENABLED: "false",
+   RUNPOD_ENDPOINT_ID: "",
+   RUNPOD_JOB_TIMEOUT_SECONDS: 120,
+   RUNPOD_MAX_RETRIES: 0,
+   runpodEnabled: false,
+   runpodGfpganEnabled: false,
+   runpodBenchmarkEnabled: false,
+   runpodEndpointId: "",
+   runpodJobTimeoutSeconds: 120,
+   runpodMaxRetries: 0,
   aiProvider: "mock",
   paymentProvider: "manual",
   whatsappDryRun: true,
@@ -342,6 +381,16 @@ export const loadConfig = (): AppConfig => {
     ,gfpganScale: cfg.GFPGAN_SCALE
     ,restorationReplayMode: cfg.RESTORATION_REPLAY_MODE.trim().toLowerCase() === "true"
     ,restorationReplayFixture: cfg.RESTORATION_REPLAY_FIXTURE.trim()
+    ,restorationDamageMaskEnabled: cfg.RESTORATION_DAMAGE_MASK_ENABLED.trim().toLowerCase() === "true"
+    ,restorationDamageMaskMaxPercent: cfg.RESTORATION_DAMAGE_MASK_MAX_PERCENT
+    ,restorationFaceGateEnabled: cfg.RESTORATION_FACE_GATE_ENABLED.trim().toLowerCase() === "true"
+    ,premiumReconstructionEnabled: cfg.PREMIUM_RECONSTRUCTION_ENABLED.trim().toLowerCase() === "true"
+    ,runpodEnabled: cfg.RUNPOD_ENABLED.trim().toLowerCase() === "true"
+    ,runpodGfpganEnabled: cfg.RUNPOD_GFPGAN_ENABLED.trim().toLowerCase() === "true"
+    ,runpodBenchmarkEnabled: cfg.RUNPOD_BENCHMARK_ENABLED.trim().toLowerCase() === "true"
+    ,runpodEndpointId: cfg.RUNPOD_ENDPOINT_ID.trim()
+    ,runpodJobTimeoutSeconds: cfg.RUNPOD_JOB_TIMEOUT_SECONDS
+    ,runpodMaxRetries: cfg.RUNPOD_MAX_RETRIES
   };
 };
 

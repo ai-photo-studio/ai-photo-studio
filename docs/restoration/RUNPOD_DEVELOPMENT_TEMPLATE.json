@@ -1,0 +1,1 @@
+{"purpose":"development-benchmark-only","gpuPreference":"A4000 16 GB","activeWorkers":0,"maxFlexWorkers":1,"concurrency":1,"retries":0,"timeoutSeconds":120,"productionRouting":"prohibited","imageDigest":"required-after-validated-build","apiKey":"GitHub secret reference only","apply":false}
