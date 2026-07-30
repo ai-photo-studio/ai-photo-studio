@@ -81,7 +81,7 @@ jobs:
         run: |
           health=$(printf '%s' '{"mode":"health"}' | docker run --rm --network none -i "$IMAGE" --stdin)
           test "$health" = '{"ok":true,"mode":"health","providerPostCount":0}'
-          dry=$(docker run --rm --network none -i "$IMAGE" --input-file /request.json < request.json)
+          dry=$(docker run --rm --network none -i -v "$PWD/request.json:/request.json:ro" "$IMAGE" --input-file /request.json)
           test "$(printf '%s' "$dry" | jq -S .)" = "$(printf '%s' '{"ok":true,"mode":"dry_run","providerPostCount":0,"gfpgan":"skipped","width":1,"height":1,"format":"png"}' | jq -S .)"
 
       - name: Verify corrupt rejection and clean exit
@@ -89,7 +89,7 @@ jobs:
           IMAGE: ${{ inputs.image }}
         run: |
           set +e
-          docker run --rm --network none -i "$IMAGE" --input-file /corrupt.json < corrupt.json
+          docker run --rm --network none -i -v "$PWD/corrupt.json:/corrupt.json:ro" "$IMAGE" --input-file /corrupt.json
           status=$?
           set -e
           test "$status" -ne 0
