@@ -209,6 +209,7 @@ export type CustomerProcessingJob = {
   failedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  thumbnailUrl?: string | null;
 };
 
 export type CustomerImageQualityScore = {
@@ -396,6 +397,7 @@ export type RestorationOrderSummary = {
   failedItems: number;
   createdAt: string;
   updatedAt: string;
+  thumbnailUrl?: string | null;
 };
 
 export type RestorationItemRecord = {

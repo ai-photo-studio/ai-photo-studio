@@ -31,7 +31,7 @@ export class GFPGANProvider extends BaseReplicateProvider {
     return {
       img: `data:${request.contentType || "image/png"};base64,${base64Image}`,
       version: "v1.4",
-      scale: request.options?.upscaleScale ?? 2,
+       scale: request.options?.upscaleScale ?? Number(process.env.GFPGAN_SCALE || 1),
     };
   }
 }

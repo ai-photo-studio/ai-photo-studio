@@ -97,10 +97,35 @@ export const apiRequest = async <T>(path: string, init: RequestInit = {}, token?
     headers.set("x-guest-ownership-token", guestToken);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  let response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers
   });
+
+  if (response.status === 401 && token) {
+    const stored = window.localStorage.getItem("ai-photo-studio-web-auth");
+    if (stored) {
+      try {
+        const session = JSON.parse(stored) as { refreshToken?: string };
+        if (session.refreshToken && !path.includes("/auth/refresh")) {
+          const refreshed = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken: session.refreshToken })
+          });
+          if (refreshed.ok) {
+            const next = await refreshed.json();
+            const nextSession = { ...session, ...next.data };
+            window.localStorage.setItem("ai-photo-studio-web-auth", JSON.stringify(nextSession));
+            headers.set("Authorization", `Bearer ${nextSession.token}`);
+            response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+          }
+        }
+      } catch {
+        // Preserve the original 401 when refresh cannot recover the session.
+      }
+    }
+  }
 
   return parseResponse<T>(response);
 };

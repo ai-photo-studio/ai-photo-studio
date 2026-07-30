@@ -54,6 +54,9 @@ const envSchema = z
     RESTORATION_PROVIDER: z.enum(["replicate", "mock"]).default("replicate"),
      ALLOW_PAID_AI_TESTS: z.string().optional().default("false"),
      ALLOW_UNPAID_DOWNLOADS: z.string().optional().default("false")
+     ,GFPGAN_SCALE: z.coerce.number().int().min(1).max(2).default(1),
+     RESTORATION_REPLAY_MODE: z.string().optional().default("false"),
+     RESTORATION_REPLAY_FIXTURE: z.string().optional().default("")
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
@@ -226,6 +229,9 @@ export type AppConfig = z.infer<typeof envSchema> & {
   restorationProvider: "replicate" | "mock";
   allowPaidAiTests: boolean;
   allowUnpaidDownloads: boolean;
+  gfpganScale: number;
+  restorationReplayMode: boolean;
+  restorationReplayFixture: string;
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -332,7 +338,10 @@ export const loadConfig = (): AppConfig => {
     restorationDryRun: cfg.RESTORATION_DRY_RUN.trim().toLowerCase() === "true" || cfg.RESTORATION_PROVIDER === "mock",
     restorationProvider: cfg.RESTORATION_PROVIDER,
      allowPaidAiTests: cfg.ALLOW_PAID_AI_TESTS.trim().toLowerCase() === "true",
-     allowUnpaidDownloads: cfg.ALLOW_UNPAID_DOWNLOADS.trim().toLowerCase() === "true"
+    allowUnpaidDownloads: cfg.ALLOW_UNPAID_DOWNLOADS.trim().toLowerCase() === "true"
+    ,gfpganScale: cfg.GFPGAN_SCALE
+    ,restorationReplayMode: cfg.RESTORATION_REPLAY_MODE.trim().toLowerCase() === "true"
+    ,restorationReplayFixture: cfg.RESTORATION_REPLAY_FIXTURE.trim()
   };
 };
 

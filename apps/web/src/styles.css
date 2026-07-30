@@ -236,6 +236,16 @@ img {
   background: var(--surface);
 }
 
+.restoration-hero { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr); gap:28px; padding:20px; align-items:center; box-shadow:0 22px 60px rgba(15,122,56,.12); }
+.restoration-hero img { width:100%; max-height:430px; object-fit:cover; border-radius:calc(var(--radius) - 2px); }
+.print-product-card { overflow:hidden; transition:transform .2s ease, box-shadow .2s ease; }
+.print-product-card:hover { transform:translateY(-3px); box-shadow:0 14px 30px rgba(16,32,21,.1); }
+.print-sample, .history-thumb { min-height:110px; display:grid; place-items:center; background:linear-gradient(135deg,#dcefe0,#f8f0df); color:var(--accent-strong); font-weight:800; }
+.history-thumb { width:100%; height:150px; object-fit:cover; }
+.restoration-history-card { padding:0; overflow:hidden; }
+.restoration-history-card > :not(.history-thumb) { margin-left:18px; margin-right:18px; }
+@media (max-width:700px) { .restoration-hero { grid-template-columns:1fr; } }
+
 .upload-card {
   display: grid;
   gap: 14px;

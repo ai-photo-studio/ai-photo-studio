@@ -120,7 +120,19 @@ export class RestorationService {
   }
 
   async listOrders(userId: string) {
-    return prisma.restorationOrder.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+    const orders = await prisma.restorationOrder.findMany({
+      where: { userId },
+      include: { items: { orderBy: { createdAt: "asc" }, take: 1 } },
+      orderBy: { createdAt: "desc" }
+    });
+    return Promise.all(orders.map(async ({ items, ...order }) => {
+      const item = items[0];
+      const thumbnailKey = item?.previewStorageKey || item?.finalStorageKey || null;
+      return {
+        ...order,
+        thumbnailUrl: thumbnailKey ? await this.storage.getSignedUrl(thumbnailKey) : null
+      };
+    }));
   }
 
   async addItem(input: { restorationOrderId: string; originalStorageKey: string; mimeType?: string; width?: number; height?: number; fileSizeBytes?: number }) {
@@ -336,6 +348,7 @@ export class RestorationService {
     const stageMap: Record<string, string> = {
       flux_restore: "RESTORATION_INPAINT",
       gfpgan_face: "RESTORATION_FACE",
+      gfpgan_face_restore: "RESTORATION_FACE",
       damage_detection: "RESTORATION_ANALYSIS",
       lama_inpaint: "RESTORATION_INPAINT",
       face_restoration_gfpgan: "RESTORATION_FACE",

@@ -2,6 +2,7 @@ import type { IRestorationProvider, RestorationRequest, RestorationResult } from
 import type { AppConfig } from "../../config/env";
 import { ReplicatePipelineProvider } from "../providers/ReplicatePipelineProvider";
 import { DryRunRestorationProvider } from "../providers/DryRunRestorationProvider";
+import { ReplayRestorationProvider } from "../providers/ReplayRestorationProvider";
 import { logger } from "../../utils/logger";
 
 export type PipelineTier = "light" | "hd" | "premium" | "replicate";
@@ -36,15 +37,23 @@ export class PipelineOrchestrator {
 
   constructor(config: AppConfig) {
     this.config = config;
-    this.pipelineMode = config.restorationDryRun ? "local" : (config.restorationPipeline || "replicate");
+    this.pipelineMode = config.restorationReplayMode || config.restorationDryRun ? "local" : (config.restorationPipeline || "replicate");
     this.buildDefaultPipelines();
   }
 
   private buildDefaultPipelines(): void {
     const apiKey = this.config.REPLICATE_API_TOKEN;
     const dryRunProvider = new DryRunRestorationProvider();
+    const replayProvider = new ReplayRestorationProvider(this.config);
     const replicatePipeline = new ReplicatePipelineProvider(apiKey);
 
+    if (this.config.restorationReplayMode) {
+      this.configPipelines.set("replicate", { tier: "replicate", steps: [{ provider: replayProvider, label: "replay" }] });
+      this.configPipelines.set("light", { tier: "light", steps: [{ provider: replayProvider, label: "replay" }] });
+      this.configPipelines.set("hd", { tier: "hd", steps: [{ provider: replayProvider, label: "replay" }] });
+      this.configPipelines.set("premium", { tier: "premium", steps: [{ provider: replayProvider, label: "replay" }] });
+      return;
+    }
     if (this.config.restorationDryRun) {
       this.configPipelines.set("replicate", {
         tier: "replicate",

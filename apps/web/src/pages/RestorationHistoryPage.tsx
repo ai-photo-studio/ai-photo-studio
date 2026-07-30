@@ -84,7 +84,8 @@ export function RestorationHistoryPage() {
               <h3>Completed Restorations</h3>
               <div className="admin-card-grid" style={{ marginTop: "0.5rem" }}>
                 {orders.filter(o => o.status === "COMPLETED").map((order) => (
-                  <Link key={order.id} to={`/restore/${order.id}`} className="card admin-record-card" style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link key={order.id} to={`/restore/${order.id}`} className="card restoration-history-card" style={{ textDecoration: "none", color: "inherit" }}>
+                    {order.thumbnailUrl ? <img className="history-thumb" src={order.thumbnailUrl} alt={`${order.title || "Restored"} thumbnail`} /> : <div className="history-thumb">Restored photo</div>}
                     <div className="card-top">
                       <div>
                         <p className="eyebrow">{order.orderNo}</p>
@@ -107,7 +108,8 @@ export function RestorationHistoryPage() {
               <h3>Currently Processing</h3>
               <div className="admin-card-grid" style={{ marginTop: "0.5rem" }}>
                 {orders.filter(o => o.status === "PROCESSING" || o.status === "QUEUED").map((order) => (
-                  <Link key={order.id} to={`/restore/${order.id}`} className="card admin-record-card" style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link key={order.id} to={`/restore/${order.id}`} className="card restoration-history-card" style={{ textDecoration: "none", color: "inherit" }}>
+                    {order.thumbnailUrl ? <img className="history-thumb" src={order.thumbnailUrl} alt={`${order.title || "Restoration"} thumbnail`} /> : <div className="history-thumb">Processing</div>}
                     <div className="card-top">
                       <div>
                         <p className="eyebrow">{order.orderNo}</p>
@@ -130,7 +132,8 @@ export function RestorationHistoryPage() {
               <h3>Failed Orders</h3>
               <div className="admin-card-grid" style={{ marginTop: "0.5rem" }}>
                 {orders.filter(o => o.status === "FAILED").map((order) => (
-                  <Link key={order.id} to={`/restore/${order.id}`} className="card admin-record-card" style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link key={order.id} to={`/restore/${order.id}`} className="card restoration-history-card" style={{ textDecoration: "none", color: "inherit" }}>
+                    {order.thumbnailUrl ? <img className="history-thumb" src={order.thumbnailUrl} alt={`${order.title || "Restoration"} thumbnail`} /> : <div className="history-thumb">Restoration</div>}
                     <div className="card-top">
                       <div>
                         <p className="eyebrow">{order.orderNo}</p>

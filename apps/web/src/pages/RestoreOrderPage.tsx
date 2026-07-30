@@ -68,7 +68,12 @@ export function RestoreOrderPage() {
   const [bothReady, setBothReady] = useState(false);
   const [entitlement] = useState("PREVIEW_ONLY");
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+  const [downloadAllState, setDownloadAllState] = useState<string | null>(null);
   const [selectedPrintSize, setSelectedPrintSize] = useState<string | null>(null);
+  const [printQuantity, setPrintQuantity] = useState(1);
+  const [printFinish, setPrintFinish] = useState("matte");
+  const [frameOption, setFrameOption] = useState("none");
+  const [deliveryCity, setDeliveryCity] = useState("");
   const [printBusy, setPrintBusy] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -193,19 +198,34 @@ export function RestoreOrderPage() {
     setError(null);
     try {
       const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, tier, guestToken || undefined);
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(result.blob);
-      link.download = `restoration-${order.orderNo}-${tier}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(link.href);
+      saveBlob(result.blob, `restoration-${order.orderNo}-${tier}.jpg`);
       setError("Download started");
     } catch (err) {
       setError(mapRestoreErrorMessage(err));
     } finally {
       setDownloadBusy(null);
     }
+  };
+
+  const handleDownloadAll = async () => {
+    if (!orderId) return;
+    const completed = order.items.filter((item) => item.status === "COMPLETED");
+    if (!completed.length || !unlockedTiers.length) return;
+    setDownloadAllState(`Starting 0 of ${completed.length}`);
+    let started = 0;
+    for (const item of completed) {
+      try {
+        setDownloadAllState(`Downloading ${started + 1} of ${completed.length}`);
+        const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, unlockedTiers[0].key, getGuestOwnershipToken(orderId) || undefined);
+        saveBlob(result.blob, `restoration-${order.orderNo}-${started + 1}-${unlockedTiers[0].key}.jpg`);
+        started += 1;
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      } catch {
+        setDownloadAllState(`Download blocked at image ${started + 1}. Use Download and Continue.`);
+        return;
+      }
+    }
+    setDownloadAllState(`${started} image${started === 1 ? "" : "s"} download started`);
   };
 
   const handlePrintOrder = async () => {
@@ -242,6 +262,7 @@ export function RestoreOrderPage() {
   const isCompleted = order.items.some(i => i.status === "COMPLETED");
   const isProcessing = order.items.some(i => i.status === "PROCESSING" || i.status === "QUEUED");
   const currentItem = selectedItem || order.items[0];
+  const unlockedTiers = DOWNLOAD_TIERS.filter((tier) => getTierState(tier.key) === "unlocked");
 
   return (
     <section className="page-stack">
@@ -250,6 +271,8 @@ export function RestoreOrderPage() {
         <h1>{order.title || `Order ${order.orderNo}`}</h1>
         <p>Created {formatDateTime(order.createdAt)}</p>
       </div>
+
+      {isCompleted && previewUrl && <div className="restoration-hero card"><img src={previewUrl} alt="Restored photo preview" /><div><p className="eyebrow">Your restored memory is ready</p><h2>Made to keep, share, and print.</h2><div className="button-row"><button className="button" type="button" onClick={() => currentItem && void handleDownload(currentItem, unlockedTiers[0]?.key || "master")}>Download</button><a className="button button-secondary" href="#print-options">Print with Home Delivery</a></div></div></div>}
 
       {error && (
         <div className="state-panel state-panel-error" style={{ marginBottom: "1rem" }}>
@@ -368,8 +391,10 @@ export function RestoreOrderPage() {
 
       {isCompleted && (
         <>
-          <div style={{ marginTop: "2rem" }}>
-            <h3>Download Tiers</h3>
+           <div style={{ marginTop: "2rem" }}>
+             <h3>Download Tiers</h3>
+             <p className="helper-text">Your plan unlocks {unlockedTiers.length} of {DOWNLOAD_TIERS.length} digital files.</p>
+             {order.items.filter((item) => item.status === "COMPLETED").length > 1 && unlockedTiers.length > 0 && <div className="button-row" style={{ marginBottom: "1rem" }}><button type="button" className="button button-secondary" onClick={() => void handleDownloadAll()} disabled={Boolean(downloadAllState?.startsWith("Downloading"))}>Download All Images</button>{downloadAllState && <span className="helper-text">{downloadAllState}</span>}</div>}
             <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
               {DOWNLOAD_TIERS.map((tier) => {
                 const state = getTierState(tier.key);
@@ -410,14 +435,14 @@ export function RestoreOrderPage() {
             </div>
           </div>
 
-          <div style={{ marginTop: "2rem" }}>
+           <div id="print-options" style={{ marginTop: "2rem" }}>
             <h3>Print Options</h3>
             <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginBottom: "1rem" }}>
               Printed from restored master. No extra processing needed.
             </p>
             <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
               {PRINT_SIZES.map((size) => (
-                <article key={size.key} className={`card ${selectedPrintSize === size.key ? "card-selected" : ""}`}
+                <article key={size.key} className={`print-product-card card ${selectedPrintSize === size.key ? "card-selected" : ""}`}
                   style={{
                     cursor: "pointer",
                     border: selectedPrintSize === size.key ? "2px solid var(--accent)" : "1px solid var(--line)",
@@ -425,10 +450,10 @@ export function RestoreOrderPage() {
                   }}
                   onClick={() => setSelectedPrintSize(size.key)}
                 >
-                  <div className="card-top">
+                   <div className="print-sample" aria-hidden="true">{size.key === "canvas" ? "Living room wall" : size.key === "frame" ? "Ready-to-hang gift" : "Restored memory"}</div><div className="card-top">
                     <div>
                       <h3>{size.label}</h3>
-                      <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{size.description}</p>
+                       <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{size.description}</p><span className="pill">Home Delivery</span>
                     </div>
                   </div>
                   <p style={{ fontSize: "1.2rem", fontWeight: 700, margin: "0.5rem 0", color: "var(--accent)" }}>
@@ -438,9 +463,17 @@ export function RestoreOrderPage() {
               ))}
             </div>
             {selectedPrintSize && (
+              <div className="card" style={{ marginTop: "1rem" }}>
+                <label>Quantity <input type="number" min="1" max="20" value={printQuantity} onChange={(e) => setPrintQuantity(Math.max(1, Number(e.target.value)))} /></label>
+                <label>Finish <select value={printFinish} onChange={(e) => setPrintFinish(e.target.value)}><option value="matte">Matte</option><option value="glossy">Glossy</option></select></label>
+                <label>Frame <select value={frameOption} onChange={(e) => setFrameOption(e.target.value)}><option value="none">No frame</option><option value="black">Black frame</option><option value="wood">Wood frame</option></select></label>
+                <label>Delivery city <input value={deliveryCity} onChange={(e) => setDeliveryCity(e.target.value)} placeholder="City" /></label>
+              </div>
+            )}
+            {selectedPrintSize && (
               <div className="button-row" style={{ marginTop: "1rem" }}>
-                <button type="button" className="button" disabled={printBusy} onClick={handlePrintOrder}>
-                  {printBusy ? "Placing order..." : "Order Print"}
+                <button type="button" className="button" disabled={printBusy || !deliveryCity} onClick={handlePrintOrder}>
+                  {printBusy ? "Adding..." : "Add to cart"}
                 </button>
               </div>
             )}
@@ -456,3 +489,14 @@ export function RestoreOrderPage() {
     </section>
   );
 }
+
+const saveBlob = (blob: Blob, fileName: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+};

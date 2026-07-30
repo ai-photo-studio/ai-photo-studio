@@ -15,7 +15,7 @@ import { logger } from "../../utils/logger";
 
 const L40S_RATE_USD_PER_SECOND = 0.000975;
 
-/** Cost-controlled production restoration: Flux, then one GFPGAN scale=2 call. */
+/** Cost-controlled production restoration: Flux, then one GFPGAN face-restoration call. */
 export class ReplicatePipelineProvider implements IRestorationProvider {
   readonly name = "replicate-pipeline";
   readonly type = "commercial" as const;
@@ -37,14 +37,14 @@ export class ReplicatePipelineProvider implements IRestorationProvider {
     stages.push("flux_restore");
     this.logStage("OPS-116 stage 1 completed", "flux_restore", request.image, result1);
 
-    const result2 = await this.runStage("gfpgan_face", this.gfpgan, {
+    const result2 = await this.runStage("gfpgan_face_restore", this.gfpgan, {
       image: result1.image,
       contentType: result1.contentType,
       fileName: request.fileName,
-      options: { ...request.options, upscale: true, upscaleScale: 2 },
+       options: { ...request.options, upscale: false, upscaleScale: Number(process.env.GFPGAN_SCALE || 1) },
     });
-    stages.push("gfpgan_face");
-    this.logStage("OPS-116 stage 2 completed", "gfpgan_face", result1.image, result2);
+    stages.push("gfpgan_face_restore");
+    this.logStage("OPS-116 stage 2 completed", "gfpgan_face_restore", result1.image, result2);
 
     const totalActualCost = (result1.actualCost ?? result1.estimatedCost)
       + (result2.actualCost ?? result2.estimatedCost);
@@ -67,7 +67,7 @@ export class ReplicatePipelineProvider implements IRestorationProvider {
       contentType: result2.contentType,
       fileName: request.fileName,
       providerName: this.name,
-      providerVersion: "2.0.0 (flux+gfpgan-scale-2)",
+      providerVersion: "2.1.0 (flux+gfpgan-face-restoration-scale-1)",
       stages,
       processingTimeMs: Date.now() - startTime,
       creditsUsed: 0,
