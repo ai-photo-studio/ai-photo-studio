@@ -5,44 +5,29 @@ export function HomePage() {
 
   return (
     <div className="home-page">
-      <section className="hero-section">
+      <section className="hero-section premium-home-hero">
         <div className="hero-copy">
-          <p className="eyebrow">AI photo restoration</p>
-          <h1>Upload. Restore. Download. Print.</h1>
+          <p className="eyebrow">Then and Now Photo Studio</p>
+          <h1>Restore old memories. Create clean product photos.</h1>
           <p className="section-lead">
-            One image at a time. Pay only for the resolution you need.
-            From PKR 250.
+            Two focused tools for treasured family photos and marketplace-ready product images.
           </p>
         </div>
 
-        <div className="hero-cta">
-          <div className="upload-prompt" style={{ textAlign: "center", padding: "3rem 1rem" }}>
-            <span className="upload-icon" style={{ fontSize: "3rem", display: "block", marginBottom: "1rem" }}>+</span>
-            <p className="upload-title">Restore your photos</p>
-            <p className="upload-copy">Upload one or multiple images. AI analysis, preview, and resolution selection included.</p>
-            <div className="button-row" style={{ marginTop: "1.5rem", justifyContent: "center" }}>
-              <button type="button" className="button" onClick={() => navigate("/restore/new")}>
-                Start Restoration
-              </button>
-              <Link to="/pricing" className="button button-secondary">View Pricing</Link>
-            </div>
-          </div>
-        </div>
+        <div className="home-visual-pair"><div className="home-photo-concept home-photo-aged" aria-label="Old photo concept"><span>Then</span></div><div className="home-photo-concept home-photo-restored" aria-label="Restored photo concept"><span>Now</span></div></div>
+        <div className="button-row"><button type="button" className="button" onClick={() => navigate("/restore/new")}>Restore Photo</button><Link to="/background-removal" className="button button-secondary">Remove Background</Link></div>
       </section>
 
       <section className="home-features">
         <div className="feature-list" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem", marginTop: "2rem" }}>
           <article className="card" style={{ textAlign: "center", padding: "2rem" }}>
-            <h3>Single Image</h3>
-            <p>Upload one photo. Get AI-powered analysis, resolution selection (Original/2HD/4HD), payment, and download.</p>
+            <h3>1. Choose</h3><p>Select a memory or product image and review it before starting.</p>
           </article>
           <article className="card" style={{ textAlign: "center", padding: "2rem" }}>
-            <h3>Multiple Images</h3>
-            <p>Upload many photos at once. Preview all with analysis, then choose a bulk package (Starter/Pro/Business/Dealer).</p>
+            <h3>2. Process</h3><p>Pay only for the selected service. Processing remains private.</p>
           </article>
           <article className="card" style={{ textAlign: "center", padding: "2rem" }}>
-            <h3>Print Ready</h3>
-            <p>Download at your chosen resolution or order prints directly from the restored master image.</p>
+            <h3>3. Download</h3><p>Download your entitled image directly or continue to print-ready options.</p>
           </article>
         </div>
       </section>

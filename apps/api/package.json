@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:auth": "tsx src/middleware/admin-auth.middleware.test.ts",
     "test:download-entitlement": "tsx src/services/restoration-entitlement.test.ts",
+    "test:image-binary": "tsx src/utils/image-binary.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"

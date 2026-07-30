@@ -7,6 +7,7 @@ import { RestorationEngineService } from "../services/restoration-engine.service
 import { StorageService } from "../services/storage.service";
 import { logger } from "../utils/logger";
 import { matchesGuestOwnershipToken, readGuestOwnershipToken } from "../utils/guest-ownership";
+import { extensionForMime, validateDownloadImage } from "../utils/image-binary";
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_WEB_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -209,8 +210,10 @@ export class RestorationController {
 
        const download = await this.restoration.resolveDownload(itemId, req.body?.tier || req.query.tier as string | undefined, this.config.allowUnpaidDownloads);
        const file = await this.restoration.downloadFile(download.storageKey);
-       const safeName = download.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-       res.setHeader("Content-Type", file.contentType || download.contentType || "application/octet-stream");
+       const validated = await validateDownloadImage(file.body);
+       const safeStem = download.fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+       const safeName = `${safeStem}.${extensionForMime(validated.mimeType)}`;
+       res.setHeader("Content-Type", validated.mimeType);
        res.setHeader("Content-Length", String(file.body.length));
        res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
        res.setHeader("Cache-Control", "private, no-store");
