@@ -29,3 +29,5 @@ Run `npm run test:restoration:review-queue` to generate a local operator contact
 RunPod is disabled by default and benchmark-only. The isolated worker supports health and local dry-run metadata; it is not connected to Standard, Premium, or production routing.
 
 The isolated worker validation workflow is build-only, uses the narrow validation-branch push trigger, and does not publish, deploy, contact RunPod, or access secrets.
+
+Release protocol: Gate 1 is build-only validation (CI `30565193616` passed). Gate 2 is separately approved development-only GHCR publication using `GITHUB_TOKEN`, `packages: write`, a full-SHA immutable tag, and recorded digest. Gate 3 is separately approved, budgeted remote development canary. Gate 4 is separately approved production activation. Gates 2-4 are prohibited by default; Replicate remains active production.

@@ -15,3 +15,5 @@ Verify and create repository-relative directories before applying patches. Never
 Worker CLI validation uses PowerShell-safe stdin or file input: `'{"mode":"health"}' | node worker.mjs --stdin` or `node worker.mjs --input-file "C:\path with spaces\request.json"`.
 
 Workflow dispatch requires the workflow on the default branch; validation uses the narrow `runpod-worker-validation` push trigger. When the main worktree contains unrelated files, make validation changes from a clean worktree. The root-level untracked `runpod-worker-dev` directory is unrelated. Container CI does not approve RunPod production or GFPGAN quality.
+
+Release gates: keep Gate 1 build-only with no registry push/secrets/RunPod. Gate 2 requires separate user approval for a manual immutable-SHA GHCR publication workflow using only `GITHUB_TOKEN`; record its digest. Gate 3 requires separately approved budgeted development canary. Gate 4 requires separate production activation approval; Replicate remains active until then.

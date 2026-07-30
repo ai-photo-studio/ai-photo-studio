@@ -38,6 +38,7 @@ Current production stack (2026-07-28):
 - RunPod A4000 Serverless is approved only for development, local dry runs, offline benchmarks, and future canaries. RunPod production routing is prohibited until a benchmark passes and separate activation approval is recorded. No always-on Northflank CPU service is approved for development.
 - Local Windows CPU testing is approved for YuNet and SFace. Development RunPod Flex workers: active workers 0, maximum Flex workers 1.
 - No remote RunPod call without an explicit per-run budget. Never display, log, copy, or commit `RUNPOD_API_KEY`; workflows may reference only the existing secret.
+- RunPod release gates: (1) build-only validation has no registry push, secrets, or RunPod call; CI run `30565193616` passed. (2) Development image publication is prohibited by default and requires separate explicit approval, a manual workflow, `packages: write` with `GITHUB_TOKEN` only, an immutable full-SHA tag and recorded digest; it is neither deployment nor quality approval. (3) A remote development canary requires separate approval, verified rate, fixed budget, explicit job/retry limits, and a development-only endpoint. (4) Production activation requires separate benchmark, security, and activation approval; Replicate remains active production until then.
 
 ### Payments
 - Manual proof mode (demo/free during development)
