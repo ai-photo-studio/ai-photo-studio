@@ -406,6 +406,9 @@ export type RestorationItemRecord = {
   originalStorageKey: string;
   previewStorageKey: string | null;
   finalStorageKey: string | null;
+  originalUrl?: string | null;
+  finalUrl?: string | null;
+  availableTiers?: string[];
   status: string;
   damageSeverity: string;
   imageCategory: string;

@@ -45,7 +45,7 @@ export function RestoreOrderPage() {
     id: string; status: string; title: string | null; orderNo: string;
     createdAt: string; updatedAt: string;
     totalItems: number; completedItems: number; failedItems: number;
-    items: RestorationItemRecord[];
+    entitlement: string; items: RestorationItemRecord[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,6 @@ export function RestoreOrderPage() {
   const [previewModal, setPreviewModal] = useState(false);
   const [comparisonPosition, setComparisonPosition] = useState(50);
   const [bothReady, setBothReady] = useState(false);
-  const [entitlement] = useState("PREVIEW_ONLY");
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [downloadAllState, setDownloadAllState] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -222,6 +221,7 @@ export function RestoreOrderPage() {
   };
 
   const getTierState = (tierKey: string): ItemTierState => {
+    const entitlement = order?.entitlement || "PREVIEW_ONLY";
     if (entitlement === "TEST_UNLOCKED" || entitlement === "ALL") return "unlocked";
     if (entitlement === "MASTER" && tierKey === "master") return "unlocked";
     if (entitlement === "HD_2" && ["master", "2hd"].includes(tierKey)) return "unlocked";
@@ -236,7 +236,7 @@ export function RestoreOrderPage() {
   const isCompleted = order.items.some(i => i.status === "COMPLETED");
   const isProcessing = order.items.some(i => i.status === "PROCESSING" || i.status === "QUEUED");
   const currentItem = selectedItem || order.items[0];
-  const unlockedTiers = DOWNLOAD_TIERS.filter((tier) => getTierState(tier.key) === "unlocked");
+  const unlockedTiers = DOWNLOAD_TIERS.filter((tier) => getTierState(tier.key) === "unlocked" && currentItem?.availableTiers?.includes(tier.key));
 
   return (
     <section className="page-stack">
@@ -246,7 +246,7 @@ export function RestoreOrderPage() {
         <p>Created {formatDateTime(order.createdAt)}</p>
       </div>
 
-      {isCompleted && previewUrl && currentItem && <div className="restoration-result-hero card"><div className="comparison-stage"><img src={previewUrl} alt="Restored photo" className="comparison-image" /><div className="comparison-before" style={{ width: `${comparisonPosition}%` }}><img src={previewUrl} alt="Original photo comparison" className="comparison-image comparison-original" /></div><span className="comparison-label comparison-label-before">Before</span><span className="comparison-label comparison-label-after">After</span></div><label className="comparison-control">Before / after<input aria-label="Before and after comparison" type="range" min="0" max="100" value={comparisonPosition} onChange={(event) => setComparisonPosition(Number(event.target.value))} /></label><div className="result-actions"><div><p className="eyebrow">Restoration complete</p><h2>Your memory is ready.</h2></div><div className="button-row"><button className="button" type="button" onClick={() => void handleDownload(currentItem, unlockedTiers[0]?.key || "master")}>Download</button><Link className="button button-secondary" to={`/restore/${order.id}/print`}>Continue to Print</Link></div></div></div>}
+      {isCompleted && currentItem?.finalUrl && <div className="restoration-result-hero card">{currentItem.originalUrl ? <><div className="comparison-stage"><img src={currentItem.finalUrl} alt="Final restored photo" className="comparison-image" /><div className="comparison-before" style={{ width: `${comparisonPosition}%` }}><img src={currentItem.originalUrl} alt="Exact original uploaded photo" className="comparison-image" /></div><span className="comparison-label comparison-label-before">Before</span><span className="comparison-label comparison-label-after">After</span></div><label className="comparison-control">Before / after<input aria-label="Before and after comparison" type="range" min="0" max="100" value={comparisonPosition} onChange={(event) => setComparisonPosition(Number(event.target.value))} /></label></> : <div className="state-panel state-panel-error"><p>Original upload is unavailable. Comparison cannot be shown safely.</p></div>}<div className="result-actions"><div><p className="eyebrow">Restoration complete</p><h2>Your memory is ready.</h2>{currentItem.damageSeverity === "HEAVY" && <p className="helper-text">Large missing areas require AI reconstruction and may not exactly match the original person.</p>}</div><div className="button-row">{unlockedTiers[0] ? <button className="button" type="button" onClick={() => void handleDownload(currentItem, unlockedTiers[0].key)}>Download</button> : <Link className="button" to="/pricing">Buy or Upgrade</Link>}<Link className="button button-secondary" to={`/restore/${order.id}/print`}>Continue</Link></div></div></div>}
 
       {error && (
         <div className="state-panel state-panel-error" style={{ marginBottom: "1rem" }}>
@@ -350,7 +350,7 @@ export function RestoreOrderPage() {
              <p className="helper-text">Your plan unlocks {unlockedTiers.length} of {DOWNLOAD_TIERS.length} digital files.</p>
              {order.items.filter((item) => item.status === "COMPLETED").length > 1 && unlockedTiers.length > 0 && <div className="button-row" style={{ marginBottom: "1rem" }}><button type="button" className="button button-secondary" onClick={() => void handleDownloadAll()} disabled={Boolean(downloadAllState?.startsWith("Downloading"))}>Download All Images</button>{downloadAllState && <span className="helper-text">{downloadAllState}</span>}</div>}
             <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
-              {DOWNLOAD_TIERS.map((tier) => {
+              {DOWNLOAD_TIERS.filter((tier) => currentItem?.availableTiers?.includes(tier.key)).map((tier) => {
                 const state = getTierState(tier.key);
                 return (
                   <article key={tier.key} className="card" style={{

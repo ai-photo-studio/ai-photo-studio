@@ -135,6 +135,21 @@ export class RestorationService {
     }));
   }
 
+  async getOrderView(id: string) {
+    const order = await this.getOrder(id);
+    const entitlement = resolveRestorationEntitlement(order.metadata);
+    const items = await Promise.all(order.items.map(async (item) => {
+      const outputs = readRestorationOutputs(item.metadata);
+      return {
+        ...item,
+        originalUrl: item.originalStorageKey ? await this.storage.getSignedUrl(item.originalStorageKey) : null,
+        finalUrl: item.finalStorageKey ? await this.storage.getSignedUrl(item.finalStorageKey) : null,
+        availableTiers: [item.finalStorageKey ? "master" : null, outputs?.variants?.["2hd"]?.key ? "2hd" : null, outputs?.variants?.["4hd"]?.key ? "4hd" : null].filter(Boolean)
+      };
+    }));
+    return { ...order, entitlement, items };
+  }
+
   async addItem(input: { restorationOrderId: string; originalStorageKey: string; mimeType?: string; width?: number; height?: number; fileSizeBytes?: number }) {
     const order = await prisma.restorationOrder.findUnique({ where: { id: input.restorationOrderId } });
     if (!order) throw new AppError("Restoration order not found", 404, "RESTORATION_ORDER_NOT_FOUND");
@@ -644,7 +659,9 @@ export const resolveRestorationEntitlement = (metadata: unknown): RestorationEnt
   if (record.testOrder || record.testUnlocked || record.adminTestOrder) return "TEST_UNLOCKED";
   const configured = String(record.entitlement || "").trim().toUpperCase();
   if (["PREVIEW_ONLY", "MASTER", "HD_2", "HD_4", "ALL"].includes(configured)) return configured as RestorationEntitlement;
-  return ["PAID", "APPROVED"].includes(String(record.paymentStatus || "").trim().toUpperCase()) ? "ALL" : "PREVIEW_ONLY";
+  const verifiedTier = String(record.purchasedTier || record.paidTier || record.packageTier || "").trim().toUpperCase();
+  if (["MASTER", "HD_2", "HD_4", "ALL"].includes(verifiedTier)) return verifiedTier as RestorationEntitlement;
+  return "PREVIEW_ONLY";
 };
 
 const readRestorationOutputs = (metadata: unknown): RestorationOutputs | null => {

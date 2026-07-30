@@ -148,7 +148,7 @@ export const customerApi = {
     ),
 
   getRestorationOrder: (token: string | undefined, id: string, signal?: AbortSignal, guestToken?: string) =>
-    apiRequest<{ id: string; orderNo: string; title: string | null; status: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] }>(
+    apiRequest<{ id: string; orderNo: string; title: string | null; status: string; entitlement: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] }>(
       `/api/restorations/${id}`, { signal }, token, guestToken
     ),
 

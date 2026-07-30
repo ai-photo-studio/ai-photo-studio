@@ -10,6 +10,7 @@
     "test:auth": "tsx src/middleware/admin-auth.middleware.test.ts",
     "test:download-entitlement": "tsx src/services/restoration-entitlement.test.ts",
     "test:image-binary": "tsx src/utils/image-binary.test.ts",
+    "test:restoration-view": "tsx src/services/restoration-view.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"

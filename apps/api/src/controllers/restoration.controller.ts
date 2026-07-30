@@ -48,7 +48,7 @@ export class RestorationController {
   getOrder = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const order = await this.restoration.getOrder(id);
+      const order = await this.restoration.getOrderView(id);
       this.ensureOrderAccess(order, req);
       res.json({ success: true, data: order });
     } catch (error) {
