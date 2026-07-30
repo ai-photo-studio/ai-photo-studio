@@ -1,0 +1,78 @@
+name: publish-runpod-worker-dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full validated commit SHA to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Validate source SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.source_sha }}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install worker deps
+        working-directory: apps/api/runpod-worker-dev
+        run: npm ci
+
+      - name: Run worker tests
+        working-directory: apps/api/runpod-worker-dev
+        run: npm test
+
+      - name: Prepare image metadata
+        id: meta
+        run: |
+          echo "image=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/runpod-worker-dev" >> "$GITHUB_OUTPUT"
+          echo "tag=${{ inputs.source_sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push immutable image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-dev
+          file: apps/api/runpod-worker-dev/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.title=runpod-worker-dev
+            org.opencontainers.image.description=Development-only isolated RunPod worker
+
+      - name: Capture registry digest
+        run: |
+          echo "registry_digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_ENV"
+          printf '%s@%s\n' '${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}' '${{ steps.build.outputs.digest }}' > ghcr-image-ref.txt
+
+      - name: Upload digest evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghcr-image-ref
+          path: ghcr-image-ref.txt

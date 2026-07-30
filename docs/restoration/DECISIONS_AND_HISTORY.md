@@ -15,3 +15,5 @@ Face embeddings and landmarks remain unavailable: no local face-analysis depende
 OPS-113 is currently the only trace-backed review candidate. Other archived stage-like directories remain ungrouped pending operator evidence.
 
 RunPod A4000 Serverless is approved for controlled development/benchmarking only, with active workers 0 and maximum Flex workers 1. No remote call occurred.
+
+Gate 1 stays build-only and non-publishing. Gate 2 received a one-run explicit approval for exactly one immutable development GHCR image published from the validated full SHA and verified by digest. Gate 3 and Gate 4 remain prohibited unless separately approved. Replicate remains active production.

@@ -27,3 +27,5 @@ Calibration intake: run `npm run restoration:fixture-intake -- --id <id> --categ
 Run `npm run test:restoration:review-queue` to generate a local operator contact sheet and evidence queue. Only trace-backed groups are registered; filename-only candidates remain ungrouped.
 
 RunPod is disabled by default and benchmark-only. The isolated worker supports health and local dry-run metadata; it is not connected to Standard, Premium, or production routing.
+
+Gate 1 remains build-only validation and does not publish images. Gate 2 is explicitly approved once per run for one development-only immutable GHCR image, via manual workflow dispatch on the default branch, using the validated full SHA and registry digest evidence. Gate 3 RunPod canaries and Gate 4 production activation remain prohibited unless separately approved.

@@ -10,6 +10,8 @@ Run `npm run test:restoration:review-queue` before registering discovered archiv
 
 RunPod local worker dry-run is allowed; remote calls require an explicit per-run budget and must never expose keys. Keep RunPod and Premium routing disabled unless separately approved.
 
+Gate 1 validation remains build-only and non-publishing. Gate 2 manual GHCR publication is allowed only for a single approved development image from a validated full SHA, and must record the registry digest. Gate 3 RunPod canaries and Gate 4 production activation remain prohibited unless separately approved.
+
 Verify and create repository-relative directories before applying patches. Never use absolute Windows paths as patch targets. When Docker is unavailable locally, direct worker tests plus the build-only manual CI workflow are required; CI may not push, deploy, contact RunPod, or access secrets.
 
 Worker CLI validation uses PowerShell-safe stdin or file input: `'{"mode":"health"}' | node worker.mjs --stdin` or `node worker.mjs --input-file "C:\path with spaces\request.json"`.
