@@ -59,7 +59,11 @@ const envSchema = z
      RESTORATION_REPLAY_FIXTURE: z.string().optional().default("")
      ,RESTORATION_DAMAGE_MASK_ENABLED: z.string().optional().default("false"),
       RESTORATION_DAMAGE_MASK_MAX_PERCENT: z.coerce.number().min(1).max(95).default(35)
-     ,RESTORATION_FACE_GATE_ENABLED: z.string().optional().default("false")
+      ,RESTORATION_FACE_GATE_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_GPT_IMAGE_2_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_NANO_BANANA_PRO_ENABLED: z.string().optional().default("false"),
+      PREMIUM_RECONSTRUCTION_SEEDREAM_5_PRO_ENABLED: z.string().optional().default("false")
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
@@ -238,6 +242,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   restorationDamageMaskEnabled: boolean;
   restorationDamageMaskMaxPercent: number;
   restorationFaceGateEnabled: boolean;
+  premiumReconstructionEnabled: boolean;
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -351,6 +356,7 @@ export const loadConfig = (): AppConfig => {
     ,restorationDamageMaskEnabled: cfg.RESTORATION_DAMAGE_MASK_ENABLED.trim().toLowerCase() === "true"
     ,restorationDamageMaskMaxPercent: cfg.RESTORATION_DAMAGE_MASK_MAX_PERCENT
     ,restorationFaceGateEnabled: cfg.RESTORATION_FACE_GATE_ENABLED.trim().toLowerCase() === "true"
+    ,premiumReconstructionEnabled: cfg.PREMIUM_RECONSTRUCTION_ENABLED.trim().toLowerCase() === "true"
   };
 };
 

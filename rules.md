@@ -1,5 +1,13 @@
 ## Architecture
 
+## Restoration Change Rules
+
+Before restoration, payment, entitlement, download, provider, or UI-flow work, read `docs/restoration/RESTORATION_SYSTEM.md`, `docs/restoration/DECISIONS_AND_HISTORY.md`, and `docs/restoration/AGENT_RUNBOOK.md`. Compare requests to documented architecture; report conflicts before editing. Update relevant restoration documentation in the same commit when behavior changes.
+
+Never silently replace Standard restoration. Premium Reconstruction is separate. `UnifiedLocalRestorationProvider` must never be selected for production. Do not process paid providers or expose processed previews before confirmed payment. Severe damage may offer Premium only. Only verified purchased tiers download; higher resolution and print require entitlement. No paid provider call without explicit authorization.
+
+After every change: test, repair, and retest. Overwrite `AI_code_audit_report_RI.md` every run; keep it ignored once in `.gitignore`.
+
 Current production stack (2026-07-28):
 
 ### Frontend
