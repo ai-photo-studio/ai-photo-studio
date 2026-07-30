@@ -1,5 +1,9 @@
 name: Validate Isolated RunPod Worker
-on: { workflow_dispatch: {} }
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - runpod-worker-validation
 jobs:
   validate:
     runs-on: ubuntu-latest

@@ -15,3 +15,5 @@ Face embeddings and landmarks remain unavailable: no local face-analysis depende
 OPS-113 is currently the only trace-backed review candidate. Other archived stage-like directories remain ungrouped pending operator evidence.
 
 RunPod A4000 Serverless is approved for controlled development/benchmarking only, with active workers 0 and maximum Flex workers 1. No remote call occurred.
+
+Validation changes use a clean worktree when unrelated files exist in the primary worktree. A passing container build does not approve production routing or GFPGAN quality.

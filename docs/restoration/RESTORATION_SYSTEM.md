@@ -27,3 +27,5 @@ Calibration intake: run `npm run restoration:fixture-intake -- --id <id> --categ
 Run `npm run test:restoration:review-queue` to generate a local operator contact sheet and evidence queue. Only trace-backed groups are registered; filename-only candidates remain ungrouped.
 
 RunPod is disabled by default and benchmark-only. The isolated worker supports health and local dry-run metadata; it is not connected to Standard, Premium, or production routing.
+
+The isolated worker validation workflow is build-only, uses the narrow validation-branch push trigger, and does not publish, deploy, contact RunPod, or access secrets.
