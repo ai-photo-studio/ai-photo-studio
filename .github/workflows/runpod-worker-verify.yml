@@ -110,9 +110,10 @@ jobs:
           cat corrupt.stdout
           cat corrupt.stderr >&2
           test "$status" -ne 0
-          grep -Fx 'invalid image' corrupt.stderr
+          grep -Fx 'Input buffer contains unsupported image format' corrupt.stderr
 
       - name: Record verification evidence
+        if: always()
         env:
           IMAGE: ${{ inputs.image }}
         run: |
