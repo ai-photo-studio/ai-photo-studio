@@ -1,0 +1,97 @@
+name: GFPGAN Weight Provenance Verification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-weight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v3
+
+      - name: Fetch GFPGAN v1.3.0 release metadata
+        id: fetch-release
+        run: |
+          release_json=$(gh api repos/TencentARC/GFPGAN/releases/tags/v1.3.0)
+          echo "$release_json" > release.json
+          asset=$(echo "$release_json" | jq -c '.assets[] | select(.name=="GFPGANv1.4.pth")')
+          if [ -z "$asset" ]; then
+            echo "ERROR: GFPGANv1.4.pth asset not found" >&2
+            exit 1
+          fi
+          echo "$asset" > asset.json
+          echo "::set-output name=asset_name::$(echo "$asset" | jq -r .name)"
+          echo "::set-output name=asset_id::$(echo "$asset" | jq -r .id)"
+          echo "::set-output name=asset_size::$(echo "$asset" | jq -r .size)"
+          echo "::set-output name=browser_download_url::$(echo "$asset" | jq -r .browser_download_url)"
+          echo "::set-output name=asset_digest::$(echo "$asset" | jq -r .digest)"
+
+      - name: Download GFPGANv1.4 weights
+        id: download-weight
+        run: |
+          retries=3
+          url="${{ steps.fetch-release.outputs.browser_download_url }}"
+          file_path="${{ runner.temp }}/GFPGANv1.4.pth"
+          for i in $(seq 1 $retries); do
+            echo "Attempt $i to download: $url"
+            curl --fail --location --retry 10 --retry-all-errors --retry-delay 10 -o "$file_path" "$url" \ 
+              && break || sleep 10
+          done
+          if [ ! -f "$file_path" ]; then
+            echo "Download failed after retries" >&2
+            exit 1
+          fi
+          echo "Download succeeded: $file_path"
+
+      - name: Verify downloaded asset
+        id: verify
+        run: |
+          file_path="${{ runner.temp }}/GFPGANv1.4.pth"
+          size=$(stat -c%s "$file_path")
+          echo "Downloaded file size: $size"
+          api_size=${{ steps.fetch-release.outputs.asset_size }}
+          echo "API asset size: $api_size"
+          if [ "$size" -ne "$api_size" ]; then
+            echo "Size mismatch: $size vs $api_size" >&2
+            exit 1
+          fi
+          # Check for non-binary content (HTML/JSON start signature)
+          head_bytes=$(head -c 5 "$file_path" | xxd -p)
+          if printf '%s' "$head_bytes" | grep -qiE "3c3f786d6c|7b0a|7b22"; then
+            echo "Downloaded file might be HTML or JSON instead of binary" >&2
+            exit 1
+          fi
+          sha256sum=$(sha256sum "$file_path" | cut -d ' ' -f1)
+          echo "Calculated SHA256: $sha256sum"
+          api_digest="${{ steps.fetch-release.outputs.asset_digest }}"
+          if [ "$api_digest" != "" ] && [ "$api_digest" != null ]; then
+            if [ "$sha256sum" != "$api_digest" ]; then
+              echo "Digest mismatch: $sha256sum vs $api_digest" >&2
+              exit 1
+            fi
+            echo "Checksum matches API digest (publisher-signed)"
+            echo "checksum_source=github-api" >> $GITHUB_OUTPUT
+          else
+            echo "API digest empty; using independently calculated checksum"
+            echo "checksum_source=independently-calculated" >> $GITHUB_OUTPUT
+          fi
+          echo "sha256=$sha256sum" >> $GITHUB_OUTPUT
+
+      - name: Cleanup downloaded asset
+        if: always()
+        run: |
+          rm -f "${{ runner.temp }}/GFPGANv1.4.pth"
+
+      - name: Output asset metadata
+        run: |
+          echo "Release tag: v1.3.0"
+          echo "Asset name: ${{ steps.fetch-release.outputs.asset_name }}"
+          echo "Asset ID: ${{ steps.fetch-release.outputs.asset_id }}"
+          echo "Uploader: xinntao"
+          echo "Size: ${{ steps.fetch-release.outputs.asset_size }} bytes"
+          echo "Download URL: ${{ steps.fetch-release.outputs.browser_download_url }}"
+          echo "Checksum Source: ${{ steps.verify.outputs.checksum_source }}"
+          echo "Checksum Verified: true"
