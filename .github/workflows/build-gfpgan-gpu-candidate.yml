@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - runpod-gfpgan-gpu-candidate
+      - runpod-gpu-gate2-readiness
   workflow_dispatch:
 
 permissions:
@@ -59,6 +60,22 @@ jobs:
             echo "gpu_inference_executed=false"
           } > "$RUNNER_TEMP/meta/image-meta.txt"
 
+      - name: Verify non-root runtime user and no bundled weight
+        run: |
+          runner_user=$(docker run --rm --entrypoint whoami gfpgan-gpu-candidate:local)
+          echo "runtime user: $runner_user"
+          if [ "$runner_user" = "root" ]; then
+            echo "ERROR: container runs as root" >&2
+            exit 1
+          fi
+          # The image itself must not embed a weight at the expected mount path.
+          image_has_weight=$(docker run --rm --entrypoint sh gfpgan-gpu-candidate:local -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          echo "weight in image: $image_has_weight"
+          if [ "$image_has_weight" != "absent" ]; then
+            echo "ERROR: weight must not be bundled in the image" >&2
+            exit 1
+          fi
+
       - name: Run health contract test in container (no weight, no GPU)
         run: |
           echo '{"mode":"health"}' | docker run --rm -i --network none gfpgan-gpu-candidate:local --stdin
@@ -77,9 +94,43 @@ jobs:
             -v "$WEIGHT_ABSENT_DIR:/models" gfpgan-gpu-candidate:local --stdin
           code=$?
           set -e
-          # The restore must fail closed (non-zero exit) without a valid weight/CUDA.
           if [ "$code" -eq 0 ]; then
             echo "ERROR: restore unexpectedly returned success without weight/CUDA" >&2
             exit 1
           fi
           echo "restore correctly failed closed (exit code $code), expected non-zero"
+
+      - name: Verify no network-download code in worker (read-only scan)
+        run: |
+          src=$(cat apps/api/runpod-worker-gpu-dev/worker.py)
+          low=${src,,}
+          for bad in "requests.get" "urllib.request" "urlopen" "wget " "curl " "requests.post" "http.client" "socket.connect" "httpx."; do
+            if [[ "$low" == *"$bad"* ]]; then
+              echo "ERROR: runtime download code present: $bad" >&2
+              exit 1
+            fi
+          done
+          echo "no network-download code detected"
+
+      - name: Generate SBOM (no upload)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-gpu-candidate:local
+          format: cyclonedx
+          output: sbom.json
+
+      - name: Scan image for vulnerabilities (print findings only)
+        uses: aquasecurity/trivy-action@0.35.0
+        continue-on-error: false
+        with:
+          image-ref: gfpgan-gpu-candidate:local
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH,MEDIUM
+          ignore-unfixed: true
+
+      - name: Print SBOM and vulnerability summary
+        run: |
+          echo "SBOM packages:"
+          jq -r '.components | length' sbom.json 2>/dev/null || echo "sbom unavailable"
+          echo "gpu_inference_executed=false"

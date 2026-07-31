@@ -48,8 +48,7 @@
 
 Build-only CI passed (run 30620758562): image ID `sha256:bf6af925ca2d4e3ef9c877a5fcde84907f30ad917e17f0e5591ef907081a8846`, size `5522182156` bytes, local digest `none` (not pushed). PyTorch `2.1.2+cu121` (CUDA-enabled). Container health, gpu_probe (CUDA unavailable), and fail-closed restore tests all passed. GPU execution not claimed.
 
-- New Gate 2 approval is required before publishing this candidate.
-- Gate 3 approval is required before any RunPod canary.
+Hardened for Gate 2 readiness (branch `runpod-gpu-gate2-readiness`): base pinned by immutable digest, non-root user, build tools removed, caches purged, OCI labels, SBOM + vulnerability scan. Weight remains external and checksum-pinned. No image published; floating tags and checksum drift prohibited. Publication requires a separate explicit Gate 2 approval; a separate Gate 3 approval is required before any RunPod canary.
 
 
 
