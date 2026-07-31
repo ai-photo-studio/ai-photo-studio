@@ -45,14 +45,18 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/Dockerfile" <<'EOF'
           FROM ubuntu:22.04
-          RUN apt-get update && apt-get install -y --no-install-recommends python3.10 python3-pip libglib2.0-0 libgl1-mesa-glx && rm -rf /var/lib/apt/lists/*
+          RUN apt-get update && apt-get install -y --no-install-recommends python3.10 python3-pip python3-setuptools python3-wheel libglib2.0-0 libgl1-mesa-glx && rm -rf /var/lib/apt/lists/*
           RUN python3.10 -m pip install --no-cache-dir numpy==1.26.4 opencv-python-headless==4.9.0.80 Pillow==10.2.0 PyYAML==6.0.1 tqdm==4.66.2
           RUN python3.10 -m pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu126
-          RUN python3.10 -m pip install --no-cache-dir gfpgan==1.3.8 facexlib==0.3.0
+          COPY basicsr-142 /patched-basicsr
+          RUN python3.10 -m pip install --no-cache-dir --no-deps --no-build-isolation /patched-basicsr \
+              && python3.10 -m pip install --no-cache-dir --no-deps gfpgan==1.3.8 facexlib==0.3.0
+          RUN grep -q "from torchvision.transforms.functional import rgb_to_grayscale" /usr/local/lib/python3.10/dist-packages/basicsr/data/degradations.py \
+              && ! grep -q "functional_tensor" /usr/local/lib/python3.10/dist-packages/basicsr/data/degradations.py
           ENV TORCH_FORCE_WEIGHTS_ONLY_LOAD=1
           WORKDIR /offline
           EOF
-          docker build -t gfpgan-offline-test:local -f "$RUNNER_TEMP/Dockerfile" "$RUNNER_TEMP"
+          docker build -t gfpgan-offline-test:local -f "$RUNNER_TEMP/Dockerfile" "$RUNNER_TEMP/src"
 
       # ---- download the three weights, verify, stage as /models mounts ----
       - name: Download + verify the three official weights (temp, then delete)
@@ -100,13 +104,11 @@ jobs:
           set +e
           docker run --rm --network none \
             -u root \
-            -v "$RUNNER_TEMP/src/basicsr-142":/patched-basicsr:ro \
             -v "$RUNNER_TEMP/models":/models:ro \
             -v "$RUNNER_TEMP/test_offline.py":/test_offline.py:ro \
             -w /offline \
             -e TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
             gfpgan-offline-test:local bash -c "
-              python3.10 -m pip install --no-cache-dir --no-deps --no-build-isolation /patched-basicsr >/dev/null 2>&1
               mkdir -p /offline/gfpgan/weights
               ln -sfn /models/facexlib/detection_Resnet50_Final.pth /offline/gfpgan/weights/detection_Resnet50_Final.pth
               ln -sfn /models/facexlib/parsing_parsenet.pth   /offline/gfpgan/weights/parsing_parsenet.pth
