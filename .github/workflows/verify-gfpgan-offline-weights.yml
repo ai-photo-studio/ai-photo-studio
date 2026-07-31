@@ -49,8 +49,8 @@ jobs:
           RUN python3.10 -m pip install --no-cache-dir numpy==1.26.4 opencv-python-headless==4.9.0.80 Pillow==10.2.0 PyYAML==6.0.1 tqdm==4.66.2 scipy==1.11.4
           RUN python3.10 -m pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu126
           COPY basicsr-142 /patched-basicsr
-          RUN python3.10 -m pip install --no-cache-dir --no-deps --no-build-isolation /patched-basicsr \
-              && python3.10 -m pip install --no-cache-dir --no-deps gfpgan==1.3.8 facexlib==0.3.0
+          RUN python3.10 -m pip install --no-cache-dir gfpgan==1.3.8 facexlib==0.3.0 \
+              && python3.10 -m pip install --no-cache-dir --force-reinstall --no-deps --no-build-isolation /patched-basicsr
           RUN grep -q "from torchvision.transforms.functional import rgb_to_grayscale" /usr/local/lib/python3.10/dist-packages/basicsr/data/degradations.py \
               && ! grep -q "functional_tensor" /usr/local/lib/python3.10/dist-packages/basicsr/data/degradations.py
           ENV TORCH_FORCE_WEIGHTS_ONLY_LOAD=1
