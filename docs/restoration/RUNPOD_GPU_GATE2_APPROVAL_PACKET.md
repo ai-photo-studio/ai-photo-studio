@@ -42,6 +42,13 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - Candidate remains on torch `2.1.2+cu121` with CVE-2025-32434 documented (not suppressed). GPU execution remains unverified.
 - `gpu_inference_executed: false`. Build success does not equal GPU inference or quality approval.
 
+## BasicSR Fix-Commit Evaluation (result)
+
+- Official fix commit `8d56e3a0` (PR #650, Apache-2.0) resolves the `functional_tensor` import; GFPGANer constructs under torch 2.6.0+cu126 / torchvision 0.21.0+cu126 (evidence run 30625934026).
+- Source archive SHA-256 `88a422325c7a08a9f3b6109e747bef5fbdf85d884d6033eacaf11f6c374aade9`.
+- Adoption NOT recommended: the commit is 18 commits / 41 files ahead of v1.4.2 (unrelated changes), and GFPGANer runtime-downloads facexlib weights.
+- Candidate dependencies remain unchanged (torch 2.1.2+cu121 / torchvision 0.16.2). CVE-2025-32434 remains documented until a separate adoption task succeeds.
+
 ## Security Evidence (CI, runpod-gpu-gate2-readiness)
 
 - Build with `push: false`; no registry login; no packages write; no image/weight artifact upload.
