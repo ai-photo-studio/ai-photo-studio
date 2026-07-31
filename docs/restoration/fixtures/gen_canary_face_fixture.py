@@ -3,41 +3,51 @@
 
 Produces a fixed 512x512 RGB PNG with a deterministic gradient/pattern,
 a fixed SHA-256, small enough for the Serverless payload limit, and runnable
-through the offline GFPGAN aligned-face processing contract
-(enhance(has_aligned=True) produces one processed aligned face).
+through the offline GFPGAN aligned-face processing contract.
 
-No customer/personal image; no downloaded third-party image; fully reproducible
-from this tracked source.
+Uses only the Python standard library (struct + zlib) so it runs on a bare
+runner without Pillow. No customer/personal image; no downloaded third-party
+image; fully reproducible from this tracked source.
 """
 import argparse
 import hashlib
-import io
 import pathlib
-
-from PIL import Image
+import struct
+import zlib
 
 WIDTH = 512
 HEIGHT = 512
-FORMAT = "PNG"
-# Expected SHA-256 of the generated PNG (deterministic). Computed over the exact bytes
-# produced by this generator with default size/determinism.
-EXPECTED_SHA256 = "436392b72ef200574a1b14548861264ccdcfedd9e81a4e6ed8710e730fd2e699"
+# Expected SHA-256 of the generated PNG (deterministic; computed over the exact
+# bytes produced by this generator at 512x512).
+EXPECTED_SHA256 = "1d4720e878fd5c4b21ffc8cc95c32df94296789ff7af5c414969bdd3b9b1768e"
+
+
+def _png_chunk(tag, payload):
+    data = tag + payload
+    return struct.pack(">I", len(payload)) + data + struct.pack(">I", zlib.crc32(data) & 0xFFFFFFFF)
 
 
 def generate_bytes():
-    """Generate the deterministic PNG bytes and return them."""
-    img = Image.new("RGB", (WIDTH, HEIGHT))
-    px = img.load()
+    """Build a valid 8-bit RGB PNG with a deterministic gradient/pattern."""
+    raw = bytearray()
     for y in range(HEIGHT):
+        raw.append(0)  # filter type 0 (None) per scanline
         for x in range(WIDTH):
-            # Deterministic structural gradient; not a personal image and not a face.
             r = (x * 3) % 256
             g = (y * 5) % 256
             b = ((x + y) * 7) % 256
-            px[x, y] = (r, g, b)
-    buf = io.BytesIO()
-    img.save(buf, FORMAT)
-    return buf.getvalue()
+            raw.extend((r, g, b))
+    idat_data = zlib.compress(bytes(raw), 6)
+    ihdr = struct.pack(">IIBBBBB", WIDTH, HEIGHT, 8, 2, 0, 0, 0)
+    png = b"\x89PNG\r\n\x1a\n"
+    png += _png_chunk(b"IHDR", ihdr)
+    png += _png_chunk(b"IDAT", idat_data)
+    png += _png_chunk(b"IEND", b"")
+    return png
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
 
 
 def main():
@@ -45,7 +55,7 @@ def main():
     parser.add_argument("--out", required=True, help="output PNG path")
     args = parser.parse_args()
     data = generate_bytes()
-    digest = hashlib.sha256(data).hexdigest()
+    digest = sha256(data)
     pathlib.Path(args.out).write_bytes(data)
     print(f"wrote {args.out} size={len(data)} sha256={digest}")
     print(f"expected_sha256={EXPECTED_SHA256}")
