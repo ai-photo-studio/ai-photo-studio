@@ -79,4 +79,15 @@ If any evidence fails (CUDA unavailable, nonzero provider count, startup failure
 
 ## Current Blocker
 
-- The published image is a CLI worker, not a RunPod Serverless handler image. A Gate 3 canary would require a handler-based wrapper (new candidate + new Gate 2 publication). Until that exists, the canary cannot execute this published image on RunPod.
+- The published CLI image is not a RunPod Serverless handler image. A Gate 3 canary needs a handler-based wrapper (a new candidate + a new Gate 2 publication).
+
+## Handler Wrapper Candidate (separate, unpublished)
+
+- A separate unpublished RunPod Serverless handler-wrapper candidate exists at `apps/api/runpod-worker-gpu-serverless-dev/`.
+- It is a thin wrapper: `runpod.serverless.start({"handler": handler})` invokes the immutable CLI worker (`/srv/worker/worker.py`) by its immutable digest `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@sha256:049a304b...` via a bounded subprocess.
+- It does NOT reimplement GFPGAN; contains no model weights; no runtime download; no RunPod resource created; build-test only.
+- Handler wrapper build success is NOT GPU execution or quality approval.
+- A new explicit Gate 2 approval is required before wrapper publication; after publication, a separate Gate 3 approval remains mandatory.
+- Any wrapper source/dependency change invalidates its future Gate 2 evidence.
+
+## Abort / Cleanup
