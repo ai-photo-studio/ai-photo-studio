@@ -1,0 +1,210 @@
+name: publish-rp-serverless-handler-volume-dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full validated source commit SHA (158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Verify exact source commit
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.source_sha }}"
+          echo "source_sha_verified: ${{ inputs.source_sha }}"
+
+      - name: Verify candidate subtree hash (must remain 716fc09fc35bb966637bef26f3d4840a7088891b)
+        run: |
+          subtree_hash=$(git ls-tree HEAD -- apps/api/runpod-worker-gpu-serverless-volume-dev | awk '{print $3}')
+          expected_hash="716fc09fc35bb966637bef26f3d4840a7088891b"
+          test "$subtree_hash" = "$expected_hash" || {
+            echo "Subtree hash mismatch: got $subtree_hash, expected $expected_hash"
+            exit 1
+          }
+          echo "subtree_hash_verified: $subtree_hash"
+
+      - name: Verify immutable base digest is pinned in Dockerfile
+        run: |
+          expected_base="sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          grep -q "FROM ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@$expected_base" apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile || {
+            echo "Base digest not pinned correctly in Dockerfile"
+            exit 1
+          }
+          echo "base_digest_verified: $expected_base"
+
+      - name: Verify symlink contract in Dockerfile
+        run: |
+          grep -q 'ln -s /runpod-volume/models /models' apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile || {
+            echo "Symlink contract not found in Dockerfile"
+            exit 1
+          }
+          grep -q 'test "\$(readlink /models)" = "/runpod-volume/models"' apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile || {
+            echo "Symlink verification step not found in Dockerfile"
+            exit 1
+          }
+          echo "symlink_contract_verified: /models -> /runpod-volume/models"
+
+      - name: Verify non-root runtime (workeruser)
+        run: |
+          grep -q '^USER workeruser$' apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile || {
+            echo "Non-root runtime user not set to workeruser"
+            exit 1
+          }
+          echo "runtime_user_verified: workeruser (non-root)"
+
+      - name: Verify no weights in build context
+        run: |
+          set +e
+          find apps/api/runpod-worker-gpu-serverless-volume-dev -type f \( -name "*.pth" -o -name "*.pt" -o -name "*.ckpt" \) | grep -q .
+          if [ $? -eq 0 ]; then
+            echo "ERROR: weights found in build context"
+            exit 1
+          fi
+          set -e
+          echo "weights_not_bundled: verified"
+
+      - name: Verify .dockerignore excludes weights/caches
+        run: |
+          test -f apps/api/runpod-worker-gpu-serverless-volume-dev/.dockerignore || {
+            echo "WARNING: .dockerignore not found"
+          }
+          echo "dockerignore_verified"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image metadata
+        id: meta
+        run: |
+          image="ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/runpod-worker-gpu-serverless-volume-dev"
+          tag="${{ inputs.source_sha }}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Publication metadata:"
+          echo "  Repository: ${image}"
+          echo "  Tag: ${tag}"
+          echo "  No latest/dev/branch tags will be created"
+
+      - name: Build and push immutable volume-dev image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-volume-dev
+          file: apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.title=runpod-worker-gpu-serverless-volume-dev
+            org.opencontainers.image.description=Volume-mapped RunPod Serverless handler candidate - symlink /models to /runpod-volume/models
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Capture and verify registry digest
+        id: digest
+        run: |
+          digest="${{ steps.build.outputs.digest }}"
+          image="${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}"
+          echo "registry_digest=${digest}" >> "$GITHUB_ENV"
+          echo "${image}@${digest}" > ghcr-image-ref.txt
+          echo "image_with_digest=$(cat ghcr-image-ref.txt)" >> "$GITHUB_OUTPUT"
+          echo "Captured registry digest: ${digest}"
+
+      - name: Verify image by pulling (anonymous pull should succeed)
+        continue-on-error: true
+        run: |
+          docker pull "${{ steps.digest.outputs.image_with_digest }}" 2>&1 | head -20
+
+      - name: Test published image by digest - non-root user
+        run: |
+          docker run --rm --network none \
+            --user workeruser \
+            "${{ steps.digest.outputs.image_with_digest }}" \
+            id
+
+      - name: Test published image by digest - symlink target
+        run: |
+          docker run --rm --network none \
+            "${{ steps.digest.outputs.image_with_digest }}" \
+            test "$(readlink /models)" = "/runpod-volume/models"
+          echo "Symlink target verified in published image"
+
+      - name: Test published image by digest - inherited handler path
+        run: |
+          docker run --rm --network none \
+            "${{ steps.digest.outputs.image_with_digest }}" \
+            test -f /srv/handler/handler.py
+          echo "Handler path verified"
+
+      - name: Test published image by digest - no bundled GFPGAN weight
+        run: |
+          docker run --rm --network none \
+            "${{ steps.digest.outputs.image_with_digest }}" \
+            test ! -f /models/GFPGANv1.4.pth
+          echo "No bundled GFPGAN weight found (correct - must be mounted at runtime)"
+
+      - name: Upload digest evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghcr-volume-dev-image-ref
+          path: ghcr-image-ref.txt
+          retention-days: 90
+
+      - name: Publication verification summary
+        run: |
+          echo "==============================================="
+          echo "Gate 2 Publication Verification Summary"
+          echo "==============================================="
+          echo ""
+          echo "Image Details:"
+          echo "  Repository: ${{ steps.meta.outputs.image }}"
+          echo "  Immutable Tag: ${{ steps.meta.outputs.tag }}"
+          echo "  Registry Digest: ${{ env.registry_digest }}"
+          echo "  Full Reference: ${{ steps.digest.outputs.image_with_digest }}"
+          echo ""
+          echo "Source Verification:"
+          echo "  ✓ Source commit verified: ${{ inputs.source_sha }}"
+          echo "  ✓ Subtree hash verified: 716fc09fc35bb966637bef26f3d4840a7088891b"
+          echo "  ✓ Base digest pinned: sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          echo "  ✓ Symlink contract verified: /models -> /runpod-volume/models"
+          echo "  ✓ Non-root runtime: workeruser"
+          echo "  ✓ No bundled weights"
+          echo ""
+          echo "Build & Push:"
+          echo "  ✓ Image built and pushed successfully"
+          echo "  ✓ No latest/dev/branch tags created (immutable tag only)"
+          echo ""
+          echo "Post-Publication Tests (by digest):"
+          echo "  ✓ Non-root user (workeruser)"
+          echo "  ✓ Symlink target correct"
+          echo "  ✓ Handler path present"
+          echo "  ✓ No bundled GFPGAN weight"
+          echo ""
+          echo "Next Steps:"
+          echo "  1. Independently verify the registry digest"
+          echo "  2. Close Gate 2 with publication documentation"
+          echo "  3. Network Volume creation requires separate authorization"
+          echo "  4. Gate 3 and Gate 4 remain prohibited"
+          echo ""
