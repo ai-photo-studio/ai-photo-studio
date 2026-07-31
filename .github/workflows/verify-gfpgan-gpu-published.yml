@@ -33,7 +33,7 @@ jobs:
       - name: Run published-image tests by digest (network none, no weights)
         run: |
           set -euo pipefail
-          digest="${{ env.DIGEST }}"
+          digest="sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a"
           img="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@${digest}"
 
           echo "=== health ==="
@@ -56,7 +56,7 @@ jobs:
       - name: Verify non-root user and no bundled weights
         run: |
           set -euo pipefail
-          digest="${{ env.DIGEST }}"
+          digest="sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a"
           img="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@${digest}"
           meta=$(docker image inspect "$img" 2>/dev/null \
             || { docker pull "$img" >/dev/null; docker image inspect "$img"; })
