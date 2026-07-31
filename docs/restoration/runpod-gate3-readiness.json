@@ -20,6 +20,25 @@
   "gpuVolumeRegionCompatibility": "blocked",
   "gpuVolumeRegionNote": "Read-only RunPod queries executed via GitHub Actions workflow_dispatch (run 30658355014, main, 2026-07-31T19:14:53Z). Authentication succeeded; GET /v1/networkvolumes returned zero volumes; GraphQL gpuTypes query confirmed 16GB-class GPU stock account-wide. regionCompatibilityResolved: false because no existing Network Volume exists to co-locate with any GPU/datacenter, not because of credential or query failure. See runpod-region-evidence.json and RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md.",
   "regionCompatibilityResolved": false,
+  "mountPathCompatibility": {
+    "publishedHandlerCompatible": false,
+    "evidence": "mount-path-audit.yml run 30659523185: weightPresent/auxDetectionPresent/auxParsingPresent all false when synthetic fixtures mounted at /runpod-volume; control mount directly at /models reported all true; no /runpod-volume reference in source",
+    "correctionCandidate": {
+      "path": "apps/api/runpod-worker-gpu-serverless-volume-dev/",
+      "baseDigest": "sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895",
+      "correction": "build-time fixed symlink /models -> /runpod-volume/models; no init script; no runtime creation; no handler/CMD/entrypoint/dependency changes",
+      "published": false,
+      "buildRun": "30660299770",
+      "sourcePrMergeRef": "748e6bf5e828ccbb1f54be9987f3a419bd39d003",
+      "sourceCommit": "158bbbc",
+      "imageId": "sha256:d66479f1e8e009b7379ac32a30d6c06789f6d687b6cb0a1cdff0be7c935ddc1d",
+      "sizeBytes": 6751978537,
+      "sbomComponents": 324,
+      "zeroCritical": true,
+      "cve202532434Absent": true,
+      "gate2ReviewStatus": "not performed; fresh Gate 2 readiness review required before any publication"
+    }
+  },
   "canaryFixture": {
     "generator": "docs/restoration/fixtures/gen_canary_face_fixture.py",
     "pngSha256": "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f",
@@ -32,15 +51,20 @@
   },
   "proposed": {
     "gpuType": "A4000-class (16GB), e.g. A4000/A4500/RTX 4000",
-    "rateUsdPerSecond": 0.00004722,
-    "billingUnit": "per-second (live-verified cheapest candidate: RTX A4000 uninterruptable $0.17/hr, run 30658355014; supersedes earlier $0.58/hr pricing-page estimate)",
+    "rateUsdPerSecond": 0.000161111,
+    "billingUnit": "per-second (official proposed Serverless Flex 16GB rate: $0.58/hr. Correction: account-wide GPU price evidence from the gpuTypes/lowestPrice query, run 30658355014, RTX A4000 $0.17/hr etc., is NOT authoritative for Serverless Flex billing and is retained only as informational GPU-pool-availability context)",
+    "worstCaseCostUsd120s": 0.019333,
+    "maxProposedBudgetUsd": 0.05,
     "containerDiskGb": 20,
     "weightsMounted": true,
+    "workerType": "Flex",
+    "workersMin": 0,
+    "workersMax": 1,
+    "activeWorkers": 0,
     "maxJobs": 1,
     "maxRetries": 0,
     "timeoutSeconds": 120,
     "concurrency": 1,
-    "activeWorkers": 1,
-    "flexWorkersMax": 1
+    "productionRoutingAllowed": false
   }
 }

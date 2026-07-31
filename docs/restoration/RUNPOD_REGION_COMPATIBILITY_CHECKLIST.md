@@ -21,7 +21,7 @@ Resolve GPU/Network-Volume region coexistence for the Gate 3 canary using read-o
 - **Data center ID**: `________` (no Network Volume exists to anchor a datacenter selection)
 - **Selected GPU pool available (16GB-class: A4000 / A4500 / RTX 4000 / RTX 2000)**: confirmed available account-wide — RTX A4000 (16GB, stock Low, $0.17/hr), RTX A4500 (20GB, stock Low, $0.19/hr), RTX 4000 Ada (20GB, stock Low, $0.18–0.20/hr), RTX 2000 Ada (16GB, stock Low, $0.50/hr). Per-datacenter breakdown was not available from this query — moot until a volume exists.
 - **Network Volume availability in the same data center**: **none — zero Network Volumes exist on the account.**
-- **Selected GPU pool per-second rate**: cheapest candidate (RTX A4000, $0.17/hr) = `$0.00004722/s`; worst-case one-job cost `0.00004722 × 120 = $0.0057`, under the proposed $0.05 budget. Not yet "verified" for approval purposes (Gate 3 fields remain fail-closed).
+- **Selected GPU pool per-second rate**: the `gpuTypes`/`lowestPrice` figures above (RTX A4000 $0.17/hr etc.) are general account-wide pricing evidence and are **not authoritative for RunPod Serverless Flex billing** — see correction in `RUNPOD_GATE3_APPROVAL_PACKET.md`. The official proposed Serverless Flex 16GB rate used for budget purposes is `$0.58/hr = $0.000161111/s`; worst-case one-job cost at the 120s ceiling `0.000161111 × 120 = $0.019333`, under the $0.05 max proposed budget. Not yet "verified" for approval purposes (Gate 3 fields remain fail-closed).
 - **Region coexistence confirmed (GPU and Network Volume in same DC)**: **No — cannot be confirmed; no volume exists.**
 
 ## Resolved?
