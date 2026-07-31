@@ -1,0 +1,16 @@
+{
+  "approved": false,
+  "publicationAllowed": false,
+  "imageRepository": "",
+  "immutableTag": "",
+  "expectedDigest": "",
+  "sourceCommit": "299f4fca24112310c2e31bf8f4f09726faa90d69",
+  "floatingTagAllowed": false,
+  "weightBundled": false,
+  "runtimeDownloadAllowed": false,
+  "externalWeightPath": "/models/GFPGANv1.4.pth",
+  "expectedWeightSize": 348632874,
+  "expectedWeightSha256": "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad",
+  "gate3ExecutionAllowed": false,
+  "productionRoutingAllowed": false
+}

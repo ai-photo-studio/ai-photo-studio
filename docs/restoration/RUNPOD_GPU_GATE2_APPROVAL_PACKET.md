@@ -1,0 +1,65 @@
+# RunPod GPU Gate 2 Approval Packet
+
+Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worker candidate and the fail-closed conditions required before any publication. It is NOT an approval, and no image has been published.
+
+## Baseline Image (before hardening)
+
+- Image ID (prior successful CI): `sha256:bf6af925ca2d4e3ef9c877a5fcde84907f30ad917e17f0e5591ef907081a8846`
+- Image size baseline: `5522182156` bytes
+- PyTorch: `2.1.2+cu121`
+- Weight: external only; not bundled.
+
+## Hardening Changes (evidence-based)
+
+- Base image pinned by immutable digest: `ubuntu:22.04@sha256:0d779ea97881505f5ef0039336ee85edba27519bdba968c284c86ee066a973c8` (linux/amd64).
+- Non-root runtime user `workeruser` (uid 1001).
+- Removed `git` and other unnecessary build-time tooling from the runtime image.
+- Purged pip/apt caches during build.
+- Added OCI labels: source, revision, created, version.
+- `TMPDIR=/tmp`; `/tmp` and `/models` owned by the worker user for read-only-safe output.
+- Preserved pinned Python/PyTorch/GFPGAN versions and the external-checksum-validated weight contract.
+- GPU inference is NOT executed and is NOT quality-approved.
+
+## Image Size After Hardening
+
+- Recorded by the build-only CI run after hardening (see audit report). Build success does not equal GPU inference or quality approval.
+
+## Security Evidence (CI, runpod-gpu-gate2-readiness)
+
+- Build with `push: false`; no registry login; no packages write; no image/weight artifact upload.
+- Non-root runtime user verified.
+- Bundled weight absence verified.
+- No network-download code verified.
+- SBOM generated and vulnerability scan run; findings printed in logs.
+- `gpu_inference_executed: false`.
+
+## Gate 2 Publication Conditions (FAIL-CLOSED)
+
+- `approved: false`
+- `publicationAllowed: false`
+- `imageRepository: ""`
+- `immutableTag: ""`
+- `expectedDigest: ""` (must be populated only after a real publication)
+- `sourceCommit`: current candidate source SHA (verified)
+- `floatingTagAllowed: false`
+- `weightBundled: false`
+- `runtimeDownloadAllowed: false`
+- `externalWeightPath: /models/GFPGANv1.4.pth`
+- `expectedWeightSize: 348632874`
+- `expectedWeightSha256: e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad`
+- `gate3ExecutionAllowed: false`
+- `productionRoutingAllowed: false`
+
+## Required Before Gate 2 Publication
+
+- A NEW explicit user approval for publication.
+- A verified immutable digest from an actual published image (floating tags prohibited).
+- No weight bundled, no runtime download.
+- Weight checksum unchanged.
+- A separate Gate 3 approval before any RunPod canary.
+- Gate 4 remains prohibited.
+- Replicate remains production.
+
+## Abort / Cleanup
+
+If any publication condition is violated, do not publish, keep the candidate unpublished, and record the failure evidence.

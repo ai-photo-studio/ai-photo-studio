@@ -37,8 +37,10 @@ This is a build-and-contract candidate only. It is NOT published, is NOT routed 
 
 ## Build-test only
 
-- Dockerfile builds from a CUDA runtime base but the CI runner has no GPU.
-- The CI builds the image and runs contract tests; it does NOT run GPU inference.
+- Dockerfile builds a hardened image but the CI runner has no GPU.
+- Base image is pinned by immutable digest; runs as a non-root user; build tools removed; pip/apt caches purged.
+- The CI builds the image, runs contract tests, verifies non-root user and weight absence, generates an SBOM, and scans for vulnerabilities (findings printed). It does NOT run GPU inference.
+- GPU inference is not executed and is not quality-approved.
 
 ## Running tests on a Python host
 
