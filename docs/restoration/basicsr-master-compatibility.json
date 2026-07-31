@@ -1,0 +1,37 @@
+{
+  "officialCommit": "8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a",
+  "officialRepository": "https://github.com/XPixelGroup/BasicSR",
+  "commitAuthor": "Veljko Tornjanski",
+  "commitDate": "2024-05-17T07:34:46Z",
+  "commitMessage": "change functional_tensor to functional (#650)",
+  "commitParent": "033cd6896d898fdd3dcda32e3102a792efa1b8f4",
+  "changedFiles": ["basicsr/data/degradations.py"],
+  "diffV14_2": {
+    "commitsAhead": 18,
+    "filesChanged": 41,
+    "additionalChangesPresent": true,
+    "reviewScope": "unrelated substantive changes present (VGG params, optimizers, metrics, archs, config, docs, workflows)"
+  },
+  "sourceArchiveSha256": "88a422325c7a08a9f3b6109e747bef5fbdf85d884d6033eacaf11f6c374aade9",
+  "licence": "Apache-2.0",
+  "compatibilityResult": {
+    "python": "3.10",
+    "torch": "2.6.0+cu126",
+    "torchvision": "0.21.0+cu126",
+    "importsSucceeded": true,
+    "gfpganerConstructionSucceeded": true,
+    "functionalTensorErrorResolved": true,
+    "gpuExecutionUnverified": true
+  },
+  "safeLoadResult": {
+    "torchForceWeightsOnlyLoad": true,
+    "noWeightsOnlyFalseFallback": true,
+    "realWeightSafeLoadTestRun": false,
+    "note": "GFPGANer construction triggered runtime network downloads of facexlib model weights (detection_Resnet50_Final.pth, parsing_parsenet.pth), which conflicts with the candidate's no-runtime-download requirement."
+  },
+  "adoptionRecommended": false,
+  "reason": "The official fix commit is 18 commits ahead of v1.4.2 with 41 files of unrelated, substantive changes, so a wheel built from that commit is not a minimal security upgrade; GFPGANer construction also triggers runtime network downloads; and the candidate must not be modified in this task.",
+  "candidateModified": false,
+  "publicationAllowed": false,
+  "productionRoutingAllowed": false
+}
