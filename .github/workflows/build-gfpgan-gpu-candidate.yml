@@ -1,0 +1,84 @@
+name: Build GFPGAN GPU Worker Candidate
+
+on:
+  push:
+    branches:
+      - runpod-gfpgan-gpu-candidate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpu-candidate-build
+  cancel-in-progress: false
+
+jobs:
+  build-test-gpu-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      WEIGHT_ABSENT_DIR: ${{ runner.temp }}/empty_models
+
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build GPU worker candidate image (no push)
+        id: build-image
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/api/runpod-worker-gpu-dev
+          file: apps/api/runpod-worker-gpu-dev/Dockerfile
+          push: false
+          tags: gfpgan-gpu-candidate:local
+          load: true
+
+      - name: Inspect image metadata
+        id: image-meta
+        run: |
+          image_id=$(docker inspect gfpgan-gpu-candidate:local --format '{{.Id}}')
+          size_bytes=$(docker inspect gfpgan-gpu-candidate:local --format '{{.Size}}')
+          digest=$(docker inspect gfpgan-gpu-candidate:local --format '{{index .RepoDigests 0}}' || echo none)
+          echo "image_id=$image_id" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
+          echo "local_digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "image_id: $image_id"
+          echo "size_bytes: $size_bytes"
+          echo "local_digest: $digest"
+
+      - name: Record image metadata artifact (no weights)
+        run: |
+          mkdir -p "$RUNNER_TEMP/meta"
+          {
+            echo "image_id=${{ steps.image-meta.outputs.image_id }}"
+            echo "size_bytes=${{ steps.image-meta.outputs.size_bytes }}"
+            echo "local_digest=${{ steps.image-meta.outputs.local_digest }}"
+            echo "gpu_inference_executed=false"
+          } > "$RUNNER_TEMP/meta/image-meta.txt"
+
+      - name: Run health contract test in container (no weight, no GPU)
+        run: |
+          echo '{"mode":"health"}' | docker run --rm -i --network none gfpgan-gpu-candidate:local --stdin
+
+      - name: Run gpu_probe test in container (no GPU expected)
+        run: |
+          echo '{"mode":"gpu_probe"}' | docker run --rm -i --network none gfpgan-gpu-candidate:local --stdin
+
+      - name: Run fail-closed restore test in empty-models container (no CUDA)
+        run: |
+          mkdir -p "$WEIGHT_ABSENT_DIR"
+          set +e
+          echo '{"mode":"restore","imageBase64":""}' | docker run --rm -i --network none \
+            -v "$WEIGHT_ABSENT_DIR:/models" gfpgan-gpu-candidate:local --stdin
+          code=$?
+          set -e
+          # The restore must fail closed (non-zero exit) without a valid weight/CUDA.
+          if [ "$code" -eq 0 ]; then
+            echo "ERROR: restore unexpectedly returned success without weight/CUDA" >&2
+            exit 1
+          fi
+          echo "restore correctly failed closed (exit code $code), expected non-zero"

@@ -32,7 +32,22 @@
 - Checksum source: independently-calculated (release API digest is absent; not publisher-signed).
 - Apache-2.0 covers source code only; weight redistribution is not approved.
 - recommendedPackagingMode: externally-mounted-weight; bundledWeightAllowed: false; runtimeDownloadAllowed: false.
-- No GPU candidate created; weights must match the pinned checksum before any startup.
+- A separate unpublished GFPGAN GPU candidate exists at `apps/api/runpod-worker-gpu-dev/` (build-test only).
+
+## GPU Candidate Status
+
+- Candidate: `apps/api/runpod-worker-gpu-dev/`.
+- Purpose: build and contract validation only; NOT published and NOT quality-approved.
+- Weight: external mount at `/models/GFPGANv1.4.pth`.
+- Expected size: `348632874` bytes; expected SHA-256: `e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad`.
+- The candidate rejects missing, wrong-size, or wrong-checksum weight before model load.
+- No runtime download and no bundled model.
+- CUDA is required for restore mode; health and gpu_probe run without CUDA.
+- CPU worker (`apps/api/runpod-worker-dev/`) remains unchanged and is the only packaged worker.
+- GPU inference is NOT executed on a CPU runner and has NOT been quality-approved.
+- New Gate 2 approval is required before publishing this candidate.
+- Gate 3 approval is required before any RunPod canary.
+
 
 ## Unapproved Decision
 

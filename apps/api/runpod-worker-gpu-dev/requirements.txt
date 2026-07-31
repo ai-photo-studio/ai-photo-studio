@@ -1,0 +1,12 @@
+# GFPGAN GPU worker candidate pinned dependencies (build-test only)
+# PyTorch pinned to a CUDA-enabled release.
+torch==2.1.2
+torchvision==0.16.2
+numpy==1.26.4
+opencv-python-headless==4.9.0.80
+Pillow==10.2.0
+gfpgan==1.3.8
+facexlib==0.3.0
+basicsr==1.4.2
+PyYAML==6.0.1
+tqdm==4.66.2

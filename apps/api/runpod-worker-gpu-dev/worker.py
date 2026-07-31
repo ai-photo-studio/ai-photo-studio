@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+"""GFPGAN GPU worker candidate (UNPUBLISHED, build-test only).
+
+Real GFPGAN v1.4 inference uses an externally-mounted, checksum-verified
+weight at /models/GFPGANv1.4.pth. No weight is bundled and no runtime
+weight download occurs. restore fails closed without CUDA or a valid weight.
+
+Modes:
+  health    - container + Python deps check (no CUDA required)
+  gpu_probe - report CUDA availability and device (no model load)
+  restore   - GFPGAN v1.4 inference; fails closed without CUDA/valid weight
+"""
+import base64
+import hashlib
+import io
+import json
+import os
+import signal
+import sys
+
+EXPECTED_WEIGHT_PATH = "/models/GFPGANv1.4.pth"
+EXPECTED_WEIGHT_SIZE = 348632874
+EXPECTED_WEIGHT_SHA256 = "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
+MAX_INPUT_BYTES = 8_000_000
+TIMEOUT_SECONDS = 120
+
+# Exit codes
+EXIT_OK = 0
+EXIT_INPUT = 2
+EXIT_VALIDATION = 3
+EXIT_WEIGHT = 4
+EXIT_CUDA = 5
+EXIT_MODEL = 6
+EXIT_INTERNAL = 1
+
+provider_post_count = 0
+production_routing_allowed = False
+
+
+def sha256_file(path, chunk=1 << 20):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            data = f.read(chunk)
+            if not data:
+                break
+            h.update(data)
+    return h.hexdigest()
+
+
+def validate_weight():
+    if not os.path.exists(EXPECTED_WEIGHT_PATH):
+        raise _WeightError(f"GFPGAN weight not found at {EXPECTED_WEIGHT_PATH}")
+    size = os.path.getsize(EXPECTED_WEIGHT_PATH)
+    if size != EXPECTED_WEIGHT_SIZE:
+        raise _WeightError(f"GFPGAN weight size mismatch: {size} != {EXPECTED_WEIGHT_SIZE}")
+    digest = sha256_file(EXPECTED_WEIGHT_PATH)
+    if digest.lower() != EXPECTED_WEIGHT_SHA256:
+        raise _WeightError(f"GFPGAN weight checksum mismatch: {digest}")
+    return True
+
+
+class _WeightError(Exception):
+    pass
+
+
+def cuda_info():
+    try:
+        import torch
+    except Exception as e:  # noqa: BLE001
+        return {"available": False, "cudaBuild": None, "error": str(e)}
+    return {
+        "available": torch.cuda.is_available(),
+        "deviceCount": torch.cuda.device_count() if torch.cuda.is_available() else 0,
+        "deviceName": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "pytorch": torch.__version__,
+    }
+
+
+def load_model():
+    import torch
+    from gfpgan import GFPGANer
+    model = GFPGANer(
+        model_path=EXPECTED_WEIGHT_PATH,
+        upscale=1,
+        arch="clean",
+        channel_multiplier=2,
+        bg_upsampler=None,
+    )
+    return model
+
+
+def _run_restore(image_bytes):
+    import numpy as np
+    from PIL import Image
+    validate_weight()
+    info = cuda_info()
+    if not info["available"]:
+        raise _CudaError("CUDA is required for restore; not available")
+    model = load_model()
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    arr = np.array(img)
+    try:
+        out, _ = model.enhance(arr, has_aligned=False, only_center_face=False, paste_back=True)
+    finally:
+        # best-effort; no state shared across requests
+        pass
+    out_img = Image.fromarray(out)
+    buf = io.BytesIO()
+    out_img.save(buf, "PNG")
+    out_bytes = buf.getvalue()
+    return {
+        "ok": True,
+        "mode": "restore",
+        "providerPostCount": provider_post_count,
+        "productionRoutingAllowed": production_routing_allowed,
+        "outputWidth": out_img.width,
+        "outputHeight": out_img.height,
+        "outputFormat": "png",
+        "outputBytes": len(out_bytes),
+        "outputBase64": base64.b64encode(out_bytes).decode("ascii"),
+        "inputChecksum": hashlib.sha256(image_bytes).hexdigest(),
+        "gpu": info["deviceName"],
+        "model": "GFPGANv1.4",
+        "weightVerified": True,
+    }
+
+
+class _CudaError(Exception):
+    pass
+
+
+def build_response(mode, payload):
+    out = {"ok": True, "mode": mode, "providerPostCount": provider_post_count,
+           "productionRoutingAllowed": production_routing_allowed}
+    out.update(payload)
+    return out
+
+
+def read_request():
+    args = sys.argv[1:]
+    use_stdin = "--stdin" in args
+    file_index = [i for i, a in enumerate(args) if a == "--input-file"]
+    if use_stdin and file_index:
+        raise _InputError("exactly one input source is required")
+    if file_index and len(file_index) > 1:
+        raise _InputError("exactly one input source is required")
+    if use_stdin:
+        text = sys.stdin.read()
+    elif file_index:
+        pos = file_index[0]
+        if pos + 1 >= len(args) or args[pos + 1].startswith("--"):
+            raise _InputError("input file is required")
+        with open(args[pos + 1], "r", encoding="utf-8-sig") as f:
+            text = f.read()
+    else:
+        raise _InputError("use --stdin or --input-file")
+    if not text or not text.strip():
+        raise _InputError("input is empty")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise _InputError(f"invalid JSON: {e}") from e
+
+
+class _InputError(Exception):
+    pass
+
+
+def handle(input):
+    mode = input.get("mode")
+    if mode == "health":
+        try:
+            import torch
+            torch_v = torch.__version__
+        except Exception:  # noqa: BLE001
+            torch_v = None
+        return build_response("health", {
+            "python": sys.version.split()[0],
+            "torch": torch_v,
+            "weightPresent": os.path.exists(EXPECTED_WEIGHT_PATH),
+        })
+    if mode == "gpu_probe":
+        info = cuda_info()
+        info["providerPostCount"] = provider_post_count
+        info["productionRoutingAllowed"] = production_routing_allowed
+        return build_response("gpu_probe", info)
+    if mode == "restore":
+        image_b64 = input.get("imageBase64")
+        if not isinstance(image_b64, str) or not image_b64:
+            raise _InputError("restore imageBase64 is required")
+        image_bytes = base64.b64decode(image_b64)
+        if not image_bytes or len(image_bytes) > MAX_INPUT_BYTES:
+            raise _InputError("invalid image size")
+        return _run_restore(image_bytes)
+    raise _InputError(f"unsupported mode: {mode}")
+
+
+def _timeout_handler(signum, frame):
+    raise _TimeoutError("worker timeout")
+
+
+class _TimeoutError(Exception):
+    pass
+
+
+def main():
+    # SIGALRM is unavailable on some platforms (e.g. Windows host runs).
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(TIMEOUT_SECONDS)
+    try:
+        req = read_request()
+        result = handle(req)
+        print(json.dumps(result))
+        sys.exit(EXIT_OK)
+    except _InputError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(EXIT_INPUT)
+    except _WeightError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(EXIT_WEIGHT)
+    except _CudaError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(EXIT_CUDA)
+    except _TimeoutError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # noqa: BLE001
+        print(f"internal error: {e}", file=sys.stderr)
+        sys.exit(EXIT_INTERNAL)
+
+
+if __name__ == "__main__":
+    main()
