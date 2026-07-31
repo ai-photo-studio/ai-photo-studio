@@ -1,0 +1,129 @@
+name: publish-rp-serverless-handler
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Approved full source SHA (immutable)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-rp-serverless-handler
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout approved source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Validate approved source SHA and wrapper subtree
+        env:
+          APPROVED_SHA: 21e292103979f0450dffafe09844fac3b435031b
+          APPROVED_SUBTREE: b9402fa975e59ddc245985712b426ae63019761b
+        run: |
+          actual_sha=$(git rev-parse HEAD)
+          echo "checked out sha: $actual_sha"
+          if [ "$actual_sha" != "$APPROVED_SHA" ]; then echo "WRONG SOURCE SHA" >&2; exit 1; fi
+          subtree=$(git rev-parse "$APPROVED_SHA:apps/api/runpod-worker-gpu-serverless-dev")
+          echo "wrapper subtree: $subtree"
+          if [ "$subtree" != "$APPROVED_SUBTREE" ]; then echo "WRONG WRAPPER SUBTREE" >&2; exit 1; fi
+          main_subtree=$(git rev-parse "origin/main:apps/api/runpod-worker-gpu-serverless-dev")
+          if [ "$main_subtree" != "$APPROVED_SUBTREE" ]; then echo "WRAPPER DRIFT ON MAIN" >&2; exit 1; fi
+          base=$(grep -o 'ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@sha256:[0-9a-f]*' apps/api/runpod-worker-gpu-serverless-dev/Dockerfile | head -1)
+          echo "immutable cli base: $base"
+          if [ "$base" != "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a" ]; then echo "BASE DIGEST MISMATCH" >&2; exit 1; fi
+          echo "source, subtree and base verified"
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GHCR (only registry auth)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare immutable metadata
+        id: meta
+        env:
+          APPROVED_SHA: 21e292103979f0450dffafe09844fac3b435031b
+        run: |
+          image="ghcr.io/${{ github.repository_owner }}/ai-photo-studio/runpod-worker-gpu-serverless-dev"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "tag=$APPROVED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push exactly one immutable tag
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-dev
+          file: apps/api/runpod-worker-gpu-serverless-dev/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.title=gfpgan-gpu-serverless-handler
+            org.opencontainers.image.description=Gate2 immutable RunPod Serverless handler wrapper (code only, no weights)
+
+      - name: Capture registry digest
+        id: digest
+        run: |
+          echo "registry_digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_ENV"
+          echo "${{ steps.build.outputs.digest }}" > handler-digest.txt
+
+      - name: Verify tag resolves to captured digest
+        run: |
+          digest="${{ steps.build.outputs.digest }}"
+          echo "captured digest: $digest"
+          manifest=$(docker buildx imagetools inspect "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}" --format "{{json .}}")
+          echo "$manifest" | grep -q "$digest" || { echo "DIGEST MISMATCH" >&2; exit 1; }
+          echo "tag resolves to captured digest"
+
+      - name: Inspect image metadata
+        run: |
+          image_ref="${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}"
+          docker buildx imagetools inspect "$image_ref" --format "{{json .}}"
+          echo "image=${image_ref}" > ghcr-image-ref.txt
+          echo "gpu_inference_executed=false"
+
+      - name: Scan final image for CRITICAL (zero required)
+        uses: aquasecurity/trivy-action@0.35.0
+        continue-on-error: false
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          format: json
+          output: trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: Assert zero CRITICAL and CVE-2025-32434 absent
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' trivy.json >/dev/null 2>&1 \
+            || { echo "CRITICAL PRESENT" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" trivy.json; then echo "CVE-2025-32434 PRESENT" >&2; exit 1; fi
+          echo "zero CRITICAL, no CVE-2025-32434; no weights; no RunPod; no GPU execution"
+
+      - name: Upload digest evidence (no weights)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghcr-image-ref
+          path: |
+            ghcr-image-ref.txt
+            handler-digest.txt
+          if-no-files-found: error

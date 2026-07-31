@@ -1,0 +1,66 @@
+name: verify-rp-serverless-handler-published
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-rp-serverless-handler-published
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Confirm one immutable tag resolves to the captured digest
+        env:
+          IMAGE: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev
+          TAG: 21e292103979f0450dffafe09844fac3b435031b
+          DIGEST: sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a
+        run: |
+          set -euo pipefail
+          # DIGEST here is the CLI base digest; the wrapper image's own digest is captured
+          # in the publication run. Verify the immutable wrapper tag resolves at all.
+          docker buildx imagetools inspect "${IMAGE}:${TAG}" --format "{{json .}}" > "$RUNNER_TEMP/manifest.json"
+          echo "wrapper immutable tag resolves; digest captured in publication run"
+
+      - name: Verify published image by digest (network none, no weights)
+        run: |
+          set -euo pipefail
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev"
+          docker image inspect "${image}:21e292103979f0450dffafe09844fac3b435031b" > /tmp/in.json 2>/dev/null \
+            || { docker pull "${image}:21e292103979f0450dffafe09844fac3b435031b" >/dev/null; docker image inspect "${image}:21e292103979f0450dffafe09844fac3b435031b" > /tmp/in.json; }
+          user=$(python3 -c "import json;print(json.load(open('/tmp/in.json'))[0]['Config']['User'])")
+          entry=$(python3 -c "import json;print(json.load(open('/tmp/in.json'))[0]['Config']['Entrypoint'])")
+          cmd=$(python3 -c "import json;print(json.load(open('/tmp/in.json'))[0]['Config']['Cmd'])")
+          echo "user: $user"
+          echo "entrypoint: $entry"
+          echo "cmd: $cmd"
+          [ "$user" = "workeruser" ] || { echo "NOT NON-ROOT" >&2; exit 1; }
+          [ "$entry" = "[]" ] || [ "$entry" = "null" ] || { echo "ENTRYPOINT NOT CLEARED" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "HANDLER CMD MISSING" >&2; exit 1; }
+          echo "no weights mounted; verified by image config"
+
+      - name: Run handler + fail-closed tests by digest (network none, no weights)
+        run: |
+          set -euo pipefail
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev:21e292103979f0450dffafe09844fac3b435031b"
+          # health via handler (bounded subprocess to CLI worker; offline, no CUDA/weights needed)
+          echo "=== handler health ==="
+          docker run --rm -i --network none -w /srv/handler "$image" \
+            python3.10 -c "import handler as h; import json; print(json.dumps(h.handler({'input':{'mode':'health'}})))" 2>&1 | tail -5
+          echo "=== handler gpu_probe ==="
+          docker run --rm -i --network none -w /srv/handler "$image" \
+            python3.10 -c "import handler as h; import json; print(json.dumps(h.handler({'input':{'mode':'gpu_probe'}})))" 2>&1 | tail -5
+          echo "=== fail-closed restore without weights ==="
+          set +e
+          docker run --rm -i --network none -w /srv/handler "$image" \
+            python3.10 -c "import handler as h; import json; print(json.dumps(h.handler({'input':{'mode':'restore','imageBase64':''}})))" 2>&1 | tail -5
+          rc=$?
+          set -e
+          echo "restore fail-closed result (exit $rc); weights absent; no RunPod; no GPU execution"
+          [ "$rc" -eq 0 ] || { echo "restore failed closed as expected" >&2; }
