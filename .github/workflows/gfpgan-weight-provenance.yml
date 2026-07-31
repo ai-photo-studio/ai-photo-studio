@@ -17,6 +17,8 @@ jobs:
 
       - name: Fetch GFPGAN v1.3.0 release metadata
         id: fetch-release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           release_json=$(gh api repos/TencentARC/GFPGAN/releases/tags/v1.3.0)
           echo "$release_json" > release.json
