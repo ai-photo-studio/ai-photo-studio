@@ -1,0 +1,64 @@
+{
+  "offlineConstructionVerified": true,
+  "networkIsolationMethod": "docker run --network none with read-only external mounts and symlinks",
+  "safeLoadEnv": {
+    "TORCH_FORCE_WEIGHTS_ONLY_LOAD": true,
+    "TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD": false,
+    "weightsOnlyFalseFallback": false
+  },
+  "runtimeDownloadObserved": false,
+  "dependencies": {
+    "python": "3.10",
+    "torch": "2.6.0+cu126",
+    "torchvision": "0.21.0+cu126",
+    "gfpgan": "1.3.8",
+    "facexlib": "0.3.0",
+    "basicsr": "patched-v1.4.2 (functional_tensor->functional)"
+  },
+  "weights": [
+    {
+      "name": "GFPGANv1.4.pth",
+      "purpose": "GFPGAN v1.4 main restoration weights",
+      "officialUrl": "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth",
+      "size": 348632874,
+      "sha256": "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad",
+      "loadPath": "/models/GFPGANv1.4.pth (direct model_path)",
+      "loadCall": "gfpgan/utils.py GFPGANer.__init__ torch.load(model_path)",
+      "loadedOffline": true
+    },
+    {
+      "name": "detection_Resnet50_Final.pth",
+      "purpose": "RetinaFace ResNet50 face detection",
+      "officialUrl": "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth",
+      "size": 109497761,
+      "sha256": "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d",
+      "loadPath": "gfpgan/weights/detection_Resnet50_Final.pth (symlink -> /models/facexlib/detection_Resnet50_Final.pth)",
+      "loadCall": "facexlib/detection/__init__.py init_detection_model via load_file_from_url short-circuit",
+      "loadedOffline": true
+    },
+    {
+      "name": "parsing_parsenet.pth",
+      "purpose": "ParseNet face parsing",
+      "officialUrl": "https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth",
+      "size": 85331193,
+      "sha256": "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2",
+      "loadPath": "gfpgan/weights/parsing_parsenet.pth (symlink -> /models/facexlib/parsing_parsenet.pth)",
+      "loadCall": "facexlib/parsing/__init__.py init_parsing_model via load_file_from_url short-circuit",
+      "loadedOffline": true
+    }
+  ],
+  "discoveredLocalPaths": {
+    "mainWeight": "GFPGANer accepts a direct local model_path; no download unless the path is an https:// URL",
+    "auxWeights": "facexlib load_file_from_url returns the local file at <save_dir>/<filename> when it exists, so a symlink/mount at that path prevents the network download",
+    "preventionMechanism": "place/ symlink each weight at its expected local path; load_file_from_url short-circuits on os.path.exists(cached_file)"
+  },
+  "gpuInferenceExecuted": false,
+  "checksumSource": "independently-calculated (technical integrity; not publisher-signed; does not grant redistribution)",
+  "candidateModified": false,
+  "adoptionApproved": false,
+  "publicationAllowed": false,
+  "weightBundlingAllowed": false,
+  "runtimeDownloadAllowed": false,
+  "productionRoutingAllowed": false,
+  "evidenceWorkflowRun": 30632558271
+}
