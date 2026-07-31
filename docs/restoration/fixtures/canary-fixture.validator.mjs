@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDir = __dirname;
 const genPath = path.join(fixtureDir, "gen_canary_face_fixture.py");
 
-const EXPECTED_SHA256 = "7b51d8d9e84864561d8e21feb9c66ab07c215a89ffbb6246283d4b07554caaef";
+const EXPECTED_SHA256 = "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f";
 const MAX_PAYLOAD_BYTES = 8_000_000; // CLI worker input limit; Serverless /run is 10MB
 const assert = (cond, msg) => { if (!cond) throw new Error("fixture validator: " + msg); };
 
@@ -34,7 +34,9 @@ try {
   assert(sha === EXPECTED_SHA256, "generated fixture checksum drift");
   assert(bytes.length > 0, "generated fixture is empty");
   assert(bytes.length <= MAX_PAYLOAD_BYTES, "generated fixture exceeds payload limit");
-  console.log(`fixture reproduced: size=${bytes.length} sha256=${sha}`);
+  // Verify the PNG actually decodes (broken-stream PNGs must be rejected).
+  execFileSync("python", ["-c", "from PIL import Image; Image.open('" + tmp.replace(/\\/g, "/") + "').load()"], { stdio: "pipe" }).toString();
+  console.log(`fixture reproduced: size=${bytes.length} sha256=${sha} (PNG decodes)`);
 } finally {
   try { fs.unlinkSync(tmp); } catch { /* ignore */ }
 }

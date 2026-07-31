@@ -19,7 +19,7 @@ WIDTH = 512
 HEIGHT = 512
 # Expected SHA-256 of the generated PNG (deterministic; computed over the exact
 # bytes produced by this generator at 512x512).
-EXPECTED_SHA256 = "7b51d8d9e84864561d8e21feb9c66ab07c215a89ffbb6246283d4b07554caaef"
+EXPECTED_SHA256 = "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f"
 
 
 def _png_chunk(tag, payload):
@@ -37,7 +37,8 @@ def generate_bytes():
             g = (y * 5) % 256
             b = ((x + y) * 7) % 256
             raw.extend((r, g, b))
-    idat_data = zlib.compressobj(level=0).compress(bytes(raw)) + zlib.compressobj(level=0).flush()
+    co = zlib.compressobj(level=0)
+    idat_data = co.compress(bytes(raw)) + co.flush()
     ihdr = struct.pack(">IIBBBBB", WIDTH, HEIGHT, 8, 2, 0, 0, 0)
     png = b"\x89PNG\r\n\x1a\n"
     png += _png_chunk(b"IHDR", ihdr)
