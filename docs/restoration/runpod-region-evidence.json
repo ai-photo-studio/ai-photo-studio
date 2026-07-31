@@ -1,0 +1,13 @@
+{
+  "regionCompatibilityResolved": false,
+  "blocker": "read-only RunPod credential unavailable (RUNPOD_API_KEY not set in environment)",
+  "queriesPerformed": [],
+  "dataCenterId": "",
+  "gpuPoolAvailable": false,
+  "networkVolumeSameDc": false,
+  "gpuRateUsdPerSecond": null,
+  "authVerified": false,
+  "createdAnyResource": false,
+  "submittedAnyJob": false,
+  "queryTimestamp": "2026-07-31T18:00:00Z"
+}

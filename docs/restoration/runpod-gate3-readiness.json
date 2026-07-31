@@ -18,7 +18,7 @@
   "registryAccessDecision": "public",
   "registryAccessNote": "Anonymous pull of the handler image by digest SUCCEEDED (workflow run 30652207024). No registry credential required for RunPod to pull the image.",
   "gpuVolumeRegionCompatibility": "resolved",
-  "gpuVolumeRegionNote": "Region coexistence could not be verified without a RunPod account; offline checklist created; regionCompatibilityResolved: false until read-only RunPod evidence is provided. Gate 3 remains blocked on this decision.",
+  "gpuVolumeRegionNote": "Read-only RunPod authorization was provided, but RUNPOD_API_KEY is not set in the environment; no read-only query could be authenticated. regionCompatibilityResolved: false. Gate 3 remains blocked on this decision until a valid env credential is available.",
   "regionCompatibilityResolved": false,
   "canaryFixture": {
     "generator": "docs/restoration/fixtures/gen_canary_face_fixture.py",

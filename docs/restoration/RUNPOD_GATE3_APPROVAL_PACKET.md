@@ -38,9 +38,9 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 
 ## GPU / Volume Region Compatibility — REMAINING BLOCKER
 
-- Whether the selected GPU type and the Network Volume can coexist in the same region still cannot be verified without a RunPod account.
-- Offline checklist created (`RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md`) and an offline evidence validator (`region.gate3.validator.mjs`).
-- `regionCompatibilityResolved: false` until read-only RunPod evidence (datacenter ID, GPU pool availability, Network Volume in the same DC, selected rate) is supplied under separate authorization.
+- Read-only RunPod authorization was provided, but `RUNPOD_API_KEY` is NOT set in the environment; no read-only GET/list query could be authenticated. No key was extracted from git history or committed files (secret-safe).
+- Checklist: `RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md`; evidence validator: `region.gate3.validator.mjs`; evidence: `runpod-region-evidence.json` (blocked).
+- `regionCompatibilityResolved: false` until a valid `RUNPOD_API_KEY` in the environment is available to run read-only datacenter/GPU/volume list queries.
 
 ## Proposed GPU / Rate / Budget (unapproved)
 
