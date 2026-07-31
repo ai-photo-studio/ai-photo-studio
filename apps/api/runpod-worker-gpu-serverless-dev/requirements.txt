@@ -1,0 +1,5 @@
+# RunPod Serverless handler wrapper pinned dependencies (build-test only)
+# The immutable CLI worker base image already provides torch, gfpgan, basicsr,
+# facexlib, numpy, opencv, Pillow, scipy, etc. This wrapper adds only the
+# RunPod Python SDK as a thin dependency.
+runpod==1.11.0
