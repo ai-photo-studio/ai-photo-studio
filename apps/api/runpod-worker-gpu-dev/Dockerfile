@@ -1,7 +1,9 @@
 # GFPGAN GPU worker candidate (UNPUBLISHED, build-test only)
 # Uses an externally-mounted, checksum-verified weight at /models/GFPGANv1.4.pth.
 # No weight is bundled; no runtime weight download occurs.
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# Built on ubuntu with official PyTorch cu121 CUDA wheels (no CUDA base toolkit,
+# which avoids the nvidia-cublas version conflict in basicsr build metadata).
+FROM ubuntu:22.04
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -13,6 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR ${APP_HOME}
+
+# Install CUDA-enabled PyTorch/TorchVision from the official PyTorch index.
+RUN python3.10 -m pip install --no-cache-dir \
+    torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
 
 COPY requirements.txt ./
 RUN python3.10 -m pip install --no-cache-dir -r requirements.txt
