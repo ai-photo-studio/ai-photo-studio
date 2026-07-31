@@ -1,0 +1,143 @@
+name: publish-gfpgan-gpu-candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Approved full source SHA (immutable)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-gfpgan-gpu-candidate
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout approved source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Validate approved source SHA and candidate subtree
+        env:
+          APPROVED_SHA: f65088b5f6bb2f5a91b8b877b32f032766c8b5f1
+          APPROVED_SUBTREE: ea8a583e5d7279c0b67eec66a1906b7523c4ce99
+        run: |
+          actual_sha=$(git rev-parse HEAD)
+          echo "checked out sha: $actual_sha"
+          if [ "$actual_sha" != "$APPROVED_SHA" ]; then echo "WRONG SOURCE SHA" >&2; exit 1; fi
+          subtree=$(git rev-parse "$APPROVED_SHA:apps/api/runpod-worker-gpu-dev")
+          echo "candidate subtree: $subtree"
+          if [ "$subtree" != "$APPROVED_SUBTREE" ]; then echo "WRONG CANDIDATE SUBTREE" >&2; exit 1; fi
+          # no drift: main subtree must match the approved subtree
+          main_subtree=$(git rev-parse "origin/main:apps/api/runpod-worker-gpu-dev")
+          if [ "$main_subtree" != "$APPROVED_SUBTREE" ]; then echo "CANDIDATE DRIFT ON MAIN" >&2; exit 1; fi
+          echo "source and subtree verified"
+
+      - name: Copy tracked BasicSR patch into build context
+        run: cp docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch apps/api/runpod-worker-gpu-dev/basicsr-v142-functional-tensor-fix.patch
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GHCR (only registry auth)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare immutable metadata
+        id: meta
+        env:
+          APPROVED_SHA: f65088b5f6bb2f5a91b8b877b32f032766c8b5f1
+        run: |
+          image="ghcr.io/${{ github.repository_owner }}/ai-photo-studio/runpod-worker-gpu-dev"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "tag=$APPROVED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push exactly one immutable tag
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-dev
+          file: apps/api/runpod-worker-gpu-dev/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.title=gfpgan-gpu-worker-candidate
+            org.opencontainers.image.description=Gate2 immutable GPU worker candidate (code only, no weights)
+
+      - name: Capture registry digest
+        id: digest
+        run: |
+          echo "registry_digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_ENV"
+          echo "${{ steps.build.outputs.digest }}" > ghcr-digest.txt
+
+      - name: Verify tag resolves to captured digest
+        run: |
+          digest="${{ steps.build.outputs.digest }}"
+          echo "captured digest: $digest"
+          manifest=$(docker buildx imagetools inspect "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}" --format "{{json .}}")
+          echo "$manifest" | grep -q "$digest" || { echo "DIGEST MISMATCH" >&2; exit 1; }
+          echo "tag resolves to captured digest"
+
+      - name: Inspect image metadata
+        run: |
+          image_ref="${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}"
+          docker buildx imagetools inspect "$image_ref" --format "{{json .}}"
+          echo "image=${image_ref}" > ghcr-image-ref.txt
+          echo "registry_digest=${{ steps.build.outputs.digest }}"
+          echo "gpu_inference_executed=false"
+
+      - name: Generate SBOM (no weight upload)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          format: cyclonedx
+          output: sbom.json
+
+      - name: Scan final image for CRITICAL (must be zero)
+        uses: aquasecurity/trivy-action@0.35.0
+        continue-on-error: false
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          format: json
+          output: trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: Assert zero CRITICAL and CVE-2025-32434 absent
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' trivy.json >/dev/null 2>&1 \
+            || { echo "CRITICAL VULNS PRESENT" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" trivy.json; then echo "CVE-2025-32434 PRESENT" >&2; exit 1; fi
+          [ -f sbom.json ] || { echo "SBOM MISSING" >&2; exit 1; }
+          echo "zero CRITICAL, no CVE-2025-32434; no weights; no RunPod; no GPU execution"
+
+      - name: Upload digest evidence (no weights)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghcr-image-ref
+          path: |
+            ghcr-image-ref.txt
+            ghcr-digest.txt
+          if-no-files-found: error
+
+      - name: Cleanup copied patch (always)
+        if: always()
+        run: rm -f apps/api/runpod-worker-gpu-dev/basicsr-v142-functional-tensor-fix.patch
