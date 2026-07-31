@@ -133,6 +133,23 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - Gate 4 remains prohibited.
 - Replicate remains production.
 
+## Gate 2 Closure (publication executed, one-time)
+
+- Explicit approval recorded (user approval message).
+- Published repository: `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev`
+- Immutable tag: `f65088b5f6bb2f5a91b8b877b32f032766c8b5f1` (full approved source SHA)
+- Registry digest: `sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a`
+- Approved source SHA: `f65088b5f6bb2f5a91b8b877b32f032766c8b5f1` (subtree `ea8a583e5d7279c0b67eec66a1906b7523c4ce99`)
+- Publication workflow run: `30639545577` (SUCCESS)
+- Post-publication verification run: `30640586247` (SUCCESS)
+- Image: linux/amd64, Config.User `workeruser`, entrypoint `python3.10 /srv/worker/worker.py`, image id by digest `sha256:d33e1b3827ccbfa5f0ba197c0a94af181af8c80f80ed582c8341d87ec060c787`, size `6620108704` bytes.
+- Security: zero CRITICAL; CVE-2025-32434 absent; SBOM generated. No bundled weights; no RunPod; no GPU execution.
+- Publication date: 2026-07-31.
+- Post-publication digest verification: tag `f65088b5...` resolves to digest `sha256:049a...`; health/gpu_probe/fail-closed-restore by digest under `--network none` passed; non-root user confirmed.
+- Gate 2 is CONSUMED/CLOSED (one-time). publicationAllowed is false; the permission is not reusable.
+- No floating tag (no `latest`/`dev`); no second tag created.
+- Image publication is not GPU execution or quality approval.
+
 ## Abort / Cleanup
 
 If any publication condition is violated, do not publish, keep the candidate unpublished, and record the failure evidence.
