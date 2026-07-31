@@ -45,8 +45,12 @@
 - CUDA is required for restore mode; health and gpu_probe run without CUDA.
 - CPU worker (`apps/api/runpod-worker-dev/`) remains unchanged and is the only packaged worker.
 - GPU inference is NOT executed on a CPU runner and has NOT been quality-approved.
+
+Build-only CI passed (run 30620758562): image ID `sha256:bf6af925ca2d4e3ef9c877a5fcde84907f30ad917e17f0e5591ef907081a8846`, size `5522182156` bytes, local digest `none` (not pushed). PyTorch `2.1.2+cu121` (CUDA-enabled). Container health, gpu_probe (CUDA unavailable), and fail-closed restore tests all passed. GPU execution not claimed.
+
 - New Gate 2 approval is required before publishing this candidate.
 - Gate 3 approval is required before any RunPod canary.
+
 
 
 ## Unapproved Decision
