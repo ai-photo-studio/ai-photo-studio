@@ -1,0 +1,103 @@
+name: BasicSR v1.4.2 Minimal Patch Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TORCH_FORCE_WEIGHTS_ONLY_LOAD: "1"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Download BasicSR v1.4.2 source archive and hash it
+        run: |
+          mkdir -p "$RUNNER_TEMP/src"
+          curl -fsSL --retry 5 --retry-all-errors \
+            -o "$RUNNER_TEMP/src/basicsr-1.4.2.tar.gz" \
+            "https://github.com/XPixelGroup/BasicSR/archive/651835a1b9d38dbbdaf45750f56906be2364f01a.tar.gz"
+          sha256sum "$RUNNER_TEMP/src/basicsr-1.4.2.tar.gz" | tee "$RUNNER_TEMP/src/source_sha256.txt"
+          tar -xzf "$RUNNER_TEMP/src/basicsr-1.4.2.tar.gz" -C "$RUNNER_TEMP/src"
+          mv "$RUNNER_TEMP/src/BasicSR-651835a1b9d38dbbdaf45750f56906be2364f01a" "$RUNNER_TEMP/src/basicsr-142"
+
+      - name: Apply the tracked one-line patch and build wheel
+        run: |
+          cd "$RUNNER_TEMP/src/basicsr-142"
+          # Strip the preamble/licence header from the tracked patch (everything before 'diff --git').
+          awk '/^diff --git/{flag=1} flag' "$GITHUB_WORKSPACE/docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch" > /tmp/one.patch
+          echo "=== patch ==="
+          cat /tmp/one.patch
+          echo "=== patched line count changed ==="
+          patch -p1 -i /tmp/one.patch
+          grep -n "from torchvision.transforms.functional import" basicsr/data/degradations.py
+          ! grep -n "functional_tensor" basicsr/data/degradations.py
+          sha256sum /tmp/one.patch | tee "$RUNNER_TEMP/src/one_line_patch_sha256.txt"
+          # Build wheel from patched source
+          pip install --no-cache-dir build wheel
+          python -m build --wheel --no-isolation 2>/dev/null | tail -2
+          WHEEL=$(ls dist/*.whl | head -1)
+          echo "wheel: $WHEEL"
+          sha256sum "$WHEEL"
+
+      - name: Install torch 2.6.0 + torchvision 0.21.0 (cu126) + patched BasicSR + gfpgan + facexlib
+        run: |
+          python -m pip install --no-cache-dir numpy==1.26.4 opencv-python-headless==4.9.0.80 Pillow==10.2.0 PyYAML==6.0.1 tqdm==4.66.2
+          python -m pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu126
+          python -m pip install --no-cache-dir basicsr --no-index --find-links "$RUNNER_TEMP/src/basicsr-142/dist" --no-deps
+          python -m pip install --no-cache-dir gfpgan==1.3.8 facexlib==0.3.0
+
+      - name: Verify patched BasicSR imports and GFPGANer construction
+        env:
+          TORCH_FORCE_WEIGHTS_ONLY_LOAD: "1"
+        run: |
+          python - <<'PY'
+          import torch, torchvision
+          print("torch", torch.__version__, "cuda_available", torch.cuda.is_available())
+          print("torchvision", torchvision.__version__)
+          import basicsr
+          print("basicsr", basicsr.__version__)
+          import gfpgan
+          import facexlib
+          print("gfpgan+facexlib imported")
+          from gfpgan.utils import GFPGANer
+          import os
+          os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"]="1"
+          # No weight present -> proof the import/arch path does not hit functional_tensor.
+          try:
+              GFPGANer(model_path="/nonexistent/GFPGANv1.4.pth", upscale=1, arch="clean",
+                       channel_multiplier=2, bg_upsampler=None)
+          except (FileNotFoundError, OSError):
+              print("GFPGANer arch construction OK (no real weight; import path clear)")
+          except Exception as e:
+              print(type(e).__name__, str(e))
+              raise
+          PY
+
+      - name: Download + verify auxiliary facexlib weights (temp, then delete)
+        run: |
+          mkdir -p "$RUNNER_TEMP/w"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/w/detection_Resnet50_Final.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/w/parsing_parsenet.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth"
+          echo "=== sizes ==="
+          stat -c "%s %n" "$RUNNER_TEMP/w/detection_Resnet50_Final.pth" "$RUNNER_TEMP/w/parsing_parsenet.pth"
+          echo "=== sha256 (independently calculated) ==="
+          sha256sum "$RUNNER_TEMP/w/detection_Resnet50_Final.pth" "$RUNNER_TEMP/w/parsing_parsenet.pth"
+          # expected sizes from release metadata
+          [ "$(stat -c%s "$RUNNER_TEMP/w/detection_Resnet50_Final.pth")" -eq 109497761 ] || { echo "detection size mismatch" >&2; exit 1; }
+          [ "$(stat -c%s "$RUNNER_TEMP/w/parsing_parsenet.pth")" -eq 85331193 ] || { echo "parsing size mismatch" >&2; exit 1; }
+          echo "sizes verified; gpu_inference_executed=false"
+
+      - name: Cleanup temporary files (always)
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/src" "$RUNNER_TEMP/w" /tmp/one.patch
