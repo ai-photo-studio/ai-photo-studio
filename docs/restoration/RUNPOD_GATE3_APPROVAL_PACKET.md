@@ -31,16 +31,16 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - External weights mountable via Network Volume (read-write at mount; read-only enforced in-application).
 - Flex workers, concurrency, retries, timeout: endpoint-config controls (verified configurable).
 
-## Registry Access (GHCR) — UNVERIFIED BLOCKER
+## Registry Access (GHCR) — RESOLVED (public)
 
-- GHCR package visibility/auth could NOT be confirmed: the GitHub API returned 403 (token lacks `read:packages` scope).
-- If the package is public, no registry credential is required; if private, a RunPod registry credential/credential-config is required.
-- Registry-access decision must be resolved (public or credentialed) before endpoint creation. Currently unverified.
+- Anonymous pull of the handler image by digest SUCCEEDED (workflow run `30652207024`), without any registry login or packages token.
+- `registryAccessDecision: public` — no registry credential is required for RunPod to pull the image.
 
-## GPU / Volume Region Compatibility — UNVERIFIED BLOCKER
+## GPU / Volume Region Compatibility — REMAINING BLOCKER
 
-- Whether the selected GPU type and the Network Volume can coexist in the same region could NOT be verified without a RunPod account.
-- Must be resolved before endpoint creation. Currently unverified.
+- Whether the selected GPU type and the Network Volume can coexist in the same region still cannot be verified without a RunPod account.
+- Offline checklist created (`RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md`) and an offline evidence validator (`region.gate3.validator.mjs`).
+- `regionCompatibilityResolved: false` until read-only RunPod evidence (datacenter ID, GPU pool availability, Network Volume in the same DC, selected rate) is supplied under separate authorization.
 
 ## Proposed GPU / Rate / Budget (unapproved)
 
@@ -59,10 +59,11 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - Weights enter the Network Volume externally (never bundled); checksum-verified before handler inference; no runtime download; cleanup after the canary; access restricted to the canary resources.
 - Weights are NOT uploaded in this task.
 
-## Canary Fixture
+## Canary Fixture — RESOLVED (synthetic, verified offline)
 
-- A small safe tracked fixture is required for the one restore job. No personal/customer images may be used.
-- If no suitable tracked fixture exists, this is a fixture blocker to be recorded before approval. (No fixture is introduced in this readiness task.)
+- Deterministic synthetic, non-personal fixture generator: `docs/restoration/fixtures/gen_canary_face_fixture.py` (stdlib-only, reproducible).
+- Generated PNG: SHA-256 `f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f`, size `787077` bytes (under payload limit); validator `canary-fixture.validator.mjs`.
+- Offline proof (run `30653164933`): `GFPGANer constructed`, input pixel SHA-256 `b2e6c6a2...`, restored output SHA-256 `99def1c3...`, faces=1, `gpu_inference_executed=false`. This is aligned-face processing (not a real detected face), which is honest contract evidence.
 
 ## Gate Status
 
@@ -70,9 +71,8 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 
 ## Current Blockers
 
-- GHCR registry-visibility/auth decision unresolved (token lacks read:packages; 403).
-- GPU/volume region coexistence unresolved (requires a RunPod account).
-- A small safe tracked canary fixture may be needed (n/a in this readiness task).
+- Only: GPU/volume region coexistence unresolved (`regionCompatibilityResolved: false`), requiring read-only RunPod evidence under separate authorization.
+- Registry (public) and canary fixture (proven offline) are resolved.
 
 ## Abort / Cleanup
 
