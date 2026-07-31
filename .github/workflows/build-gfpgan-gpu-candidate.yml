@@ -40,15 +40,16 @@ jobs:
       - name: Inspect image metadata
         id: image-meta
         run: |
-          image_id=$(docker inspect gfpgan-gpu-candidate:local --format '{{.Id}}')
-          size_bytes=$(docker inspect gfpgan-gpu-candidate:local --format '{{.Size}}')
-          digest=$(docker inspect gfpgan-gpu-candidate:local --format '{{index .RepoDigests 0}}' || echo none)
+          docker image inspect gfpgan-gpu-candidate:local > "$RUNNER_TEMP/inspect.json"
+          image_id=$(jq -r '.[0].Id' "$RUNNER_TEMP/inspect.json")
+          size_bytes=$(jq -r '.[0].Size' "$RUNNER_TEMP/inspect.json")
+          local_digest=$(jq -r '.[0].RepoDigests[0] // "none"' "$RUNNER_TEMP/inspect.json")
           echo "image_id=$image_id" >> "$GITHUB_OUTPUT"
           echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
-          echo "local_digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "local_digest=$local_digest" >> "$GITHUB_OUTPUT"
           echo "image_id: $image_id"
           echo "size_bytes: $size_bytes"
-          echo "local_digest: $digest"
+          echo "local_digest: $local_digest"
 
       - name: Record image metadata artifact (no weights)
         run: |
