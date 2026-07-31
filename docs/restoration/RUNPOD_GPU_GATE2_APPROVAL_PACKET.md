@@ -29,6 +29,17 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - SBOM: 223 packages.
 - Vulnerability scan: `Total: 35 (MEDIUM: 15, HIGH: 19, CRITICAL: 1)`.
 - Exact critical blocker: `CVE-2025-32434` in `torch 2.1.2+cu121` (fixed in torch >= 2.6.0). Not silently ignored; recorded as an exact dependency blocker for full hardening. Changing the pinned torch version requires validating the gfpgan/basicsr dependency tree.
+
+## Torch 2.6 Minimal Upgrade Investigation (rejected by exact incompatibility)
+
+- Goal: minimal security upgrade to torch 2.6.0 + torchvision 0.21.0 to clear CVE-2025-32434.
+- Official wheel availability: torch 2.6.0 is published on the PyTorch `cu126` index (not `cu121`); `torch 2.6.0+cu126` and `torchvision 0.21.0+cu126` confirmed present for Python 3.10 (evidence run 30624931147).
+- Empirical compat check (run 30624931147): torch `2.6.0+cu126` and torchvision `0.21.0+cu126` import, but `ModuleNotFoundError: No module named 'torchvision.transforms.functional_tensor'` — that module is removed in torchvision 0.21.
+- BasicSR `1.4.2` (its LATEST official release, v1.4.2) imports `from torchvision.transforms.functional_tensor import rgb_to_grayscale` in `basicsr/data/degradations.py`, so it is NOT compatible with torchvision 0.21.
+- Official upstream fix exists ONLY on the unreleased `XPixelGroup/BasicSR` master branch. There is no released BasicSR version compatible with torchvision 0.21.
+- GFPGANer (worker `load_model`) also calls `torch.load(model_path)` without `weights_only`; safe loading on torch 2.6 requires `TORCH_FORCE_WEIGHTS_ONLY_LOAD=1` (would be enforced) but the import break blocks even reaching that point.
+- Decision: the minimal torch 2.6 upgrade is NOT adoptable with the official gfpgan 1.3.8 / facexlib 0.3.0 / basicsr 1.4.2 stack. Rejected rather than using an unreleased BasicSR commit (requires licence/provenance review), patching site-packages silently (prohibited), or a non-official `basicsr-fixed` (prohibited).
+- Candidate remains on torch `2.1.2+cu121` with CVE-2025-32434 documented (not suppressed). GPU execution remains unverified.
 - `gpu_inference_executed: false`. Build success does not equal GPU inference or quality approval.
 
 ## Security Evidence (CI, runpod-gpu-gate2-readiness)
