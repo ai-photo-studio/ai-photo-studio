@@ -1,0 +1,19 @@
+{
+  "approved": false,
+  "publicationAllowed": false,
+  "imageRepository": "",
+  "immutableTag": "",
+  "expectedDigest": "",
+  "sourceCommit": "21e292103979f0450dffafe09844fac3b435031b",
+  "sourceSubtree": "b9402fa975e59ddc245985712b426ae63019761b",
+  "floatingTagAllowed": false,
+  "weightBundled": false,
+  "runtimeDownloadAllowed": false,
+  "immutableCliBaseDigest": "sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a",
+  "sdkVersion": "runpod==1.11.0",
+  "buildOnlyCiRun": "30644121360",
+  "localBuildImageId": "sha256:43de99f4a31868325b1d02f0a5d6c616ce45aebab345fe452a9099dacf1ce67f",
+  "localBuildSizeBytes": 6751978537,
+  "gate3ExecutionAllowed": false,
+  "productionRoutingAllowed": false
+}
