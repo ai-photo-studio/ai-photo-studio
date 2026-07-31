@@ -1,0 +1,98 @@
+name: verify-handler-canary-fixture-inference
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-handler-canary-fixture
+  cancel-in-progress: false
+
+jobs:
+  fixture-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repo (for generator)
+        uses: actions/checkout@v4
+
+      - name: Generate canary fixture
+        run: |
+          python docs/restoration/fixtures/gen_canary_face_fixture.py --out "$RUNNER_TEMP/canary.png"
+          sha256sum "$RUNNER_TEMP/canary.png"
+
+      - name: Pull published handler image by digest (anonymous)
+        run: |
+          digest="sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@${digest}"
+          docker pull "$image"
+
+      - name: Download + verify the three official weights (transient, then delete)
+        run: |
+          dl="$RUNNER_TEMP/models"; mkdir -p "$dl/facexlib"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/GFPGANv1.4.pth" \
+            "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/facexlib/detection_Resnet50_Final.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/facexlib/parsing_parsenet.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth"
+          [ "$(stat -c%s "$dl/GFPGANv1.4.pth")" -eq 348632874 ] || { echo "GFPGAN size" >&2; exit 1; }
+          [ "$(stat -c%s "$dl/facexlib/detection_Resnet50_Final.pth")" -eq 109497761 ] || { echo "det size" >&2; exit 1; }
+          [ "$(stat -c%s "$dl/facexlib/parsing_parsenet.pth")" -eq 85331193 ] || { echo "parse size" >&2; exit 1; }
+          [ "$(sha256sum "$dl/GFPGANv1.4.pth" | cut -d' ' -f1)" = "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad" ] || { echo "GFPGAN sha" >&2; exit 1; }
+          [ "$(sha256sum "$dl/facexlib/detection_Resnet50_Final.pth" | cut -d' ' -f1)" = "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d" ] || { echo "det sha" >&2; exit 1; }
+          [ "$(sha256sum "$dl/facexlib/parsing_parsenet.pth" | cut -d' ' -f1)" = "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2" ] || { echo "parse sha" >&2; exit 1; }
+          echo "three weights verified (size+sha)"
+
+      - name: Write offline fixture-inference test
+        run: |
+          cat > "$RUNNER_TEMP/test_fixture.py" <<'PYEOF'
+          import os, torch, numpy as np, hashlib
+          from PIL import Image
+          from gfpgan.utils import GFPGANer
+          assert os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD") == "1"
+          # Re-create the facexlib aux-weight symlinks (mirrors the CLI worker shortcut).
+          os.makedirs("gfpgan/weights", exist_ok=True)
+          for name in ("detection_Resnet50_Final.pth", "parsing_parsenet.pth"):
+              link = os.path.join("gfpgan/weights", name)
+              if not os.path.exists(link):
+                  os.symlink(f"/models/facexlib/{name}", link)
+          m = GFPGANer(model_path="/models/GFPGANv1.4.pth", upscale=1, arch="clean",
+                       channel_multiplier=2, bg_upsampler=None)
+          print("GFPGANer constructed; main weight loaded")
+          img = np.array(Image.open("/fixture/canary.png").convert("RGB"))
+          input_sha = hashlib.sha256(img.tobytes()).hexdigest()
+          faces, restored, out = m.enhance(img, has_aligned=True, only_center_face=False, paste_back=True)
+          assert faces is not None and len(faces) >= 1, "no aligned-face processing result"
+          assert restored is not None and len(restored) == len(faces)
+          out_sha = hashlib.sha256(np.asarray(restored[0]).tobytes()).hexdigest()
+          print("input_sha256=" + input_sha)
+          print("output_sha256=" + out_sha)
+          print("faces=" + str(len(faces)))
+          print("gpu_inference_executed=" + str(torch.cuda.is_available()))
+          PYEOF
+
+      - name: Run fixture through handler image under --network none (no weights bundled)
+        run: |
+          digest="sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@${digest}"
+          mkdir -p "$RUNNER_TEMP/fxt"; cp "$RUNNER_TEMP/canary.png" "$RUNNER_TEMP/fxt/canary.png"
+          set +e
+          docker run --rm -i --network none --entrypoint python3.10 -u root \
+            -v "$RUNNER_TEMP/fxt":/fixture:ro \
+            -v "$RUNNER_TEMP/models":/models:ro \
+            -v "$RUNNER_TEMP/test_fixture.py":/test_fixture.py:ro \
+            -w /offline \
+            -e TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
+            "$image" /test_fixture.py
+          rc=$?
+          set -e
+          echo "fixture inference rc=$rc"
+          [ "$rc" -eq 0 ] || { echo "FIXTURE_INFERENCE_FAILED" >&2; exit 1; }
+
+      - name: Cleanup transient weights (always)
+        if: always()
+        run: sudo rm -rf "$RUNNER_TEMP/models" "$RUNNER_TEMP/fxt" "$RUNNER_TEMP/test_fixture.py" 2>/dev/null || true
