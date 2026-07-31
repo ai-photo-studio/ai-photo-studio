@@ -20,6 +20,9 @@ ENV PYTHONUNBUFFERED=1 \
     TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
     APP_HOME=/srv/handler
 
+# The base CLI image ends with USER workeruser; switch to root for install steps.
+USER root
+
 # Install the pinned RunPod Python SDK. No other heavy deps: the CLI worker image
 # already provides torch/gfpgan/basicsr.
 RUN python3.10 -m pip install --no-cache-dir runpod==1.11.0 \
