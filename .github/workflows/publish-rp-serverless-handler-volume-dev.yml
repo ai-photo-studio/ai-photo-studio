@@ -148,7 +148,7 @@ jobs:
         run: |
           docker run --rm --network none \
             "${{ steps.digest.outputs.image_with_digest }}" \
-            test "$(readlink /models)" = "/runpod-volume/models"
+            sh -c 'test "$(readlink /models)" = "/runpod-volume/models"'
           echo "Symlink target verified in published image"
 
       - name: Test published image by digest - inherited handler path
