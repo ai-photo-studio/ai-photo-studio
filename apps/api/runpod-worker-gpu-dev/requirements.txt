@@ -1,7 +1,6 @@
 # GFPGAN GPU worker candidate pinned dependencies (build-test only)
-# PyTorch pinned to a CUDA-enabled release.
-torch==2.1.2
-torchvision==0.16.2
+# torch and torchvision are installed from the official PyTorch cu121 index
+# in the Dockerfile, so they are NOT listed here (avoids CPU-wheel override).
 numpy==1.26.4
 opencv-python-headless==4.9.0.80
 Pillow==10.2.0
