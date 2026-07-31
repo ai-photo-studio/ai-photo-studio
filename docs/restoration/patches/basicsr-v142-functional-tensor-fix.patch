@@ -1,0 +1,23 @@
+Submitted-by: XPixelGroup/BasicSR official commit 8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a ("change functional_tensor to functional (#650)")
+License: Apache-2.0
+Applied-baseline: BasicSR v1.4.2 (commit 651835a1b9d38dbbdaf45750f56906be2364f01a)
+
+This patch re-applies the exact one-line change from the official upstream
+BasicSR commit 8d56e3a04 against the official v1.4.2 release, and ONLY this
+change. It restores compatibility with torchvision 0.21, which removed the
+torchvision.transforms.functional_tensor module.
+
+diff --git a/basicsr/data/degradations.py b/basicsr/data/degradations.py
+index 4fa20d4a0..14319605d 100644
+--- a/basicsr/data/degradations.py
++++ b/basicsr/data/degradations.py
+@@ -5,7 +5,7 @@
+ import torch
+ from scipy import special
+ from scipy.stats import multivariate_normal
+-from torchvision.transforms.functional_tensor import rgb_to_grayscale
++from torchvision.transforms.functional import rgb_to_grayscale
+ 
+ # -------------------------------------------------------------------- #
+ # --------------------------- blur kernels --------------------------- #
+ # -------------------------------------------------------------------- #
