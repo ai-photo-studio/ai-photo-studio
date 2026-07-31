@@ -17,8 +17,8 @@
   "cliBaseDigest": "sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a",
   "registryAccessDecision": "public",
   "registryAccessNote": "Anonymous pull of the handler image by digest SUCCEEDED (workflow run 30652207024). No registry credential required for RunPod to pull the image.",
-  "gpuVolumeRegionCompatibility": "resolved",
-  "gpuVolumeRegionNote": "Read-only RunPod authorization was provided, but RUNPOD_API_KEY is not set in the environment; no read-only query could be authenticated. regionCompatibilityResolved: false. Gate 3 remains blocked on this decision until a valid env credential is available.",
+  "gpuVolumeRegionCompatibility": "blocked",
+  "gpuVolumeRegionNote": "Read-only RunPod queries executed via GitHub Actions workflow_dispatch (run 30658355014, main, 2026-07-31T19:14:53Z). Authentication succeeded; GET /v1/networkvolumes returned zero volumes; GraphQL gpuTypes query confirmed 16GB-class GPU stock account-wide. regionCompatibilityResolved: false because no existing Network Volume exists to co-locate with any GPU/datacenter, not because of credential or query failure. See runpod-region-evidence.json and RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md.",
   "regionCompatibilityResolved": false,
   "canaryFixture": {
     "generator": "docs/restoration/fixtures/gen_canary_face_fixture.py",
@@ -32,8 +32,8 @@
   },
   "proposed": {
     "gpuType": "A4000-class (16GB), e.g. A4000/A4500/RTX 4000",
-    "rateUsdPerSecond": 0.000161111,
-    "billingUnit": "per-second (published per-hour serverless rate $0.58/hr)",
+    "rateUsdPerSecond": 0.00004722,
+    "billingUnit": "per-second (live-verified cheapest candidate: RTX A4000 uninterruptable $0.17/hr, run 30658355014; supersedes earlier $0.58/hr pricing-page estimate)",
     "containerDiskGb": 20,
     "weightsMounted": true,
     "maxJobs": 1,
