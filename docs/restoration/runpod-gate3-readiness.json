@@ -10,6 +10,21 @@
   "timeoutSeconds": 120,
   "concurrency": 1,
   "productionRoutingAllowed": false,
-  "immutableImageDigest": "sha256:2ae480156b955e10d5c678aa5600e23ae22139bf8cba78b9bf2144c1f96d1278",
-  "sourceSha": "9926ae6d1ff87e64c805e86c6d66e9c8ca6c2eb7"
+  "immutableImageDigest": "sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a",
+  "immutableImageTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev:f65088b5f6bb2f5a91b8b877b32f032766c8b5f1",
+  "sourceSha": "f65088b5f6bb2f5a91b8b877b32f032766c8b5f1",
+  "candidateSubtree": "ea8a583e5d7279c0b67eec66a1906b7523c4ce99",
+  "proposed": {
+    "gpuType": "A4000-class (16GB), e.g. A4000/A4500/RTX 4000",
+    "rateUsdPerSecond": 0.000161111,
+    "billingUnit": "per-second (published per-hour serverless rate $0.58/hr)",
+    "containerDiskGb": 20,
+    "weightsMounted": true,
+    "maxJobs": 1,
+    "maxRetries": 0,
+    "timeoutSeconds": 120,
+    "concurrency": 1,
+    "activeWorkers": 1,
+    "flexWorkersMax": 1
+  }
 }

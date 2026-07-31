@@ -4,8 +4,8 @@ import path from "node:path";
 const manifestPath = path.join(__dirname, "runpod-gate3-readiness.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
 
-const expectedDigest = "sha256:2ae480156b955e10d5c678aa5600e23ae22139bf8cba78b9bf2144c1f96d1278";
-const expectedSourceSha = "9926ae6d1ff87e64c805e86c6d66e9c8ca6c2eb7";
+const expectedDigest = "sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a";
+const expectedSourceSha = "f65088b5f6bb2f5a91b8b877b32f032766c8b5f1";
 
 const assert = (condition: unknown, message: string) => {
   if (!condition) throw new Error(message);

@@ -1,74 +1,82 @@
 # RunPod Gate 3 Approval Packet
 
-## Verified Facts
+Readiness-only. This packet prepares the fail-closed one-job GPU canary for the published GPU worker image. It is NOT approval to call RunPod. No RunPod resource has been created and the image has not been executed.
 
-- Immutable image: `sha256:2ae480156b955e10d5c678aa5600e23ae22139bf8cba78b9bf2144c1f96d1278`
-- Source SHA: `9926ae6d1ff87e64c805e86c6d66e9c8ca6c2eb7`
-- Intended purpose: development health/dry_run canary only
-- Endpoint/template status: not created
-- Production routing: prohibited
-- Active workers: `0`
-- Maximum Flex workers after approval: `1`
-- Concurrency: `1`
-- Retries: `0`
-- Timeout: `120 seconds`
-- Maximum jobs before approval: `0`
-- Maximum jobs after approval: `1`
-- API key: secret reference only
-- No GFPGAN quality approval
-- No production activation
-- Evidence required after canary: health, dry_run, output integrity, budget, and abort/cleanup verification
+## Published Image (immutable, Gate 2)
 
-## Unresolved Inputs
+- Image: `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev:f65088b5f6bb2f5a91b8b877b32f032766c8b5f1`
+- Registry digest: `sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a`
+- Source SHA: `f65088b5f6bb2f5a91b8b877b32f032766c8b5f1`
+- Candidate subtree: `ea8a583e5d7279c0b67eec66a1906b7523c4ce99`
+- linux/amd64; runtime user `workeruser` (non-root); entrypoint `python3.10 /srv/worker/worker.py`.
+- Verified: zero CRITICAL vulnerabilities; CVE-2025-32434 absent; OCI revision matches source SHA; no bundled weights.
+- Gate 2 is consumed/closed. Image publication is not GPU or quality approval.
 
-- GPU type: unverified
-- GPU rate: unverified
-- Fixed budget: unapproved
+## Intended Canary
 
-## Weight Provenance
+- Purpose: development health / gpu_probe / one tiny CPU or GPU restoration inference canary, strictly one job.
+- Endpoint/template: not created. Production routing: prohibited.
+- Active workers `0`; maximum Flex workers after approval `1`.
+- Concurrency `1`; retries `0`; timeout `120` seconds.
+- Maximum jobs before approval `0`; after approval `1`.
+- API key: secret reference only; no RunPod API/dashboard action in this task.
 
-- GFPGANv1.4.pth official asset verified via GitHub Actions run 30618746285.
-- Size: 348632874 bytes; SHA-256 e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad.
-- Checksum source: independently-calculated (release API digest is absent; not publisher-signed).
-- Apache-2.0 covers source code only; weight redistribution is not approved.
-- recommendedPackagingMode: externally-mounted-weight; bundledWeightAllowed: false; runtimeDownloadAllowed: false.
-- A separate unpublished GFPGAN GPU candidate exists at `apps/api/runpod-worker-gpu-dev/` (build-test only).
+## Official RunPod Findings (source: runpod.io/pricing 2026-07-27, docs.runpod.io)
 
-## GPU Candidate Status
+- Serverless is handler-based: a worker image must package a handler started via `runpod.serverless.start({...})` (or an HTTP server for load-balancing endpoints). The published GPU candidate image is a standalone CLI worker (reads `--stdin`/`--input-file` JSON); it is NOT a RunPod Serverless handler image.
+- **Exact blocker**: the published image cannot be attached to a RunPod Serverless endpoint as-is. Executing it as a canary would require a handler-based wrapper image (a new candidate + new Gate 2 publication), which is outside this Gate 3 approval.
+- Serverless billing is per-second (per-hour rates listed). Official serverless rates: 16GB A4000/A4500/RTX4000/RTX2000 `$0.58/hr`; 24GB L4/A5000/3090 `$0.69/hr`; 48GB A40/A6000 `$1.22/hr`; 48GB L40/L40S/6000Ada/MIG `$1.75/hr`; 80GB A100 `$2.72/hr`.
+- Container disk `$0.10/GB/mo`; Network Storage Standard <1TB `$0.07/GB/mo`.
+- CUDA 12.6 / torch 2.6 image runs on current RunPod drivers and GPUs (A100-era through H100/B300). Per-node driver version is unverified until the canary `gpu_probe`.
+- Minimum practical GPU VRAM: GFPGAN v1.4 + RetinaFace + ParseNet fit in 16 GB VRAM (A4000-class); main weight 348MB, detection ~109MB, parsing ~85MB.
+- Container-disk requirement: must exceed the uncompressed image (~6.62 GB); optionally 20 GB.
+- External weights can be mounted via RunPod Network Volume; the volume is read-write at the mount path, so read-only is enforced in-application (worker never writes to /models).
+- Registry auth: RunPod supports public images without credentials; a private GHCR package requires a RunPod registry credential/config (unverified until endpoint creation; the published GHCR package privacy is unknown).
+- Timeout, workers, concurrency, retries are endpoint-config controls (verified configurable).
 
-- Candidate: `apps/api/runpod-worker-gpu-dev/`.
-- Purpose: build and contract validation only; NOT published and NOT quality-approved.
-- Weight: external mount at `/models/GFPGANv1.4.pth`.
-- Expected size: `348632874` bytes; expected SHA-256: `e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad`.
-- The candidate rejects missing, wrong-size, or wrong-checksum weight before model load.
-- No runtime download and no bundled model.
-- CUDA is required for restore mode; health and gpu_probe run without CUDA.
-- CPU worker (`apps/api/runpod-worker-dev/`) remains unchanged and is the only packaged worker.
-- GPU inference is NOT executed on a CPU runner and has NOT been quality-approved.
+## Proposed GPU / Rate / Budget (unapproved, separate from executable values)
 
-Build-only CI passed (run 30620758562): image ID `sha256:bf6af925ca2d4e3ef9c877a5fcde84907f30ad917e17f0e5591ef907081a8846`, size `5522182156` bytes, local digest `none` (not pushed). PyTorch `2.1.2+cu121` (CUDA-enabled). Container health, gpu_probe (CUDA unavailable), and fail-closed restore tests all passed. GPU execution not claimed.
+- Proposed GPU: A4000-class 16 GB (e.g. A4000/A4500/RTX 4000), $0.58/hr serverless.
+- Rate (per second): `0.58 / 3600 = 0.000161111 USD/s`.
+- Billing unit: per-second.
+- Worst-case one-job cost: `ratePerSecond × timeoutSeconds × maxJobs = 0.000161111 × 120 × 1 = $0.019333`.
+- Recommended fixed budget: `$0.05` (worst-case `$0.019` plus an explicit buffer for cold-start/boot time).
+- Maximum authorized cost: `$0.05`. Abort threshold: accumulated cost >= `$0.05`.
+- These are PROPOSED; the executable manifest keeps `verifiedRateUsdPerSecond: null` and `budgetUsd: null` until approval and run.
 
-Hardened for Gate 2 readiness (branch `runpod-gpu-gate2-readiness`): base pinned by immutable digest, non-root user, build tools removed, caches purged, OCI labels, SBOM + vulnerability scan. Weight remains external and checksum-pinned. No image published; floating tags and checksum drift prohibited. Publication requires a separate explicit Gate 2 approval; a separate Gate 3 approval is required before any RunPod canary.
+## One-Job Canary Design
 
+Strict one-shot sequence (after approval, via a RunPod handler wrapper image — currently blocked):
 
+1. `health` — container boot, python/torch, safe-load env.
+2. `gpu_probe` — require CUDA available; record device name/count.
+3. One tiny restoration inference — record timing, GPU metadata, output checksum.
+4. Capture evidence: timing, GPU metadata, output checksum, exit codes, cost.
+5. Terminate worker and endpoint resources; delete temporary resources.
 
-## Unapproved Decision
+No automatic second job, no retry.
 
-- Actual canary purpose: verify container startup, image decoding, and fail-closed budget/guard behavior; not restoration-quality GPU output.
-- GPU-use finding: the current worker is CPU-only Sharp-based code; no CUDA, PyTorch, ONNX GPU, or bundled model weights are present in the tracked worker files.
-- Recommended GPU type: defer until a real GPU workload exists; if a GPU canary is still desired, an A40-class or L40-class serverless worker is the minimum public-cost path, but it is not justified by the current worker.
-- Verified rate and billing unit: public Runpod pricing page lists Serverless A40/A4500/RTX 4000/RTX 2000 at $0.58/hr and L40/L40S/6000 Ada/MIG 48GB at $1.75/hr, both equivalent to per-second billing via the public per-hour rates.
-- MaxJobs: 1.
-- MaxRetries: 0.
-- Timeout: 120 seconds.
-- Concurrency: 1.
-- Worst-case one-job cost formula: `budget >= rate_per_second * 120`.
-- Recommended fixed budget: if using the cheapest public serverless tier from the pricing page, `0.58 / 3600 * 120 = 0.019333...`, so recommend at least `$0.02` plus a safety buffer; however, this remains unapproved and only applies if a GPU canary is later authorized.
-- Evidence the canary can provide: container boot, stdin/file contract, image decode, fail-closed config, and zero-provider behavior.
-- Evidence the canary cannot provide: GPU restoration quality, GFPGAN output quality, or production readiness.
-- Abort and cleanup conditions: stop on any nonzero provider call count, startup failure, bad image handling regression, unexpected routing, or cost overrun; delete temporary Runpod resources and keep production routing disabled.
-- Recommendation: defer GPU canary and integrate a real GPU workload first.
+## Weight Mount Contract
 
-## Abort And Cleanup
+- Three externally mounted, read-only-by-application weights:
+  - `/models/GFPGANv1.4.pth` — size `348632874`, SHA-256 `e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad`
+  - `/models/facexlib/detection_Resnet50_Final.pth` — size `109497761`, SHA-256 `6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d`
+  - `/models/facexlib/parsing_parsenet.pth` — size `85331193`, SHA-256 `3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2`
+- Exact size/SHA-256 verified before model load. Never bundled; never runtime-downloaded.
+- External-network-volume path semantics unverified until endpoint creation.
 
-If any canary evidence fails, abort immediately, keep production routing disabled, delete any temporary RunPod resources, record the failure evidence, and do not proceed to Gate 4.
+## Evidence To Capture
+
+- health / gpu_probe outputs; one-job inference timing; GPU metadata; output checksum; providerPostCount (must be 0); productionRoutingAllowed (must be false); exit codes; cost; abort/cleanup.
+
+## Abort / Cleanup
+
+If any evidence fails (CUDA unavailable, nonzero provider count, startup failure, cost overrun, unexpected routing), abort immediately, keep production routing disabled, delete temporary RunPod resources, record failure evidence, do not retry, and do not proceed to Gate 4.
+
+## Gate Status
+
+- Gate 3 is NOT production or quality approval. Gate 4 remains prohibited. Replicate remains production.
+
+## Current Blocker
+
+- The published image is a CLI worker, not a RunPod Serverless handler image. A Gate 3 canary would require a handler-based wrapper (new candidate + new Gate 2 publication). Until that exists, the canary cannot execute this published image on RunPod.
