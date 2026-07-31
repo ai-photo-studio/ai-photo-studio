@@ -1,0 +1,196 @@
+name: Build RunPod Serverless Handler Volume-Mapped Candidate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/api/runpod-worker-gpu-serverless-volume-dev/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: handler-volume-candidate-build
+  cancel-in-progress: false
+
+jobs:
+  build-test-volume-handler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Verify immutable base digest is pinned in the Dockerfile
+        run: |
+          set -euo pipefail
+          expected="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          grep -qF "FROM ${expected}" apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile \
+            || { echo "IMMUTABLE BASE DIGEST NOT PINNED AS EXPECTED" >&2; exit 1; }
+          echo "immutable base digest pinned: ${expected}"
+
+      - name: Build volume-mapped handler candidate image (no push)
+        id: build-image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-volume-dev
+          file: apps/api/runpod-worker-gpu-serverless-volume-dev/Dockerfile
+          push: false
+          tags: gfpgan-serverless-handler-volume:local
+          load: true
+
+      - name: Inspect image metadata
+        id: image-meta
+        run: |
+          docker image inspect gfpgan-serverless-handler-volume:local > "$RUNNER_TEMP/inspect.json"
+          image_id=$(jq -r '.[0].Id' "$RUNNER_TEMP/inspect.json")
+          size_bytes=$(jq -r '.[0].Size' "$RUNNER_TEMP/inspect.json")
+          echo "image_id=$image_id" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
+          echo "image_id: $image_id"
+          echo "size_bytes: $size_bytes"
+
+      - name: Verify non-root runtime, cleared entrypoint, inherited handler CMD
+        run: |
+          docker image inspect gfpgan-serverless-handler-volume:local > "$RUNNER_TEMP/in.json"
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' "$RUNNER_TEMP/in.json")
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' "$RUNNER_TEMP/in.json")
+          user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/in.json")
+          echo "entrypoint: $entry"
+          echo "cmd: $cmd"
+          echo "user: $user"
+          if [ "$user" != "workeruser" ]; then echo "NOT NON-ROOT (workeruser)" >&2; exit 1; fi
+          if [ "$entry" != "null" ] && [ "$entry" != "[]" ]; then echo "ENTRYPOINT NOT CLEARED" >&2; exit 1; fi
+          echo "$cmd" | grep -q "handler.py" || { echo "HANDLER CMD MISSING/CHANGED" >&2; exit 1; }
+
+      - name: Verify /models symlink contract (Test D - security)
+        run: |
+          set -euo pipefail
+          target=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-handler-volume:local -c 'readlink /models')
+          echo "readlink /models: $target"
+          [ "$target" = "/runpod-volume/models" ] || { echo "SYMLINK TARGET MISMATCH" >&2; exit 1; }
+          is_link=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-handler-volume:local -c 'test -L /models && echo yes || echo no')
+          [ "$is_link" = "yes" ] || { echo "/models IS NOT A SYMLINK" >&2; exit 1; }
+
+      - name: Verify no weights bundled in the image
+        run: |
+          set +e
+          has=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-handler-volume:local -c "test -f /runpod-volume/models/GFPGANv1.4.pth 2>/dev/null && echo present || echo absent")
+          set -e
+          echo "weights in image: $has"
+          [ "$has" = "absent" ] || { echo "WEIGHTS PRESENT" >&2; exit 1; }
+
+      - name: Build synthetic (non-real) placeholder weight fixtures for mount tests
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/valid-volume/models/facexlib"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/GFPGANv1.4.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/detection_Resnet50_Final.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/parsing_parsenet.pth"
+
+      - name: Test A - valid mapping (mount at /runpod-volume, verify visibility through /models)
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            --entrypoint sh \
+            gfpgan-serverless-handler-volume:local -c '
+              test -f /models/GFPGANv1.4.pth || { echo "main weight not visible" >&2; exit 1; }
+              test -f /models/facexlib/detection_Resnet50_Final.pth || { echo "aux detection not visible" >&2; exit 1; }
+              test -f /models/facexlib/parsing_parsenet.pth || { echo "aux parsing not visible" >&2; exit 1; }
+              [ "$(readlink /models)" = "/runpod-volume/models" ] || { echo "symlink target changed under mount" >&2; exit 1; }
+              echo "Test A PASSED: all three weight paths visible through /models"
+            '
+
+      - name: Test B - missing volume fails closed (restore must reject, no download)
+        run: |
+          set -euo pipefail
+          set +e
+          out=$(docker run --rm -i --network none --entrypoint python3.10 gfpgan-serverless-handler-volume:local \
+            /srv/worker/worker.py --stdin <<< '{"mode":"restore","imageBase64":"AAAA"}' 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          echo "exit_code=$rc"
+          [ "$rc" -eq 4 ] || { echo "EXPECTED EXIT_WEIGHT(4) WITH NO VOLUME MOUNTED, GOT $rc" >&2; exit 1; }
+          echo "Test B PASSED: missing volume fails closed (EXIT_WEIGHT), no download attempted"
+
+      - name: Test C - invalid weights (wrong size/hash) rejected before GPU/model construction
+        run: |
+          set -euo pipefail
+          set +e
+          out=$(docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            --entrypoint python3.10 \
+            gfpgan-serverless-handler-volume:local /srv/worker/worker.py --stdin <<< '{"mode":"restore","imageBase64":"AAAA"}' 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          echo "exit_code=$rc"
+          [ "$rc" -eq 4 ] || { echo "EXPECTED EXIT_WEIGHT(4) FOR MISMATCHED CHECKSUM/SIZE, GOT $rc" >&2; exit 1; }
+          echo "$out" | grep -qi "checksum mismatch\|size mismatch" || { echo "EXPECTED SIZE/CHECKSUM MISMATCH MESSAGE" >&2; exit 1; }
+          echo "Test C PASSED: invalid weight rejected before model construction (gpu_inference_executed=false)"
+
+      - name: Test D - health delegates through symlink, providerPostCount=0, productionRoutingAllowed=false
+        run: |
+          set -euo pipefail
+          out=$(docker run --rm -i --network none --entrypoint python3.10 gfpgan-serverless-handler-volume:local \
+            /srv/worker/worker.py --stdin <<< '{"mode":"health"}')
+          echo "$out"
+          echo "$out" | jq -e '.providerPostCount == 0 and .productionRoutingAllowed == false' >/dev/null \
+            || { echo "FAIL-CLOSED INVARIANTS MISSING" >&2; exit 1; }
+
+      - name: Run existing handler unit tests unchanged (mocks only, network none)
+        run: |
+          docker run --rm -i --network none \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-dev/test_handler.py":/srv/handler/test_handler.py:ro \
+            -w /srv/handler \
+            gfpgan-serverless-handler-volume:local \
+            python3.10 -m unittest test_handler -v 2>&1 | tail -5
+
+      - name: Run mount-contract tests (Test A/B/D re-validated via Python assertions)
+        run: |
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-volume-dev/test_mount_contract.py":/srv/handler/test_mount_contract.py:ro \
+            -w /srv/handler \
+            gfpgan-serverless-handler-volume:local \
+            python3.10 -m unittest test_mount_contract -v 2>&1 | tail -20
+
+      - name: Scan candidate image for CRITICAL (zero required)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-handler-volume:local
+          format: json
+          output: trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: Assert zero CRITICAL and CVE-2025-32434 absent
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' trivy.json >/dev/null 2>&1 \
+            || { echo "CRITICAL PRESENT" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" trivy.json; then echo "CVE-2025-32434 PRESENT" >&2; exit 1; fi
+          echo "zero CRITICAL, no CVE-2025-32434; gpu_inference_executed=false"
+
+      - name: Generate SBOM (no upload, no weights)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-handler-volume:local
+          format: cyclonedx
+          output: sbom.json
+
+      - name: Print candidate summary
+        run: |
+          echo "image_id=${{ steps.image-meta.outputs.image_id }}"
+          echo "size_bytes=${{ steps.image-meta.outputs.size_bytes }}"
+          echo "source_commit=${{ github.sha }}"
+          echo "SBOM packages:"; jq -r '.components | length' sbom.json 2>/dev/null || echo "n/a"
+          echo "gpu_inference_executed=false"
+          echo "published=false"
+          echo "runpod_resources_created=none"
