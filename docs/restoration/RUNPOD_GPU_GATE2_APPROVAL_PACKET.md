@@ -22,7 +22,14 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 
 ## Image Size After Hardening
 
-- Recorded by the build-only CI run after hardening (see audit report). Build success does not equal GPU inference or quality approval.
+- Hardened build-only CI run: `30622042430` (success).
+- Image ID after hardening: `sha256:1bd7e795ea0b6531773171063285bb4631f3cec8ecf078cfc22fc48fcf28ebd2`
+- Image size after hardening: `5454210979` bytes (baseline `5522182156` bytes).
+- Runtime user: `workeruser` (non-root); weight in image: absent; no network-download code.
+- SBOM: 223 packages.
+- Vulnerability scan: `Total: 35 (MEDIUM: 15, HIGH: 19, CRITICAL: 1)`.
+- Exact critical blocker: `CVE-2025-32434` in `torch 2.1.2+cu121` (fixed in torch >= 2.6.0). Not silently ignored; recorded as an exact dependency blocker for full hardening. Changing the pinned torch version requires validating the gfpgan/basicsr dependency tree.
+- `gpu_inference_executed: false`. Build success does not equal GPU inference or quality approval.
 
 ## Security Evidence (CI, runpod-gpu-gate2-readiness)
 
