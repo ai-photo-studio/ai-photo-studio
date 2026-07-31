@@ -1,0 +1,15 @@
+{
+  "approved": false,
+  "endpointId": "",
+  "templateId": "",
+  "gpuType": "",
+  "verifiedRateUsdPerSecond": null,
+  "budgetUsd": null,
+  "maxJobs": 0,
+  "maxRetries": 0,
+  "timeoutSeconds": 120,
+  "concurrency": 1,
+  "productionRoutingAllowed": false,
+  "immutableImageDigest": "sha256:2ae480156b955e10d5c678aa5600e23ae22139bf8cba78b9bf2144c1f96d1278",
+  "sourceSha": "9926ae6d1ff87e64c805e86c6d66e9c8ca6c2eb7"
+}
