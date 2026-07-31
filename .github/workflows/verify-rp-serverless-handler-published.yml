@@ -41,7 +41,7 @@ jobs:
           echo "entrypoint: $entry"
           echo "cmd: $cmd"
           [ "$user" = "workeruser" ] || { echo "NOT NON-ROOT" >&2; exit 1; }
-          [ "$entry" = "[]" ] || [ "$entry" = "null" ] || { echo "ENTRYPOINT NOT CLEARED" >&2; exit 1; }
+          [ "$entry" = "[]" ] || [ "$entry" = "null" ] || [ "$entry" = "None" ] || { echo "ENTRYPOINT NOT CLEARED" >&2; exit 1; }
           echo "$cmd" | grep -q "handler.py" || { echo "HANDLER CMD MISSING" >&2; exit 1; }
           echo "no weights mounted; verified by image config"
 
