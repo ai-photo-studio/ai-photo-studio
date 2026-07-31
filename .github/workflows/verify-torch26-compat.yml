@@ -1,0 +1,51 @@
+name: Verify Torch 2.6 Compat
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compat-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install torch 2.6.0 + torchvision 0.21.0 (cu121)
+        run: |
+          python -m pip install --no-cache-dir \
+            torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu121
+
+      - name: Install gfpgan/facexlib/basicsr 1.4.2
+        run: |
+          python -m pip install --no-cache-dir numpy==1.26.4 opencv-python-headless==4.9.0.80 Pillow==10.2.0 \
+            gfpgan==1.3.8 facexlib==0.3.0 basicsr==1.4.2 PyYAML==6.0.1 tqdm==4.66.2
+
+      - name: Print versions
+        run: |
+          python - <<'PY'
+          import torch, torchvision
+          print("torch", torch.__version__, "cuda_available", torch.cuda.is_available())
+          print("torchvision", torchvision.__version__)
+          import torchvision.transforms.functional_tensor as ft
+          print("functional_tensor import OK")
+          PY
+
+      - name: Attempt GFPGANer import + construction (proves basicsr import break)
+        run: |
+          export TORCH_FORCE_WEIGHTS_ONLY_LOAD=1
+          python - <<'PY'
+          try:
+              from gfpgan import GFPGANer
+              print("gfpgan import OK")
+              import basicsr.utils
+              print("basicsr.utils import OK")
+          except Exception as e:
+              print(type(e).__name__, str(e))
+              raise SystemExit(1)
+          PY
