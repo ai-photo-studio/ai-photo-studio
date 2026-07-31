@@ -36,11 +36,13 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - Anonymous pull of the handler image by digest SUCCEEDED (workflow run `30652207024`), without any registry login or packages token.
 - `registryAccessDecision: public` — no registry credential is required for RunPod to pull the image.
 
-## GPU / Volume Region Compatibility — REMAINING BLOCKER
+## GPU / Volume Region Compatibility — REMAINING BLOCKER (precise cause identified)
 
-- Read-only RunPod authorization was provided, but `RUNPOD_API_KEY` is NOT set in the environment; no read-only GET/list query could be authenticated. No key was extracted from git history or committed files (secret-safe).
-- Checklist: `RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md`; evidence validator: `region.gate3.validator.mjs`; evidence: `runpod-region-evidence.json` (blocked).
-- `regionCompatibilityResolved: false` until a valid `RUNPOD_API_KEY` in the environment is available to run read-only datacenter/GPU/volume list queries.
+- Read-only RunPod queries were executed via GitHub Actions `workflow_dispatch` (`.github/workflows/runpod-region-readonly.yml`, PR #63, run `30658355014`, `main`, 2026-07-31T19:14:53Z), using `secrets.RUNPOD_API_KEY`. Authentication succeeded (`keyPresent=true`); the key was never printed, echoed, or persisted.
+- `GET https://rest.runpod.io/v1/networkvolumes` → HTTP 200, **zero Network Volumes exist on the account**.
+- `POST https://api.runpod.io/graphql` (`query gpuTypes`, no mutation) → HTTP 200. 16GB-class candidates confirmed available account-wide: RTX A4000 ($0.17/hr, stock Low), RTX A4500 ($0.19/hr, stock Low), RTX 4000 Ada ($0.18–0.20/hr, stock Low), RTX 2000 Ada ($0.50/hr, stock Low). A40 (48GB, $0.35/hr, stock High) recorded only as an unapproved larger alternative, not substituted.
+- Checklist: `RUNPOD_REGION_COMPATIBILITY_CHECKLIST.md`; evidence: `runpod-region-evidence.json`.
+- `regionCompatibilityResolved: false` — **not** because of a missing credential or failed query, but because there is no existing Network Volume to co-locate with any GPU in any datacenter. Per authorization, no volume was created and Gate 3 remains blocked on this point until a volume is created under separate, non-read-only authorization and this evidence is revalidated.
 
 ## Proposed GPU / Rate / Budget (unapproved)
 
@@ -71,7 +73,7 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 
 ## Current Blockers
 
-- Only: GPU/volume region coexistence unresolved (`regionCompatibilityResolved: false`), requiring read-only RunPod evidence under separate authorization.
+- Only: GPU/volume region coexistence unresolved (`regionCompatibilityResolved: false`) — the account has zero Network Volumes, so no datacenter/GPU pairing can be proven. Creating a volume requires separate, non-read-only authorization; this task's read-only evidence proves the blocker precisely rather than resolving it.
 - Registry (public) and canary fixture (proven offline) are resolved.
 
 ## Abort / Cleanup

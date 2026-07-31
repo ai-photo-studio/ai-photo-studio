@@ -1,13 +1,29 @@
 {
   "regionCompatibilityResolved": false,
-  "blocker": "read-only RunPod credential unavailable (RUNPOD_API_KEY not set in environment)",
-  "queriesPerformed": [],
+  "blocker": "no existing RunPod Network Volume on the account; region co-location cannot be established regardless of datacenter or GPU choice",
+  "queryMethod": "GitHub Actions workflow_dispatch (runpod-region-readonly.yml), run 30658355014, on main after PR #63 merge",
+  "queriesPerformed": [
+    "GET https://rest.runpod.io/v1/networkvolumes",
+    "POST https://api.runpod.io/graphql (query gpuTypes; no mutation)"
+  ],
+  "authVerified": true,
+  "networkVolumesFound": 0,
   "dataCenterId": "",
-  "gpuPoolAvailable": false,
+  "gpuPoolAvailable": true,
+  "gpuPoolCandidates16Gb": [
+    { "id": "NVIDIA RTX A4000", "memoryInGb": 16, "stockStatus": "Low", "uninterruptablePriceUsdPerHr": 0.17 },
+    { "id": "NVIDIA RTX 2000 Ada Generation", "memoryInGb": 16, "stockStatus": "Low", "uninterruptablePriceUsdPerHr": 0.5 },
+    { "id": "NVIDIA RTX A4500", "memoryInGb": 20, "stockStatus": "Low", "uninterruptablePriceUsdPerHr": 0.19 },
+    { "id": "NVIDIA RTX 4000 Ada Generation", "memoryInGb": 20, "stockStatus": "Low", "uninterruptablePriceUsdPerHr": 0.2 }
+  ],
+  "gpuPoolAlternativeUnapproved": [
+    { "id": "NVIDIA A40", "memoryInGb": 48, "stockStatus": "High", "uninterruptablePriceUsdPerHr": 0.35, "note": "larger than preferred 16GB-class; not silently substituted; recorded only as an alternative" }
+  ],
   "networkVolumeSameDc": false,
-  "gpuRateUsdPerSecond": null,
-  "authVerified": false,
+  "gpuRateUsdPerSecondCheapestCandidate": 0.00004722,
+  "worstCaseCostUsdCheapestCandidate": 0.00566666666,
+  "budgetUsd0_05Sufficient": true,
   "createdAnyResource": false,
   "submittedAnyJob": false,
-  "queryTimestamp": "2026-07-31T18:00:00Z"
+  "queryTimestamp": "2026-07-31T19:14:53Z"
 }
