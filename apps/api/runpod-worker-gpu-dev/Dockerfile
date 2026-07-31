@@ -23,9 +23,9 @@ ENV PYTHONUNBUFFERED=1 \
     TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
     APP_HOME=/srv/worker
 
-# Minimal runtime packages. git/curl are build-time only and removed before runtime.
+# Minimal runtime packages. git/curl/patch are build-time only and removed before runtime.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 python3-venv python3-pip python3-setuptools python3-wheel curl ca-certificates \
+    python3.10 python3-venv python3-pip python3-setuptools python3-wheel curl ca-certificates patch \
     libglib2.0-0 libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
@@ -65,7 +65,7 @@ RUN grep -q "from torchvision.transforms.functional import rgb_to_grayscale" \
     && ! grep -q "functional_tensor" /usr/local/lib/python3.10/dist-packages/basicsr/data/degradations.py
 
 # Remove build-time tools and source before runtime.
-RUN apt-get purge -y curl git 2>/dev/null || true; apt-get autoremove -y; rm -rf /build
+RUN apt-get purge -y curl git patch 2>/dev/null || true; apt-get autoremove -y; rm -rf /build
 
 COPY worker.py /srv/worker/worker.py
 COPY test_worker.py /srv/worker/test_worker.py
