@@ -139,6 +139,66 @@ def test_production_isolation():
     assert "prisma" not in src.lower() and "postgres" not in src.lower() and "express" not in src.lower()
 
 
+def test_safe_load_enforced():
+    # enforce_safe_load must pass when TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 and the
+    # opt-out env is unset; must fail otherwise.
+    before = os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD")
+    os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1"
+    os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
+    w.enforce_safe_load()
+    os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
+    try:
+        w.enforce_safe_load()
+        raise AssertionError("expected safe-load enforcement failure")
+    except w._WeightError:
+        pass
+    os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1"
+    os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+    try:
+        w.enforce_safe_load()
+        raise AssertionError("expected opt-out rejection")
+    except w._WeightError:
+        pass
+    os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
+    if before is None:
+        os.environ.pop("TORCH_FORCE_WEIGHTS_ONLY_LOAD", None)
+    else:
+        os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = before
+
+
+def test_three_weight_contract_fail_closed():
+    # validate_weight must fail (size or checksum) when the real weights are
+    # absent or of the wrong size; it must not silently pass.
+    os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1"
+    try:
+        w.validate_weight()
+    except w._WeightError:
+        pass
+    else:
+        # If all three real weights happen to be mounted, this is acceptable.
+        if not (os.path.exists(w.EXPECTED_WEIGHT_PATH) and os.path.exists(w.AUX_DETECTION_PATH)
+                and os.path.exists(w.AUX_PARSING_PATH)):
+            raise AssertionError("validate_weight passed without all three weights present")
+
+
+def test_aux_symlink_preparation_no_download():
+    # prepare_face_aux_symlinks must create symlinks (or no-op if already present)
+    # and must not require network. It links to the reserved /models/facexlib paths.
+    try:
+        w.prepare_face_aux_symlinks()
+    except w._WeightError:
+        # symlink creation can fail if the mount is absent; that is acceptable
+        # but must not reach the network.
+        pass
+    else:
+        for name in ("detection_Resnet50_Final.pth", "parsing_parsenet.pth"):
+            link = os.path.join(w.FACE_WEIGHTS_DIR, name)
+            if os.path.islink(link):
+                assert os.readlink(link).startswith("/models/facexlib/"), "symlink must point to /models/facexlib"
+            elif os.path.exists(link):
+                raise AssertionError(f"{name} existed as a real file, not a symlink")
+
+
 def test_cli_health_stdin():
     proc = subprocess.run(
         [sys.executable, w.__file__, "--stdin"],

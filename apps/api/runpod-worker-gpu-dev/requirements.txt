@@ -1,11 +1,14 @@
 # GFPGAN GPU worker candidate pinned dependencies (build-test only)
-# torch and torchvision are installed from the official PyTorch cu121 index
-# in the Dockerfile, so they are NOT listed here (avoids CPU-wheel override).
+# torch and torchvision are installed from the official PyTorch cu126 index
+# in the Dockerfile (torch 2.6.0+cu126 / torchvision 0.21.0+cu126).
+# basicSR is NOT listed here: it is built from the pinned official v1.4.2
+# source with the tracked one-line functional_tensor->functional patch applied
+# explicitly in the Dockerfile (source hash f23fe355..., patch 834cf12b...).
 numpy==1.26.4
 opencv-python-headless==4.9.0.80
 Pillow==10.2.0
+scipy==1.11.4
 gfpgan==1.3.8
 facexlib==0.3.0
-basicsr==1.4.2
 PyYAML==6.0.1
 tqdm==4.66.2

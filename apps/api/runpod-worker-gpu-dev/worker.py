@@ -21,6 +21,18 @@ import sys
 EXPECTED_WEIGHT_PATH = "/models/GFPGANv1.4.pth"
 EXPECTED_WEIGHT_SIZE = 348632874
 EXPECTED_WEIGHT_SHA256 = "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
+
+# Auxiliary facexlib weights (externally mounted, checksum-verified, read-only)
+AUX_DETECTION_PATH = "/models/facexlib/detection_Resnet50_Final.pth"
+AUX_DETECTION_SIZE = 109497761
+AUX_DETECTION_SHA256 = "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d"
+AUX_PARSING_PATH = "/models/facexlib/parsing_parsenet.pth"
+AUX_PARSING_SIZE = 85331193
+AUX_PARSING_SHA256 = "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2"
+# FaceRestoreHelper expects aux weights at gfpgan/weights/<filename>; we create
+# symlinks there pointing to the read-only /models mounts.
+FACE_WEIGHTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gfpgan", "weights")
+
 MAX_INPUT_BYTES = 8_000_000
 TIMEOUT_SECONDS = 120
 
@@ -48,16 +60,52 @@ def sha256_file(path, chunk=1 << 20):
     return h.hexdigest()
 
 
-def validate_weight():
-    if not os.path.exists(EXPECTED_WEIGHT_PATH):
-        raise _WeightError(f"GFPGAN weight not found at {EXPECTED_WEIGHT_PATH}")
-    size = os.path.getsize(EXPECTED_WEIGHT_PATH)
-    if size != EXPECTED_WEIGHT_SIZE:
-        raise _WeightError(f"GFPGAN weight size mismatch: {size} != {EXPECTED_WEIGHT_SIZE}")
-    digest = sha256_file(EXPECTED_WEIGHT_PATH)
-    if digest.lower() != EXPECTED_WEIGHT_SHA256:
-        raise _WeightError(f"GFPGAN weight checksum mismatch: {digest}")
+def enforce_safe_load():
+    import os as _os
+    if _os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD") != "1":
+        raise _WeightError("TORCH_FORCE_WEIGHTS_ONLY_LOAD must be set to 1")
+    if _os.environ.get("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"):
+        raise _WeightError("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD must not be set")
+
+
+def _validate_one_weight(path, size, sha, label):
+    if not os.path.exists(path):
+        raise _WeightError(f"{label} weight not found at {path}")
+    got_size = os.path.getsize(path)
+    if got_size != size:
+        raise _WeightError(f"{label} weight size mismatch: {got_size} != {size}")
+    digest = sha256_file(path)
+    if digest.lower() != sha.lower():
+        raise _WeightError(f"{label} weight checksum mismatch: {digest}")
     return True
+
+
+def validate_weight():
+    enforce_safe_load()
+    _validate_one_weight(EXPECTED_WEIGHT_PATH, EXPECTED_WEIGHT_SIZE, EXPECTED_WEIGHT_SHA256, "GFPGANv1.4 main")
+    _validate_one_weight(AUX_DETECTION_PATH, AUX_DETECTION_SIZE, AUX_DETECTION_SHA256, "facexlib detection")
+    _validate_one_weight(AUX_PARSING_PATH, AUX_PARSING_SIZE, AUX_PARSING_SHA256, "facexlib parsing")
+    return True
+
+
+def prepare_face_aux_symlinks():
+    """Create gfpgan/weights/<name> symlinks -> mounted /models/facexlib/<name>.
+
+    facexlib's load_file_from_url returns the local file when it exists;
+    creating these symlinks prevents any runtime download.
+    """
+    os.makedirs(FACE_WEIGHTS_DIR, exist_ok=True)
+    pairs = {
+        "detection_Resnet50_Final.pth": AUX_DETECTION_PATH,
+        "parsing_parsenet.pth": AUX_PARSING_PATH,
+    }
+    for name, target in pairs.items():
+        link = os.path.join(FACE_WEIGHTS_DIR, name)
+        if not os.path.exists(link):
+            try:
+                os.symlink(target, link)
+            except OSError as e:  # noqa: BLE001
+                raise _WeightError(f"could not create symlink for {name}: {e}") from e
 
 
 class _WeightError(Exception):
@@ -80,6 +128,7 @@ def cuda_info():
 def load_model():
     import torch
     from gfpgan import GFPGANer
+    prepare_face_aux_symlinks()
     model = GFPGANer(
         model_path=EXPECTED_WEIGHT_PATH,
         upscale=1,
@@ -179,6 +228,9 @@ def handle(input):
             "python": sys.version.split()[0],
             "torch": torch_v,
             "weightPresent": os.path.exists(EXPECTED_WEIGHT_PATH),
+            "auxDetectionPresent": os.path.exists(AUX_DETECTION_PATH),
+            "auxParsingPresent": os.path.exists(AUX_PARSING_PATH),
+            "safeLoad": os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD") == "1",
         })
     if mode == "gpu_probe":
         info = cuda_info()
