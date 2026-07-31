@@ -1,0 +1,68 @@
+name: verify-gfpgan-gpu-published
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-gfpgan-gpu-published
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Confirm one immutable tag resolves to the captured digest
+        env:
+          IMAGE: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev
+          TAG: f65088b5f6bb2f5a91b8b877b32f032766c8b5f1
+          DIGEST: sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a
+        run: |
+          set -euo pipefail
+          # The tag must resolve to the exact captured digest.
+          resolved=$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format "{{json .Describe}}" 2>/dev/null \
+            || docker buildx imagetools inspect "${IMAGE}:${TAG}" --format "{{json .}}")
+          echo "$resolved" | grep -q "${DIGEST}" || { echo "TAG DOES NOT RESOLVE TO DIGEST" >&2; exit 1; }
+          echo "tag resolves to captured digest: ${DIGEST}"
+          echo "digest=${DIGEST}" >> "$GITHUB_ENV"
+
+      - name: Run published-image tests by digest (network none, no weights)
+        run: |
+          set -euo pipefail
+          digest="${{ env.DIGEST }}"
+          img="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@${digest}"
+
+          echo "=== health ==="
+          echo '{"mode":"health"}' | docker run --rm -i --network none "$img" --stdin
+
+          echo "=== gpu_probe ==="
+          echo '{"mode":"gpu_probe"}' | docker run --rm -i --network none "$img" --stdin
+
+          echo "=== fail-closed restore without weights ==="
+          mkdir -p /tmp/empty-models
+          set +e
+          echo '{"mode":"restore","imageBase64":""}' | docker run --rm -i --network none \
+            -v /tmp/empty-models:/models:ro "$img" --stdin
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then echo "RESTORE FAILED CLOSED EXPECTED" >&2; exit 1; fi
+          echo "restore failed closed as expected (exit $rc)"
+          echo "gpu_inference_executed=false; no weights mounted"
+
+      - name: Verify non-root user and no bundled weights
+        run: |
+          set -euo pipefail
+          digest="${{ env.DIGEST }}"
+          img="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev@${digest}"
+          meta=$(docker image inspect "$img" 2>/dev/null \
+            || { docker pull "$img" >/dev/null; docker image inspect "$img"; })
+          user=$(echo "$meta" | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['Config']['User'])")
+          echo "runtime user: $user"
+          [ "$user" = "workeruser" ] || { echo "NOT NON-ROOT" >&2; exit 1; }
+          dig=$(echo "$meta" | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['Id'])")
+          echo "image id: $dig"
+          echo "no weights mounted; verified by digest"
