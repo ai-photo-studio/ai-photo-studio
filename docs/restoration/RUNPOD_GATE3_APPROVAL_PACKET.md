@@ -25,6 +25,15 @@
 - GPU rate: unverified
 - Fixed budget: unapproved
 
+## Weight Provenance
+
+- GFPGANv1.4.pth official asset verified via GitHub Actions run 30618746285.
+- Size: 348632874 bytes; SHA-256 e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad.
+- Checksum source: independently-calculated (release API digest is absent; not publisher-signed).
+- Apache-2.0 covers source code only; weight redistribution is not approved.
+- recommendedPackagingMode: externally-mounted-weight; bundledWeightAllowed: false; runtimeDownloadAllowed: false.
+- No GPU candidate created; weights must match the pinned checksum before any startup.
+
 ## Unapproved Decision
 
 - Actual canary purpose: verify container startup, image decoding, and fail-closed budget/guard behavior; not restoration-quality GPU output.

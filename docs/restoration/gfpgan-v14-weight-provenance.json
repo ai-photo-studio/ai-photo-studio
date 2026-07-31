@@ -1,0 +1,27 @@
+{
+  "model": "GFPGANv1.4",
+  "officialRepository": "https://github.com/TencentARC/GFPGAN",
+  "releaseTag": "v1.3.0",
+  "releaseId": 59459848,
+  "assetId": 76823602,
+  "assetName": "GFPGANv1.4.pth",
+  "uploader": "xinntao",
+  "officialAssetUrl": "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth",
+  "expectedSize": 348632874,
+  "sha256": "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad",
+  "checksumSource": "independently-calculated",
+  "checksumVerified": true,
+  "sourceLicense": "Apache-2.0",
+  "weightRedistributionStatus": "no-explicit-official-permission-verified",
+  "redistributionApproved": false,
+  "bundledWeightAllowed": false,
+  "recommendedPackagingMode": "externally-mounted-weight",
+  "runtimeDownloadAllowed": false,
+  "productionRoutingAllowed": false,
+  "verificationDate": "2026-07-31",
+  "workflowRunId": 30618746285,
+  "evidenceReferences": [
+    "https://api.github.com/repos/TencentARC/GFPGAN/releases/tags/v1.3.0",
+    "https://github.com/ai-photo-studio/ai-photo-studio/actions/runs/30618746285"
+  ]
+}
