@@ -107,6 +107,22 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - `gate3ExecutionAllowed: false`
 - `productionRoutingAllowed: false`
 
+## Final Gate 2 Publication-Readiness (review conclusion)
+
+- Candidate source SHA: `f65088b` (subtree `ea8a583e5d7279c0b67eec66a1906b7523c4ce99`); candidate subtree is frozen and matches current main (no undocumented later changes).
+- Secure-stack versions: Python 3.10, torch 2.6.0+cu126, torchvision 0.21.0+cu126, gfpgan 1.3.8, facexlib 0.3.0, scipy 1.11.4, BasicSR v1.4.2 source + tracked patch.
+- Final build-only CI run: `30634598810` (adoption) / `30635330942` (final revision), both SUCCESS.
+- Image: `sha256:b61b48c7a2b9fd9bd730caf128abbc53fab0d141ffdf7ae46250de92a4b70007`, size `6620108704` bytes, local_digest none (not pushed); push:false; no registry login/packages write.
+- Security: zero CRITICAL, CVE-2025-32434 absent; non-root user; weight in image absent.
+- External/BYO weight requirement: all three weights must be mounted read-only and match pinned size + SHA-256 before startup; never bundled.
+- Proposed immutable repository/tag format (to be confirmed at execution): a single immutable image tag pinned to `sourceCommit` `f65088b`, e.g. `<registry>/<repo>:sha-<f65088b>` or `<registry>/<repo>:<immutable-digest>`. No `latest`/`dev` floating tag.
+- Publication would contain CODE ONLY (no weights). Weights remain external/BYO.
+- A publication workflow (NOT created in this task) must pin `sourceCommit` `f65088b` and push exactly one immutable tag with `push: true`, no `latest`/`dev`, no tags list.
+- Post-publication digest verification: after the image is pushed, the registry digest must be recorded and verified (expectedDigest populated from the actual pushed digest) before Gate 2 closes; the digest must match the published image.
+- No RunPod call after publication; publication is not GPU execution or quality approval.
+- Gate 3 requires a later, separate approval; Gate 4 remains prohibited.
+- Abort conditions: candidate code/dependency change invalidates this evidence; floating tag creation, missing digest verification, bundled weights, or any runpod call abort publication.
+
 ## Required Before Gate 2 Publication
 
 - A NEW explicit user approval for publication.
