@@ -1,0 +1,118 @@
+name: Verify GFPGAN Offline External Weights
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TORCH_FORCE_WEIGHTS_ONLY_LOAD: "1"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # ---- prepare patched BasicSR source ----
+      - name: Fetch + verify BasicSR v1.4.2 and apply tracked patch
+        run: |
+          mkdir -p "$RUNNER_TEMP/src"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/src/basicsr-142.tar.gz" \
+            "https://github.com/XPixelGroup/BasicSR/archive/651835a1b9d38dbbdaf45750f56906be2364f01a.tar.gz"
+          sha256sum "$RUNNER_TEMP/src/basicsr-142.tar.gz" | tee "$RUNNER_TEMP/src/src.sha"
+          expected=f23fe3558fff4cc038186ffd417d69d8bc1fd0eea2a9c755c401e9dfecc18152
+          actual=$(awk '{print $1}' "$RUNNER_TEMP/src/src.sha")
+          [ "$actual" = "$expected" ] || { echo "v1.4.2 source hash mismatch" >&2; exit 1; }
+          tar -xzf "$RUNNER_TEMP/src/basicsr-142.tar.gz" -C "$RUNNER_TEMP/src"
+          mv "$RUNNER_TEMP/src/BasicSR-651835a1b9d38dbbdaf45750f56906be2364f01a" "$RUNNER_TEMP/src/basicsr-142"
+          cd "$RUNNER_TEMP/src/basicsr-142"
+          awk '/^diff --git/{flag=1} flag' "$GITHUB_WORKSPACE/docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch" > /tmp/one.patch
+          sha256sum /tmp/one.patch | tee "$RUNNER_TEMP/src/patch.sha"
+          [ "$(awk '{print $1}' "$RUNNER_TEMP/src/patch.sha")" = "834cf12b1e625ce59ec2af4152421d2c6c113b8f0a54ba4544f8937b014289ac" ] || { echo "patch hash mismatch" >&2; exit 1; }
+          patch -p1 -i /tmp/one.patch
+          ! grep -n "functional_tensor" basicsr/data/degradations.py
+
+      # ---- build a test OCI image with patched stack ----
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build offline test image (no push)
+        run: |
+          cat > "$RUNNER_TEMP/Dockerfile" <<'EOF'
+          FROM ubuntu:22.04
+          RUN apt-get update && apt-get install -y --no-install-recommends python3.10 python3-pip libglib2.0-0 libgl1-mesa-glx && rm -rf /var/lib/apt/lists/*
+          RUN python3.10 -m pip install --no-cache-dir numpy==1.26.4 opencv-python-headless==4.9.0.80 Pillow==10.2.0 PyYAML==6.0.1 tqdm==4.66.2 torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu126
+          RUN python3.10 -m pip install --no-cache-dir gfpgan==1.3.8 facexlib==0.3.0
+          ENV TORCH_FORCE_WEIGHTS_ONLY_LOAD=1
+          WORKDIR /offline
+          EOF
+          docker build -t gfpgan-offline-test:local -f "$RUNNER_TEMP/Dockerfile" "$RUNNER_TEMP"
+
+      # ---- download the three weights, verify, stage as /models mounts ----
+      - name: Download + verify the three official weights (temp, then delete)
+        run: |
+          d="$RUNNER_TEMP/models"
+          mkdir -p "$d/facexlib"
+          curl -fsSL --retry 5 --retry-all-errors -o "$d/GFPGANv1.4.pth" \
+            "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$d/facexlib/detection_Resnet50_Final.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$d/facexlib/parsing_parsenet.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth"
+          echo "sizes:"; stat -c "%s %n" "$d/GFPGANv1.4.pth" "$d/facexlib/detection_Resnet50_Final.pth" "$d/facexlib/parsing_parsenet.pth"
+          echo "hashes:"; sha256sum "$d/GFPGANv1.4.pth" "$d/facexlib/detection_Resnet50_Final.pth" "$d/facexlib/parsing_parsenet.pth"
+          [ "$(stat -c%s "$d/GFPGANv1.4.pth")" -eq 348632874 ] || { echo "GFPGAN size mismatch" >&2; exit 1; }
+          [ "$(stat -c%s "$d/facexlib/detection_Resnet50_Final.pth")" -eq 109497761 ] || { echo "det size mismatch" >&2; exit 1; }
+          [ "$(stat -c%s "$d/facexlib/parsing_parsenet.pth")" -eq 85331193 ] || { echo "parse size mismatch" >&2; exit 1; }
+          echo "$(sha256sum "$d/GFPGANv1.4.pth")" | grep -q "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad" || { echo "GFPGAN sha mismatch" >&2; exit 1; }
+          echo "$(sha256sum "$d/facexlib/detection_Resnet50_Final.pth")" | grep -q "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d" || { echo "det sha mismatch" >&2; exit 1; }
+          echo "$(sha256sum "$d/facexlib/parsing_parsenet.pth")" | grep -q "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2" || { echo "parse sha mismatch" >&2; exit 1; }
+          echo "all three weights verified size+sha"
+
+      # ---- run fully offline construction with --network none ----
+      - name: Offline external-mount construction (network none, symlinks)
+        run: |
+          set +e
+          docker run --rm --network none \
+            -u root \
+            -v "$RUNNER_TEMP/src/basicsr-142":/patched-basicsr \
+            -v "$RUNNER_TEMP/models":/models:ro \
+            -w /offline \
+            -e TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
+            gfpgan-offline-test:local bash -lc '
+              python3.10 -m pip install --no-cache-dir --no-deps /patched-basicsr >/dev/null 2>&1
+              mkdir -p /offline/gfpgan/weights
+              ln -sfn /models/facexlib/detection_Resnet50_Final.pth /offline/gfpgan/weights/detection_Resnet50_Final.pth
+              ln -sfn /models/facexlib/parsing_parsenet.pth   /offline/gfpgan/weights/parsing_parsenet.pth
+              if [ -n "${TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD:-}" ]; then echo "FORBIDDEN env set" >&2; exit 9; fi
+              python3.10 - <<'"'"'PY'"'"'
+              import os, torch, numpy as np, io, base64
+              assert os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD")=="1"
+              print("torch", torch.__version__, "cuda", torch.cuda.is_available())
+              from PIL import Image
+              from gfpgan.utils import GFPGANer
+              m = GFPGANer(model_path="/models/GFPGANv1.4.pth", upscale=1, arch="clean",
+                           channel_multiplier=2, bg_upsampler=None)
+              print("GFPGANer constructed; main weight loaded")
+              img = np.zeros((512,512,3), dtype=np.uint8); img[:] = (128,128,128)
+              out_faces, restored, out = m.enhance(img, has_aligned=True, only_center_face=False, paste_back=True)
+              assert out is not None
+              print("cpu contract inference completed; faces:", len(out_faces))
+              print("gpu_inference_executed="+str(torch.cuda.is_available()))
+              PY
+            '
+          rc=$?
+          set -e
+          echo "offline construct exit: $rc"
+          [ "$rc" -eq 0 ] || { echo "OFFLINE_CONSTRUCTION_FAILED" >&2; exit 1; }
+
+      - name: Cleanup temporary files (always)
+        if: always()
+        run: |
+          docker image rm -f gfpgan-offline-test:local >/dev/null 2>&1 || true
+          rm -rf "$RUNNER_TEMP/models" "$RUNNER_TEMP/src" /tmp/one.patch
