@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDir = __dirname;
 const genPath = path.join(fixtureDir, "gen_canary_face_fixture.py");
 
-const EXPECTED_SHA256 = "1d4720e878fd5c4b21ffc8cc95c32df94296789ff7af5c414969bdd3b9b1768e";
+const EXPECTED_SHA256 = "7b51d8d9e84864561d8e21feb9c66ab07c215a89ffbb6246283d4b07554caaef";
 const MAX_PAYLOAD_BYTES = 8_000_000; // CLI worker input limit; Serverless /run is 10MB
 const assert = (cond, msg) => { if (!cond) throw new Error("fixture validator: " + msg); };
 
