@@ -1,6 +1,6 @@
 # RunPod Handler Wrapper Gate 2 Approval Packet
 
-Readiness-only for the thin RunPod Serverless handler wrapper candidate. This is NOT approval to publish. No publication workflow has been created and no image is published.
+Readiness-only for the thin RunPod Serverless handler wrapper candidate, with the post-publication one-time closure.
 
 ## Wrapper Source (frozen)
 
@@ -23,18 +23,21 @@ Readiness-only for the thin RunPod Serverless handler wrapper candidate. This is
 - No model weights bundled; no runtime download; `providerPostCount: 0`; `productionRoutingAllowed: false`.
 - Zero CRITICAL vulnerabilities; CVE-2025-32434 absent; `gpu_inference_executed: false`.
 
-## Proposed Publication Identity (readiness only; NOT approved)
+## Gate 2 Closure (publication executed, one-time)
 
-- Proposed GHCR repository: `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev`
-- Proposed immutable tag: exact full wrapper source SHA `21e292103979f0450dffafe09844fac3b435031b` (one immutable tag only).
-- No `latest`, `dev`, branch, or semver floating tag.
-- Publication contains CODE ONLY, no model weights.
-- A publication workflow (NOT created) must pin `sourceCommit 21e292...` / `sourceSubtree b9402fa9...`, push exactly one immutable tag, and the registry digest must be captured and verified before Gate 2 closes.
+- Explicit one-time Gate 2 approval recorded (user approval message).
+- Published repository: `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev`
+- Immutable tag: `21e292103979f0450dffafe09844fac3b435031b` (full approved wrapper source SHA)
+- Registry digest: `sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895`
+- Publication workflow run: `30648527810` (SUCCESS; source/subtree/CLI base verified; SBOM; zero CRITICAL; CVE-2025-32434 absent).
+- Post-publication verification run: `30649914325` (SUCCESS; tag resolves to digest; `--network none`; health/gpu_probe/fail-closed-restore by digest; non-root `workeruser`; no weights).
+- `gpu_inference_executed: false`; only one immutable tag; no floating tag; code only, no weights.
+- Wrapper Gate 2 is CONSUMED/CLOSED (one-time). publicationAllowed is false; permission is not reusable.
 - Publication does NOT authorize RunPod or GPU execution.
 
-## Required Before Gate 2 Publication
+## Required Before Any Future Wrapper Gate 2 Publication
 
-- A NEW explicit one-time Gate 2 approval for the wrapper.
+- Any wrapper code/dependency change invalidates the current evidence and requires a new explicit one-time Gate 2 approval.
 - Exact source/subtree pinned; one immutable tag; digest capture + verification before closure.
 - No model weights published; no runtime download.
 - A separate Gate 3 approval remains mandatory before any RunPod canary.
