@@ -49,6 +49,16 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - Adoption NOT recommended: the commit is 18 commits / 41 files ahead of v1.4.2 (unrelated changes), and GFPGANer runtime-downloads facexlib weights.
 - Candidate dependencies remain unchanged (torch 2.1.2+cu121 / torchvision 0.16.2). CVE-2025-32434 remains documented until a separate adoption task succeeds.
 
+## Minimal One-Line Patch Evaluation (result)
+
+- Explicit tracked patch (not a silent site-package patch): `docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch`.
+- Applied to official v1.4.2 (commit `651835a1`); exactly one line in `basicsr/data/degradations.py`; patch SHA-256 `834cf12b1e625ce59ec2af4152421d2c6c113b8f0a54ba4544f8937b014289ac`.
+- Source archive SHA-256 `f23fe3558fff4cc038186ffd417d69d8bc1fd0eea2a9c755c401e9dfecc18152`; run 30627778687.
+- Compat: patched v1.4.2 imports + GFPGANer constructs under torch 2.6.0+cu126 / torchvision 0.21.0+cu126 (`functional_tensor` error absent).
+- Wheel build: BLOCKED on a CUDA-less runner (`python -m build --wheel` exit 1; legacy setup.py); patched source installs via pip.
+- Auxiliary weights inventoried: `detection_Resnet50_Final.pth` and `parsing_parsenet.pth` (sizes and independent SHA-256 recorded; no publisher digest; redistribution unverified).
+- Candidate dependencies remain unchanged. Adoption not approved; publication not allowed; runtime download and weight bundling prohibited.
+
 ## Security Evidence (CI, runpod-gpu-gate2-readiness)
 
 - Build with `push: false`; no registry login; no packages write; no image/weight artifact upload.
