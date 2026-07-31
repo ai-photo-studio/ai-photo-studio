@@ -69,6 +69,18 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - `offlineConstructionVerified: true`; candidate unchanged; adoption not approved; publication, runtime download and weight bundling remain prohibited.
 - Candidate dependencies remain unchanged. Adoption not approved; publication not allowed; runtime download and weight bundling prohibited.
 
+## Adoption (torch 2.6) Outcome
+
+- The proven secure stack was adopted into the unpublished candidate (`apps/api/runpod-worker-gpu-dev/`).
+- Old stack: torch 2.1.2+cu121 / torchvision 0.16.2 / PyPI basicsr 1.4.2 (unpatched).
+- New stack: Python 3.10, torch 2.6.0+cu126 / torchvision 0.21.0+cu126, gfpgan 1.3.8, facexlib 0.3.0, scipy 1.11.4, and official BasicSR v1.4.2 source (SHA-256 f23fe3558fff4cc038186ffd417d69d8bc1fd0eea2a9c755c401e9dfecc18152) with the tracked one-line patch (SHA-256 834cf12b1e625ce59ec2af4152421d2c6c113b8f0a54ba4544f8937b014289ac) applied explicitly at build.
+- Worker now validates all three external weights (main + detection + parsing) by size and SHA-256, creates facexlib symlinks, and enforces `TORCH_FORCE_WEIGHTS_ONLY_LOAD=1`.
+- Candidate adopted but still unpublished. Build/CPU inference is not GPU-quality approval.
+- SBOM and vulnerability scan require CVE-2025-32434 absent and zero CRITICAL; the adopted image satisfies this (torch 2.6.0 fixes CVE-2025-32434).
+- Image metadata (torch 26 or adoption CI run 30634598810): image_id `sha256:b61b48c7a2b9fd9bd730caf128abbc53fab0d141ffdf7ae46250de92a4b70007`, size `6620108704` bytes (before adoption: image_id `sha256:1bd7e795ea0b6531773171063285bb4631f3cec8ecf078cfc22fc48fcf28ebd2`, size `5454210979` bytes). local_digest: none (not pushed).
+- Runtime user: `workeruser` (non-root); weight in image absent; zero CRITICAL and no CVE-2025-32434.
+- Separate explicit Gate 2 publication approval remains mandatory. Gate 3 and Gate 4 remain prohibited.
+
 ## Security Evidence (CI, runpod-gpu-gate2-readiness)
 
 - Build with `push: false`; no registry login; no packages write; no image/weight artifact upload.

@@ -5,6 +5,7 @@ on:
     branches:
       - runpod-gfpgan-gpu-candidate
       - runpod-gpu-gate2-readiness
+      - runpod-gpu-torch26-adoption
   workflow_dispatch:
 
 permissions:
@@ -25,6 +26,9 @@ jobs:
 
       - name: Set up Docker buildx
         uses: docker/setup-buildx-action@v2
+
+      - name: Copy tracked BasicSR patch into build context (package-local)
+        run: cp docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch apps/api/runpod-worker-gpu-dev/basicsr-v142-functional-tensor-fix.patch
 
       - name: Build GPU worker candidate image (no push)
         id: build-image
@@ -100,6 +104,58 @@ jobs:
           fi
           echo "restore correctly failed closed (exit code $code), expected non-zero"
 
+      - name: Write CPU offline-construction contract test
+        run: |
+          cat > "$RUNNER_TEMP/test_cpu.py" <<'PYEOF'
+          import os, torch, numpy as np
+          from PIL import Image
+          from gfpgan.utils import GFPGANer
+          assert os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD") == "1", "safe load env required"
+          m = GFPGANer(model_path="/models/GFPGANv1.4.pth", upscale=1, arch="clean",
+                       channel_multiplier=2, bg_upsampler=None)
+          print("GFPGANer constructed; main GFPGAN weight loaded")
+          img = np.zeros((512,512,3), dtype=np.uint8); img[:] = (128,128,128)
+          faces, restored, out = m.enhance(img, has_aligned=True, only_center_face=False, paste_back=True)
+          assert faces is not None and len(faces) >= 1
+          assert restored is not None and len(restored) == len(faces)
+          print("cpu contract inference completed; faces:", len(faces))
+          print("gpu_inference_executed=" + str(torch.cuda.is_available()))
+          PYEOF
+
+      - name: Offline three-weight construction (network none, transient weights)
+        run: |
+          dl="$RUNNER_TEMP/models"; mkdir -p "$dl/facexlib"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/GFPGANv1.4.pth" \
+            "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/facexlib/detection_Resnet50_Final.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/facexlib/parsing_parsenet.pth" \
+            "https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth"
+          [ "$(stat -c%s "$dl/GFPGANv1.4.pth")" -eq 348632874 ] || { echo "GFPGAN size" >&2; exit 1; }
+          [ "$(stat -c%s "$dl/facexlib/detection_Resnet50_Final.pth")" -eq 109497761 ] || { echo "det size" >&2; exit 1; }
+          [ "$(stat -c%s "$dl/facexlib/parsing_parsenet.pth")" -eq 85331193 ] || { echo "parse size" >&2; exit 1; }
+          [ "$(sha256sum "$dl/GFPGANv1.4.pth" | cut -d' ' -f1)" = "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad" ] || { echo "GFPGAN sha" >&2; exit 1; }
+          [ "$(sha256sum "$dl/facexlib/detection_Resnet50_Final.pth" | cut -d' ' -f1)" = "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d" ] || { echo "det sha" >&2; exit 1; }
+          [ "$(sha256sum "$dl/facexlib/parsing_parsenet.pth" | cut -d' ' -f1)" = "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2" ] || { echo "parse sha" >&2; exit 1; }
+          echo "three weights verified (size+sha)"
+          set +e
+          docker run --rm --entrypoint bash --network none -u root \
+            -v "$dl":/models:ro \
+            -v "$RUNNER_TEMP/test_cpu.py":/test_cpu.py:ro \
+            -w /srv/worker \
+            -e TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
+            gfpgan-gpu-candidate:local -c "
+              mkdir -p /srv/worker/gfpgan/weights
+              ln -sfn /models/facexlib/detection_Resnet50_Final.pth /srv/worker/gfpgan/weights/detection_Resnet50_Final.pth
+              ln -sfn /models/facexlib/parsing_parsenet.pth   /srv/worker/gfpgan/weights/parsing_parsenet.pth
+              if [ -n \"\${TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD:-}\" ]; then echo FORBIDDEN >&2; exit 9; fi
+              python3.10 /test_cpu.py
+            "
+          rc=$?
+          set -e
+          echo "offline construction exit: $rc"
+          [ "$rc" -eq 0 ] || { echo "OFFLINE_CONSTRUCTION_FAILED" >&2; exit 1; }
+
       - name: Verify no network-download code in worker (read-only scan)
         run: |
           src=$(cat apps/api/runpod-worker-gpu-dev/worker.py)
@@ -119,18 +175,34 @@ jobs:
           format: cyclonedx
           output: sbom.json
 
-      - name: Scan image for vulnerabilities (print findings only)
+      - name: Scan image for CRITICAL vulnerabilities (must be zero)
         uses: aquasecurity/trivy-action@0.35.0
         continue-on-error: false
         with:
           image-ref: gfpgan-gpu-candidate:local
-          format: table
+          format: json
+          output: trivy.json
           exit-code: 0
-          severity: CRITICAL,HIGH,MEDIUM
+          severity: CRITICAL
           ignore-unfixed: true
 
-      - name: Print SBOM and vulnerability summary
+      - name: Assert CVE-2025-32434 absent and zero CRITICAL
+        run: |
+          if [ ! -f trivy.json ]; then echo "trivy.json missing" >&2; exit 1; fi
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' trivy.json >/dev/null 2>&1 \
+            || { echo "CRITICAL vulnerabilities present:" >&2; jq -r '.Results[]? | .Vulnerabilities[]? | [.VulnerabilityID,.PkgName] | @tsv' trivy.json 2>/dev/null | head -40; exit 1; }
+          if grep -q "CVE-2025-32434" trivy.json; then echo "CVE-2025-32434 present" >&2; exit 1; fi
+          echo "zero CRITICAL and no CVE-2025-32434; gpu_inference_executed=false"
+
+      - name: Print SBOM summary
         run: |
           echo "SBOM packages:"
           jq -r '.components | length' sbom.json 2>/dev/null || echo "sbom unavailable"
           echo "gpu_inference_executed=false"
+
+      - name: Cleanup transient weights and temp files (always)
+        if: always()
+        run: |
+          rm -f apps/api/runpod-worker-gpu-dev/basicsr-v142-functional-tensor-fix.patch
+          sudo rm -rf "$RUNNER_TEMP/models" "$RUNNER_TEMP/test_cpu.py" "$RUNNER_TEMP/meta" 2>/dev/null || true
+          echo "transient weights deleted; copied patch removed; no weight uploaded"
