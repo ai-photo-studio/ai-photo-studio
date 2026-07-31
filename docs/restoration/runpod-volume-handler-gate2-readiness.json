@@ -1,9 +1,11 @@
 {
-  "approved": false,
+  "approved": true,
+  "approvalDate": "2026-07-31T22:51:08Z",
   "publicationAllowed": false,
-  "imageRepository": "",
-  "immutableTag": "",
-  "expectedDigest": "",
+  "publicationConsumed": true,
+  "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev",
+  "immutableTag": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+  "publishedDigest": "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b",
   "sourceCommit": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
   "sourceSubtree": "716fc09fc35bb966637bef26f3d4840a7088891b",
   "floatingTagAllowed": false,
@@ -19,6 +21,22 @@
   "sbomComponents": 324,
   "zeroCritical": true,
   "cve202532434Absent": true,
+  "publicationWorkflowRuns": [
+    {
+      "run": "30671211535",
+      "startedAt": "2026-07-31T22:51:08Z",
+      "status": "completed with publication failure",
+      "publishResult": "image built and pushed successfully, digest captured",
+      "verificationResult": "post-publication test had shell-quoting bug (fixed in run 30672004615)"
+    },
+    {
+      "run": "30672004615",
+      "startedAt": "2026-07-31T23:01:00Z",
+      "status": "completed successfully",
+      "publishResult": "no re-push (image already on registry), used existing digest",
+      "verificationResult": "all post-publication tests PASS (non-root user, symlink target, handler path, no weights)"
+    }
+  ],
   "mountContractTests": {
     "testAValidMapping": "PASS",
     "testBMissingVolumeFailsClosed": "PASS",
@@ -26,5 +44,7 @@
     "testDSecurity": "PASS"
   },
   "gate3ExecutionAllowed": false,
-  "productionRoutingAllowed": false
+  "productionRoutingAllowed": false,
+  "nextApprovalRequired": true,
+  "nextApprovalType": "explicit Gate 2 approval if any source/base/dependency change occurs"
 }

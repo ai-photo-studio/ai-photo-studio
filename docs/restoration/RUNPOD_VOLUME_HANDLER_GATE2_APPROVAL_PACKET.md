@@ -1,6 +1,6 @@
 # RunPod Volume-Mapped Handler Candidate — Gate 2 Approval Packet
 
-Readiness-only for the volume-mapped RunPod Serverless handler candidate. This packet does NOT grant publication approval. No image has been published, pushed, or executed against RunPod.
+**GATE 2 APPROVED AND CONSUMED (one-time, not reusable).** Publication executed and verified. No RunPod execution, GPU compute, or Gate 3 activity has occurred.
 
 ## Candidate Source (frozen)
 
@@ -44,24 +44,25 @@ Verified by reading the candidate `Dockerfile` directly (7 meaningful instructio
 - **Test D** (security): non-root `workeruser` confirmed; `/models` confirmed to be a symlink (not a regular directory); `workeruser` cannot remove/replace `/models` (`PermissionError`); `health` mode reports `providerPostCount=0`, `productionRoutingAllowed=false`.
 - Existing `test_handler.py` unit tests (mocks only, unchanged) re-run unmodified inside the candidate image: PASS.
 
-## Proposed Publication Identity (NOT executed, NOT approved)
+## Gate 2 Closure — Publication Executed and Verified
 
-- Proposed immutable GHCR repository: `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev`.
-- Proposed tag: the full frozen source SHA `158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374`, and only that — one code-only tag. No `latest`, no `dev`, no branch name, no semver tag.
-- Registry digest must be captured and independently verified (anonymous pull by digest succeeds, matches the built image ID's content) **before** Gate 2 can be considered closed for this candidate — this has NOT been done; no publication has occurred.
-- Publication of this candidate does **not** by itself authorize Network Volume creation or any Gate 3 activity.
+- **Approved:** yes (explicit one-time user authorization, 2026-07-31T22:51:08Z).
+- **Published:** yes.
+- **Immutable GHCR repository:** `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev`.
+- **Tag:** `158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374` (full frozen source SHA); one code-only tag only; no `latest`, `dev`, branch names, or semver tags.
+- **Published registry digest:** `sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b`.
+- **Full published reference:** `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev:158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374@sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b`.
+- **Publication workflow runs:**
+  - `30671211535` (2026-07-31T22:51:08Z, source `158bbbc`, all pre-publication verification PASS, image built and pushed successfully, digest captured `sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b`, post-publication test step had shell-quoting bug and failed).
+  - `30672004615` (re-dispatch with fixed test step, all post-publication verification tests PASS: non-root user, symlink target verified inside container, handler path present, no bundled GFPGAN weight).
+- **Post-publication verification (run `30672004615`):** all tests PASS (non-root user confirmed; symlink target `/models -> /runpod-volume/models` verified inside container; handler path `/srv/handler/handler.py` present; no bundled GFPGAN weight at `/models/GFPGANv1.4.pth`).
+- **`publicationAllowed: false` after consumption.** This approval is one-time and not reusable. Any candidate code, base digest, or dependency change invalidates this evidence and requires a new explicit Gate 2 approval.
+- **Publication does NOT authorize:** Network Volume creation, weight upload, RunPod endpoint/template/worker/job creation, GPU compute, restoration inference, paid provider calls, deployment, or Gate 3 execution.
+- **Network Volume creation** requires separate, explicit mutation/cost authorization — not covered by this publication approval.
+- **Gate 3 approval** remains mandatory after publication and volume preparation, before any RunPod canary.
+- **Gate 4 remains prohibited.** Replicate remains production.
+- **The existing published CLI-image and handler-image Gate 2 closures remain unchanged and closed.**
 
-## Required Before Any Gate 2 Closure For This Candidate
+## Drift Check & Invalidation
 
-- Explicit, separate, one-time Gate 2 approval (a distinct approval message from the user) is required before any publication workflow runs.
-- Exact source/subtree must remain pinned to the values above at publication time; any drift invalidates this packet.
-- Publication must produce exactly one immutable tag; digest must be captured and independently verified before closure.
-- No model weights published; no runtime download; no floating tag.
-- Network Volume creation requires separate, explicit mutation/cost authorization — not covered by this packet or by any future publication approval.
-- A separate Gate 3 approval remains mandatory after publication and volume preparation, before any RunPod canary.
-- Gate 4 remains prohibited; Replicate remains production.
-- The existing published CLI-image and handler-image Gate 2 closures remain unchanged and closed.
-
-## Abort / Cleanup
-
-If the source/subtree drifts from the values recorded here, if more than one tag or a floating tag would be created, if the digest cannot be independently verified, if weights would be bundled, or if any RunPod call is implied by a future publication attempt, abort and record the failure. This packet grants no publication authority by itself.
+If the source/subtree drifts from the values recorded here (source `158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374`, subtree `716fc09fc35bb966637bef26f3d4840a7088891b`), if more than one tag or a floating tag exists, if the published digest no longer matches `sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b`, if weights have been bundled, or if any candidate dependency change has occurred, this Gate 2 closure is invalidated and a fresh Gate 2 approval is required.
