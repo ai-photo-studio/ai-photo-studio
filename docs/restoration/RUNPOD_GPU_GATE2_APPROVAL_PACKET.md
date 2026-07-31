@@ -57,6 +57,16 @@ Readiness-only. This packet describes the hardened, unpublished GFPGAN GPU worke
 - Compat: patched v1.4.2 imports + GFPGANer constructs under torch 2.6.0+cu126 / torchvision 0.21.0+cu126 (`functional_tensor` error absent).
 - Wheel build: BLOCKED on a CUDA-less runner (`python -m build --wheel` exit 1; legacy setup.py); patched source installs via pip.
 - Auxiliary weights inventoried: `detection_Resnet50_Final.pth` and `parsing_parsenet.pth` (sizes and independent SHA-256 recorded; no publisher digest; redistribution unverified).
+
+## Fully Offline External-Mount Proof (result)
+
+- Evidence workflow `verify-gfpgan-offline-weights.yml`, run `30632558271`: SUCCESS (`offline construct exit: 0`).
+- Three weights mounted read-only (`/models/...`) with symlinks to their expected local paths; `docker run --network none`; no HTTP/DNS; no runtime download.
+- Main GFPGAN weight loaded via direct `model_path`; aux weights loaded via `load_file_from_url` local short-circuit.
+- `GFPGANer constructed; main GFPGAN weight loaded`; all three weights loaded with `TORCH_FORCE_WEIGHTS_ONLY_LOAD=1`; no `weights_only=False` fallback; `gpu_inference_executed: false`.
+- Tiny CPU contract inference passed (aligned 512x512, faces: 1).
+- Independent hashes are technical integrity pins, not publisher-signed and not redistribution permission; external/BYO mounting is the only candidate packaging mode.
+- `offlineConstructionVerified: true`; candidate unchanged; adoption not approved; publication, runtime download and weight bundling remain prohibited.
 - Candidate dependencies remain unchanged. Adoption not approved; publication not allowed; runtime download and weight bundling prohibited.
 
 ## Security Evidence (CI, runpod-gpu-gate2-readiness)
