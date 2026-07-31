@@ -1,0 +1,30 @@
+{
+  "sourceVersion": "BasicSR v1.4.2",
+  "officialRepository": "https://github.com/XPixelGroup/BasicSR",
+  "v142TagCommit": "651835a1b9d38dbbdaf45750f56906be2364f01a",
+  "sourceArchiveSha256": "f23fe3558fff4cc038186ffd417d69d8bc1fd0eea2a9c755c401e9dfecc18152",
+  "patchAttribution": "exact one-line change from official commit 8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a (PR #650)",
+  "patchPath": "docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch",
+  "patchSha256": "834cf12b1e625ce59ec2af4152421d2c6c113b8f0a54ba4544f8937b014289ac",
+  "patchLinesChanged": 1,
+  "patchFile": "basicsr/data/degradations.py",
+  "extraChanges": false,
+  "wheelBuild": "blocked",
+  "wheelBuildNote": "python -m build --wheel on a CUDA-less runner exited 1 (legacy setup.py build frontend); patched source installs via pip and compatibility is proven",
+  "compatibility": {
+    "python": "3.10",
+    "torch": "2.6.0+cu126",
+    "torchvision": "0.21.0+cu126",
+    "importsSucceeded": true,
+    "gfpganerConstructionSucceeded": true,
+    "functionalTensorErrorAbsent": true,
+    "gpuExecutionUnverified": true
+  },
+  "licence": "Apache-2.0",
+  "candidateModified": false,
+  "adoptionApproved": false,
+  "publicationAllowed": false,
+  "runtimeDownloadAllowed": false,
+  "weightBundlingAllowed": false,
+  "productionRoutingAllowed": false
+}
