@@ -1,8 +1,18 @@
-# RunPod GPU / Region Compatibility Checklist (offline, no credentials used)
+# RunPod GPU / Region Compatibility Checklist
 
 ## Purpose
 
-Manual checklist to resolve GPU/Network-Volume region coexistence for the Gate 3 canary. No RunPod credential is used and no resource is created. Fill in from read-only RunPod console/GET evidence only when separately authorized.
+Resolve GPU/Network-Volume region coexistence for the Gate 3 canary using read-only RunPod evidence only.
+
+## Read-Only Authorization / Query Status
+
+- Read-only RunPod authorization was provided for this task.
+- Attempted credential availability check: `RUNPOD_API_KEY` is **NOT set** in the environment.
+- No legitimately usable key was available from the environment; no key was extracted from git history or committed files (secret-safe).
+- **Result: BLOCKED — read-only RunPod credential unavailable.**
+- No GET/list queries were performed because authentication could not be established without a key.
+
+## Selection Fields (left empty; not resolvable without credential)
 
 - **Data center ID**: `________`
 - **Selected GPU pool available (A4000 / A4500 / RTX 4000 / RTX 2000)**: `________`
@@ -12,9 +22,8 @@ Manual checklist to resolve GPU/Network-Volume region coexistence for the Gate 3
 
 ## Resolved?
 
-- `regionCompatibilityResolved`: false (until the checklist is completed with verified evidence).
+- `regionCompatibilityResolved`: **false** (could not be resolved; credential unavailable).
 
 ## Note
 
-- Do not use RunPod credentials unless the user separately authorizes read-only RunPod queries (GET/list only; create/update/delete prohibited; no compute/storage charge; credentials redacted).
-- Without that authorization, this checklist stays offline and `regionCompatibilityResolved` remains false.
+- A valid `RUNPOD_API_KEY` in the environment is required to run read-only `GET /v1/networkvolumes` and datacenter/GPU list queries. The key must be sent only as an Authorization bearer header, never printed or committed, and shell tracing must be disabled for authenticated commands.
