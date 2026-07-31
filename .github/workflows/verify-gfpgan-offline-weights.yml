@@ -75,38 +75,44 @@ jobs:
           echo "$(sha256sum "$d/facexlib/parsing_parsenet.pth")" | grep -q "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2" || { echo "parse sha mismatch" >&2; exit 1; }
           echo "all three weights verified size+sha"
 
+      # ---- write the offline-proof python test to a file (clean heredoc) ----
+      - name: Write offline-proof python test
+        run: |
+          cat > "$RUNNER_TEMP/test_offline.py" <<'PYEOF'
+          import os, sys, torch, numpy as np
+          from PIL import Image
+          from gfpgan.utils import GFPGANer
+          assert os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD") == "1", "TORCH_FORCE_WEIGHTS_ONLY_LOAD must be 1"
+          print("torch", torch.__version__, "cuda", torch.cuda.is_available())
+          m = GFPGANer(model_path="/models/GFPGANv1.4.pth", upscale=1, arch="clean",
+                       channel_multiplier=2, bg_upsampler=None)
+          print("GFPGANer constructed; main GFPGAN weight loaded")
+          img = np.zeros((512, 512, 3), dtype=np.uint8); img[:] = (128, 128, 128)
+          faces, restored, out = m.enhance(img, has_aligned=True, only_center_face=False, paste_back=True)
+          assert out is not None
+          print("cpu contract inference completed; faces:", len(faces))
+          print("gpu_inference_executed=" + str(torch.cuda.is_available()))
+          PYEOF
+
       # ---- run fully offline construction with --network none ----
       - name: Offline external-mount construction (network none, symlinks)
         run: |
           set +e
           docker run --rm --network none \
             -u root \
-            -v "$RUNNER_TEMP/src/basicsr-142":/patched-basicsr \
+            -v "$RUNNER_TEMP/src/basicsr-142":/patched-basicsr:ro \
             -v "$RUNNER_TEMP/models":/models:ro \
+            -v "$RUNNER_TEMP/test_offline.py":/test_offline.py:ro \
             -w /offline \
             -e TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
-            gfpgan-offline-test:local bash -lc '
-              python3.10 -m pip install --no-cache-dir --no-deps /patched-basicsr >/dev/null 2>&1
+            gfpgan-offline-test:local bash -c "
+              python3.10 -m pip install --no-cache-dir --no-deps --no-build-isolation /patched-basicsr >/dev/null 2>&1
               mkdir -p /offline/gfpgan/weights
               ln -sfn /models/facexlib/detection_Resnet50_Final.pth /offline/gfpgan/weights/detection_Resnet50_Final.pth
               ln -sfn /models/facexlib/parsing_parsenet.pth   /offline/gfpgan/weights/parsing_parsenet.pth
-              if [ -n "${TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD:-}" ]; then echo "FORBIDDEN env set" >&2; exit 9; fi
-              python3.10 - <<'"'"'PY'"'"'
-              import os, torch, numpy as np, io, base64
-              assert os.environ.get("TORCH_FORCE_WEIGHTS_ONLY_LOAD")=="1"
-              print("torch", torch.__version__, "cuda", torch.cuda.is_available())
-              from PIL import Image
-              from gfpgan.utils import GFPGANer
-              m = GFPGANer(model_path="/models/GFPGANv1.4.pth", upscale=1, arch="clean",
-                           channel_multiplier=2, bg_upsampler=None)
-              print("GFPGANer constructed; main weight loaded")
-              img = np.zeros((512,512,3), dtype=np.uint8); img[:] = (128,128,128)
-              out_faces, restored, out = m.enhance(img, has_aligned=True, only_center_face=False, paste_back=True)
-              assert out is not None
-              print("cpu contract inference completed; faces:", len(out_faces))
-              print("gpu_inference_executed="+str(torch.cuda.is_available()))
-              PY
-            '
+              if [ -n \"\${TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD:-}\" ]; then echo 'FORBIDDEN env set' >&2; exit 9; fi
+              python3.10 /test_offline.py
+            "
           rc=$?
           set -e
           echo "offline construct exit: $rc"
@@ -116,4 +122,5 @@ jobs:
         if: always()
         run: |
           docker image rm -f gfpgan-offline-test:local >/dev/null 2>&1 || true
-          rm -rf "$RUNNER_TEMP/models" "$RUNNER_TEMP/src" /tmp/one.patch
+          chmod -R u+w "$RUNNER_TEMP/src" 2>/dev/null || true
+          sudo rm -rf "$RUNNER_TEMP/models" "$RUNNER_TEMP/src" "$RUNNER_TEMP/test_offline.py" /tmp/one.patch 2>/dev/null || true
