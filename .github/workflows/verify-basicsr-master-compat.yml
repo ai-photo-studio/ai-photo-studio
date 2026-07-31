@@ -12,7 +12,6 @@ jobs:
     timeout-minutes: 45
     env:
       TORCH_FORCE_WEIGHTS_ONLY_LOAD: "1"
-      TEMP_WEIGHT_DIR: ${{ runner.temp }}/weight
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v5
