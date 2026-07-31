@@ -11,6 +11,9 @@
     "test:download-entitlement": "tsx src/services/restoration-entitlement.test.ts",
     "test:image-binary": "tsx src/utils/image-binary.test.ts",
     "test:restoration-view": "tsx src/services/restoration-view.test.ts",
+    "test:runpod-worker": "tsx src/runpod/current-main-runpod.test.ts",
+    "test:runpod-isolation": "tsx src/runpod/current-main-isolation.test.ts",
+    "test:runpod-budget": "tsx src/runpod/current-main-budget.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"
