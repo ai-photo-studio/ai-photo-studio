@@ -29,3 +29,5 @@ Run `npm run test:restoration:review-queue` to generate a local operator contact
 RunPod is disabled by default and benchmark-only. The isolated worker supports health and local dry-run metadata; it is not connected to Standard, Premium, or production routing.
 
 Gate 1 remains build-only validation and does not publish images. Gate 2 is explicitly approved once per run for one development-only immutable GHCR image, via manual workflow dispatch on the default branch, using the validated full SHA and registry digest evidence. Gate 3 RunPod canaries and Gate 4 production activation remain prohibited unless separately approved.
+
+Legacy coupled RunPod tests are superseded by current-main-native tests. Gate 3 cannot start from documentation alone; explicit user approval, verified rate, fixed budget, endpoint/template, and one-job limit are mandatory. Manifest defaults remain fail-closed. No secret may be committed. The RunPod template must pin the immutable digest. Gate 4 remains separately prohibited. Replicate remains production. Successful health/dry_run alone is not restoration-quality approval.

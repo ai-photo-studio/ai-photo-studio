@@ -12,6 +12,8 @@ RunPod local worker dry-run is allowed; remote calls require an explicit per-run
 
 Gate 1 validation remains build-only and non-publishing. Gate 2 manual GHCR publication is allowed only for a single approved development image from a validated full SHA, and must record the registry digest. Gate 3 RunPod canaries and Gate 4 production activation remain prohibited unless separately approved.
 
+Legacy coupled RunPod tests are superseded by current-main-native tests. Gate 3 cannot start from documentation alone; explicit user approval, verified rate, fixed budget, endpoint/template, and one-job limit are mandatory. Manifest defaults remain fail-closed. No secret may be committed. The RunPod template must pin the immutable digest. Gate 4 remains separately prohibited. Replicate remains production. Successful health/dry_run alone is not restoration-quality approval.
+
 Verify and create repository-relative directories before applying patches. Never use absolute Windows paths as patch targets. When Docker is unavailable locally, direct worker tests plus the build-only manual CI workflow are required; CI may not push, deploy, contact RunPod, or access secrets.
 
 Worker CLI validation uses PowerShell-safe stdin or file input: `'{"mode":"health"}' | node worker.mjs --stdin` or `node worker.mjs --input-file "C:\path with spaces\request.json"`.

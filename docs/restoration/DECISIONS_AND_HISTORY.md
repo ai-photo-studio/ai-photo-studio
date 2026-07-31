@@ -17,3 +17,5 @@ OPS-113 is currently the only trace-backed review candidate. Other archived stag
 RunPod A4000 Serverless is approved for controlled development/benchmarking only, with active workers 0 and maximum Flex workers 1. No remote call occurred.
 
 Gate 1 stays build-only and non-publishing. Gate 2 received a one-run explicit approval for exactly one immutable development GHCR image published from the validated full SHA and verified by digest. Gate 3 and Gate 4 remain prohibited unless separately approved. Replicate remains active production.
+
+Legacy coupled RunPod tests are superseded by current-main-native tests. Gate 3 cannot start from documentation alone; explicit user approval, verified rate, fixed budget, endpoint/template, and one-job limit are mandatory. Manifest defaults remain fail-closed. No secret may be committed. The RunPod template must pin the immutable digest. Gate 4 remains separately prohibited. Replicate remains production. Successful health/dry_run alone is not restoration-quality approval.
