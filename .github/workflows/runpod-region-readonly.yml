@@ -1,0 +1,71 @@
+name: runpod-region-readonly
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Confirm key presence only
+        run: |
+          if [ -z "$RUNPOD_API_KEY" ]; then
+            echo "keyPresent=false"
+            exit 1
+          fi
+          echo "keyPresent=true"
+
+      - name: List network volumes (read-only)
+        run: |
+          set +x
+          http_code=$(curl -sS -o volumes.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+            https://rest.runpod.io/v1/networkvolumes)
+          echo "http_status=$http_code"
+          test "$http_code" = "200"
+          jq -c '[.[] | {dataCenterId, size, idLast4: .id[-4:]}]' volumes.json > volumes-redacted.json
+          echo "=== Network volumes (redacted) ==="
+          cat volumes-redacted.json
+
+      - name: List GPU types and per-datacenter availability (read-only)
+        run: |
+          set +x
+          query='query { gpuTypes { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: {gpuCount: 1}) { minimumBidPrice uninterruptablePrice stockStatus } } }'
+          payload=$(jq -n --arg q "$query" '{query: $q}')
+          http_code=$(curl -sS -o gputypes.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "$payload" \
+            https://api.runpod.io/graphql)
+          echo "http_status=$http_code"
+          test "$http_code" = "200"
+          jq '.errors // empty' gputypes.json
+          echo "=== GPU types (16GB-class pool filter) ==="
+          jq -c '.data.gpuTypes[] | select(.id | test("A4000|A4500|A40|RTX 4000|RTX 2000|RTX4000|RTX2000"; "i"))' gputypes.json
+
+      - name: Write job summary (redacted, no secrets)
+        if: always()
+        run: |
+          {
+            echo "## RunPod region read-only evidence"
+            echo ""
+            echo "Query timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ""
+            echo "### Network volumes (redacted)"
+            echo '```json'
+            cat volumes-redacted.json 2>/dev/null || echo "[]"
+            echo '```'
+            echo ""
+            echo "### GPU pool candidates (16GB-class)"
+            echo '```json'
+            jq -c '.data.gpuTypes[] | select(.id | test("A4000|A4500|A40|RTX 4000|RTX 2000|RTX4000|RTX2000"; "i"))' gputypes.json 2>/dev/null || echo "[]"
+            echo '```'
+            echo ""
+            echo "No RunPod resources were created. No jobs were submitted. Read-only GET/query calls only."
+          } >> "$GITHUB_STEP_SUMMARY"
