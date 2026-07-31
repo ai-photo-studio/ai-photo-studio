@@ -139,12 +139,12 @@ jobs:
           [ "$(sha256sum "$dl/facexlib/parsing_parsenet.pth" | cut -d' ' -f1)" = "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2" ] || { echo "parse sha" >&2; exit 1; }
           echo "three weights verified (size+sha)"
           set +e
-          docker run --rm --network none -u root \
+          docker run --rm --entrypoint bash --network none -u root \
             -v "$dl":/models:ro \
             -v "$RUNNER_TEMP/test_cpu.py":/test_cpu.py:ro \
             -w /srv/worker \
             -e TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 \
-            gfpgan-gpu-candidate:local bash -c "
+            gfpgan-gpu-candidate:local -c "
               mkdir -p /srv/worker/gfpgan/weights
               ln -sfn /models/facexlib/detection_Resnet50_Final.pth /srv/worker/gfpgan/weights/detection_Resnet50_Final.pth
               ln -sfn /models/facexlib/parsing_parsenet.pth   /srv/worker/gfpgan/weights/parsing_parsenet.pth
