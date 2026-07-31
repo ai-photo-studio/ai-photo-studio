@@ -1,0 +1,86 @@
+name: mount-path-audit
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mount-path-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895
+    steps:
+      - name: Pull published handler image by exact digest (anonymous, no registry login)
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE"
+          docker image inspect "$IMAGE" --format 'id={{.Id}} user={{.Config.User}} entrypoint={{json .Config.Entrypoint}} cmd={{json .Config.Cmd}}'
+
+      - name: Build synthetic (non-real) placeholder weight fixtures
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/volume/models/facexlib"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/volume/models/GFPGANv1.4.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/volume/models/facexlib/detection_Resnet50_Final.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/volume/models/facexlib/parsing_parsenet.pth"
+          echo "fixtures created (synthetic placeholders only, not real GFPGAN weights)"
+
+      - name: Test 1 - mount at /runpod-volume (RunPod Serverless mount path), read-only, network none
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/volume:/runpod-volume:ro" \
+            --entrypoint python3.10 \
+            "$IMAGE" /srv/worker/worker.py --stdin <<< '{"mode":"health"}' > "$RUNNER_TEMP/health-runpod-volume.json"
+          cat "$RUNNER_TEMP/health-runpod-volume.json"
+          echo "=== Result: does /models resolve automatically when only /runpod-volume is mounted? ==="
+          jq -e '.weightPresent == false and .auxDetectionPresent == false and .auxParsingPresent == false' "$RUNNER_TEMP/health-runpod-volume.json" \
+            && echo "CONFIRMED: /runpod-volume mount is NOT automatically visible at /models (no implicit mapping)" \
+            || echo "UNEXPECTED: some path resolved automatically; re-examine mapping"
+
+      - name: Test 2 (control) - mount the same fixtures directly at /models to prove the presence-check logic itself works
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/volume/models:/models:ro" \
+            --entrypoint python3.10 \
+            "$IMAGE" /srv/worker/worker.py --stdin <<< '{"mode":"health"}' > "$RUNNER_TEMP/health-direct-models.json"
+          cat "$RUNNER_TEMP/health-direct-models.json"
+          jq -e '.weightPresent == true and .auxDetectionPresent == true and .auxParsingPresent == true' "$RUNNER_TEMP/health-direct-models.json" \
+            && echo "CONTROL PASSED: presence-check correctly reports true when mounted directly at /models" \
+            || { echo "CONTROL FAILED: presence-check did not behave as expected even at /models" >&2; exit 1; }
+
+      - name: Test 3 - confirm no /runpod-volume reference anywhere in worker/handler source inside the image
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none --entrypoint sh "$IMAGE" -c \
+            'grep -R "runpod-volume" /srv/worker /srv/handler 2>/dev/null; echo "grep_exit=$?"' | tee "$RUNNER_TEMP/grep-result.txt"
+          grep -q "grep_exit=1" "$RUNNER_TEMP/grep-result.txt" && echo "CONFIRMED: no /runpod-volume reference in image source" || echo "grep exit code was not 1; inspect manually"
+
+      - name: Write mount-path audit summary
+        if: always()
+        run: |
+          {
+            echo "## Mount-path audit: /runpod-volume vs /models"
+            echo ""
+            echo "Image digest: sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+            echo ""
+            echo "### Test 1: /runpod-volume mounted (RunPod Serverless convention), health check"
+            echo '```json'
+            cat "$RUNNER_TEMP/health-runpod-volume.json" 2>/dev/null || echo "{}"
+            echo '```'
+            echo ""
+            echo "### Test 2 (control): fixtures mounted directly at /models"
+            echo '```json'
+            cat "$RUNNER_TEMP/health-direct-models.json" 2>/dev/null || echo "{}"
+            echo '```'
+            echo ""
+            echo "No RunPod resource created. No RunPod API called. No real weights used (synthetic placeholders only). --network none throughout."
+          } >> "$GITHUB_STEP_SUMMARY"
