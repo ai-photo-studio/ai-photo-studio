@@ -8,6 +8,7 @@ const expectedDigest = "sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce
 const expectedSourceSha = "21e292103979f0450dffafe09844fac3b435031b";
 const expectedSubtree = "b9402fa975e59ddc245985712b426ae63019761b";
 const tagPrefix = "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev:";
+const expectedPngSha = "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f";
 
 const assert = (condition: unknown, message: string) => {
   if (!condition) throw new Error(message);
@@ -24,9 +25,8 @@ assert(manifest.timeoutSeconds === 120, "timeout must be 120 seconds");
 assert(manifest.concurrency === 1, "concurrency must be one");
 assert(manifest.productionRoutingAllowed === false, "production routing must be disabled");
 
-// Immutable image: tag AND digest must both be present and match (reject tag-without-digest)
+// Immutable image: tag AND digest both present and match
 assert(typeof manifest.immutableImageTag === "string" && String(manifest.immutableImageTag).startsWith(tagPrefix), "immutable image tag missing/wrong");
-assert(typeof manifest.immutableImageDigest === "string" && String(manifest.immutableImageDigest).startsWith("sha256:"), "immutable image digest missing");
 assert(String(manifest.immutableImageDigest) === expectedDigest, "immutable digest mismatch");
 assert(String(manifest.immutableImageTag).endsWith(`:${expectedSourceSha}`), "tag must be pinned to the approved source SHA");
 
@@ -34,18 +34,25 @@ assert(String(manifest.immutableImageTag).endsWith(`:${expectedSourceSha}`), "ta
 assert(String(manifest.sourceSha) === expectedSourceSha, "source SHA mismatch");
 assert(String(manifest.candidateSubtree) === expectedSubtree, "candidate subtree mismatch");
 
-// Registry access decision must be present (reject missing/unresolved)
-assert(typeof manifest.registryAccessDecision === "string" && manifest.registryAccessDecision !== "", "registry-access decision missing");
-assert(manifest.registryAccessDecision !== "unverified", "registry access must be resolved (public or credentialed)");
+// Registry access must be resolved (now public)
+assert(manifest.registryAccessDecision !== "" && manifest.registryAccessDecision !== "unverified", "registry access must be resolved");
+assert(manifest.registryAccessDecision === "public", "registry access must be public (anonymous pull had succeeded)");
 
-// GPU/volume region compatibility decision must be present
-assert(typeof manifest.gpuVolumeRegionCompatibility === "string" && manifest.gpuVolumeRegionCompatibility !== "", "GPU/volume region compatibility missing");
-assert(manifest.gpuVolumeRegionCompatibility !== "unverified", "GPU/volume region compatibility must be resolved");
+// Region compatibility must be resolved (remaining blocker)
+assert(typeof manifest.regionCompatibilityResolved === "boolean", "regionCompatibilityResolved missing");
+assert(manifest.regionCompatibilityResolved === true, "region/volume compatibility not resolved");
 
-// Proposed one-job limits must be bounded
+// Canary fixture evidence must be present and verified
+const fx = (manifest.canaryFixture ?? {}) as Record<string, unknown>;
+assert(typeof fx.generator === "string" && String(fx.generator).endsWith("gen_canary_face_fixture.py"), "fixture generator missing");
+assert(String(fx.pngSha256) === expectedPngSha, "fixture PNG checksum drift");
+assert(Number(fx.verifiedOffline) === true || fx.verifiedOffline === true, "fixture offline verification missing");
+assert(Number(fx.faces) >= 1, "fixture must produce a face-processing result");
+
+// Proposed one-job limits bounded
 const proposed = (manifest.proposed ?? {}) as Record<string, unknown>;
 assert(Number(proposed.maxRetries) <= 0, "proposed retries above 0 rejected");
 assert(Number(proposed.maxJobs) <= 1, "proposed jobs above 1 rejected");
-assert(typeof proposed.weightsMounted === "boolean" && proposed.weightsMounted === true, "proposed weights must be externally mounted");
+assert(proposed.weightsMounted === true, "proposed weights must be externally mounted");
 
 console.log("runpod gate3 readiness manifest passed");
