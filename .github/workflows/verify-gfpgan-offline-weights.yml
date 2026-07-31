@@ -93,7 +93,8 @@ jobs:
           print("GFPGANer constructed; main GFPGAN weight loaded")
           img = np.zeros((512, 512, 3), dtype=np.uint8); img[:] = (128, 128, 128)
           faces, restored, out = m.enhance(img, has_aligned=True, only_center_face=False, paste_back=True)
-          assert out is not None
+          assert faces is not None and len(faces) >= 1, "expected at least one processed aligned face"
+          assert restored is not None and len(restored) == len(faces), "restored faces must match cropped faces"
           print("cpu contract inference completed; faces:", len(faces))
           print("gpu_inference_executed=" + str(torch.cuda.is_available()))
           PYEOF
