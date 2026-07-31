@@ -1,0 +1,81 @@
+name: verify-handler-ghcr-anonymous
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-handler-ghcr-anonymous
+  cancel-in-progress: false
+
+jobs:
+  anon-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Pull handler image strictly by digest WITHOUT registry login
+        id: pull
+        run: |
+          digest="sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@${digest}"
+          # NO docker login; NO packages token; anonymous pull only.
+          set +e
+          out=$(docker pull "$image" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          echo "pull_exit=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -eq 0 ]; then
+            echo "result=public" >> "$GITHUB_OUTPUT"
+            echo "anonymous pull SUCCEEDED -> registry is PUBLIC"
+          else
+            low=$(echo "$out" | tr 'A-Z' 'a-z')
+            if echo "$low" | grep -qi "denied\|unauthoriz\|401\|credentials\|login"; then
+              echo "result=private-required" >> "$GITHUB_OUTPUT"
+              echo "anonymous pull DENIED -> private-required"
+            else
+              echo "result=unresolved" >> "$GITHUB_OUTPUT"
+              echo "anonymous pull result AMBIGUOUS -> unresolved"
+            fi
+          fi
+
+      - name: Inspect image (user, CMD, OCI revision, no weights) when pull succeeded
+        if: steps.pull.outputs.pull_exit == '0'
+        run: |
+          digest="sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@${digest}"
+          docker image inspect "$image" > /tmp/in.json
+          echo "user=$(python3 -c "import json;print(json.load(open('/tmp/in.json'))[0]['Config']['User'])")"
+          echo "cmd=$(python3 -c "import json;print(json.load(open('/tmp/in.json'))[0]['Config']['Cmd'])")"
+          echo "entrypoint=$(python3 -c "import json;print(json.load(open('/tmp/in.json'))[0]['Config']['Entrypoint'])")"
+          has=$(docker run --rm --entrypoint sh "$image" -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          echo "weights_in_image=$has"
+          [ "$has" = "absent" ] || { echo "WEIGHTS PRESENT" >&2; exit 1; }
+          labels=$(python3 -c "import json;d=json.load(open('/tmp/in.json'))[0]['Config']['Labels'];print(d.get('org.opencontainers.image.revision',''))")
+          echo "oci_revision=$labels"
+          [ -z "$labels" ] || echo "revision present: $labels"
+
+      - name: Run health and fail-closed restore under --network none (when pull succeeded)
+        if: steps.pull.outputs.pull_exit == '0'
+        run: |
+          digest="sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895"
+          image="ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev@${digest}"
+          echo "=== handler health ==="
+          docker run --rm -i --network none -w /srv/handler "$image" \
+            python3.10 -c "import handler as h,json;print(json.dumps(h.handler({'input':{'mode':'health'}})))" 2>&1 | tail -3
+          echo "=== fail-closed restore without weights ==="
+          set +e
+          docker run --rm -i --network none -w /srv/handler "$image" \
+            python3.10 -c "import handler as h,json;print(json.dumps(h.handler({'input':{'mode':'restore','imageBase64':''}})))" 2>&1 | tail -3
+          rc=$?
+          set -e
+          echo "restore_rc=$rc; no weights; no RunPod; no GPU execution"
+
+      - name: Report registry access decision
+        id: report
+        run: |
+          echo "registryAccessMode=${{ steps.pull.outputs.result }}"
+          echo "gpu_inference_executed=false"
