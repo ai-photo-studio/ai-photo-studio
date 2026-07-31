@@ -1,0 +1,30 @@
+{
+  "approved": false,
+  "publicationAllowed": false,
+  "imageRepository": "",
+  "immutableTag": "",
+  "expectedDigest": "",
+  "sourceCommit": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+  "sourceSubtree": "716fc09fc35bb966637bef26f3d4840a7088891b",
+  "floatingTagAllowed": false,
+  "weightBundled": false,
+  "runtimeDownloadAllowed": false,
+  "immutableBaseDigest": "sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895",
+  "sdkVersion": "runpod==1.11.0",
+  "symlinkContract": "/models -> /runpod-volume/models (build-time only, fixed, no init script, not runtime-writable)",
+  "buildOnlyCiRun": "30660299770",
+  "buildOnlyCiHeadSha": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+  "localBuildImageId": "sha256:d66479f1e8e009b7379ac32a30d6c06789f6d687b6cb0a1cdff0be7c935ddc1d",
+  "localBuildSizeBytes": 6751978537,
+  "sbomComponents": 324,
+  "zeroCritical": true,
+  "cve202532434Absent": true,
+  "mountContractTests": {
+    "testAValidMapping": "PASS",
+    "testBMissingVolumeFailsClosed": "PASS",
+    "testCInvalidWeightFailsClosed": "PASS",
+    "testDSecurity": "PASS"
+  },
+  "gate3ExecutionAllowed": false,
+  "productionRoutingAllowed": false
+}
