@@ -28,17 +28,35 @@ const COMPATIBLE_RE = /A4000|A4500|RTX 4000 Ada|RTX 2000 Ada/i;
 
 // Reproduce: [.[] | select((.displayName // "") | test(COMPATIBLE_RE))]
 const compatibleGpus = gpuFixture.filter(g => COMPATIBLE_RE.test(g.displayName || ""));
-assert(compatibleGpus.length === 2, `expected 2 compatible GPU entries in fixture, got ${compatibleGpus.length}`);
+assert(compatibleGpus.length === 3, `expected 3 compatible GPU entries in fixture, got ${compatibleGpus.length}`);
 
 // Reproduce: [...] | (.dataCenterAvailability // [])[] | .dataCenterId] | unique
 const compatibleDcs = [...new Set(
   compatibleGpus.flatMap(g => (g.dataCenterAvailability || []).map(a => a.dataCenterId))
 )].sort();
-assert(JSON.stringify(compatibleDcs) === JSON.stringify(["EU-RO-1", "US-KS-2"]),
-  `expected datacenters [EU-RO-1, US-KS-2] from compatible GPU dataCenterAvailability, got ${JSON.stringify(compatibleDcs)}`);
+assert(JSON.stringify(compatibleDcs) === JSON.stringify(["EU-RO-1", "EUR-IS-1", "US-KS-2"]),
+  `expected datacenters [EU-RO-1, EUR-IS-1, US-KS-2] from compatible GPU dataCenterAvailability, got ${JSON.stringify(compatibleDcs)}`);
 
 // The incompatible GPU (A100) and its datacenter (US-TX-3) must be excluded.
 assert(!compatibleDcs.includes("US-TX-3"), "US-TX-3 (A100-only datacenter) must not be selected as GPU-compatible");
+
+// Reproduce the workflow's fixed-target MATCH_COUNT check: does the console-proven pairing
+// (EU-RO-1 / "RTX 4000 Ada") actually appear in dataCenterAvailability for a matching GPU?
+const FIXED_DC = "EU-RO-1";
+const FIXED_GPU_RE = /RTX 4000 Ada/i;
+const fixedMatchCount = gpuFixture
+  .filter(g => FIXED_GPU_RE.test(g.displayName || ""))
+  .flatMap(g => (g.dataCenterAvailability || []))
+  .filter(a => a.dataCenterId === FIXED_DC).length;
+assert(fixedMatchCount > 0, `expected the fixed console-proven pairing (${FIXED_DC} / RTX 4000 Ada) to match at least one dataCenterAvailability entry, got ${fixedMatchCount}`);
+
+// A contradiction case (a datacenter never listed for the target GPU) must yield zero matches,
+// proving the workflow's contradiction-detection path is reachable and correct.
+const contradictionMatchCount = gpuFixture
+  .filter(g => FIXED_GPU_RE.test(g.displayName || ""))
+  .flatMap(g => (g.dataCenterAvailability || []))
+  .filter(a => a.dataCenterId === "US-TX-3").length;
+assert(contradictionMatchCount === 0, "expected zero matches for a datacenter never listed against the fixed target GPU (contradiction case)");
 
 // Prove no storage-capability field exists anywhere in either fixture: this is the exact
 // condition that made the old preflight's `storageSupport`/`supportNetworkVolume` filter
@@ -55,3 +73,5 @@ console.log("runpod volume preflight parser validator passed");
 console.log(`  - ${compatibleGpus.length} compatible 16GB-class GPU entries correctly identified`);
 console.log(`  - datacenters correctly cross-referenced via dataCenterAvailability: ${compatibleDcs.join(", ")}`);
 console.log("  - confirmed no storage-capability field exists in either fixture (matches live schema)");
+console.log(`  - fixed console-proven pairing (${FIXED_DC} / RTX 4000 Ada) verified against live-schema fixture (${fixedMatchCount} match(es))`);
+console.log("  - contradiction-detection path verified (unrelated datacenter yields zero matches)");
