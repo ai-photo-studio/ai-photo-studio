@@ -62,41 +62,53 @@ jobs:
 
           echo ""
           echo "Preflight checklist:"
-          echo "  - Datacenters with storage/network-volume support"
-          echo "  - 16GB-class GPU availability"
+          echo "  - 16GB-class GPU availability, cross-referenced to datacenter IDs"
           echo "  - Serverless Flex rate <= \$0.58/hr (official documented rate, not queried here)"
           echo "  - Storage rate <= \$0.07/GB/month (5GB volume cost <= \$0.35/mo)"
+          echo ""
+          echo "NOTE: 'runpodctl datacenter list' returns only id/name/location/gpuAvailability"
+          echo "(confirmed against runpodctl source: internal/api DataCenter struct and its"
+          echo "GraphQL query). 'runpodctl gpu list' returns gpuId/displayName/memoryInGb/"
+          echo "secureCloud/communityCloud/securePricePerHr/communityPricePerHr/stockStatus/"
+          echo "available/dataCenterAvailability[dataCenterId,stockStatus]. Neither documented"
+          echo "field set exposes Network Volume / storage support per datacenter, so this"
+          echo "preflight step does not claim to verify it and does not guess a datacenter."
 
-          # Datacenters that advertise storage support (field name may vary by runpodctl version).
-          STORAGE_DCS=$(jq -r '
-            [.[] | select((.storageSupport == true) or (.storage_support == true) or (.supportNetworkVolume == true))
-             | .id // .Id // .ID] | unique | .[]' datacenters.json 2>/dev/null || true)
+          # 16GB-class GPU candidates, cross-referenced to the datacenters that actually
+          # stock them via the documented dataCenterAvailability field (this is the field
+          # runpodctl itself populates from ListDataCenters()'s gpuAvailability data, per
+          # source inspection of cmd/gpu/list.go and internal/api/gpu.go).
+          COMPATIBLE_GPU_DCS=$(jq -r '
+            [.[] | select((.displayName // "") | test("A4000|A4500|RTX 4000 Ada|RTX 2000 Ada"; "i"))
+             | (.dataCenterAvailability // [])[] | .dataCenterId] | unique | .[]' gputypes.json 2>/dev/null || true)
 
-          # 16GB-class GPU candidates, available (or include-unavailable listed) with a recognizable name.
-          COMPATIBLE_GPUS=$(jq -r '
-            [.[] | select((.displayName // .DisplayName // "") | test("A4000|A4500|RTX 4000 Ada|RTX 2000 Ada"; "i"))
-             | .gpuId // .id // .Id] | unique | .[]' gputypes.json 2>/dev/null || true)
+          COMPATIBLE_GPU_COUNT=$(jq -r '
+            [.[] | select((.displayName // "") | test("A4000|A4500|RTX 4000 Ada|RTX 2000 Ada"; "i"))] | length' gputypes.json 2>/dev/null || echo 0)
 
           echo ""
-          echo "Storage-capable datacenters found: $(echo "$STORAGE_DCS" | grep -c . || true)"
-          echo "Compatible 16GB-class GPU types found: $(echo "$COMPATIBLE_GPUS" | grep -c . || true)"
+          echo "Compatible 16GB-class GPU types found: ${COMPATIBLE_GPU_COUNT}"
+          echo "Datacenters stocking a compatible GPU (via dataCenterAvailability): $(echo "$COMPATIBLE_GPU_DCS" | grep -c . || true)"
 
-          if [ -z "$STORAGE_DCS" ] || [ -z "$COMPATIBLE_GPUS" ]; then
-            echo "FAILED: No storage-capable datacenter and/or no compatible 16GB-class GPU found"
+          if [ "$COMPATIBLE_GPU_COUNT" = "0" ]; then
+            echo "FAILED: No compatible 16GB-class GPU type found"
             exit 1
           fi
 
-          # Pick the first storage-capable datacenter as the target. Co-location with the
-          # compatible GPU pool is confirmed only informationally here; authoritative
-          # co-location proof happens in post-creation verification against the account.
-          TARGET_DC=$(echo "$STORAGE_DCS" | head -n1)
-          if [ -z "$TARGET_DC" ]; then
-            echo "FAILED: Could not select a target datacenter"
-            exit 1
-          fi
-
-          echo "PASSED: selected target datacenter (id redacted in summary): ${TARGET_DC:0:4}***"
-          echo "datacenter_id=${TARGET_DC}" >> "$GITHUB_OUTPUT"
+          # Storage/Network-Volume support per datacenter is not exposed by any documented
+          # runpodctl or REST field available to this workflow (verified: REST openapi.json
+          # has no /datacenters or /networkvolumes/regions endpoint; runpodctl datacenter/gpu
+          # list structs carry no storage-capability field). Per fail-closed policy, this step
+          # does not invent capability from GPU availability alone and does not guess a target
+          # datacenter. It must stop here until storage capability is verified through an
+          # authoritative source (e.g. RunPod support confirmation, or a proven schema field).
+          echo ""
+          echo "FAILED: storage/Network-Volume support per datacenter cannot be verified from"
+          echo "any documented runpodctl or REST field. GPU/datacenter compatibility alone is"
+          echo "not sufficient evidence to select a target datacenter for volume creation."
+          echo "This is an honest fail-closed stop, not a claim that RunPod has no eligible"
+          echo "datacenter for this account -- that remains unproven pending authoritative"
+          echo "confirmation (see docs/restoration/RUNPOD_GATE3_APPROVAL_PACKET.md)."
+          exit 1
 
       - name: Preflight - Verify existing volumes
         env:
