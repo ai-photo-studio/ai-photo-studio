@@ -1,0 +1,90 @@
+name: runpod-upload-gate3-weights
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type UPLOAD_THREE_GATE3_WEIGHTS to proceed"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  AWS_DEFAULT_REGION: eu-ro-1
+  AWS_DEFAULT_OUTPUT: json
+  AWS_EC2_METADATA_DISABLED: "true"
+  S3_ENDPOINT: https://s3api-eu-ro-1.runpod.io
+  S3_BUCKET: d6a4504x8m
+
+jobs:
+  upload-verified-weights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.RUNPOD_S3_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.RUNPOD_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Verify confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "UPLOAD_THREE_GATE3_WEIGHTS" ]; then
+            echo "ERROR: confirmation must be exactly UPLOAD_THREE_GATE3_WEIGHTS"
+            exit 1
+          fi
+
+      - name: Download and verify approved release assets
+        run: |
+          set -euo pipefail
+          workdir="${RUNNER_TEMP}/runpod-gate3-weights"
+          mkdir -p "$workdir"
+
+          download_and_verify() {
+            local name="$1" url="$2" expected_size="$3" expected_sha="$4"
+            local partial="$workdir/${name}.partial" final="$workdir/${name}"
+            curl --fail --location --proto '=https' --connect-timeout 30 --max-time 900 --output "$partial" "$url"
+            test "$(stat -c%s "$partial")" = "$expected_size"
+            test "$(sha256sum "$partial" | awk '{print $1}')" = "$expected_sha"
+            mv "$partial" "$final"
+          }
+
+          download_and_verify "GFPGANv1.4.pth" "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth" "348632874" "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
+          download_and_verify "detection_Resnet50_Final.pth" "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth" "109497761" "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d"
+          download_and_verify "parsing_parsenet.pth" "https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth" "85331193" "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2"
+
+      - name: Guard existing objects and upload missing verified weights
+        run: |
+          set -euo pipefail
+          workdir="${RUNNER_TEMP}/runpod-gate3-weights"
+
+          verify_remote() {
+            local key="$1" expected_size="$2" expected_sha="$3"
+            local remote_size verify_copy actual_sha
+            remote_size=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$key" --endpoint-url "$S3_ENDPOINT" --region "$AWS_DEFAULT_REGION" --query ContentLength --output text)
+            test "$remote_size" = "$expected_size"
+            verify_copy="${RUNNER_TEMP}/$(basename "$key").verify"
+            aws s3 cp "s3://${S3_BUCKET}/${key}" "$verify_copy" --endpoint-url "$S3_ENDPOINT" --region "$AWS_DEFAULT_REGION" --no-progress
+            actual_sha=$(sha256sum "$verify_copy" | awk '{print $1}')
+            rm -f "$verify_copy"
+            test "$actual_sha" = "$expected_sha"
+          }
+
+          ensure_object() {
+            local local_name="$1" key="$2" expected_size="$3" expected_sha="$4"
+            if aws s3api head-object --bucket "$S3_BUCKET" --key "$key" --endpoint-url "$S3_ENDPOINT" --region "$AWS_DEFAULT_REGION" >/dev/null 2>&1; then
+              verify_remote "$key" "$expected_size" "$expected_sha"
+              echo "verified-existing: $key"
+            else
+              aws s3 cp "$workdir/$local_name" "s3://${S3_BUCKET}/${key}" --endpoint-url "$S3_ENDPOINT" --region "$AWS_DEFAULT_REGION" --no-progress
+              verify_remote "$key" "$expected_size" "$expected_sha"
+              echo "uploaded-and-verified: $key"
+            fi
+          }
+
+          ensure_object "GFPGANv1.4.pth" "models/GFPGANv1.4.pth" "348632874" "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
+          ensure_object "detection_Resnet50_Final.pth" "models/facexlib/detection_Resnet50_Final.pth" "109497761" "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d"
+          ensure_object "parsing_parsenet.pth" "models/facexlib/parsing_parsenet.pth" "85331193" "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2"
+
+      - name: Remove temporary weights
+        if: always()
+        run: rm -rf "${RUNNER_TEMP}/runpod-gate3-weights" "${RUNNER_TEMP}"/*.verify
