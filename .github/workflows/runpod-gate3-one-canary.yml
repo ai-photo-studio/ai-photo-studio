@@ -12,6 +12,21 @@ name: runpod-gate3-one-canary
 # one non-production RunPod Serverless canary, scoped to the fixed
 # configuration below. Gate 4 (production activation) remains prohibited.
 # Replicate remains production; this workflow never calls Replicate.
+#
+# DISPATCH SEMANTICS (protected protocol, corrected 2026-08-01): a Gate 3
+# approval authorizes exactly ONE workflow_dispatch of this file, which must
+# submit exactly ONE job, with ZERO workflow reruns. This is stricter than
+# "one executed job" alone: ANY preflight or workflow-implementation defect
+# that causes a dispatch to fail -- even with zero RunPod resources created
+# and zero cost -- consumes that dispatch's authorization. Repairing the
+# defect and dispatching again always requires a NEW, separate, explicit
+# Gate 3 approval statement, never a reinterpretation of the prior one.
+# (Historical note, not a precedent: the 2026-08-01 canary record documents
+# three dispatches -- 30691165812 and 30691290437 failed at a preflight/
+# workflow-implementation bug before any job existed, and 30691401701 is the
+# one dispatch that actually executed the one authorized job. That sequence
+# reflects how that specific approval was interpreted at the time. It must NOT be read as license for multiple dispatches under a single future approval.
+# Every future dispatch -- successful, failed, or defect-blocked -- is exactly one attempt against exactly one approval, full stop.)
 
 on:
   workflow_dispatch:
@@ -207,6 +222,15 @@ jobs:
       - name: "Create template (POST /v1/templates, exactly once)"
         id: create-template
         run: |
+          # TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 is already baked into the published
+          # image's Config.Env (verified 2026-08-01 via anonymous GHCR manifest
+          # inspection of digest ${IMAGE_DIGEST}) and is inherited by the
+          # handler's subprocess by default (handler.py's subprocess.run call
+          # passes no env= override). Root-cause analysis CONTRADICTED the
+          # hypothesis that an empty template env caused run 30691401701's
+          # failure. This explicit template env is defense-in-depth only: it
+          # is the one required, proven, non-secret runtime value and nothing
+          # else -- no credentials, provider keys, or production variables.
           PAYLOAD=$(jq -n --arg name "$TEMPLATE_NAME" --arg image "${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" '{
             "name": $name,
             "imageName": $image,
@@ -215,7 +239,7 @@ jobs:
             "category": "NVIDIA",
             "containerDiskInGb": 20,
             "ports": [],
-            "env": {}
+            "env": { "TORCH_FORCE_WEIGHTS_ONLY_LOAD": "1" }
           }')
           RESPONSE=$(curl -s -X POST https://rest.runpod.io/v1/templates \
             -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" -d "$PAYLOAD")
@@ -226,7 +250,24 @@ jobs:
             exit 1
           fi
           echo "template_id=${TEMPLATE_ID}" >> "$GITHUB_OUTPUT"
+          echo "template_env=$(echo "$RESPONSE" | jq -c '.env // {}')" >> "$GITHUB_OUTPUT"
           echo "Template created (redacted): ${TEMPLATE_ID:0:6}..."
+
+      - name: "Pre-submit assertion - template response contains intended env"
+        run: |
+          ENV_JSON='${{ steps.create-template.outputs.template_env }}'
+          echo "Template response env (non-secret): ${ENV_JSON}"
+          ACTUAL=$(echo "$ENV_JSON" | jq -r '.TORCH_FORCE_WEIGHTS_ONLY_LOAD // empty')
+          if [ "$ACTUAL" != "1" ]; then
+            echo "ERROR: template response env does not confirm TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 (got: '${ACTUAL}')"
+            exit 1
+          fi
+          KEY_COUNT=$(echo "$ENV_JSON" | jq 'keys | length')
+          if [ "$KEY_COUNT" != "1" ]; then
+            echo "ERROR: template env must contain exactly one key (TORCH_FORCE_WEIGHTS_ONLY_LOAD); found ${KEY_COUNT}"
+            exit 1
+          fi
+          echo "PASSED: template response confirms the intended, minimal, non-secret env configuration"
 
       # ---------------------------------------------------------------
       # Create exactly one queue endpoint (single POST)
@@ -355,6 +396,19 @@ jobs:
           DELAY_MS=$(jq -r '.delayTime // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
           EXEC_MS=$(jq -r '.executionTime // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
 
+          # Sanitized failure diagnostics, captured before mandatory cleanup
+          # deletes the job/worker/endpoint. RunPod's job status API exposes
+          # no stdout/stderr endpoint (confirmed against docs.runpod.io and
+          # rest.runpod.io/v1/openapi.json) -- only the handler's own JSON
+          # output/error fields are available, so that limitation is
+          # documented rather than inventing a log endpoint that does not
+          # exist. Every value here is bounded to a small fixed character
+          # limit and never includes outputBase64 or any credential.
+          OUTPUT_IS_JSON=$(jq -e '.output != null' "$RESULT_FILE" >/dev/null 2>&1 && echo true || echo false)
+          ERROR_MSG=$(jq -r '.output.error // ""' "$RESULT_FILE" 2>/dev/null | cut -c1-200)
+          ERROR_DETAIL=$(jq -r '.output.detail // ""' "$RESULT_FILE" 2>/dev/null | cut -c1-200)
+          SANITIZED_OUTPUT=$(jq -c '(.output // {}) | del(.outputBase64)' "$RESULT_FILE" 2>/dev/null | cut -c1-500)
+
           # gpu_inference_executed: the published worker raises a fail-closed
           # CUDA error before returning ok=true in restore mode, so ok=true
           # with a non-empty device name is proof CUDA/GPU inference ran.
@@ -398,6 +452,14 @@ jobs:
             echo "delay_ms=${DELAY_MS}"
             echo "execution_ms=${EXEC_MS}"
             echo "actual_cost_usd=${ACTUAL_COST}"
+            echo "output_is_json=${OUTPUT_IS_JSON}"
+            echo "error_msg=${ERROR_MSG}"
+            echo "error_detail=${ERROR_DETAIL}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "sanitized_output<<GATE3_EOF"
+            echo "${SANITIZED_OUTPUT}"
+            echo "GATE3_EOF"
           } >> "$GITHUB_OUTPUT"
 
           echo "=== Gate 3 canary evidence (redacted) ==="
@@ -405,9 +467,34 @@ jobs:
           echo "providerPostCount=${PROVIDER_POST_COUNT} productionRoutingAllowed=${PRODUCTION_ROUTING}"
           echo "output: ${OUT_W}x${OUT_H} ${OUT_FMT} ${OUT_BYTES} bytes sha256=${OUT_SHA256} decodable=${DECODABLE}"
           echo "delayMs=${DELAY_MS} executionMs=${EXEC_MS} actualCostUsd=${ACTUAL_COST}"
+          echo "outputIsJson=${OUTPUT_IS_JSON} errorMsg=${ERROR_MSG} errorDetail=${ERROR_DETAIL}"
+          echo "sanitizedOutput (<=500 chars, outputBase64 stripped): ${SANITIZED_OUTPUT}"
           echo "NOTE: the published handler JSON contract does not expose an explicit"
           echo "detected-face count; faces processed is not fabricated here and is"
           echo "reported as unavailable-from-contract in the evidence PR, not guessed."
+          echo "NOTE: RunPod's job status API exposes no stdout/stderr endpoint (confirmed"
+          echo "against docs.runpod.io and rest.runpod.io/v1/openapi.json); only the"
+          echo "handler's own JSON output/error fields above are obtainable."
+
+      # ---------------------------------------------------------------
+      # Diagnostics: worker/queue health snapshot, captured before cleanup
+      # begins. Single bounded GET call; if: always() so it still runs when
+      # an earlier step failed. This does not delay cleanup beyond the
+      # existing bound -- it is one fast read-only call, not a loop or wait.
+      # ---------------------------------------------------------------
+      - name: "Capture worker/queue health snapshot (before cleanup)"
+        if: always()
+        id: health-snapshot
+        run: |
+          ENDPOINT_ID="${{ steps.create-endpoint.outputs.endpoint_id }}"
+          if [ -z "$ENDPOINT_ID" ]; then
+            echo "No endpoint was created; nothing to snapshot."
+            echo "health_snapshot={}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          HEALTH=$(curl -s -X GET "https://api.runpod.ai/v2/${ENDPOINT_ID}/health" -H "Authorization: Bearer $RUNPOD_API_KEY")
+          echo "Worker/queue health (redacted, no secrets): ${HEALTH}"
+          echo "health_snapshot=$(echo "$HEALTH" | jq -c '.')" >> "$GITHUB_OUTPUT"
 
       # ---------------------------------------------------------------
       # Success gate: fail closed unless every required condition holds
@@ -498,3 +585,5 @@ jobs:
           echo "- actualCostUsd=${{ steps.evidence.outputs.actual_cost_usd }} (budget=\$${COMPUTE_BUDGET_USD})" >> "$GITHUB_STEP_SUMMARY"
           echo "- providerPostCount=${{ steps.evidence.outputs.provider_post_count }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- billedDurationSeconds=${{ steps.poll-job.outputs.billed_duration_seconds }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- outputIsJson=${{ steps.evidence.outputs.output_is_json }} errorMsg=${{ steps.evidence.outputs.error_msg }} errorDetail=${{ steps.evidence.outputs.error_detail }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- workerHealthSnapshot=${{ steps.health-snapshot.outputs.health_snapshot }}" >> "$GITHUB_STEP_SUMMARY"

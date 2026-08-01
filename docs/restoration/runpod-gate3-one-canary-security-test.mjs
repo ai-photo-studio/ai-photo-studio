@@ -128,6 +128,53 @@ assert(successGateIndex < cleanupIndex, "success gate must run before cleanup so
 assert(!/concurrency"\s*:|maxJobs"\s*:|maxRetries"\s*:|activeWorkers"\s*:/.test(source), "must not send unsupported literal concurrency/maxJobs/maxRetries/activeWorkers fields to the REST API (none exist in TemplateCreateInput/EndpointCreateInput)");
 assert(!/"tier"\s*:/.test(source), "must not send unsupported template/endpoint fields");
 
+// Defensive template env correction: exactly one non-secret key, plus a
+// pre-submit assertion that the template creation response reflects it.
+const templateEnvMatch = /"env":\s*(\{[^}]*\})/.exec(templateCreateStep.run);
+assert(templateEnvMatch !== null, "template payload must contain a literal env object");
+assert(templateEnvMatch[1] === '{ "TORCH_FORCE_WEIGHTS_ONLY_LOAD": "1" }', "template must explicitly set exactly TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 as defense-in-depth, nothing else");
+assert(!/RUNPOD_API_KEY|AWS_ACCESS_KEY|AWS_SECRET_ACCESS_KEY|RUNPOD_S3/.test(templateEnvMatch[1]), "template env object must never contain credentials or provider keys");
+const preSubmitAssertStep = allSteps.find((s) => s.name && s.name.includes("Pre-submit assertion"));
+assert(preSubmitAssertStep !== undefined, "must have an explicit pre-submit assertion step for the template env");
+assert(preSubmitAssertStep.run.includes("TORCH_FORCE_WEIGHTS_ONLY_LOAD"), "pre-submit assertion must check TORCH_FORCE_WEIGHTS_ONLY_LOAD");
+assert(preSubmitAssertStep.run.includes("exit 1"), "pre-submit assertion must fail closed if the template response does not confirm the intended env");
+const preSubmitIndex = allSteps.indexOf(preSubmitAssertStep);
+const endpointCreateIndex = allSteps.indexOf(endpointCreateStep);
+assert(preSubmitIndex < endpointCreateIndex, "pre-submit assertion must run before endpoint creation");
+
+// Improved sanitized diagnostics, bounded and secret-free
+const evidenceStep = allSteps.find((s) => s.name === "Capture and verify evidence");
+assert(evidenceStep !== undefined, "must have an explicit evidence-capture step");
+assert(evidenceStep.run.includes("cut -c1-200"), "error message/detail must be truncated to a small fixed limit");
+assert(evidenceStep.run.includes("cut -c1-500"), "sanitized output object must be truncated to a small fixed limit");
+assert(evidenceStep.run.includes("del(.outputBase64)"), "sanitized output must strip outputBase64 before logging");
+assert(evidenceStep.run.includes("output_is_json"), "must record whether the job output was valid JSON");
+assert(!/outputBase64.*GITHUB_OUTPUT|GITHUB_OUTPUT.*outputBase64/.test(evidenceStep.run), "must never write raw outputBase64 to GITHUB_OUTPUT");
+assert(!/stdout|stderr/.test(evidenceStep.run) || /no stdout\/stderr endpoint/.test(evidenceStep.run), "if stdout/stderr is mentioned it must be documenting the API limitation, not inventing a log endpoint");
+
+// Pre-cleanup worker/queue health snapshot, bounded (single call, always())
+const healthSnapshotStep = allSteps.find((s) => s.name && s.name.includes("Capture worker/queue health snapshot"));
+assert(healthSnapshotStep !== undefined, "must have an explicit pre-cleanup health snapshot step");
+assert(healthSnapshotStep.if === "always()", "health snapshot step must run with if: always() so it survives earlier failures");
+const healthSnapshotIndex = allSteps.indexOf(healthSnapshotStep);
+assert(healthSnapshotIndex < cleanupIndex, "health snapshot must be captured before cleanup begins");
+assert(!/for\s+|while\s+|until\s+/.test(healthSnapshotStep.run), "health snapshot must be a single bounded call, not a polling loop");
+
+// Cleanup-path coverage: the same unconditional cleanup logic must apply
+// regardless of whether the job succeeded, failed, or was cancelled at the
+// timeout ceiling -- it is not gated on final_status, so all three paths
+// converge on identical teardown behavior.
+assert(!/final_status.*==.*(COMPLETED|FAILED|CANCELLED)/.test(cleanupStep.run), "cleanup must not branch on final job status -- it must behave identically for success, failure, and timeout/cancellation");
+assert(cleanupStep.run.includes('"IN_QUEUE"') && cleanupStep.run.includes('"IN_PROGRESS"'), "cleanup must still cancel a job that is unexpectedly still active regardless of the poll loop's own outcome");
+assert(cleanupStep.run.includes("workers_active_before_delete"), "cleanup must record worker activity for all three outcome paths");
+
+// Dispatch semantics protection is documented, not just implied
+assert(raw.includes("DISPATCH SEMANTICS"), "workflow header must document dispatch semantics protection");
+assert(raw.includes("consumes that dispatch's authorization"), "must state that any preflight/workflow defect consumes the dispatch authorization");
+assert(raw.includes("NEW, separate, explicit"), "must require a new, separate, explicit approval for any further dispatch");
+assert(raw.includes("must NOT be read as license for multiple dispatches"), "must explicitly reject the multiple-dispatches-because-one-job-ran interpretation");
+assert(raw.toLowerCase().includes("full stop"), "dispatch semantics documentation must be unambiguous");
+
 console.log("runpod gate3 one-canary workflow security validator PASSED");
 console.log("  - workflow_dispatch only, EXECUTE_ONE_GATE3_CANARY confirmation required");
 console.log("  - exactly one template POST, one endpoint POST, one job submission");

@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-08-01",
+  "method": "anonymous GHCR Docker Registry HTTP API v2 (no docker pull, no registry login, no packages token)",
+  "imageRepository": "ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev",
+  "imageDigest": "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b",
+  "indexMediaType": "application/vnd.oci.image.index.v1+json",
+  "platformManifestDigest": "sha256:06009d0bc5e9d9b8b9c9929896241ae7d8dd1dc1749dd712200f8bfd863e8f1a",
+  "configBlobDigest": "sha256:477d175192666231c1d588af81a48454be37de36b78a3b94ee2238dc3d3bcafa",
+  "config": {
+    "User": "workeruser",
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "PYTHONUNBUFFERED=1",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "DEBIAN_FRONTEND=noninteractive",
+      "TORCH_FORCE_WEIGHTS_ONLY_LOAD=1",
+      "APP_HOME=/srv/handler"
+    ],
+    "Cmd": ["python3.10", "-u", "/srv/handler/handler.py"],
+    "WorkingDir": "/srv/handler",
+    "Labels": {
+      "org.opencontainers.image.revision": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+      "org.opencontainers.image.source": "https://github.com/ai-photo-studio/ai-photo-studio",
+      "org.opencontainers.image.title": "runpod-worker-gpu-serverless-volume-dev",
+      "org.opencontainers.image.version": "handler-volume-candidate-v1"
+    }
+  },
+  "torchForceWeightsOnlyLoadBakedIn": true,
+  "entrypointCleared": true,
+  "runtimeUserNonRoot": true,
+  "rootCauseHypothesis": {
+    "statement": "empty RunPod template env ({}) removed/prevented TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 from reaching the worker process, causing run 30691401701's job to fail",
+    "classification": "CONTRADICTED",
+    "evidence": [
+      "TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 is already present in the published image's Config.Env, independent of any RunPod template configuration",
+      "handler.py's subprocess.run() call passes no env= override, so the CLI worker subprocess inherits the full container process environment by default (Python subprocess.run default behavior)",
+      "standard OCI/Docker container runtime semantics merge template/run-time supplied env vars additively on top of an image's baked-in ENV list; they do not reset or remove existing image ENV entries. RunPod-specific documentation does not explicitly state this, so this point is inferred from universal container-runtime behavior, not RunPod-confirmed prose"
+    ],
+    "realRootCause": "unconfirmed -- mandatory cleanup deleted the job, worker, and endpoint before any log-retrieval call was authorized, and RunPod's job status API exposes no stdout/stderr endpoint (confirmed against docs.runpod.io operation-reference and rest.runpod.io/v1/openapi.json)",
+    "correctionApplied": "the canary template's env is now explicitly set to exactly one key, TORCH_FORCE_WEIGHTS_ONLY_LOAD=1, as defense-in-depth only (not because the hypothesis was confirmed), plus a pre-submit assertion that the template creation response reflects this exact value before any endpoint or job is created"
+  }
+}
