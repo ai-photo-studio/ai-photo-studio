@@ -1,0 +1,106 @@
+{
+  "approved": false,
+  "publicationAllowed": false,
+  "gate3ExecutionAllowed": false,
+  "productionRoutingAllowed": false,
+  "recordedAt": "2026-08-01",
+  "rootCauseFix": {
+    "defect": "GFPGANer.enhance() returns a 3-tuple (cropped_faces, restored_faces, restored_img); the previously published worker.py unpacked only 2 values (out, _ = model.enhance(...)), raising an uncaught ValueError -> EXIT_INTERNAL (exit code 1) on every successful restore call",
+    "fix": "_, _, out = model.enhance(...) -- exactly one line changed, no other functional change",
+    "confirmedBy": "docs/restoration/runpod-restore-unpack-fix-candidate.json (PR #87, merge 0651d44)",
+    "affectedCanaries": ["30691401701", "30692613631"]
+  },
+  "criticalDependencyNote": "Publishing only the corrected CLI image would NOT fix the canary. The currently published Serverless handler and volume-mapped handler images both derive from the OLD, buggy CLI digest (sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a) and do not automatically inherit a fix made to an unrelated, unpublished image. All three images in the chain below must be rebuilt from the corrected source and published consistently.",
+  "chain": [
+    {
+      "role": "1-cli-worker",
+      "path": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/",
+      "sourceCommitOfCandidateFiles": "0651d44bd2343c9c56b3d9f47f5c586b0631416c",
+      "parentImage": "ubuntu:22.04@sha256:0d779ea97881505f5ef0039336ee85edba27519bdba968c284c86ee066a973c8",
+      "localBuildImageId": "sha256:83df43660d078eb0f361207f22b5bd50b4e5efde351ea8566dbfc32828a35fef",
+      "localBuildSizeBytes": 6620117054,
+      "runtimeUser": "workeruser",
+      "cmd": null,
+      "entrypoint": ["python3.10", "/srv/worker/worker.py"],
+      "torchForceWeightsOnlyLoad": "1",
+      "sbomComponents": 248,
+      "zeroCritical": true,
+      "cve202532434Absent": true,
+      "oneLineFixVerified": true,
+      "proposedPublication": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix",
+        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
+        "expectedDigest": "",
+        "floatingTagAllowed": false
+      }
+    },
+    {
+      "role": "2-serverless-handler",
+      "path": "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/",
+      "sourceCommitOfCandidateFiles": "a2bd3b2a57260cce119d4e483441afa952df0f9a",
+      "parentImage": "gfpgan-cli-restore-fix:local (role 1-cli-worker, LOCAL build reference only -- role 1 is unpublished, so this is not a registry pull)",
+      "localBuildImageId": "sha256:217798b65534bd0681fddbfc41596d1a38ecf2bd61d9e11a31b3c33880c3b34f",
+      "localBuildSizeBytes": 6752005563,
+      "runtimeUser": "workeruser",
+      "cmd": ["python3.10", "-u", "/srv/handler/handler.py"],
+      "entrypoint": null,
+      "sdkVersion": "runpod==1.11.0",
+      "sbomComponents": 324,
+      "zeroCritical": true,
+      "cve202532434Absent": true,
+      "handlerUnchangedFromReviewedContract": true,
+      "proposedPublication": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev",
+        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
+        "expectedDigest": "",
+        "floatingTagAllowed": false
+      }
+    },
+    {
+      "role": "3-volume-mapped-handler",
+      "path": "apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/",
+      "sourceCommitOfCandidateFiles": "a2bd3b2a57260cce119d4e483441afa952df0f9a",
+      "parentImage": "gfpgan-serverless-restore-fix:local (role 2-serverless-handler, LOCAL build reference only -- role 2 is unpublished, so this is not a registry pull)",
+      "localBuildImageId": "sha256:2b2305ebfca706d26ab2dff1252b6abff38b69b094df6f1a9be037e6da1b26cb",
+      "localBuildSizeBytes": 6752005563,
+      "runtimeUser": "workeruser",
+      "cmd": ["python3.10", "-u", "/srv/handler/handler.py"],
+      "entrypoint": null,
+      "symlinkContract": "/models -> /runpod-volume/models (build-time only, fixed, root used only during build, runtime returns to workeruser, not runtime-writable)",
+      "sbomComponents": 324,
+      "zeroCritical": true,
+      "cve202532434Absent": true,
+      "mountContractTests": {
+        "testAValidMapping": "PASS",
+        "testBMissingVolumeFailsClosed": "PASS (EXIT_WEIGHT=4)",
+        "testInvalidWeightFailsClosed": "PASS (EXIT_WEIGHT=4, before model construction)",
+        "testDSecurity": "PASS (providerPostCount=0, productionRoutingAllowed=false)",
+        "symlinkNotRuntimeWritable": "PASS"
+      },
+      "correctedWorkerVerifiedEndToEnd": true,
+      "oldBuggyDigestRejected": true,
+      "proposedPublication": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev",
+        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
+        "expectedDigest": "",
+        "floatingTagAllowed": false
+      }
+    }
+  ],
+  "buildOnlyWorkflow": ".github/workflows/build-restore-unpack-fix-chain.yml",
+  "buildOnlyWorkflowRuns": [
+    {"run": "30693830028", "outcome": "Stage 1 fully passed (build, non-root, no weight, safe-load env, one-line fix confirmed, contract tests, full 19-test suite); Stage 2 failed with a buildx-driver image-resolution defect (isolated docker-container builder could not see Stage 1's local image); zero images published, zero cost", "conclusion": "failure", "fixedByPr": 89},
+    {"run": "30694219808", "outcome": "all three stages built and passed every contract test, SBOM, and vulnerability check listed above", "conclusion": "success"}
+  ],
+  "gpuInferenceExecuted": false,
+  "runpodApiCalls": 0,
+  "runpodResourcesCreated": "none",
+  "imagesPublished": "none",
+  "approvalPacketStatement": "All required chain images (1-cli-worker, 2-serverless-handler, 3-volume-mapped-handler) must be published consistently, each pinned by full source SHA with no floating tag. Publishing only the CLI image is insufficient and would not fix the canary, because the currently published Serverless and volume-mapped images derive from the old buggy CLI digest and would remain broken. Any source, base-digest, or dependency change to ANY of the three candidates invalidates this entire readiness record for the whole chain, not just the changed image. Publication of any or all three images requires a separate, explicit Gate 2 approval per image (or a single approval explicitly covering all three, at the approver's discretion) -- it is not implied by this build-only readiness review. Publication of the chain does NOT itself authorize Gate 3; a further separate, explicit Gate 3 approval is required afterward, and must reference the new final volume-mapped handler digest (role 3) specifically, not the digest used in the two prior failed canaries.",
+  "priorGate3ApprovalsConsumed": [
+    "2026-08-01 first approval (run 30691401701, and its two preceding failed dispatches)",
+    "2026-08-01 second approval (run 30692613631)"
+  ],
+  "gate4Status": "prohibited; not touched",
+  "replicateStatus": "production; unaffected; no call made"
+}
