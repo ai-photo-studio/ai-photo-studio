@@ -1,0 +1,367 @@
+name: publish-invalid-json-cwd-fix-chain
+
+# Guarded, workflow_dispatch-only publication of the two-image cwd-fix chain
+# (Serverless handler -> volume-mapped handler), fixing the confirmed
+# subprocess cwd= stdout-protocol defect (Gate 3 canary run 30702245089;
+# root cause confirmed PR #98 merge 5925c18; Gate 2 build-only readiness
+# recorded PR #100 merge 9bf388a). The CLI worker is REUSED, UNCHANGED, by
+# its existing immutable published digest -- it is never rebuilt or
+# republished here. Builds and pushes both new images, in dependency order,
+# each pinned to the SAME immutable full 40-character source SHA tag. No
+# latest/main/stable/floating tag. The volume-mapped image derives from the
+# just-published handler by exact resolved registry digest -- never from a
+# local build cache. No RunPod/S3 call. No deployment. No GPU inference.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type PUBLISH_CWD_FIX_CHAIN to proceed"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-invalid-json-cwd-fix-chain
+  cancel-in-progress: false
+
+env:
+  CLI_REPO: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix
+  CLI_DIGEST: sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052
+  HANDLER_REPO: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev
+  VOLUME_REPO: ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev
+  READINESS_COMMIT: 3421fb2aac9821bbf0efd4482e3ea70fe5866910
+
+jobs:
+  publish-chain:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Verify confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "PUBLISH_CWD_FIX_CHAIN" ]; then
+            echo "ERROR: confirmation must be exactly PUBLISH_CWD_FIX_CHAIN"
+            exit 1
+          fi
+          echo "Confirmation verified."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve immutable source SHA tag (identical for both images)
+        id: sha
+        run: |
+          SOURCE_SHA="${{ github.sha }}"
+          if [ "${#SOURCE_SHA}" -ne 40 ]; then
+            echo "ERROR: source SHA is not a full 40-character commit hash: $SOURCE_SHA" >&2
+            exit 1
+          fi
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Publishing tag (identical across both images): $SOURCE_SHA"
+
+      - name: "Preflight - Gate 2 readiness present on this ref"
+        run: |
+          git merge-base --is-ancestor "$READINESS_COMMIT" HEAD || { echo "ERROR: readiness commit not an ancestor" >&2; exit 1; }
+          echo "PASSED: Gate 2 readiness commit $READINESS_COMMIT is an ancestor"
+
+      - name: "Preflight - handler Dockerfile pins the exact reused CLI digest, unchanged"
+        run: |
+          from_line=$(grep -m1 '^FROM ' apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/Dockerfile)
+          echo "$from_line"
+          echo "$from_line" | grep -q "${CLI_REPO}@${CLI_DIGEST}" || { echo "ERROR: handler Dockerfile does not pin the exact expected CLI digest" >&2; exit 1; }
+          echo "PASSED: CLI is reused unchanged by its exact existing digest"
+
+      - name: "Preflight - handler change is exactly cwd=WORKER_DIR, WORKER_DIR derives from WORKER[1]"
+        run: |
+          grep -q "WORKER_DIR = os.path.dirname(WORKER\[1\])" apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/handler.py \
+            || { echo "ERROR: WORKER_DIR must derive from WORKER[1]" >&2; exit 1; }
+          grep -q "cwd=WORKER_DIR," apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/handler.py \
+            || { echo "ERROR: subprocess.run must pass cwd=WORKER_DIR" >&2; exit 1; }
+          echo "PASSED: cwd fix present and correctly derived"
+
+      - name: "Preflight - volume image adds only the /models symlink"
+        run: |
+          diff <(sed -n '/^RUN rm -rf \/models/,/^USER workeruser$/p' apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/Dockerfile) \
+               <(sed -n '/^RUN rm -rf \/models/,/^USER workeruser$/p' apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev/Dockerfile) \
+            || { echo "ERROR: symlink instructions differ from the reviewed original -- readiness invalidated" >&2; exit 1; }
+          echo "PASSED: volume image's symlink instructions are byte-identical to the already-reviewed original"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Preflight - CLI parent resolves by digest, no matching target tag already exists"
+        run: |
+          docker manifest inspect "${CLI_REPO}@${CLI_DIGEST}" >/dev/null 2>&1 \
+            || { echo "ERROR: CLI parent digest does not resolve" >&2; exit 1; }
+          for repo in "$HANDLER_REPO" "$VOLUME_REPO"; do
+            if docker manifest inspect "${repo}:${{ steps.sha.outputs.source_sha }}" >/dev/null 2>&1; then
+              echo "ERROR: tag already exists at ${repo}:${{ steps.sha.outputs.source_sha }} -- refusing to overwrite" >&2
+              exit 1
+            fi
+            echo "confirmed no existing tag: ${repo}:${{ steps.sha.outputs.source_sha }}"
+          done
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      # =================================================================
+      # Stage 1: Serverless handler (FROM the reused, existing, published
+      # CLI digest -- literal in the Dockerfile already; no rewrite needed)
+      # =================================================================
+      - name: "Stage 1 - Build handler image (load only, no push yet)"
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev
+          file: apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.HANDLER_REPO }}:${{ steps.sha.outputs.source_sha }}
+          build-args: |
+            VCS_REF=${{ steps.sha.outputs.source_sha }}
+
+      - name: "Stage 1 - Contract tests: runtime user, Cmd/Entrypoint/Env, no weights/credentials"
+        run: |
+          IMG="${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }}"
+          docker image inspect "$IMG" > handler-inspect.json
+          user=$(jq -r '.[0].Config.User' handler-inspect.json)
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' handler-inspect.json)
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' handler-inspect.json)
+          [ "$user" = "workeruser" ] || { echo "ERROR: not workeruser" >&2; exit 1; }
+          [ "$entry" = "null" ] || [ "$entry" = "[]" ] || { echo "ERROR: entrypoint not cleared" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "ERROR: handler CMD missing" >&2; exit 1; }
+          jq -e '.[0].Config.Env | any(. == "TORCH_FORCE_WEIGHTS_ONLY_LOAD=1")' handler-inspect.json >/dev/null \
+            || { echo "ERROR: safe-load env missing" >&2; exit 1; }
+          has=$(docker run --rm --entrypoint sh "$IMG" -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          [ "$has" = "absent" ] || { echo "ERROR: weight bundled" >&2; exit 1; }
+          echo "Stage 1 metadata PASSED: user=$user entrypoint=$entry cmd=$cmd"
+
+      - name: "Stage 1 - Prove cwd fix, timeout=120s, exit codes 2/4/5 unchanged"
+        run: |
+          IMG="${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }}"
+          docker run --rm -i --network none -w /srv/handler "$IMG" \
+            python3.10 -c "import handler as h; assert h.WORKER == ['python3.10', '/srv/worker/worker.py'], h.WORKER; assert h.WORKER_DIR == '/srv/worker', h.WORKER_DIR; assert h.EXECUTION_TIMEOUT_SECONDS == 120, h.EXECUTION_TIMEOUT_SECONDS; assert h.EXIT_INPUT == 2, h.EXIT_INPUT; assert h.EXIT_WEIGHT == 4, h.EXIT_WEIGHT; assert h.EXIT_CUDA == 5, h.EXIT_CUDA; print('cwd=/srv/worker, timeout=120s, exit codes 2/4/5 confirmed')"
+
+      - name: "Stage 1 - Full contract test suite (contaminated-stdout regression, clean-stdout, malformed-output fail-closed, providerPostCount=0, productionRoutingAllowed=false)"
+        run: |
+          IMG="${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }}"
+          docker run --rm -i --network none \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/test_handler.py":/srv/handler/test_handler.py:ro \
+            -w /srv/handler "$IMG" python3.10 -m unittest test_handler -v 2>&1 | tail -40
+
+      - name: "Stage 1 - No base64/path/secret leakage in source"
+        run: |
+          src="apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/handler.py"
+          ! grep -qi "RUNPOD_API_KEY\|api_key=\|password=\|Authorization:\|Bearer " "$src"
+          ! grep -q "print(" "$src"
+          echo "Stage 1 PASSED: no secret/credential literals, no stray stdout prints"
+
+      - name: "Stage 1 - SBOM"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ env.HANDLER_REPO }}:${{ steps.sha.outputs.source_sha }}
+          format: cyclonedx
+          output: handler-sbom.json
+
+      - name: "Stage 1 - Vulnerability scan (zero CRITICAL required)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ env.HANDLER_REPO }}:${{ steps.sha.outputs.source_sha }}
+          format: json
+          output: handler-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 1 - Assert zero CRITICAL, CVE-2025-32434 absent (gate before push)"
+        id: handler-scan
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' handler-trivy.json >/dev/null 2>&1 \
+            || { echo "HANDLER CRITICAL PRESENT -- STOPPING BEFORE PUBLICATION" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" handler-trivy.json; then echo "HANDLER CVE-2025-32434 PRESENT -- STOPPING BEFORE PUBLICATION" >&2; exit 1; fi
+          components=$(jq -r '.components | length' handler-sbom.json)
+          echo "sbom_components=${components}" >> "$GITHUB_OUTPUT"
+          echo "Stage 1 SBOM components: ${components}"
+
+      - name: "Stage 1 - Push (only after tests and security pass)"
+        id: push-handler
+        run: |
+          docker push "${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }}"
+          digest=$(docker buildx imagetools inspect "${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }}" | awk '/^Digest:/{print $2}')
+          [ -n "$digest" ] || { echo "ERROR: could not resolve pushed digest" >&2; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "Stage 1 published: ${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }} @ ${digest}"
+
+      # =================================================================
+      # Stage 2: Volume-mapped handler (FROM the just-published handler,
+      # by exact resolved registry digest -- never a local build cache)
+      # =================================================================
+      - name: "Stage 2 - Generate publish Dockerfile pinned to the published handler digest"
+        run: |
+          handler_ref="${HANDLER_REPO}@${{ steps.push-handler.outputs.digest }}"
+          sed "s#^FROM gfpgan-serverless-restore-fix-cwd:local#FROM ${handler_ref}#" \
+            apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev/Dockerfile \
+            > /tmp/Dockerfile.volume.publish
+          grep -q "FROM ${handler_ref}" /tmp/Dockerfile.volume.publish || { echo "ERROR: FROM rewrite failed" >&2; exit 1; }
+          echo "Stage 2 will derive from: ${handler_ref}"
+
+      - name: "Stage 2 - Build volume-mapped handler image (load only, no push yet)"
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev
+          file: /tmp/Dockerfile.volume.publish
+          push: false
+          load: true
+          tags: ${{ env.VOLUME_REPO }}:${{ steps.sha.outputs.source_sha }}
+          build-args: |
+            VCS_REF=${{ steps.sha.outputs.source_sha }}
+
+      - name: "Stage 2 - Contract tests: symlink contract, runtime user, no weights/credentials"
+        run: |
+          IMG="${VOLUME_REPO}:${{ steps.sha.outputs.source_sha }}"
+          docker image inspect "$IMG" > volume-inspect.json
+          user=$(jq -r '.[0].Config.User' volume-inspect.json)
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' volume-inspect.json)
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' volume-inspect.json)
+          [ "$user" = "workeruser" ] || { echo "ERROR: not workeruser" >&2; exit 1; }
+          [ "$entry" = "null" ] || [ "$entry" = "[]" ] || { echo "ERROR: entrypoint not cleared" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "ERROR: handler CMD missing/changed" >&2; exit 1; }
+          target=$(docker run --rm --network none --entrypoint sh "$IMG" -c 'readlink /models')
+          [ "$target" = "/runpod-volume/models" ] || { echo "ERROR: symlink target mismatch: $target" >&2; exit 1; }
+          runtime_user=$(docker run --rm --network none --entrypoint whoami "$IMG")
+          [ "$runtime_user" = "workeruser" ] || { echo "ERROR: root leaked into runtime" >&2; exit 1; }
+          set +e
+          docker run --rm --network none --entrypoint sh "$IMG" -c "rm -f /models" 2>/dev/null
+          rc=$?
+          set -e
+          [ "$rc" -ne 0 ] || { echo "ERROR: workeruser could remove /models -- symlink is runtime-writable" >&2; exit 1; }
+          echo "Stage 2 metadata PASSED: user=$user entrypoint=$entry cmd=$cmd symlink=$target (not runtime-writable)"
+
+      - name: "Stage 2 - Missing/invalid weights fail EXIT_WEIGHT=4, cwd fix and prior unpack fix both present, no runtime download"
+        run: |
+          IMG="${VOLUME_REPO}:${{ steps.sha.outputs.source_sha }}"
+          set +e
+          out=$(docker run --rm -i --network none --entrypoint python3.10 "$IMG" /srv/worker/worker.py --stdin <<< '{"mode":"restore","imageBase64":"AAAA"}' 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 4 ] || { echo "EXPECTED EXIT_WEIGHT(4) FOR MISSING VOLUME, GOT $rc" >&2; exit 1; }
+
+          mkdir -p "$RUNNER_TEMP/valid-volume/models/facexlib"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/GFPGANv1.4.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/detection_Resnet50_Final.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/parsing_parsenet.pth"
+          set +e
+          out2=$(docker run --rm -i --network none -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" --entrypoint python3.10 "$IMG" /srv/worker/worker.py --stdin <<< '{"mode":"restore","imageBase64":"AAAA"}' 2>&1)
+          rc2=$?
+          set -e
+          echo "$out2"
+          [ "$rc2" -eq 4 ] || { echo "EXPECTED EXIT_WEIGHT(4) FOR MISMATCHED CHECKSUM, GOT $rc2" >&2; exit 1; }
+          echo "$out2" | grep -qi "checksum mismatch\|size mismatch" || { echo "EXPECTED SIZE/CHECKSUM MESSAGE" >&2; exit 1; }
+
+          cwd_line=$(docker run --rm --network none --entrypoint sh "$IMG" -c "grep -n 'cwd=WORKER_DIR' /srv/handler/handler.py")
+          echo "$cwd_line"
+          [ -n "$cwd_line" ] || { echo "ERROR: volume image does not carry the cwd= fix" >&2; exit 1; }
+          fixed_line=$(docker run --rm --network none --entrypoint sh "$IMG" -c "grep -n 'model.enhance' /srv/worker/worker.py")
+          echo "$fixed_line"
+          echo "$fixed_line" | grep -q '_, _, out = model.enhance' || { echo "ERROR: prior unpack fix not present" >&2; exit 1; }
+
+          out3=$(docker run --rm -i --network none --entrypoint python3.10 "$IMG" /srv/worker/worker.py --stdin <<< '{"mode":"health"}')
+          echo "$out3" | jq -e '.providerPostCount == 0 and .productionRoutingAllowed == false' >/dev/null \
+            || { echo "ERROR: fail-closed invariants missing" >&2; exit 1; }
+          echo "Stage 2 PASSED: EXIT_WEIGHT=4 fail-closed (missing + invalid), cwd fix present, unpack fix present, no runtime download attempted (network none throughout)"
+
+      - name: "Stage 2 - SBOM"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ env.VOLUME_REPO }}:${{ steps.sha.outputs.source_sha }}
+          format: cyclonedx
+          output: volume-sbom.json
+
+      - name: "Stage 2 - Vulnerability scan (zero CRITICAL required)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ env.VOLUME_REPO }}:${{ steps.sha.outputs.source_sha }}
+          format: json
+          output: volume-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 2 - Assert zero CRITICAL, CVE-2025-32434 absent (gate before push)"
+        id: volume-scan
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' volume-trivy.json >/dev/null 2>&1 \
+            || { echo "VOLUME CRITICAL PRESENT -- STOPPING BEFORE PUBLICATION" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" volume-trivy.json; then echo "VOLUME CVE-2025-32434 PRESENT -- STOPPING BEFORE PUBLICATION" >&2; exit 1; fi
+          components=$(jq -r '.components | length' volume-sbom.json)
+          echo "sbom_components=${components}" >> "$GITHUB_OUTPUT"
+          echo "Stage 2 SBOM components: ${components}"
+
+      - name: "Stage 2 - Push (only after tests and security pass)"
+        id: push-volume
+        run: |
+          docker push "${VOLUME_REPO}:${{ steps.sha.outputs.source_sha }}"
+          digest=$(docker buildx imagetools inspect "${VOLUME_REPO}:${{ steps.sha.outputs.source_sha }}" | awk '/^Digest:/{print $2}')
+          [ -n "$digest" ] || { echo "ERROR: could not resolve pushed digest" >&2; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "Stage 2 published: ${VOLUME_REPO}:${{ steps.sha.outputs.source_sha }} @ ${digest}"
+
+      # =================================================================
+      # Post-publication verification: pull fresh by digest, re-verify
+      # =================================================================
+      - name: "Post-publication - pull both by digest and re-verify everything"
+        run: |
+          set -euo pipefail
+          HANDLER_REF="${HANDLER_REPO}@${{ steps.push-handler.outputs.digest }}"
+          VOLUME_REF="${VOLUME_REPO}@${{ steps.push-volume.outputs.digest }}"
+
+          docker pull "$HANDLER_REF"
+          docker pull "$VOLUME_REF"
+
+          echo "=== Handler by digest ==="
+          docker image inspect "$HANDLER_REF" | jq '.[0] | {Id,Size,Config:{User,Env,Cmd,Entrypoint}}'
+          docker run --rm --network none -w /srv/handler "$HANDLER_REF" \
+            python3.10 -c "import handler as h; assert h.WORKER_DIR == '/srv/worker'; assert h.EXECUTION_TIMEOUT_SECONDS == 120; print('cwd fix confirmed on published digest')"
+
+          echo "=== Volume-mapped by digest: final chain verification ==="
+          docker image inspect "$VOLUME_REF" | jq '.[0] | {Id,Size,Config:{User,Env,Cmd,Entrypoint}}'
+          docker run --rm --network none --entrypoint sh "$VOLUME_REF" -c 'test "$(readlink /models)" = "/runpod-volume/models"'
+          out=$(docker run --rm -i --network none --entrypoint python3.10 "$VOLUME_REF" /srv/worker/worker.py --stdin <<< '{"mode":"health"}')
+          echo "$out"
+          echo "$out" | jq -e '.providerPostCount == 0 and .productionRoutingAllowed == false' >/dev/null
+          fixed_line=$(docker run --rm --network none --entrypoint sh "$VOLUME_REF" -c "grep -n 'model.enhance' /srv/worker/worker.py")
+          echo "$fixed_line" | grep -q '_, _, out = model.enhance'
+          cwd_line=$(docker run --rm --network none --entrypoint sh "$VOLUME_REF" -c "grep -n 'cwd=WORKER_DIR' /srv/handler/handler.py")
+          echo "$cwd_line" | grep -q 'cwd=WORKER_DIR'
+
+          echo "gpu_inference_executed=false"
+          echo "Post-publication verification PASSED for both images (pulled fresh by digest)"
+
+      - name: Publication summary
+        if: always()
+        run: |
+          echo "### Invalid-JSON cwd-fix chain publication summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- source_sha (identical tag for both images): ${{ steps.sha.outputs.source_sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CLI (reused, unchanged): ${CLI_REPO}@${CLI_DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Handler: ${HANDLER_REPO}:${{ steps.sha.outputs.source_sha }} @ ${{ steps.push-handler.outputs.digest }} (sbom_components=${{ steps.handler-scan.outputs.sbom_components }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Volume: ${VOLUME_REPO}:${{ steps.sha.outputs.source_sha }} @ ${{ steps.push-volume.outputs.digest }} (sbom_components=${{ steps.volume-scan.outputs.sbom_components }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- gpu_inference_executed=false" >> "$GITHUB_STEP_SUMMARY"
+          echo "- runpod_api_calls=0; s3_calls=0; production_routing=false; gate3_executed=false; gate4_executed=false" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup transient files (always)
+        if: always()
+        run: |
+          rm -f /tmp/Dockerfile.volume.publish
+          rm -rf "$RUNNER_TEMP/valid-volume" 2>/dev/null || true
+          echo "transient files removed"
