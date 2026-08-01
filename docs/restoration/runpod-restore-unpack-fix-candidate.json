@@ -1,0 +1,47 @@
+{
+  "recordedAt": "2026-08-01",
+  "priorFailures": [
+    {"run": "30691401701", "status": "FAILED", "workerExitCode": 1, "errorDetail": "worker exited with unexpected code 1 (raw stderr not retrievable at the time)"},
+    {"run": "30692613631", "status": "FAILED", "workerExitCode": 1, "errorDetail": "worker exited with unexpected code 1"}
+  ],
+  "classification": "ROOT_CAUSE_CONFIRMED",
+  "authorization": "read-only source/image inspection, anonymous image pull by digest, offline mocked/unit tests only; no RunPod/S3 call; no dispatch; no publication",
+  "confirmedRootCause": {
+    "file": "apps/api/runpod-worker-gpu-dev/worker.py",
+    "function": "_run_restore",
+    "line": "out, _ = model.enhance(arr, has_aligned=False, only_center_face=False, paste_back=True)",
+    "explanation": "GFPGANer.enhance() (verified against the exact pinned gfpgan==1.3.8 tag source, gfpgan/utils.py) always returns a 3-tuple (cropped_faces, restored_faces, restored_img). Unpacking it into 2 variables raises 'ValueError: too many values to unpack (expected 2, got 3)' on every successful restore call, independent of GPU availability, weight validity, or environment configuration. This uncaught ValueError propagates to worker.py's generic 'except Exception: sys.exit(EXIT_INTERNAL)' handler (exit code 1), matching both observed canary failures exactly.",
+    "verifiedSourceReferences": [
+      "https://github.com/TencentARC/GFPGAN/blob/v1.3.8/gfpgan/utils.py (GFPGANer.__init__ and .enhance() signatures)",
+      "https://github.com/xinntao/facexlib/blob/v0.3.0/facexlib/utils/face_restoration_helper.py (paste_faces_to_input_image zero-face behavior)"
+    ],
+    "reproductionMethod": "empirical: monkeypatched worker.validate_weight/cuda_info/load_model to mock a CUDA-available environment and a stub GFPGANer whose enhance() returns a verified-shape 3-tuple, then called the real worker._run_restore() with the canonical fixture-equivalent tiny PNG. Reproduced 'ValueError: too many values to unpack (expected 2, got 3)' at worker.py:153 exactly. No GPU, torch, gfpgan, or RunPod call was required.",
+    "secondaryConcernRuledOut": "the canonical synthetic fixture has no real face, so facexlib's real-detection path (has_aligned=False) could plausibly detect zero faces; verified via source inspection that facexlib==0.3.0's paste_faces_to_input_image() handles a zero-face list gracefully (returns the background image, no exception) -- not a contributing cause",
+    "dependencyAbiAudit": {
+      "gfpganerConstructorArgsMatch": true,
+      "enhanceSignatureMatch": true,
+      "enhanceReturnArityVerified": 3,
+      "facexlibZeroFaceHandlingVerified": true,
+      "basicsrPatchCompatibilityPreviouslyVerified": true,
+      "notes": "all checks performed against the exact pinned version tags' actual source (not memory): gfpgan==1.3.8, facexlib==0.3.0"
+    }
+  },
+  "trueGpuOfflineReproductionStatus": "not attempted directly against the published image under --network none in this task: the confirmed root cause is a pure Python control-flow bug (tuple-unpack arity mismatch) that is deterministic and GPU-independent, so mocked/unit-level reproduction (which requires no GPU, no docker, no RunPod) already proves it with full confidence. This also matches the task's own explicit fallback instruction for the CUDA-unavailable case ('create deterministic mocked/unit tests for each post-CUDA stage; continue static and dependency compatibility analysis') -- no local docker or GPU was available in this environment (verified: docker CLI not installed on this host).",
+  "correctionCandidate": {
+    "path": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/",
+    "diffFromApprovedSource": "exactly one line changed in worker.py's _run_restore(): 'out, _ = model.enhance(...)' -> '_, _, out = model.enhance(...)'; all other files (Dockerfile, requirements.txt, .dockerignore) are unchanged copies except OCI provenance labels documenting this candidate's identity",
+    "published": false,
+    "built": false,
+    "deployed": false,
+    "productionRoutingAllowed": false,
+    "gate2ReviewStatus": "not requested in this task; a fresh, separate, explicit Gate 2 review and approval is required before this candidate may be built and published, exactly like every prior candidate in this project",
+    "newTests": [
+      "test_enhance_return_unpacking_matches_gfpgan_contract (proves the fix works against the verified real GFPGANer.enhance() contract, mocked)",
+      "test_enhance_two_value_unpack_would_have_failed (isolated documentation/regression of the exact historical failure pattern)"
+    ]
+  },
+  "gate3ApprovalsConsumed": ["2026-08-01 first approval (run 30691401701, and its two preceding failed dispatches)", "2026-08-01 second approval (run 30692613631)"],
+  "gate3Status": "approved=false; a new, separate, explicit Gate 3 approval is required for any further canary, and would require this candidate (or an equivalent fix) to first pass a fresh Gate 2 review and publication",
+  "gate4Status": "prohibited; not touched",
+  "replicateStatus": "production; unaffected; no call made"
+}
