@@ -1,0 +1,121 @@
+{
+  "approved": false,
+  "publicationAllowed": false,
+  "expectedDigest": "",
+  "gate3ExecutionAllowed": false,
+  "productionRoutingAllowed": false,
+  "recordedAt": "2026-08-01",
+  "rootCauseFix": {
+    "defect": "handler.py's subprocess.run() call passed no cwd=, so the worker.py subprocess inherited the Serverless handler container's own /srv/handler working directory instead of /srv/worker; gfpgan==1.3.8's GFPGANer.__init__ hardcodes a relative model_rootpath='gfpgan/weights' that facexlib==0.3.0's load_file_from_url resolves against the process's actual CWD, causing a cache-miss stdout print (\"Downloading: ...\") and an unauthorized runtime download attempt that corrupted the single-JSON-document stdout protocol handler.py depends on",
+    "fix": "cwd=WORKER_DIR added to the one subprocess.run() call, where WORKER_DIR = os.path.dirname(WORKER[1]) ('/srv/worker') -- exactly one added keyword argument, no other functional change",
+    "confirmedBy": "docs/restoration/runpod-invalid-json-stdout-fix.json (PR #98, merge 5925c18)",
+    "affectedCanary": "30702245089"
+  },
+  "criticalDependencyNote": "The currently published, deployed volume-mapped image (digest sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286) is unaffected and unchanged by this readiness review -- it still lacks the cwd= fix. Both new images below must be published together for the fix to reach production-candidate status; publishing only one is insufficient, exactly as with the prior restore-unpack-fix chain.",
+  "chain": [
+    {
+      "role": "1-cli-worker",
+      "note": "REUSED UNCHANGED -- not rebuilt, not part of this chain's new candidates. Referenced by immutable published digest only.",
+      "path": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/",
+      "publishedImage": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix",
+        "immutableTag": "31a6e19aa992f4ad2ab952312999258399aab9cf",
+        "digest": "sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052",
+        "anonymousPullConfirmed": true,
+        "anonymousPullMethod": "live GHCR registry HTTP API manifest lookup by exact digest, HTTP 200"
+      }
+    },
+    {
+      "role": "2-serverless-handler-cwd-fix",
+      "path": "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/",
+      "sourceCommit": "d664dcedf1b5278650e918b87bf504b3291a5f4b",
+      "subtreeHash": "8db9448f31b2ca68b49761522aaa61ccce806f49",
+      "parentImage": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix@sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052 (registry pull by immutable digest, anonymous, no credentials)",
+      "localBuildImageId": "sha256:787a0c522f30d1e4461558d8a40c2962282e17411316b03e406d8105d5b294f4",
+      "localBuildSizeBytes": 6752007829,
+      "runtimeUser": "workeruser",
+      "cmd": ["python3.10", "-u", "/srv/handler/handler.py"],
+      "entrypoint": null,
+      "torchForceWeightsOnlyLoad": "1",
+      "sdkVersion": "runpod==1.11.0",
+      "sbomComponents": 324,
+      "zeroCritical": true,
+      "cve202532434Absent": true,
+      "cwdFixVerified": true,
+      "cwdFixVerificationMethod": "real import inside the built image: WORKER_DIR == '/srv/worker', EXECUTION_TIMEOUT_SECONDS == 120, EXIT_INPUT == 2, EXIT_WEIGHT == 4, EXIT_CUDA == 5",
+      "contractTests": {
+        "suite": "test_handler.py, python -m unittest, network none, mocks only",
+        "totalTests": 34,
+        "result": "OK",
+        "includesReproducedContaminationRegression": true,
+        "includesCleanStdoutRegression": true
+      },
+      "noSecretLeakageVerified": true,
+      "proposedPublication": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev",
+        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
+        "expectedDigest": "",
+        "floatingTagAllowed": false
+      }
+    },
+    {
+      "role": "3-volume-mapped-handler-cwd-fix",
+      "path": "apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev/",
+      "sourceCommit": "d664dcedf1b5278650e918b87bf504b3291a5f4b",
+      "subtreeHash": "2a26bfcd06d6ba628ba58f89d979c024f9ee3962",
+      "parentImage": "gfpgan-serverless-restore-fix-cwd:local (role 2-serverless-handler-cwd-fix, LOCAL build reference only -- role 2 is unpublished, so this is not a registry pull)",
+      "localBuildImageId": "sha256:1de486f421b472c88b6a23c564b6449336d89fbdfeade0d7f09a93afeeb83e25",
+      "localBuildSizeBytes": 6752007829,
+      "runtimeUser": "workeruser",
+      "cmd": ["python3.10", "-u", "/srv/handler/handler.py"],
+      "entrypoint": null,
+      "torchForceWeightsOnlyLoad": "1",
+      "symlinkContract": "/models -> /runpod-volume/models (build-time only, fixed, root used only during build, runtime returns to workeruser, not runtime-writable)",
+      "sbomComponents": 324,
+      "zeroCritical": true,
+      "cve202532434Absent": true,
+      "mountContractTests": {
+        "suite": "test_mount_contract.py, python -m unittest, network none",
+        "totalTests": 9,
+        "result": "OK (1 skipped -- volume-mounted-vs-missing tests are mutually exclusive by design)",
+        "symlinkTargetExact": "PASS (/runpod-volume/models)",
+        "symlinkNotRuntimeWritable": "PASS",
+        "missingVolumeFailsClosed": "PASS (EXIT_WEIGHT=4, no network access needed)",
+        "invalidWeightRejected": "PASS (EXIT_WEIGHT=4, before model construction, gpu_inference_executed=false)",
+        "healthDelegatesThroughSymlink": "PASS (providerPostCount=0, productionRoutingAllowed=false)"
+      },
+      "cwdFixCarriesThroughEndToEnd": true,
+      "unpackFixCarriesThroughEndToEnd": true,
+      "endToEndVerificationMethod": "grep for 'cwd=WORKER_DIR' in /srv/handler/handler.py and '_, _, out = model.enhance' in /srv/worker/worker.py inside the built volume image; TORCH_FORCE_WEIGHTS_ONLY_LOAD re-verified",
+      "noWeightsBundled": true,
+      "noRuntimeDownload": true,
+      "proposedPublication": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev",
+        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
+        "expectedDigest": "",
+        "floatingTagAllowed": false
+      }
+    }
+  ],
+  "buildOnlyWorkflow": ".github/workflows/build-invalid-json-cwd-fix-chain.yml",
+  "buildOnlyWorkflowPr": 99,
+  "buildOnlyWorkflowMergeCommit": "d664dce",
+  "buildOnlyWorkflowRuns": [
+    {"run": "30704284355", "outcome": "both stages built and passed every contract test, SBOM, and vulnerability check listed above on the first dispatch; no repair needed", "conclusion": "success", "durationSeconds": 405}
+  ],
+  "gpuInferenceExecuted": false,
+  "runpodApiCalls": 0,
+  "s3Calls": 0,
+  "registryLogin": false,
+  "packagesWritePermission": false,
+  "imagesPublished": "none",
+  "approvalPacketStatement": "Both required chain images (2-serverless-handler-cwd-fix, 3-volume-mapped-handler-cwd-fix) must be published together with role 1-cli-worker referenced unchanged by its existing immutable published digest. Publishing only one of the two new images is insufficient: the deployed volume-mapped image derives, layer by layer, from the handler layer, so a fix only at the handler layer that is not also rebuilt into a new volume-mapped image would never reach a deployable artifact. Any source, base-digest, or dependency change to either of the two new candidates invalidates this entire readiness record for both. Publication requires a separate, explicit Gate 2 approval -- it is not implied by this build-only readiness review. Publication of this chain does NOT itself authorize Gate 3; a further separate, explicit Gate 3 approval is required afterward, and must reference the new final volume-mapped handler digest once published, not the currently deployed digest (sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286), which lacks this fix.",
+  "priorGate3ApprovalsConsumed": [
+    "2026-08-01 first approval (run 30691401701, and its two preceding failed dispatches)",
+    "2026-08-01 second approval (run 30692613631)",
+    "2026-08-01 third approval (run 30699352406)",
+    "2026-08-01 fourth approval (run 30702245089)"
+  ],
+  "gate4Status": "prohibited; not touched",
+  "replicateStatus": "production; unaffected; no call made"
+}
