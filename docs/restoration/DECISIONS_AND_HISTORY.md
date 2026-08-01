@@ -1,5 +1,26 @@
 # Decisions And History
 
+## Gate 3 production-approval audit — 2026-08-02
+
+- `READY_FOR_OWNER_APPROVAL` is the sole current recommendation. It is not owner approval; `approved=false` remains in force.
+- Exact candidate digest is `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d`; parent chain is `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d -> sha256:af09003de27bbdfd1c7ef5bf83139dbbb7de2cee33dd015e900dee8a2b5d87d5 -> sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052`; publication tag is `38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6`.
+- Gate 2 is APPROVED/PUBLISHED/CONSUMED, not reusable or reopened. Run `30713365669` passed all nine criteria, cost `$0.001378` was within `$0.05`, provider POST count was zero, routing was false, cleanup left zero temporary resources, and the 10GB EU-RO-1 volume plus all verified weights were preserved.
+- Settled controls are evidence only: workers 1/1, GPU 1, concurrency 1, one job, zero retries, FlashBoot true, 180s warm-up, 120000ms execution, 295s lifecycle, 10s cleanup reserve, `$0.00016/s` ceiling, `$0.0472` maximum estimate, non-root/safe loading, external checksum-verified weights, no bundled/runtime downloads, and fail-closed cleanup.
+- Owner must separately approve or reject this exact candidate. Any later approval does not authorize dispatch, deployment, resource creation, provider calls, weight/volume changes, routing activation, Replicate replacement, another canary, or Gate 4. Disable/rollback on digest/config/mount/weight drift, provider POST, routing not false, malformed/unverified output, startup/timeout/cost/security/cleanup/quality failure, or owner revocation.
+- Gate 4 remains prohibited; Replicate remains production; routing activation remains unauthorized. Earlier digest, region, and pending-weight statements remain append-only historical evidence; pending-weight statements are historical and superseded.
+
+## Gate 3 security-validator repair FINAL — 2026-08-02
+
+- Original exact error: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'js-yaml' imported from docs/restoration/runpod-gate3-one-canary-security-test.mjs`.
+- Root cause: the validator imported an undeclared and unavailable `js-yaml` package. Repair was limited to the validator, replacing that import with a Node standard-library parser for the workflow's required nested mappings, sequences, and block scalars.
+- All previous security assertions remain intact. No assertion, workflow control, classification, `approved=false` state, Gate 4 prohibition, Replicate production state, or routing boundary was changed.
+- Final offline security, Gate 2, Gate 3, packet, postmortem, replay (`replicatePostCount: 0`), API typecheck/build, and diff checks passed. No network or production action occurred.
+
+## Gate 3 owner decision — 2026-08-02
+
+- Owner selected `APPROVE_GATE_3` for immutable digest `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d`. Decision scope is production eligibility only; `approved=false` remains unchanged.
+- Gate 2 stays APPROVED/PUBLISHED/CONSUMED. Weights and volume stay preserved. Gate 4 is prohibited, Replicate is production, and routing is unauthorized. This decision authorizes no deployment, dispatch, resource creation, provider call, mutation, routing, Replicate replacement, further canary, or Gate 4 activity.
+
 - `8375dac11a9b1605de72dbd35b3b0cfb572a2e7a`: split result and print flow.
 - `598ef52ffc38375b55d1324f85b41efa9021c233`: validated download bytes and refreshed homepage.
 - `4ea54a189bf74be92be0891868077c124f547623`: original/final comparison mapping and explicit paid tiers.

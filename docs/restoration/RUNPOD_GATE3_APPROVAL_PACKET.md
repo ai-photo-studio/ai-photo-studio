@@ -132,3 +132,53 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 ## Abort / Cleanup
 
 If any evidence fails (CUDA unavailable, nonzero provider count, startup failure, budget/cost overrun, unexpected routing), abort immediately, keep production routing disabled, delete temporary RunPod resources, record the failure, do not retry, and do not proceed to Gate 4.
+
+## Gate 3 Production-Approval Audit — 2026-08-02
+
+### Classification
+
+`READY_FOR_OWNER_APPROVAL`
+
+This classification is a bounded recommendation only. It does not approve Gate 3. A separate explicit owner decision is required, and `approved=false` remains unchanged.
+
+### Evidence Summary
+
+- Final immutable candidate: `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev@sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d`.
+- Immutable parent chain: final volume-mapped handler `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d` -> cwd-fixed handler `sha256:af09003de27bbdfd1c7ef5bf83139dbbb7de2cee33dd015e900dee8a2b5d87d5` -> unchanged corrected CLI worker `sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052`.
+- Shared immutable publication tag: `38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6`.
+- Gate 2 is `APPROVED / PUBLISHED / CONSUMED`; `publicationAllowed=false`; it was not reopened or changed.
+- Run `30713365669` passed all nine success criteria: `COMPLETED`, GPU inference true, `providerPostCount=0`, `productionRoutingAllowed=false`, exact 1815-byte match, valid PNG signature, Pillow verification, valid 512x512 PNG, and budget compliance.
+- Actual cost was `$0.001378` against `$0.05`; endpoint, template, and active workers are zero; cleanup passed; the 10GB EU-RO-1 Network Volume and checksum-verified weights were preserved.
+- No outstanding technical failure remains on the restoration canary track. Prior failed/diagnostic attempts remain historical evidence and were superseded by the corrected chain and successful run.
+
+### Settled Controls And Security
+
+The following are evidence-backed controls, not executable approval fields: `workersMin=1`, `workersMax=1`, `gpuCount=1`, concurrency 1, one job, zero retries, `flashboot=true`, warm-up 180 seconds, execution timeout 120000ms, lifecycle ceiling 295 seconds, cleanup reserve 10 seconds, rate ceiling `$0.00016/s`, budget `$0.05`, maximum lifecycle estimate `$0.0472`, non-root runtime, safe loading, externally mounted checksum-verified weights, no bundled weights, no runtime weight download, and fail-closed cleanup.
+
+Verified volume state is 10GB in `EU-RO-1` with the three existing objects preserved and verified: GFPGAN `348632874` bytes / `e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad`; detection `109497761` bytes / `6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d`; parsing `85331193` bytes / `3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2`.
+
+### Residual Risks
+
+- One synthetic 512x512 canary does not establish broad production quality, calibration, or load behavior.
+- GPU capacity and cold-start behavior can vary in the single EU-RO-1 pool; the approximately 6.75GB image remains an operational startup risk.
+- The persistent volume has storage cost and availability risk; external weights require continued checksum and access integrity.
+
+### Owner Decision Required
+
+The owner must explicitly approve or reject Gate 3 for this exact immutable candidate and the settled controls above. The packet does not approve Gate 3, does not authorize dispatch, does not authorize deployment, does not authorize resource creation, does not authorize provider calls, does not authorize weight or volume changes, does not authorize routing activation, does not authorize Replicate replacement, and does not authorize Gate 4.
+
+### Scope If Approved Later
+
+A later owner approval may accept this exact candidate and evidence as production-eligible under the settled controls. It would not itself dispatch a workflow, create an endpoint/template/worker/job, deploy or publish an image, alter weights or volumes, change routing, replace Replicate, authorize another canary, or activate Gate 4. Any such action requires separate explicit authorization.
+
+### Rollback / Disable Condition
+
+Keep or return routing to Replicate and disable the RunPod path on digest/source/base/dependency/configuration/mount/weight-checksum drift; missing or invalid weights; nonzero provider POSTs; any `productionRoutingAllowed` value other than false; malformed output; verification, CUDA, startup, timeout, cost, security, cleanup, or quality failure; or owner revocation. Record evidence, do not retry automatically, and do not proceed to Gate 4.
+
+### Protected-State Reconciliation
+
+Older digest, region, and pending-weight statements in this packet are historical chronology and are superseded for current state by the final digest, resolved EU-RO-1 compatibility, verified weights, and run `30713365669`. Pending-weight statements are historical and superseded; weights are present and verified. Gate 4 remains prohibited, Replicate remains production, and routing activation remains unauthorized.
+
+## Gate 3 Owner Decision — 2026-08-02
+
+The owner explicitly selected `APPROVE_GATE_3` for immutable digest `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d` under the settled controls in this packet. This records production eligibility only. It does not change `approved=false` and does not authorize deployment, dispatch, endpoint/template creation, provider calls, weight or volume changes, production routing, Replicate replacement, another canary, or Gate 4.
