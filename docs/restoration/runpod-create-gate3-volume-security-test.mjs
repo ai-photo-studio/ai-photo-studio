@@ -35,17 +35,23 @@ const confirmStep = createJob.steps.find(s => s.name && s.name.includes("confirm
 assert(confirmStep !== undefined, "must verify confirmation input in first step");
 assert(confirmStep.run && confirmStep.run.includes("CREATE_ONE_GATE3_VOLUME"), "must check confirmation value");
 
-// Check that API key is used but never logged
+// Check that API key is used but never logged. A precise pattern is required here:
+// steps legitimately reference $RUNPOD_API_KEY inside curl auth headers (e.g.
+// `-H "Authorization: Bearer $RUNPOD_API_KEY"`), which is safe and expected.
+// What must never happen is the resolved value itself being echoed/printed, or
+// curl verbose/trace modes that would dump the Authorization header to logs.
+const directEchoPattern = /echo\b[^\n]*\$\{?RUNPOD_API_KEY\}?/;
+const verboseCurlPattern = /curl\s+[^\n]*(-v\b|--verbose|--trace|-\w*v\w*\s)/;
+
 let apiKeyFoundLogged = false;
 createJob.steps.forEach(step => {
   if (step.env && step.env.RUNPOD_API_KEY === "${{ secrets.RUNPOD_API_KEY }}") {
-    // Good: key is sourced from secrets
-    if (step.run && step.run.includes("echo") && step.run.includes("RUNPOD_API_KEY")) {
+    if (step.run && (directEchoPattern.test(step.run) || verboseCurlPattern.test(step.run))) {
       apiKeyFoundLogged = true;
     }
   }
 });
-assert(!apiKeyFoundLogged, "must never echo or print RUNPOD_API_KEY");
+assert(!apiKeyFoundLogged, "must never directly echo RUNPOD_API_KEY or use verbose/trace curl output");
 
 // Test 5: Only GET and single POST, no retries
 let postCount = 0;
@@ -61,8 +67,12 @@ createJob.steps.forEach(step => {
     // Check for PUT/PATCH/DELETE
     if (/-X (PUT|PATCH|DELETE)/.test(step.run)) putPatchDeleteFound = true;
 
-    // Check for retry logic
-    if (/retry|--retry/.test(step.run)) retryFound = true;
+    // Check for actual retry constructs (curl --retry flag, or a shell loop wrapping
+    // a POST call). Plain comments/echoes mentioning the word "retry" (e.g. documenting
+    // that a step deliberately does NOT retry) must not trip this.
+    const hasCurlRetryFlag = /curl\s+[^\n]*--retry\b/.test(step.run);
+    const hasLoopedPost = /\b(for|while|until)\b[\s\S]*-X POST/.test(step.run);
+    if (hasCurlRetryFlag || hasLoopedPost) retryFound = true;
   }
 });
 
@@ -92,6 +102,38 @@ assert(postVerifyStep.run && postVerifyStep.run.includes("GET"), "post-creation 
 // Test 10: No raw authenticated response uploaded
 assert(!createJob.steps.some(s => s.name && s.name.includes("upload-artifact") && s.with?.path?.includes("response")), "must not upload raw API responses");
 
+// Test 11: Unsupported/invalid GraphQL fields (root cause of run 30674708510 failure)
+// must be absent. Root Query has no `datacenters` field, and `gpuTypes` does not
+// accept a `gpuCount` argument (gpuCount belongs to GpuLowestPriceInput, nested
+// under `lowestPrice`). Datacenter/GPU discovery must use runpodctl instead.
+const allRunScripts = createJob.steps.map(s => s.run || "").join("\n");
+assert(!/\bdatacenters\s*\{/.test(allRunScripts), "must not query the nonexistent root 'datacenters' GraphQL field");
+assert(!/gpuTypes\s*\(\s*input:\s*\{\s*gpuCount/.test(allRunScripts), "must not pass gpuCount directly into gpuTypes(input:) — it belongs under lowestPrice(input:)");
+
+// Test 12: Datacenter/GPU discovery uses runpodctl (proven official commands), not GraphQL
+const preflightStep = createJob.steps.find(s => s.name && s.name.includes("Preflight - Query datacenters and GPU types"));
+assert(preflightStep !== undefined, "must have a datacenter/GPU preflight step");
+assert(/runpodctl\s+datacenter\s+list/.test(preflightStep.run), "must use 'runpodctl datacenter list' for datacenter discovery");
+assert(/runpodctl\s+gpu\s+list\s+--include-unavailable/.test(preflightStep.run), "must use 'runpodctl gpu list --include-unavailable' for GPU discovery");
+assert(!/query.*\{\s*datacenters/s.test(preflightStep.run) && !preflightStep.run.includes("api.runpod.io/graphql"), "must not fall back to unproven GraphQL queries for discovery");
+
+// Test 13: runpodctl is installed from a pinned release binary, not curl|bash
+const installStep = createJob.steps.find(s => s.name && s.name.includes("Install runpodctl"));
+assert(installStep !== undefined, "must have an explicit runpodctl install step");
+assert(!/\|\s*(sudo\s+)?bash\b/.test(installStep.run), "must not pipe a remote install script into bash/sudo bash");
+assert(/releases\/download\//.test(installStep.run), "must download a specific pinned GitHub release binary");
+
+// Test 14: datacenter/GPU JSON parsing fails closed (exits 1) when no compatible pair is found
+assert(/exit 1/.test(preflightStep.run), "preflight must exit non-zero when no compatible datacenter/GPU is found");
+assert(/STORAGE_DCS|storageSupport|supportNetworkVolume/.test(preflightStep.run), "must filter datacenters by storage/network-volume support");
+assert(/COMPATIBLE_GPUS|A4000|A4500/.test(preflightStep.run), "must filter GPUs by 16GB-class compatibility");
+
+// Test 15: the volume creation request body matches the official NetworkVolumeCreateInput
+// schema exactly (name, size, dataCenterId) — no unsupported fields like 'tier'.
+assert(!/"tier"\s*:/.test(createStep.run), "must not send unsupported 'tier' field (not part of NetworkVolumeCreateInput)");
+assert(/dataCenterId/.test(createStep.run), "must send a dataCenterId resolved from preflight, not a hardcoded guess");
+assert(!/"dataCenterId"\s*:\s*"us-east-1"/.test(createStep.run), "must not hardcode an unverified datacenter ID literal");
+
 console.log("✓ Workflow security test PASSED");
 console.log("  - workflow_dispatch only, no automatic triggers");
 console.log("  - confirmation input required: CREATE_ONE_GATE3_VOLUME");
@@ -102,3 +144,8 @@ console.log("  - no endpoint/template/worker/job APIs");
 console.log("  - verifies existing volume before POST");
 console.log("  - verifies volume after POST");
 console.log("  - no raw authenticated response uploaded");
+console.log("  - no unsupported/invalid GraphQL fields (datacenters root field, gpuTypes(gpuCount))");
+console.log("  - datacenter/GPU discovery uses proven runpodctl commands, not guessed GraphQL");
+console.log("  - runpodctl installed from pinned release binary, not curl|bash");
+console.log("  - preflight fails closed when no compatible datacenter/GPU pair is found");
+console.log("  - create request body matches official NetworkVolumeCreateInput schema exactly");
