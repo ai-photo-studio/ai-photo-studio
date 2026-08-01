@@ -525,6 +525,8 @@ jobs:
               echo "output_height=0"
               echo "output_format="
               echo "output_bytes=0"
+              echo "output_decoded_bytes=0"
+              echo "output_bytes_match=false"
               echo "output_sha256="
               echo "output_decodable=false"
               echo "delay_ms=0"
@@ -562,7 +564,13 @@ jobs:
           GPU=$(jq -r '.output.gpu // ""' "$RESULT_FILE" 2>/dev/null || echo "")
           WEIGHT_VERIFIED=$(jq -r '.output.weightVerified // false' "$RESULT_FILE" 2>/dev/null || echo false)
           PROVIDER_POST_COUNT=$(jq -r '.output.providerPostCount // -1' "$RESULT_FILE" 2>/dev/null || echo -1)
-          PRODUCTION_ROUTING=$(jq -r 'if .output == null then "null" else (.output.productionRoutingAllowed // "null") end' "$RESULT_FILE" 2>/dev/null || echo null)
+          # NOTE: jq's `//` operator treats JSON `false` as falsy, so a naive
+          # `.output.productionRoutingAllowed // "null"` silently rewrites an
+          # explicit `false` into the string "null", indistinguishable from a
+          # missing field. Use explicit value comparisons instead so true/
+          # false/null are each preserved exactly, and only a genuinely
+          # missing/null field collapses to "null".
+          PRODUCTION_ROUTING=$(jq -r 'if .output == null then "null" else (.output.productionRoutingAllowed | if . == null then "null" elif . == true then "true" elif . == false then "false" else (. | tostring) end) end' "$RESULT_FILE" 2>/dev/null || echo null)
           OUT_W=$(jq -r '.output.outputWidth // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
           OUT_H=$(jq -r '.output.outputHeight // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
           OUT_FMT=$(jq -r '.output.outputFormat // ""' "$RESULT_FILE" 2>/dev/null || echo "")
@@ -592,13 +600,31 @@ jobs:
           fi
 
           # Decode and independently verify the output image if present.
+          #
+          # DIAGNOSTIC NOTE (added after run 30708733953, where independent
+          # PNG decoding failed and the original artifact was not retained
+          # for postmortem): the decoded file's actual byte count is compared
+          # against the handler's own `outputBytes` metadata below. A
+          # mismatch here narrows the failure mode for any future occurrence
+          # (e.g. a decoded size far larger than outputBytes is consistent
+          # with base64 double-encoding somewhere in the pipeline; a decoded
+          # size smaller than outputBytes, with a `base64: invalid input`
+          # decode error, is consistent with payload truncation). This check
+          # is purely diagnostic -- it does not change success/failure
+          # semantics, which remain governed by independent PNG decoding.
           OUT_SHA256=""
           DECODABLE=false
+          DECODED_BYTES=0
+          OUTPUT_BYTES_MATCH=false
           if [ "$OK" = "true" ]; then
             jq -r '.output.outputBase64 // empty' "$RESULT_FILE" | base64 -d > "${RUNNER_TEMP}/canary_out.png" 2>/dev/null || true
             if [ -s "${RUNNER_TEMP}/canary_out.png" ]; then
               python3 -c "from PIL import Image; Image.open('${RUNNER_TEMP}/canary_out.png').verify()" 2>/dev/null && DECODABLE=true || DECODABLE=false
               OUT_SHA256=$(sha256sum "${RUNNER_TEMP}/canary_out.png" | awk '{print $1}')
+              DECODED_BYTES=$(wc -c < "${RUNNER_TEMP}/canary_out.png" | tr -d ' ')
+              if [ "$DECODED_BYTES" = "$OUT_BYTES" ]; then
+                OUTPUT_BYTES_MATCH=true
+              fi
             fi
           fi
 
@@ -621,6 +647,8 @@ jobs:
             echo "output_height=${OUT_H}"
             echo "output_format=${OUT_FMT}"
             echo "output_bytes=${OUT_BYTES}"
+            echo "output_decoded_bytes=${DECODED_BYTES}"
+            echo "output_bytes_match=${OUTPUT_BYTES_MATCH}"
             echo "output_sha256=${OUT_SHA256}"
             echo "output_decodable=${DECODABLE}"
             echo "delay_ms=${DELAY_MS}"
@@ -649,7 +677,8 @@ jobs:
           echo "=== Gate 3 canary evidence (redacted) ==="
           echo "status=${STATUS} ok=${OK} gpu=${GPU} gpu_inference_executed=${GPU_INFERENCE_EXECUTED}"
           echo "providerPostCount=${PROVIDER_POST_COUNT} productionRoutingAllowed=${PRODUCTION_ROUTING}"
-          echo "output: ${OUT_W}x${OUT_H} ${OUT_FMT} ${OUT_BYTES} bytes sha256=${OUT_SHA256} decodable=${DECODABLE}"
+          echo "output: ${OUT_W}x${OUT_H} ${OUT_FMT} ${OUT_BYTES} bytes (handler-reported) sha256=${OUT_SHA256} decodable=${DECODABLE}"
+          echo "outputDecodedBytes=${DECODED_BYTES} outputBytesMatch=${OUTPUT_BYTES_MATCH} (decoded-file size vs handler-reported outputBytes)"
           echo "delayMs=${DELAY_MS} executionMs=${EXEC_MS} actualCostUsd=${ACTUAL_COST}"
           echo "outputIsJson=${OUTPUT_IS_JSON} errorMsg=${ERROR_MSG} errorDetail=${ERROR_DETAIL}"
           echo "sanitizedOutput (<=500 chars, outputBase64 stripped): ${SANITIZED_OUTPUT}"
