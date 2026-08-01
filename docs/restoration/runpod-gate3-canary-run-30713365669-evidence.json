@@ -1,0 +1,107 @@
+{
+  "runId": "30713365669",
+  "dispatchTimestamp": "2026-08-01T18:48:00Z",
+  "workflow": ".github/workflows/runpod-gate3-one-canary.yml",
+  "headSha": "fc2dec8638dd90706e9b74999831ed155df8172f",
+  "imageDigest": "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d",
+  "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev",
+  "approvalConsumed": true,
+  "secondDispatchAuthorized": false,
+  "result": "FULL SUCCESS -- first fully successful Gate 3 canary in this project's history",
+  "verifierSetup": {
+    "pillowVersionPinned": "12.2.0",
+    "installedBeforeAnyRunPodResource": true,
+    "selfTestResult": { "verifyPassed": true, "exceptionClass": "", "sanitizedMessage": "" },
+    "selfTestPassed": true
+  },
+  "jobEvidence": {
+    "status": "COMPLETED",
+    "ok": true,
+    "gpu": "NVIDIA RTX 4000 Ada Generation",
+    "gpuInferenceExecuted": true,
+    "providerPostCount": 0,
+    "productionRoutingAllowed": false,
+    "configuredProductionRoutingAllowed": false,
+    "delayMs": 8766,
+    "executionMs": 8613,
+    "warmupElapsedSeconds": 75,
+    "actualCostUsd": 0.001378,
+    "budgetUsd": 0.05
+  },
+  "flashBootEvidence": {
+    "flashbootRequested": true,
+    "flashbootConfirmed": true,
+    "firstInitializingEpoch": 1785610177,
+    "firstReadyEpoch": 1785610227,
+    "initializingToReadySeconds": 50
+  },
+  "byteEvidence": {
+    "producerOutputBytes": 1815,
+    "producerOutputFormat": "png",
+    "producerOutputWidth": 512,
+    "producerOutputHeight": 512,
+    "producerOutputSha256": "",
+    "producerOutputSha256Note": "handler/worker JSON contract does not expose an output SHA field; not fabricated",
+    "outputBase64Length": 2420,
+    "outputBase64LengthMod4": 0,
+    "decodedByteCount": 1815,
+    "decodedSha256": "b1c6843de051434a10c64d931eec36b74b9a1d357046854ee6bbde488a14c4b8",
+    "outputBytesMatch": true,
+    "first8DecodedBytesHex": "89504e470d0a1a0a",
+    "pngSignatureExpected": "89504e470d0a1a0a",
+    "pngSignatureMatch": true,
+    "verifyOutcome": "verified",
+    "verifyExceptionClass": "",
+    "verifySanitizedMessage": "",
+    "pillowVerifyPassed": true,
+    "byteClassification": "success_bytes_verified"
+  },
+  "successCriteria": {
+    "statusCompleted": true,
+    "gpuInferenceExecutedTrue": true,
+    "providerPostCountZero": true,
+    "productionRoutingAllowedFalse": true,
+    "producerDecodedByteCountsMatch": true,
+    "pngSignatureMatches": true,
+    "pillowVerifierResultVerified": true,
+    "valid512x512Output": true,
+    "costWithinBudget": true,
+    "allCriteriaMet": true
+  },
+  "cleanupProof": {
+    "endpointDeleted": true,
+    "templateDeleted": true,
+    "networkVolumePreserved": true,
+    "activeWorkersRemaining": 0,
+    "criticalReported": false,
+    "cleanupLogLine": "PASSED: cleanup proven -- no active workers, no matching endpoint/template, volume preserved"
+  },
+  "artifactRetention": {
+    "artifactName": "gate3-canary-output-evidence-30713365669",
+    "artifactId": 8822598472,
+    "sizeBytes": 976,
+    "retentionDays": 1,
+    "expiresAt": "2026-08-02T18:50:47Z",
+    "filesIncluded": ["canary_out.png", "canary_output_metadata.json"],
+    "sensitiveContentIncluded": false
+  },
+  "gateStatus": {
+    "gate2": "unchanged; APPROVED/PUBLISHED/CONSUMED; not reopened; no source/base/dependency change occurred",
+    "gate3": {
+      "approved": false,
+      "seventhApprovalConsumed": true,
+      "eighthDispatchAuthorized": false,
+      "note": "A fully successful canary does NOT itself constitute Gate 3 production approval. approved remains false pending a separate, explicit Gate 3 approval decision."
+    },
+    "gate4": "prohibited, unchanged",
+    "replicate": "production, uncalled"
+  },
+  "resourcesRemaining": {
+    "endpoints": 0,
+    "templates": 0,
+    "activeWorkers": 0,
+    "networkVolumesUnchanged": true,
+    "weightsUnchanged": true
+  },
+  "exactNextBlocker": "A separate, explicit Gate 3 production-approval decision (distinct from a further canary-dispatch approval) has not been sought or given in this task"
+}
