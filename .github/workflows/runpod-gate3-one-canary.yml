@@ -274,13 +274,18 @@ jobs:
       - name: "Submit exactly one restore job"
         id: submit-job
         run: |
-          IMAGE_B64=$(base64 -w0 "${RUNNER_TEMP}/canary.png")
-          PAYLOAD=$(jq -n --arg img "$IMAGE_B64" --argjson timeoutMs "$(( EXECUTION_TIMEOUT_SECONDS * 1000 ))" '{
+          # The base64 fixture (~1MB) exceeds the kernel's single-argument
+          # length limit (MAX_ARG_STRLEN, 128KB on Linux), so it must never be
+          # passed as a jq/curl command-line argument. It is written to a file
+          # and read via jq --rawfile / curl --data-binary @file instead.
+          base64 -w0 "${RUNNER_TEMP}/canary.png" > "${RUNNER_TEMP}/canary.b64"
+          jq -n --rawfile img "${RUNNER_TEMP}/canary.b64" --argjson timeoutMs "$(( EXECUTION_TIMEOUT_SECONDS * 1000 ))" '{
             "input": { "mode": "restore", "imageBase64": $img },
             "policy": { "executionTimeout": $timeoutMs }
-          }')
+          }' > "${RUNNER_TEMP}/job_payload.json"
           RESPONSE=$(curl -s -X POST "https://api.runpod.ai/v2/${{ steps.create-endpoint.outputs.endpoint_id }}/run" \
-            -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" -d "$PAYLOAD")
+            -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" --data-binary "@${RUNNER_TEMP}/job_payload.json")
+          rm -f "${RUNNER_TEMP}/canary.b64" "${RUNNER_TEMP}/job_payload.json"
           JOB_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
           if [ -z "$JOB_ID" ]; then
             echo "ERROR: job submission failed"
