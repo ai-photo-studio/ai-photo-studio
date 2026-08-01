@@ -38,8 +38,10 @@ assert(Object.keys(workflow.permissions).length === 1, "no extra permissions all
 assert(job.if === "github.ref == 'refs/heads/main'", "must only run from the default branch");
 
 // Fixed configuration, no guessing
-assert(workflow.env.IMAGE_DIGEST === "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286", "image digest must be fixed to the corrected, approved digest");
-assert(workflow.env.IMAGE_REPOSITORY === "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev", "image repository must be fixed to the corrected chain's repository");
+assert(workflow.env.IMAGE_DIGEST === "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d", "image digest must be fixed to the approved cwd-fix chain");
+assert(workflow.env.IMAGE_REPOSITORY === "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev", "image repository must be fixed to the approved cwd-fix chain repository");
+assert(!raw.includes("runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev"), "old volume-handler repository must be absent");
+assert(!raw.includes("sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286"), "old volume-handler digest must be absent");
 assert(workflow.env.NETWORK_VOLUME_ID === "d6a4504x8m", "network volume id must be fixed");
 assert(workflow.env.TARGET_DATACENTER_ID === "EU-RO-1", "datacenter must be fixed");
 assert(workflow.env.TARGET_GPU_TYPE_ID === "NVIDIA RTX 4000 Ada Generation", "GPU type must be fixed");
@@ -263,8 +265,8 @@ assert(workflow.env.RUNPOD_INIT_TIMEOUT === undefined, "must not add RUNPOD_INIT
 assert(!/RUNPOD_INIT_TIMEOUT/.test(source), "must not reference RUNPOD_INIT_TIMEOUT anywhere in the workflow");
 assert(endpointCreateStep.run.includes('"dataCenterIds": [$dc]') && endpointCreateStep.run.includes('"gpuTypeIds": [$gpu]'), "GPU/datacenter must remain single-element, unbroadened by the flashboot change");
 
-// Image digest/weights/Gate 2 untouched by this change (re-verified)
-assert(workflow.env.IMAGE_DIGEST === "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286", "image digest must remain unchanged by the flashboot alignment change");
+// Image digest/weights/Gate 2 are fixed to the approved cwd-fix chain.
+assert(workflow.env.IMAGE_DIGEST === "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d", "image digest must remain fixed to the approved cwd-fix chain");
 
 // Dispatch semantics protection is documented, not just implied
 assert(raw.includes("DISPATCH SEMANTICS"), "workflow header must document dispatch semantics protection");
