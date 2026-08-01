@@ -10,10 +10,10 @@
   "timeoutSeconds": 120,
   "concurrency": 1,
   "productionRoutingAllowed": false,
-  "immutableImageDigest": "sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895",
-  "immutableImageTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev:21e292103979f0450dffafe09844fac3b435031b",
-  "sourceSha": "21e292103979f0450dffafe09844fac3b435031b",
-  "candidateSubtree": "b9402fa975e59ddc245985712b426ae63019761b",
+  "immutableImageDigest": "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b",
+  "immutableImageTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev:158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+  "sourceSha": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+  "candidateSubtree": "716fc09fc35bb966637bef26f3d4840a7088891b",
   "cliBaseDigest": "sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a",
   "registryAccessDecision": "public",
   "registryAccessNote": "Anonymous pull of the handler image by digest SUCCEEDED (workflow run 30652207024). No registry credential required for RunPod to pull the image.",
@@ -32,14 +32,20 @@
     "endpointTemplateWorkerJobExists": false,
     "computeCostUsd": 0.0
   },
+  "weightsPresent": false,
+  "weightsVerified": false,
   "mountPathCompatibility": {
-    "publishedHandlerCompatible": false,
-    "evidence": "mount-path-audit.yml run 30659523185: weightPresent/auxDetectionPresent/auxParsingPresent all false when synthetic fixtures mounted at /runpod-volume; control mount directly at /models reported all true; no /runpod-volume reference in source",
+    "publishedHandlerCompatible": true,
+    "evidence": "mount-path-audit.yml run 30659523185: original digest sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895 was incompatible (weightPresent/auxDetectionPresent/auxParsingPresent all false when synthetic fixtures mounted at /runpod-volume; control mount directly at /models reported all true; no /runpod-volume reference in source). The correction candidate below resolves this and is now the published, compatible image.",
     "correctionCandidate": {
       "path": "apps/api/runpod-worker-gpu-serverless-volume-dev/",
       "baseDigest": "sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895",
       "correction": "build-time fixed symlink /models -> /runpod-volume/models; no init script; no runtime creation; no handler/CMD/entrypoint/dependency changes",
-      "published": false,
+      "published": true,
+      "publishedImageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev",
+      "publishedImmutableTag": "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374",
+      "publishedDigest": "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b",
+      "publicationRuns": ["30671211535", "30672004615"],
       "buildRun": "30660299770",
       "sourcePrMergeRef": "748e6bf5e828ccbb1f54be9987f3a419bd39d003",
       "sourceCommit": "158bbbc",
@@ -48,7 +54,7 @@
       "sbomComponents": 324,
       "zeroCritical": true,
       "cve202532434Absent": true,
-      "gate2ReviewStatus": "not performed; fresh Gate 2 readiness review required before any publication"
+      "gate2ReviewStatus": "APPROVED and CONSUMED (2026-07-31T22:51:08Z); publicationAllowed is now false and not reusable; a new Gate 2 approval is required only if source, base digest, or dependencies change"
     }
   },
   "canaryFixture": {

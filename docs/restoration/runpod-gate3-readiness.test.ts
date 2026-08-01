@@ -4,10 +4,10 @@ import path from "node:path";
 const manifestPath = path.join(__dirname, "runpod-gate3-readiness.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
 
-const expectedDigest = "sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895";
-const expectedSourceSha = "21e292103979f0450dffafe09844fac3b435031b";
-const expectedSubtree = "b9402fa975e59ddc245985712b426ae63019761b";
-const tagPrefix = "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-dev:";
+const expectedDigest = "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b";
+const expectedSourceSha = "158bbbcb82b02db0ca0a2e66bc88a2ccfdb6e374";
+const expectedSubtree = "716fc09fc35bb966637bef26f3d4840a7088891b";
+const tagPrefix = "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev:";
 const expectedPngSha = "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f";
 
 const assert = (condition: unknown, message: string) => {
@@ -24,6 +24,8 @@ assert(manifest.maxRetries === 0, "retries must be zero");
 assert(manifest.timeoutSeconds === 120, "timeout must be 120 seconds");
 assert(manifest.concurrency === 1, "concurrency must be one");
 assert(manifest.productionRoutingAllowed === false, "production routing must be disabled");
+assert(manifest.weightsPresent === false, "weightsPresent must remain false");
+assert(manifest.weightsVerified === false, "weightsVerified must remain false");
 
 // Immutable image: tag AND digest both present and match
 assert(typeof manifest.immutableImageTag === "string" && String(manifest.immutableImageTag).startsWith(tagPrefix), "immutable image tag missing/wrong");
