@@ -104,6 +104,7 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - `/models/facexlib/parsing_parsenet.pth` — size `85331193`, SHA-256 `3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2`
 - Weights enter the Network Volume externally (never bundled); checksum-verified before handler inference; no runtime download; cleanup after the canary; access restricted to the canary resources.
 - Weights are NOT uploaded in this task. The Network Volume created in run `30677597137` (EU-RO-1, 10GB, `photo-restoration-gate3-models`) is empty; weight upload requires new, separate authorization.
+- Remote weight verification completed in authorized workflow run `30690211053`: all three exact objects were uploaded and independently verified by remote size and SHA-256 download. `weightsPresent=true` and `weightsVerified=true`; this does not approve Gate 3 or authorize execution.
 - Scope/licence correction: the approved volume-mapped worker requires only the three GFPGAN/facexlib assets listed above. CodeFormer is neither loaded nor required, so its S-Lab license is irrelevant to this worker. The official GFPGAN and facexlib release pages identify the assets and state no separate asset-specific commercial-use restriction; repository licenses are Apache-2.0 and MIT respectively, and are not treated as weight redistribution grants. Local copies were downloaded from those exact official GitHub release assets and checksum-verified under `D:\models\runpod-gate3\`; they are outside Git, unbundled, and not uploaded. RunPod S3 credentials remain absent; no RunPod or S3 call occurred. Gate 3 remains blocked until separately authorized remote upload verification and separate approval; Gate 4 remains prohibited and Replicate remains production.
 
 ## Canary Fixture — RESOLVED (synthetic, verified offline)
@@ -115,6 +116,7 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 ## Gate Status
 
 - Gate 3 is NOT production or quality approval. Gate 4 remains prohibited. Replicate remains production.
+- Gate 3 is technically READY FOR APPROVAL, not approved. Executable approval fields remain fail-closed: `approved=false`, empty endpoint/template, zero max jobs/retries, null rate/budget, and production routing disabled.
 - The handler publication contradiction is corrected: the volume-mapped handler is APPROVED, PUBLISHED, and CONSUMED at digest `sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b`; no fresh Gate 2 is required unless source, base, or dependencies change.
 - `weightsPresent=false` and `weightsVerified=false`. Upload stopped safely before mutation because RunPod S3 credentials and approved local weights were unavailable; downloading replacement weights requires separate authorization.
 - RunPod S3 credentials and RunPod API credentials are separate. Cloudflare R2 credentials must never be reused as RunPod credentials. Credential creation requires manual user action, and upload requires new explicit authorization.

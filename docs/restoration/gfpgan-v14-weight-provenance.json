@@ -27,6 +27,15 @@
     "committed": false,
     "bundled": false
   },
+  "remoteVerification": {
+    "workflow": "runpod-upload-gate3-weights.yml",
+    "run": "30690211053",
+    "bucket": "d6a4504x8m",
+    "key": "models/GFPGANv1.4.pth",
+    "verifiedSize": 348632874,
+    "verifiedSha256": "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad",
+    "status": "uploaded-and-verified"
+  },
   "verificationDate": "2026-07-31",
   "workflowRunId": 30618746285,
   "evidenceReferences": [

@@ -28,6 +28,15 @@
         "downloadedAt": "2026-08-01T11:42:49+05:00",
         "committed": false,
         "bundled": false
+      },
+      "remoteVerification": {
+        "workflow": "runpod-upload-gate3-weights.yml",
+        "run": "30690211053",
+        "bucket": "d6a4504x8m",
+        "key": "models/facexlib/detection_Resnet50_Final.pth",
+        "verifiedSize": 109497761,
+        "verifiedSha256": "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d",
+        "status": "uploaded-and-verified"
       }
     },
     {
@@ -54,6 +63,15 @@
         "downloadedAt": "2026-08-01T11:42:49+05:00",
         "committed": false,
         "bundled": false
+      },
+      "remoteVerification": {
+        "workflow": "runpod-upload-gate3-weights.yml",
+        "run": "30690211053",
+        "bucket": "d6a4504x8m",
+        "key": "models/facexlib/parsing_parsenet.pth",
+        "verifiedSize": 85331193,
+        "verifiedSha256": "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2",
+        "status": "uploaded-and-verified"
       }
     }
   ],
