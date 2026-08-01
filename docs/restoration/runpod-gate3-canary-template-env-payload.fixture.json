@@ -1,0 +1,6 @@
+{
+  "description": "Deterministic, fixed template-creation env payload used by .github/workflows/runpod-gate3-one-canary.yml. Exactly one key, no secrets, no credentials, no production variables.",
+  "env": {
+    "TORCH_FORCE_WEIGHTS_ONLY_LOAD": "1"
+  }
+}

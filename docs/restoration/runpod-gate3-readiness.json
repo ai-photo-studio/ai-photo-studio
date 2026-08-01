@@ -94,7 +94,18 @@
     "consumedNote": "Run 30691401701 submitted and executed exactly one real restore job on a live Flex GPU worker. Per the approval statement, this consumes the Gate 3 approval regardless of the job's pass/fail outcome. No further canary may be dispatched without a new, separate, explicit Gate 3 approval statement.",
     "successCriteriaMet": false,
     "suspectedRootCause": "The handler's worker.py enforces TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 before any weight is loaded (enforce_safe_load) and exits with a non-JSON-producing failure path if it is unset; the canary's template was created with an empty env object ({}), so this required environment variable was never set on the worker. This is a plausible, code-derived explanation for the observed failure shape (ok=false, no gpu field, no providerPostCount field, matching the handler's generic _safe_error fallback for a non-JSON subprocess result) but is not independently confirmed, because the job/worker/endpoint were deleted by mandatory cleanup before raw stdout/stderr could be retrieved. Confirming this requires a new, separately authorized diagnostic step (e.g. a template env fix plus a new explicit Gate 3 approval) before another canary may run.",
-    "recordedAt": "2026-08-01"
+    "recordedAt": "2026-08-01",
+    "offlineRootCauseAnalysis": {
+      "performedAt": "2026-08-01",
+      "authorization": "read-only repository/image inspection only; anonymous image pull by digest; no RunPod/S3 call; no dispatch",
+      "classification": "CONTRADICTED",
+      "evidenceFile": "docs/restoration/runpod-gate3-canary-image-env-evidence.json",
+      "evidenceSummary": "TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 is already baked into the published image's Config.Env (verified via anonymous GHCR Docker Registry HTTP API v2 manifest/config inspection of digest sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b); handler.py's subprocess.run() call passes no env= override, so the CLI worker subprocess inherits the full container environment by default. An empty RunPod template env could not have removed an already-baked image ENV entry under standard OCI/Docker container-runtime semantics.",
+      "realRootCauseStatus": "unconfirmed -- mandatory cleanup deleted the job/worker/endpoint before any log-retrieval call was authorized; RunPod's job status API exposes no stdout/stderr endpoint",
+      "correctionApplied": "the canary template's env is now explicitly set to exactly {\"TORCH_FORCE_WEIGHTS_ONLY_LOAD\": \"1\"} as defense-in-depth only, with a pre-submit assertion that the template creation response reflects this exact value before any endpoint or job is created; pre-cleanup sanitized diagnostics (bounded, secret-free) were also added to capture more of the job's own JSON output/error fields on any future dispatch",
+      "correctionPr": "the narrow correction PR that added this offlineRootCauseAnalysis record (see git log for the exact merge commit)",
+      "dispatchSemanticsProtection": "the workflow now documents explicitly that any preflight/workflow defect consumes a dispatch's authorization and that a new, separate, explicit Gate 3 approval is required before any further dispatch -- the 2026-08-01 three-dispatch record is documented as historical, not as precedent for multiple dispatches under one approval"
+    }
   },
   "proposed": {
     "gpuType": "A4000-class (16GB), e.g. A4000/A4500/RTX 4000",
