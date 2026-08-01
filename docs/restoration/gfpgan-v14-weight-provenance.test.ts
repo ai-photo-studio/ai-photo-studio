@@ -40,4 +40,11 @@ assert(p.recommendedPackagingMode === "externally-mounted-weight", "mode must be
 // Production routing must remain disabled.
 assert(p.productionRoutingAllowed === false, "production routing must be disabled");
 
+const local = (p.localVerification ?? {}) as Record<string, unknown>;
+assert(local.verified === true, "local verification must be true");
+assert(String(local.localPath) === "D:\\models\\runpod-gate3\\GFPGANv1.4.pth", "local path mismatch");
+assert(Number(local.verifiedSize) === expectedSize, "local verified size mismatch");
+assert(String(local.verifiedSha256).toLowerCase() === expectedSha256, "local verified checksum mismatch");
+assert(local.committed === false && local.bundled === false, "local weight must remain uncommitted and unbundled");
+
 console.log("gfpgan v14 weight provenance validator passed");

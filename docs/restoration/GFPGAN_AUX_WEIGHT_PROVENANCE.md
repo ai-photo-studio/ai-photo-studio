@@ -36,6 +36,15 @@ Inventory of the auxiliary model weights that `GFPGANer` / `FaceRestoreHelper` r
 - `runtimeDownloadAllowed: false`, `weightBundlingAllowed: false`, `productionRoutingAllowed: false`.
 - No weight is bundled or committed; temporary files are deleted after verification.
 
+## Local Official-Asset Verification
+
+- CodeFormer is excluded from the approved volume-mapped worker runtime scope and its S-Lab license is irrelevant to these facexlib assets.
+- facexlib repository license: MIT. The official release pages identify `detection_Resnet50_Final.pth` (`v0.1.0`) and `parsing_parsenet.pth` (`v0.2.2`) as pretrained assets; neither page states an asset-specific commercial-use restriction. This is technical evidence, not legal advice, and the repository license is not treated as a weight redistribution grant.
+- Downloaded only from the official GitHub release assets on 2026-08-01:
+  - `D:\models\runpod-gate3\detection_Resnet50_Final.pth`: `109497761` bytes; `6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d`.
+  - `D:\models\runpod-gate3\parsing_parsenet.pth`: `85331193` bytes; `3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2`.
+- Both files are outside Git, uncommitted, unbundled, and have not been uploaded to S3 or RunPod.
+
 ## Offline Construction Test
 
 - Outcome: BLOCKED / not performed.

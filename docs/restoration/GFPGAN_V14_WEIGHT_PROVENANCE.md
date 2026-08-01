@@ -49,6 +49,15 @@ Note: Because the GitHub release asset API does not provide a SHA-256 digest, th
 - `redistributionApproved`: `false`
 - `bundledWeightAllowed`: `false`
 
+## Local Official-Asset Verification
+
+- CodeFormer is excluded from the approved volume-mapped worker runtime scope and its S-Lab license is irrelevant to these GFPGAN/facexlib assets.
+- The official GFPGAN release page identifies `GFPGANv1.4.pth`; no asset-specific commercial-use restriction was stated there. This is technical evidence, not legal advice.
+- GFPGAN repository license: Apache-2.0. That source-code license is not treated as a model-weight redistribution grant.
+- Downloaded only from the official GitHub release asset to `D:\models\runpod-gate3\GFPGANv1.4.pth` on 2026-08-01.
+- Local size and SHA-256 were verified: `348632874` bytes; `e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad`.
+- The file is outside Git, uncommitted, unbundled, and has not been uploaded to S3 or RunPod.
+
 ## Packaging Decision
 
 - `recommendedPackagingMode`: `externally-mounted-weight`

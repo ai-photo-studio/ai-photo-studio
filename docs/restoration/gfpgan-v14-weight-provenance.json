@@ -18,6 +18,15 @@
   "recommendedPackagingMode": "externally-mounted-weight",
   "runtimeDownloadAllowed": false,
   "productionRoutingAllowed": false,
+  "localVerification": {
+    "verified": true,
+    "localPath": "D:\\models\\runpod-gate3\\GFPGANv1.4.pth",
+    "verifiedSize": 348632874,
+    "verifiedSha256": "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad",
+    "downloadedAt": "2026-08-01T11:42:49+05:00",
+    "committed": false,
+    "bundled": false
+  },
   "verificationDate": "2026-07-31",
   "workflowRunId": 30618746285,
   "evidenceReferences": [

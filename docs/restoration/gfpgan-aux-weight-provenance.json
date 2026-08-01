@@ -19,7 +19,16 @@
       "loadCallsUseWeightsOnly": false,
       "loadCallReference": "facexlib/detection/__init__.py init_detection_model: torch.load(model_path, map_location=...)",
       "licence": "unresolved-explicit-redistribution-not-verified",
-      "redistributionApproved": false
+      "redistributionApproved": false,
+      "localVerification": {
+        "verified": true,
+        "localPath": "D:\\models\\runpod-gate3\\detection_Resnet50_Final.pth",
+        "verifiedSize": 109497761,
+        "verifiedSha256": "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d",
+        "downloadedAt": "2026-08-01T11:42:49+05:00",
+        "committed": false,
+        "bundled": false
+      }
     },
     {
       "name": "parsing_parsenet.pth",
@@ -36,7 +45,16 @@
       "loadCallsUseWeightsOnly": false,
       "loadCallReference": "facexlib/parsing/__init__.py init_parsing_model: torch.load(model_path, map_location=...)",
       "licence": "unresolved-explicit-redistribution-not-verified",
-      "redistributionApproved": false
+      "redistributionApproved": false,
+      "localVerification": {
+        "verified": true,
+        "localPath": "D:\\models\\runpod-gate3\\parsing_parsenet.pth",
+        "verifiedSize": 85331193,
+        "verifiedSha256": "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2",
+        "downloadedAt": "2026-08-01T11:42:49+05:00",
+        "committed": false,
+        "bundled": false
+      }
     }
   ],
   "runtimeDownloadAllowed": false,
