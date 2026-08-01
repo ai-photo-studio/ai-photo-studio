@@ -24,12 +24,16 @@ assert(workflow.env.S3_ENDPOINT === "https://s3api-eu-ro-1.runpod.io", "endpoint
 assert(workflow.env.S3_BUCKET === "d6a4504x8m", "bucket must be fixed");
 
 const job = workflow.jobs["upload-verified-weights"];
-assert(job.env.AWS_ACCESS_KEY_ID === "${{ secrets.RUNPOD_S3_ACCESS_KEY_ID }}", "access key must use exact secret");
-assert(job.env.AWS_SECRET_ACCESS_KEY === "${{ secrets.RUNPOD_S3_SECRET_ACCESS_KEY }}", "secret key must use exact secret");
+assert(job.env.AWS_ACCESS_KEY_ID === "${{ secrets.RUNPOD_S3_ACCESS_KEY }}", "access key must use exact secret");
+assert(job.env.AWS_SECRET_ACCESS_KEY === "${{ secrets.RUNPOD_S3_SECRET_KEY }}", "secret key must use exact secret");
+assert(!JSON.stringify(workflow).includes("RUNPOD_S3_ACCESS_KEY_ID"), "old access-key secret name must be absent");
+assert(!JSON.stringify(workflow).includes("RUNPOD_S3_SECRET_ACCESS_KEY"), "old secret-key secret name must be absent");
 const source = job.steps.map((step) => step.run || "").join("\n");
 assert(source.includes("UPLOAD_THREE_GATE3_WEIGHTS"), "confirmation must be checked");
+assert(source.includes("AWS_ACCESS_KEY_ID present=") && source.includes("AWS_SECRET_ACCESS_KEY present="), "presence-only credential preflight is required");
+assert(source.includes("required RunPod S3 credentials are absent"), "credential preflight must fail closed");
 assert(!/set\s+-[^\n]*x/.test(source), "set -x is prohibited");
-assert(!/echo[^\n]*(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|RUNPOD_S3_ACCESS_KEY_ID|RUNPOD_S3_SECRET_ACCESS_KEY)/.test(source), "secrets must never be echoed");
+assert(!/echo[^\n]*\$\{?AWS_ACCESS_KEY_ID|echo[^\n]*\$\{?AWS_SECRET_ACCESS_KEY|echo[^\n]*\$\{?RUNPOD_S3_ACCESS_KEY|echo[^\n]*\$\{?RUNPOD_S3_SECRET_KEY/.test(source), "secret values must never be echoed");
 assert(!/upload-artifact|actions\/cache|cache:/.test(JSON.stringify(workflow)), "weight artifacts and caches are prohibited");
 assert(!/--acl|public-read|public-read-write/.test(source), "public ACL is prohibited");
 assert(!/\/v1\/(endpoints|templates|pods|workers|jobs)|runpodctl|gpu/i.test(source), "RunPod compute APIs and GPU execution are prohibited");
