@@ -45,6 +45,7 @@ concurrency:
 
 env:
   RUNPODCTL_VERSION: "v2.8.0"
+  EXPECTED_PILLOW_VERSION: "12.2.0"
   IMAGE_DIGEST: "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d"
   IMAGE_REPOSITORY: "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev"
   TARGET_DATACENTER_ID: "EU-RO-1"
@@ -98,6 +99,46 @@ jobs:
             "https://github.com/runpod/runpodctl/releases/download/${RUNPODCTL_VERSION}/runpodctl-linux-amd64"
           chmod +x /usr/local/bin/runpodctl
           runpodctl version
+
+      # ---------------------------------------------------------------
+      # Verification-tool setup: install and self-test the exact pinned
+      # Pillow version BEFORE any RunPod template/endpoint/job is created,
+      # so a tooling failure can never create a billable RunPod resource.
+      #
+      # Root cause of run 30708733953's independent-decode failure (offline
+      # postmortem, docs/restoration/runpod-gate3-canary-run-30711816812-
+      # evidence.json): this workflow never installed Pillow before calling
+      # `python3 -c "from PIL import Image; ...verify()"`, and that
+      # command's stderr was redirected to /dev/null, so a missing-
+      # dependency ImportError and a genuine PNG defect both silently
+      # collapsed into the same decodable=false outcome. The output bytes
+      # from that run were independently proven, offline, to be a valid,
+      # CRC-correct PNG. This step and the corrected verify step below fix
+      # that tooling gap; they do not touch worker.py, handler.py, any
+      # Dockerfile, image digest, or weight.
+      # ---------------------------------------------------------------
+      - name: "Verification-tool setup - install and self-test Pillow (before any RunPod resource)"
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-cache-dir "Pillow==${EXPECTED_PILLOW_VERSION}"
+
+          # Self-test against a small, locally generated, non-network PNG --
+          # never the canary fixture or any real canary output -- so the
+          # verifier itself is proven working before it is trusted later.
+          python3 -c "
+          from PIL import Image
+          Image.new('RGB', (4, 4), color=(1, 2, 3)).save('${RUNNER_TEMP}/selftest.png', 'PNG')
+          "
+
+          SELFTEST_JSON=$(python3 docs/restoration/gate3-png-verify.py "${RUNNER_TEMP}/selftest.png")
+          SELFTEST_EXIT=$?
+          rm -f "${RUNNER_TEMP}/selftest.png"
+          echo "Self-test result: ${SELFTEST_JSON}"
+
+          if [ "$SELFTEST_EXIT" != "0" ]; then
+            echo "ERROR: Pillow ${EXPECTED_PILLOW_VERSION} install/self-test failed before any RunPod resource was created"
+            exit 1
+          fi
+          echo "PASSED: Pillow ${EXPECTED_PILLOW_VERSION} installed and self-verified"
 
       # ---------------------------------------------------------------
       # Preflight 1: origin/main includes the approved evidence commit
@@ -535,6 +576,8 @@ jobs:
               echo "first8_decoded_bytes_hex="
               echo "png_signature_match=false"
               echo "byte_classification=no_job_submitted"
+              echo "verify_exception_class="
+              echo "verify_sanitized_message="
               echo "output_decodable=false"
               echo "delay_ms=0"
               echo "execution_ms=0"
@@ -630,6 +673,8 @@ jobs:
           FIRST8_HEX=""
           PNG_SIGNATURE_MATCH=false
           BYTE_CLASSIFICATION="not_evaluated"
+          VERIFY_EXCEPTION_CLASS=""
+          VERIFY_SANITIZED_MESSAGE=""
 
           # Producer-reported output hash, if the handler contract supplies one.
           # Extracted with an explicit null-check (never a `//` fallback, which
@@ -647,7 +692,28 @@ jobs:
           if [ "$OK" = "true" ]; then
             jq -r '.output.outputBase64 // empty' "$RESULT_FILE" | base64 -d > "${RUNNER_TEMP}/canary_out.png" 2>/dev/null || true
             if [ -s "${RUNNER_TEMP}/canary_out.png" ]; then
-              python3 -c "from PIL import Image; Image.open('${RUNNER_TEMP}/canary_out.png').verify()" 2>/dev/null && DECODABLE=true || DECODABLE=false
+              # Bounded, sanitized verification (docs/restoration/gate3-png-verify.py):
+              # exit 0 = verified; exit 1 = image_decode_failed (Pillow ran and
+              # rejected the file); exit 2 = tool_unavailable (Pillow missing or
+              # mismatched -- reported as a TOOLING failure, never conflated with
+              # producer output invalidity). stderr is captured, not discarded, so
+              # a real tooling error is visible in the run log rather than
+              # silently collapsed into "decodable=false" as before.
+              VERIFY_JSON=$(python3 docs/restoration/gate3-png-verify.py "${RUNNER_TEMP}/canary_out.png" 2>&1)
+              VERIFY_EXIT=$?
+              VERIFY_EXCEPTION_CLASS=$(echo "$VERIFY_JSON" | jq -r '.exceptionClass // ""' 2>/dev/null || echo "")
+              VERIFY_SANITIZED_MESSAGE=$(echo "$VERIFY_JSON" | jq -r '.sanitizedMessage // ""' 2>/dev/null || echo "")
+              if [ "$VERIFY_EXIT" = "0" ]; then
+                DECODABLE=true
+                VERIFY_OUTCOME="verified"
+              elif [ "$VERIFY_EXIT" = "2" ]; then
+                DECODABLE=false
+                VERIFY_OUTCOME="verification_tool_unavailable"
+              else
+                DECODABLE=false
+                VERIFY_OUTCOME="image_decode_failed"
+              fi
+              echo "PNG verification: exit=${VERIFY_EXIT} outcome=${VERIFY_OUTCOME} exceptionClass=${VERIFY_EXCEPTION_CLASS} message=${VERIFY_SANITIZED_MESSAGE}"
               OUT_SHA256=$(sha256sum "${RUNNER_TEMP}/canary_out.png" | awk '{print $1}')
               DECODED_BYTES=$(wc -c < "${RUNNER_TEMP}/canary_out.png" | tr -d ' ')
               if [ "$DECODED_BYTES" = "$OUT_BYTES" ]; then
@@ -666,8 +732,12 @@ jobs:
             # Evidence-bounded classification of the byte-level outcome. These
             # branches restate only what the measured numbers show; they do not
             # speculate beyond the evidence, and they never alter the success
-            # gate (which is governed by the independent checks below).
-            if [ "$DECODED_BYTES" = "0" ]; then
+            # gate (which is governed by the independent checks below). A
+            # verification-tool failure is always classified as tooling, never
+            # as a producer/metadata defect, per the fix above.
+            if [ "$VERIFY_OUTCOME" = "verification_tool_unavailable" ]; then
+              BYTE_CLASSIFICATION="verification_tool_unavailable"
+            elif [ "$DECODED_BYTES" = "0" ]; then
               BYTE_CLASSIFICATION="no_decoded_output"
             elif [ "$DECODED_BYTES" -gt "$OUT_BYTES" ] 2>/dev/null; then
               BYTE_CLASSIFICATION="likely_double_encoding"
@@ -708,6 +778,8 @@ jobs:
           EV_PNG_SIGNATURE_MATCH="$PNG_SIGNATURE_MATCH" \
           EV_DECODABLE="$DECODABLE" \
           EV_BYTE_CLASSIFICATION="$BYTE_CLASSIFICATION" \
+          EV_VERIFY_EXCEPTION_CLASS="$VERIFY_EXCEPTION_CLASS" \
+          EV_VERIFY_SANITIZED_MESSAGE="$VERIFY_SANITIZED_MESSAGE" \
           EV_OUT_W="$OUT_W" \
           EV_OUT_H="$OUT_H" \
           EV_OUT_FMT="$OUT_FMT" \
@@ -738,6 +810,8 @@ jobs:
               "pngSignatureMatch": os.environ.get("EV_PNG_SIGNATURE_MATCH", ""),
               "pillowVerifyPassed": os.environ.get("EV_DECODABLE", ""),
               "byteClassification": os.environ.get("EV_BYTE_CLASSIFICATION", ""),
+              "verifyExceptionClass": os.environ.get("EV_VERIFY_EXCEPTION_CLASS", ""),
+              "verifySanitizedMessage": os.environ.get("EV_VERIFY_SANITIZED_MESSAGE", ""),
               "outputWidth": os.environ.get("EV_OUT_W", ""),
               "outputHeight": os.environ.get("EV_OUT_H", ""),
               "outputFormat": os.environ.get("EV_OUT_FMT", ""),
@@ -777,6 +851,8 @@ jobs:
             echo "first8_decoded_bytes_hex=${FIRST8_HEX}"
             echo "png_signature_match=${PNG_SIGNATURE_MATCH}"
             echo "byte_classification=${BYTE_CLASSIFICATION}"
+            echo "verify_exception_class=${VERIFY_EXCEPTION_CLASS}"
+            echo "verify_sanitized_message=${VERIFY_SANITIZED_MESSAGE}"
             echo "output_decodable=${DECODABLE}"
             echo "delay_ms=${DELAY_MS}"
             echo "execution_ms=${EXEC_MS}"
@@ -810,6 +886,7 @@ jobs:
           echo "outputBase64Length=${B64_LENGTH} lengthMod4=${B64_LENGTH_MOD4} (length only; the base64 payload itself is never logged)"
           echo "first8DecodedBytesHex=${FIRST8_HEX} pngSignatureMatch=${PNG_SIGNATURE_MATCH} (expected 89504e470d0a1a0a)"
           echo "byteClassification=${BYTE_CLASSIFICATION}"
+          echo "verifyExceptionClass=${VERIFY_EXCEPTION_CLASS} verifySanitizedMessage=${VERIFY_SANITIZED_MESSAGE}"
           echo "delayMs=${DELAY_MS} executionMs=${EXEC_MS} actualCostUsd=${ACTUAL_COST}"
           echo "outputIsJson=${OUTPUT_IS_JSON} errorMsg=${ERROR_MSG} errorDetail=${ERROR_DETAIL}"
           echo "sanitizedOutput (<=500 chars, outputBase64 stripped): ${SANITIZED_OUTPUT}"
