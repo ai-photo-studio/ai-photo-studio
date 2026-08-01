@@ -193,7 +193,8 @@ console.log("PASS: no RunPod/network call is made by this test file (pure comput
 // BYTE_CLASSIFICATION branches exactly, using only the measured numbers --
 // never speculating beyond them).
 // ---------------------------------------------------------------------
-function classifyBytes({ decodedBytes, producerBytes, outputBytesMatch, decodable, pngSignatureMatch }) {
+function classifyBytes({ decodedBytes, producerBytes, outputBytesMatch, decodable, pngSignatureMatch, verifyOutcome }) {
+  if (verifyOutcome === "verification_tool_unavailable") return "verification_tool_unavailable";
   if (decodedBytes === 0) return "no_decoded_output";
   if (decodedBytes > producerBytes) return "likely_double_encoding";
   if (decodedBytes < producerBytes) return "likely_truncation";
@@ -202,17 +203,22 @@ function classifyBytes({ decodedBytes, producerBytes, outputBytesMatch, decodabl
   return "indeterminate";
 }
 
-assert(classifyBytes({ decodedBytes: 0, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: false }) === "no_decoded_output",
+assert(classifyBytes({ decodedBytes: 0, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: false, verifyOutcome: "" }) === "no_decoded_output",
   "zero decoded bytes must classify as no_decoded_output");
-assert(classifyBytes({ decodedBytes: 2420, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: false }) === "likely_double_encoding",
+assert(classifyBytes({ decodedBytes: 2420, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: false, verifyOutcome: "" }) === "likely_double_encoding",
   "decoded bytes exceeding producer bytes must classify as likely_double_encoding");
-assert(classifyBytes({ decodedBytes: 900, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: true }) === "likely_truncation",
+assert(classifyBytes({ decodedBytes: 900, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: true, verifyOutcome: "" }) === "likely_truncation",
   "decoded bytes below producer bytes must classify as likely_truncation");
-assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: true, pngSignatureMatch: true }) === "success_bytes_verified",
+assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: true, pngSignatureMatch: true, verifyOutcome: "verified" }) === "success_bytes_verified",
   "matching bytes + decodable + valid signature must classify as success_bytes_verified");
-assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: false, pngSignatureMatch: false }) === "producer_generated_invalid_png_or_metadata_inconsistency",
-  "matching byte count but failed decode must classify as producer_generated_invalid_png_or_metadata_inconsistency, not silently pass");
-console.log("PASS: evidence-bounded byte classification matches the workflow's exact branches");
+assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: false, pngSignatureMatch: false, verifyOutcome: "image_decode_failed" }) === "producer_generated_invalid_png_or_metadata_inconsistency",
+  "matching byte count but a real decode failure must classify as producer_generated_invalid_png_or_metadata_inconsistency, not silently pass");
+// The exact scenario this fix addresses: byte count and signature match
+// perfectly (as in real run 30711816812), but the verifier itself was
+// unavailable -- this must NEVER be reported as a producer/metadata defect.
+assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: false, pngSignatureMatch: true, verifyOutcome: "verification_tool_unavailable" }) === "verification_tool_unavailable",
+  "a tool-unavailable outcome must be classified as tooling failure even when bytes/signature otherwise match, never conflated with producer_generated_invalid_png_or_metadata_inconsistency");
+console.log("PASS: evidence-bounded byte classification matches the workflow's exact branches, including the new tool-unavailable priority");
 
 // ---------------------------------------------------------------------
 // Part 5: artifact-retention step must be narrow and sanitized (static
@@ -224,5 +230,77 @@ assert(/if-no-files-found:\s*ignore/.test(workflowSource), "artifact upload must
 assert(!/path:\s*\|\s*\n\s*\$\{\{ runner\.temp \}\}\/job_result\.json/.test(workflowSource),
   "artifact upload must never include the raw job_result.json response file");
 console.log("PASS: artifact-retention step is narrow, sanitized, and short-lived");
+
+// ---------------------------------------------------------------------
+// Part 6: end-to-end invocation of the actual bounded verifier script
+// (docs/restoration/gate3-png-verify.py) against real valid/corrupt PNGs,
+// in an isolated temp directory, when a Python interpreter is available.
+// Skips gracefully (not a failure) if no Python is found on this machine --
+// the real enforcement runs in CI, where Python is guaranteed present.
+// No RunPod/network call is made; Pillow itself is expected to already be
+// installed (matching what the workflow's setup step guarantees in CI).
+// ---------------------------------------------------------------------
+import { spawnSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+
+function findPython() {
+  for (const cmd of ["python3", "python"]) {
+    const probe = spawnSync(cmd, ["--version"], { encoding: "utf8" });
+    if (probe.status === 0) return cmd;
+  }
+  return null;
+}
+
+const pythonCmd = findPython();
+if (!pythonCmd) {
+  console.log("SKIP: no Python interpreter found on this machine; Part 6 (live verifier invocation) only runs where Python is available (CI guarantees this)");
+} else {
+  const pillowProbe = spawnSync(pythonCmd, ["-c", "import PIL; print(PIL.__version__)"], { encoding: "utf8" });
+  if (pillowProbe.status !== 0) {
+    console.log("SKIP: Pillow not installed in this local Python environment; Part 6 only runs where Pillow is available (CI installs it explicitly via this fix)");
+  } else {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gate3-png-verify-test-"));
+    const validPath = path.join(tmpDir, "valid.png");
+    const corruptPath = path.join(tmpDir, "corrupt.png");
+    const genValid = spawnSync(pythonCmd, ["-c",
+      `from PIL import Image; Image.new("RGB", (4, 4), color=(1, 2, 3)).save(${JSON.stringify(validPath)}, "PNG")`
+    ], { encoding: "utf8" });
+    assert(genValid.status === 0, "failed to generate a local valid PNG fixture for the live verifier test");
+    fs.writeFileSync(corruptPath, Buffer.from("not a real png, just garbage bytes for the corrupt-input test case"));
+
+    const validResult = spawnSync(pythonCmd, ["docs/restoration/gate3-png-verify.py", validPath], { encoding: "utf8" });
+    assert(validResult.status === 0, `live verifier must exit 0 on a valid PNG (got ${validResult.status}, stdout: ${validResult.stdout})`);
+    const validJson = JSON.parse(validResult.stdout.trim());
+    assert(validJson.verifyPassed === true, "live verifier must report verifyPassed=true for a valid PNG");
+
+    const corruptResult = spawnSync(pythonCmd, ["docs/restoration/gate3-png-verify.py", corruptPath], { encoding: "utf8" });
+    assert(corruptResult.status === 1, `live verifier must exit 1 (image_decode_failed) on a corrupt file (got ${corruptResult.status})`);
+    const corruptJson = JSON.parse(corruptResult.stdout.trim());
+    assert(corruptJson.verifyPassed === false, "live verifier must report verifyPassed=false for a corrupt file");
+    assert(corruptJson.sanitizedMessage.length <= 200, "live verifier's sanitized message must be bounded to 200 characters");
+    assert(!/\//.test(corruptJson.sanitizedMessage) && !/\\/.test(corruptJson.sanitizedMessage), "live verifier's sanitized message must never contain a path separator");
+
+    // Tool-unavailable path: shadow the real Pillow with a fake PIL module
+    // reporting a mismatched version, via PYTHONPATH precedence only -- the
+    // real Pillow installation on this machine is never touched or modified.
+    const fakePilDir = fs.mkdtempSync(path.join(os.tmpdir(), "gate3-fake-pil-"));
+    const fakePilPkgDir = path.join(fakePilDir, "PIL");
+    fs.mkdirSync(fakePilPkgDir);
+    fs.writeFileSync(path.join(fakePilPkgDir, "__init__.py"), '__version__ = "0.0.0-fake-for-test"\n');
+    const mismatchResult = spawnSync(pythonCmd, ["docs/restoration/gate3-png-verify.py", validPath], {
+      encoding: "utf8",
+      env: { ...process.env, PYTHONPATH: fakePilDir },
+    });
+    assert(mismatchResult.status === 2, `live verifier must exit 2 (tool_unavailable) when Pillow version does not match (got ${mismatchResult.status})`);
+    const mismatchJson = JSON.parse(mismatchResult.stdout.trim());
+    assert(mismatchJson.verifyPassed === false, "version-mismatch outcome must report verifyPassed=false");
+    assert(mismatchJson.exceptionClass === "PillowVersionMismatch", "version-mismatch outcome must be classified as PillowVersionMismatch, not an image decode failure");
+    fs.rmSync(fakePilDir, { recursive: true, force: true });
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    console.log(`PASS: live gate3-png-verify.py invocation confirmed against real Pillow ${pillowProbe.stdout.trim()} -- valid PNG verifies, corrupt file fails closed, version-mismatch classifies as tool_unavailable (never as a producer defect)`);
+  }
+}
 
 console.log("runpod gate3 canary postmortem test PASSED");

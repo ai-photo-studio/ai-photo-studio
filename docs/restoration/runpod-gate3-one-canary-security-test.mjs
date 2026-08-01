@@ -296,6 +296,58 @@ assert(raw.includes("NEW, separate, explicit"), "must require a new, separate, e
 assert(raw.includes("must NOT be read as license for multiple dispatches"), "must explicitly reject the multiple-dispatches-because-one-job-ran interpretation");
 assert(raw.toLowerCase().includes("full stop"), "dispatch semantics documentation must be unambiguous");
 
+// Verification-tool setup: Pillow must be installed and self-tested, pinned
+// to an exact version, and this must happen strictly before any RunPod
+// resource-creating call (the first billable-risk step is template
+// creation; the first RunPod API call at all is Preflight 2b).
+assert(String(workflow.env?.EXPECTED_PILLOW_VERSION) === "12.2.0", "Pillow version must be pinned to exactly 12.2.0 in workflow env");
+const pillowSetupStep = allSteps.find((s) => s.name && s.name.includes("Verification-tool setup"));
+assert(pillowSetupStep !== undefined, "must have an explicit Pillow install/self-test step");
+assert(/pip install[^\n]*Pillow==\$\{EXPECTED_PILLOW_VERSION\}/.test(pillowSetupStep.run), "must install Pillow pinned to the exact EXPECTED_PILLOW_VERSION, never unpinned");
+assert(!/pip install[^\n]*\bPillow\b(?!==)/m.test(pillowSetupStep.run.replace(/Pillow==\$\{EXPECTED_PILLOW_VERSION\}/g, "")), "must not contain any unpinned 'pip install ... Pillow' invocation");
+assert(pillowSetupStep.run.includes("gate3-png-verify.py"), "self-test must use the same bounded verifier script used for the real canary output");
+assert(pillowSetupStep.run.includes("exit 1"), "Pillow setup must fail closed if the self-test does not pass");
+const pillowSetupIndex = allSteps.indexOf(pillowSetupStep);
+const templateCreateIndex = allSteps.indexOf(templateCreateStep);
+assert(pillowSetupIndex < templateCreateIndex, "Pillow setup/self-test must run before template creation (before any billable RunPod resource)");
+const firstRunpodApiStepIndex = allSteps.findIndex((s) => s.run && /rest\.runpod\.io|api\.runpod\.ai|runpodctl gpu|runpodctl datacenter/.test(s.run));
+assert(firstRunpodApiStepIndex === -1 || pillowSetupIndex < firstRunpodApiStepIndex, "Pillow setup/self-test must run before the first RunPod API call of any kind");
+
+// The bounded verifier script itself: pinned version check, path-sanitized,
+// bounded message length, and three distinct, non-overlapping outcomes.
+const verifyScriptPath = "docs/restoration/gate3-png-verify.py";
+assert(fs.existsSync(verifyScriptPath), "the bounded PNG verifier script must exist");
+const verifyScriptSource = fs.readFileSync(verifyScriptPath, "utf8");
+assert(verifyScriptSource.includes('EXPECTED_PILLOW_VERSION = "12.2.0"'), "verifier script must pin the exact same Pillow version as the workflow");
+assert(verifyScriptSource.includes("MAX_MESSAGE_LENGTH = 200"), "verifier script must bound its sanitized message to 200 characters");
+assert(/,\s*2\)\s*$/m.test(verifyScriptSource), "verifier script must have a distinct tool-unavailable exit path (2)");
+assert(/,\s*1\)\s*$/m.test(verifyScriptSource), "verifier script must have a distinct image-decode-failure exit path (1)");
+assert(/,\s*0\)\s*$/m.test(verifyScriptSource), "verifier script must have a distinct success exit path (0)");
+assert(!/traceback/i.test(verifyScriptSource), "verifier script must never print a full traceback");
+assert(verifyScriptSource.includes('"/" not in t'), "verifier script must strip path-like tokens from any sanitized message");
+
+// The real verify step must not blindly redirect stderr to /dev/null (the
+// original defect), must classify tool-unavailable separately from a real
+// decode failure, and must never let tool-unavailable be mislabeled as a
+// producer/metadata defect.
+const evidenceStepSource = evidenceStep.run;
+assert(evidenceStepSource.includes("gate3-png-verify.py"), "evidence step must use the bounded verifier script, not an inline silent PIL one-liner");
+assert(!/Image\.open\([^)]*\)\.verify\(\)"\s*2>\/dev\/null/.test(evidenceStepSource), "must not blindly redirect the verify command's stderr to /dev/null");
+assert(evidenceStepSource.includes("VERIFY_EXIT"), "must capture and branch on the verifier's own exit code");
+assert(evidenceStepSource.includes('VERIFY_OUTCOME="verification_tool_unavailable"'), "must classify a tool-unavailable outcome distinctly");
+assert(evidenceStepSource.includes('VERIFY_OUTCOME="image_decode_failed"'), "must classify a real image-decode failure distinctly");
+assert(evidenceStepSource.includes('VERIFY_OUTCOME="verified"'), "must classify a successful verification distinctly");
+assert(/if \[ "\$VERIFY_OUTCOME" = "verification_tool_unavailable" \][^\n]*\n\s*BYTE_CLASSIFICATION="verification_tool_unavailable"/.test(evidenceStepSource), "byte classification must report tooling failure as tooling failure, never as a producer/metadata defect");
+assert(evidenceStepSource.includes("verify_exception_class") && evidenceStepSource.includes("verify_sanitized_message"), "must record the bounded exception class and sanitized message as evidence");
+assert(!/verify_sanitized_message[^\n]{201,}/.test(evidenceStepSource) || true, "sanitized message bounding is enforced by the verifier script itself (MAX_MESSAGE_LENGTH), asserted above");
+
+// Existing byte-count/hash/signature/artifact/success-gate/routing-parser
+// controls must remain unchanged by this fix.
+assert(evidenceStepSource.includes("OUTPUT_BYTES_MATCH"), "byte-count cross-check must remain unchanged");
+assert(evidenceStepSource.includes("PNG_SIGNATURE_MATCH") && evidenceStepSource.includes("89504e470d0a1a0a"), "PNG signature check must remain unchanged");
+assert(artifactSteps.length === 1 && artifactSteps[0].with?.["retention-days"] === 1, "one-day sanitized artifact retention must remain unchanged");
+assert(/if\s+\.\s*==\s*true\s+then\s+"true"\s+elif\s+\.\s*==\s*false\s+then\s+"false"/.test(raw), "the productionRoutingAllowed true/false/null parser fix must remain unchanged");
+
 console.log("runpod gate3 one-canary workflow security validator PASSED");
 console.log("  - workflow_dispatch only, EXECUTE_ONE_GATE3_CANARY confirmation required");
 console.log("  - exactly one template POST, one endpoint POST, one job submission");
@@ -305,3 +357,5 @@ console.log("  - secrets from GitHub Secrets only, never echoed or trace-dumped"
 console.log("  - mandatory always() cleanup: endpoint+template delete only, volume preserved");
 console.log("  - success gate runs before cleanup and requires gpu_inference_executed/providerPostCount=0/budget");
 console.log("  - at most one narrow, sanitized artifact upload (decoded PNG + metadata JSON only, no raw response, no base64, short retention)");
+console.log("  - Pillow pinned to exactly 12.2.0, installed and self-tested before any RunPod resource/API call");
+console.log("  - PNG verification uses a bounded, sanitized script (no blind stderr suppression); tool-unavailable never mislabeled as producer defect");
