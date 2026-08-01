@@ -80,6 +80,22 @@
     "verifiedOffline": true,
     "offlineRun": "30653164933"
   },
+  "gate3CanaryAttempt": {
+    "approvalStatement": "explicit user Gate 3 approval, 2026-08-01, for exactly one non-production RunPod Serverless canary",
+    "executionWorkflow": ".github/workflows/runpod-gate3-one-canary.yml",
+    "workflowPr": 81,
+    "workflowFixPrs": [82, 83],
+    "dispatches": [
+      {"run": "30691165812", "outcome": "preflight failure (shallow clone; git merge-base could not resolve the ancestor commit)", "runpodResourcesCreated": false, "computeCostUsd": 0.0},
+      {"run": "30691290437", "outcome": "template and endpoint created; job submission failed before any job existed (jq/curl argument-length limit exceeded); cleanup verified", "runpodResourcesCreated": true, "jobSubmitted": false, "computeCostUsd": 0.0},
+      {"run": "30691401701", "outcome": "template, endpoint, and job created; job executed on a real Flex GPU worker and reported status FAILED with no decodable output; cleanup verified", "runpodResourcesCreated": true, "jobSubmitted": true, "jobIdRedacted": "2fc056c4...", "endpointIdRedacted": "1mqa6l...", "templateIdRedacted": "1mg2b2...", "status": "FAILED", "delayMs": 51439, "executionMs": 10747, "billedDurationSeconds": 63, "gpuInferenceExecuted": false, "outputDecodable": false, "providerPostCount": null, "actualCostUsd": 0.001719, "cleanupVerified": true, "workersActiveBeforeDelete": 1, "networkVolumePreserved": true}
+    ],
+    "consumed": true,
+    "consumedNote": "Run 30691401701 submitted and executed exactly one real restore job on a live Flex GPU worker. Per the approval statement, this consumes the Gate 3 approval regardless of the job's pass/fail outcome. No further canary may be dispatched without a new, separate, explicit Gate 3 approval statement.",
+    "successCriteriaMet": false,
+    "suspectedRootCause": "The handler's worker.py enforces TORCH_FORCE_WEIGHTS_ONLY_LOAD=1 before any weight is loaded (enforce_safe_load) and exits with a non-JSON-producing failure path if it is unset; the canary's template was created with an empty env object ({}), so this required environment variable was never set on the worker. This is a plausible, code-derived explanation for the observed failure shape (ok=false, no gpu field, no providerPostCount field, matching the handler's generic _safe_error fallback for a non-JSON subprocess result) but is not independently confirmed, because the job/worker/endpoint were deleted by mandatory cleanup before raw stdout/stderr could be retrieved. Confirming this requires a new, separately authorized diagnostic step (e.g. a template env fix plus a new explicit Gate 3 approval) before another canary may run.",
+    "recordedAt": "2026-08-01"
+  },
   "proposed": {
     "gpuType": "A4000-class (16GB), e.g. A4000/A4500/RTX 4000",
     "rateUsdPerSecond": 0.000161111,
