@@ -23,13 +23,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.RUNPOD_S3_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.RUNPOD_S3_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.RUNPOD_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.RUNPOD_S3_SECRET_KEY }}
     steps:
       - name: Verify confirmation input
         run: |
           if [ "${{ github.event.inputs.confirmation }}" != "UPLOAD_THREE_GATE3_WEIGHTS" ]; then
             echo "ERROR: confirmation must be exactly UPLOAD_THREE_GATE3_WEIGHTS"
+            exit 1
+          fi
+
+      - name: Verify S3 credential presence
+        run: |
+          set -euo pipefail
+          access_present=false
+          secret_present=false
+          if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then access_present=true; fi
+          if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then secret_present=true; fi
+          echo "AWS_ACCESS_KEY_ID present=${access_present}"
+          echo "AWS_SECRET_ACCESS_KEY present=${secret_present}"
+          if [ "$access_present" != true ] || [ "$secret_present" != true ]; then
+            echo "ERROR: required RunPod S3 credentials are absent"
             exit 1
           fi
 
