@@ -135,7 +135,28 @@ assert(!/set\s+-[^\n]*x/.test(source), "set -x is prohibited (would dump secrets
 assert(job.env.RUNPOD_API_KEY === "${{ secrets.RUNPOD_API_KEY }}", "RUNPOD_API_KEY must come from GitHub Secrets only");
 assert(job.env.AWS_ACCESS_KEY_ID === "${{ secrets.RUNPOD_S3_ACCESS_KEY }}", "AWS_ACCESS_KEY_ID must use the exact repository secret name");
 assert(job.env.AWS_SECRET_ACCESS_KEY === "${{ secrets.RUNPOD_S3_SECRET_KEY }}", "AWS_SECRET_ACCESS_KEY must use the exact repository secret name");
-assert(!/upload-artifact/.test(raw), "must not upload raw response artifacts");
+// Artifact retention: exactly one narrow, sanitized upload is permitted
+// (decoded output PNG + sanitized metadata JSON), never the raw job_result
+// response, never a wildcard path, never base64/secret content. Short
+// retention, if: always() so evidence is retained on both outcomes, and it
+// must not gate/weaken the independent Success gate step.
+const artifactSteps = allSteps.filter((s) => s.uses && /upload-artifact/.test(s.uses));
+assert(artifactSteps.length <= 1, "at most one artifact-upload step is permitted");
+if (artifactSteps.length === 1) {
+  const artifactStep = artifactSteps[0];
+  assert(artifactStep.if === "always()", "artifact upload must run with if: always()");
+  const uploadPath = artifactStep.with?.path || "";
+  assert(!/job_result\.json/.test(uploadPath), "must never upload the raw job_result.json response");
+  assert(!/\*/.test(uploadPath), "must not use a wildcard artifact path (would risk uploading unintended files)");
+  assert(/canary_out\.png/.test(uploadPath), "must upload only the decoded canary_out.png");
+  assert(/canary_output_metadata\.json/.test(uploadPath), "must upload only the sanitized canary_output_metadata.json");
+  assert(Number(artifactStep.with?.["retention-days"]) <= 7, "artifact retention must be short-lived (<=7 days)");
+  // The metadata-building step must never place outputBase64 (or any base64
+  // payload) into the artifact JSON -- only bounded length/hash/boolean
+  // fields are permitted, confirmed by absence of any base64-content key.
+  assert(!/"outputBase64":/.test(source), "sanitized metadata must never include the outputBase64 field itself");
+}
+assert(!/upload-artifact/.test(raw) || artifactSteps.length === 1, "any artifact upload present must match the single sanctioned narrow-upload step exactly");
 
 // Mandatory cleanup in an always()/finally step
 const cleanupStep = allSteps.find((s) => s.name && s.name.includes("Mandatory cleanup"));
@@ -283,3 +304,4 @@ console.log("  - fixed image digest, volume, GPU, datacenter, timeout, budget, f
 console.log("  - secrets from GitHub Secrets only, never echoed or trace-dumped");
 console.log("  - mandatory always() cleanup: endpoint+template delete only, volume preserved");
 console.log("  - success gate runs before cleanup and requires gpu_inference_executed/providerPostCount=0/budget");
+console.log("  - at most one narrow, sanitized artifact upload (decoded PNG + metadata JSON only, no raw response, no base64, short retention)");

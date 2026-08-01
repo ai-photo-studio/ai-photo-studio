@@ -188,4 +188,41 @@ assert(parseProductionRouting({ productionRoutingAllowed: false }) === "false",
   "production routing remains reported as false for the configured (unapproved) state");
 console.log("PASS: no RunPod/network call is made by this test file (pure computation only)");
 
+// ---------------------------------------------------------------------
+// Part 4: evidence-bounded byte classification (mirrors the workflow's
+// BYTE_CLASSIFICATION branches exactly, using only the measured numbers --
+// never speculating beyond them).
+// ---------------------------------------------------------------------
+function classifyBytes({ decodedBytes, producerBytes, outputBytesMatch, decodable, pngSignatureMatch }) {
+  if (decodedBytes === 0) return "no_decoded_output";
+  if (decodedBytes > producerBytes) return "likely_double_encoding";
+  if (decodedBytes < producerBytes) return "likely_truncation";
+  if (outputBytesMatch && decodable && pngSignatureMatch) return "success_bytes_verified";
+  if (outputBytesMatch && !decodable) return "producer_generated_invalid_png_or_metadata_inconsistency";
+  return "indeterminate";
+}
+
+assert(classifyBytes({ decodedBytes: 0, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: false }) === "no_decoded_output",
+  "zero decoded bytes must classify as no_decoded_output");
+assert(classifyBytes({ decodedBytes: 2420, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: false }) === "likely_double_encoding",
+  "decoded bytes exceeding producer bytes must classify as likely_double_encoding");
+assert(classifyBytes({ decodedBytes: 900, producerBytes: 1815, outputBytesMatch: false, decodable: false, pngSignatureMatch: true }) === "likely_truncation",
+  "decoded bytes below producer bytes must classify as likely_truncation");
+assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: true, pngSignatureMatch: true }) === "success_bytes_verified",
+  "matching bytes + decodable + valid signature must classify as success_bytes_verified");
+assert(classifyBytes({ decodedBytes: 1815, producerBytes: 1815, outputBytesMatch: true, decodable: false, pngSignatureMatch: false }) === "producer_generated_invalid_png_or_metadata_inconsistency",
+  "matching byte count but failed decode must classify as producer_generated_invalid_png_or_metadata_inconsistency, not silently pass");
+console.log("PASS: evidence-bounded byte classification matches the workflow's exact branches");
+
+// ---------------------------------------------------------------------
+// Part 5: artifact-retention step must be narrow and sanitized (static
+// checks against the workflow YAML -- the actual upload only runs in CI).
+// ---------------------------------------------------------------------
+assert(/actions\/upload-artifact@v4/.test(workflowSource), "workflow must use actions/upload-artifact@v4 for diagnostic retention");
+assert(/retention-days:\s*1\b/.test(workflowSource), "diagnostic artifact retention must be 1 day");
+assert(/if-no-files-found:\s*ignore/.test(workflowSource), "artifact upload must tolerate a missing PNG (job may fail before any output exists)");
+assert(!/path:\s*\|\s*\n\s*\$\{\{ runner\.temp \}\}\/job_result\.json/.test(workflowSource),
+  "artifact upload must never include the raw job_result.json response file");
+console.log("PASS: artifact-retention step is narrow, sanitized, and short-lived");
+
 console.log("runpod gate3 canary postmortem test PASSED");

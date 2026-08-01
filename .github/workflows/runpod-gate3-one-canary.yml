@@ -528,6 +528,13 @@ jobs:
               echo "output_decoded_bytes=0"
               echo "output_bytes_match=false"
               echo "output_sha256="
+              echo "producer_sha256="
+              echo "producer_hash_match=false"
+              echo "output_base64_length=0"
+              echo "output_base64_length_mod4=0"
+              echo "first8_decoded_bytes_hex="
+              echo "png_signature_match=false"
+              echo "byte_classification=no_job_submitted"
               echo "output_decodable=false"
               echo "delay_ms=0"
               echo "execution_ms=0"
@@ -616,6 +623,27 @@ jobs:
           DECODABLE=false
           DECODED_BYTES=0
           OUTPUT_BYTES_MATCH=false
+          PRODUCER_SHA256=""
+          PRODUCER_HASH_MATCH=false
+          B64_LENGTH=0
+          B64_LENGTH_MOD4=0
+          FIRST8_HEX=""
+          PNG_SIGNATURE_MATCH=false
+          BYTE_CLASSIFICATION="not_evaluated"
+
+          # Producer-reported output hash, if the handler contract supplies one.
+          # Extracted with an explicit null-check (never a `//` fallback, which
+          # would conflate an explicit empty/false value with absence).
+          PRODUCER_SHA256=$(jq -r 'if .output == null then "" else (.output.outputSha256 // .output.outputSHA256 // "" ) end' "$RESULT_FILE" 2>/dev/null || echo "")
+
+          # Base64 payload shape: LENGTH ONLY. The base64 string itself is never
+          # printed, logged, uploaded, or written to any artifact -- only its
+          # character count and length-mod-4, which are sufficient to detect
+          # padding/truncation anomalies without exposing image content.
+          B64_LENGTH=$(jq -r '.output.outputBase64 // empty' "$RESULT_FILE" 2>/dev/null | tr -d '\n' | wc -c | tr -d ' ')
+          B64_LENGTH=${B64_LENGTH:-0}
+          B64_LENGTH_MOD4=$(( B64_LENGTH % 4 ))
+
           if [ "$OK" = "true" ]; then
             jq -r '.output.outputBase64 // empty' "$RESULT_FILE" | base64 -d > "${RUNNER_TEMP}/canary_out.png" 2>/dev/null || true
             if [ -s "${RUNNER_TEMP}/canary_out.png" ]; then
@@ -625,6 +653,32 @@ jobs:
               if [ "$DECODED_BYTES" = "$OUT_BYTES" ]; then
                 OUTPUT_BYTES_MATCH=true
               fi
+              if [ -n "$PRODUCER_SHA256" ] && [ "$PRODUCER_SHA256" = "$OUT_SHA256" ]; then
+                PRODUCER_HASH_MATCH=true
+              fi
+              # First 8 decoded bytes as hex; the PNG magic is 89504e470d0a1a0a.
+              FIRST8_HEX=$(head -c 8 "${RUNNER_TEMP}/canary_out.png" | od -An -tx1 | tr -d ' \n')
+              if [ "$FIRST8_HEX" = "89504e470d0a1a0a" ]; then
+                PNG_SIGNATURE_MATCH=true
+              fi
+            fi
+
+            # Evidence-bounded classification of the byte-level outcome. These
+            # branches restate only what the measured numbers show; they do not
+            # speculate beyond the evidence, and they never alter the success
+            # gate (which is governed by the independent checks below).
+            if [ "$DECODED_BYTES" = "0" ]; then
+              BYTE_CLASSIFICATION="no_decoded_output"
+            elif [ "$DECODED_BYTES" -gt "$OUT_BYTES" ] 2>/dev/null; then
+              BYTE_CLASSIFICATION="likely_double_encoding"
+            elif [ "$DECODED_BYTES" -lt "$OUT_BYTES" ] 2>/dev/null; then
+              BYTE_CLASSIFICATION="likely_truncation"
+            elif [ "$OUTPUT_BYTES_MATCH" = "true" ] && [ "$DECODABLE" = "true" ] && [ "$PNG_SIGNATURE_MATCH" = "true" ]; then
+              BYTE_CLASSIFICATION="success_bytes_verified"
+            elif [ "$OUTPUT_BYTES_MATCH" = "true" ] && [ "$DECODABLE" != "true" ]; then
+              BYTE_CLASSIFICATION="producer_generated_invalid_png_or_metadata_inconsistency"
+            else
+              BYTE_CLASSIFICATION="indeterminate"
             fi
           fi
 
@@ -635,6 +689,72 @@ jobs:
           # approved rate ceiling, which is a conservative (upper-bound)
           # estimate, and is cross-checked against COMPUTE_BUDGET_USD below.
           ACTUAL_COST=$(echo "scale=6; ($EXEC_MS/1000) * $RATE_CEILING_USD_PER_SECOND" | bc -l)
+
+          # Sanitized diagnostic metadata artifact. Contains ONLY the bounded
+          # numeric/hash/boolean fields below -- never base64, never the input
+          # image, never a secret/token, never a raw authenticated response,
+          # never a weight, never an environment dump. Values are passed via
+          # explicit EV_* variables (not a blanket environment dump).
+          EV_STATUS="$STATUS" \
+          EV_OUT_BYTES="$OUT_BYTES" \
+          EV_PRODUCER_SHA256="$PRODUCER_SHA256" \
+          EV_B64_LENGTH="$B64_LENGTH" \
+          EV_B64_LENGTH_MOD4="$B64_LENGTH_MOD4" \
+          EV_DECODED_BYTES="$DECODED_BYTES" \
+          EV_OUT_SHA256="$OUT_SHA256" \
+          EV_OUTPUT_BYTES_MATCH="$OUTPUT_BYTES_MATCH" \
+          EV_PRODUCER_HASH_MATCH="$PRODUCER_HASH_MATCH" \
+          EV_FIRST8_HEX="$FIRST8_HEX" \
+          EV_PNG_SIGNATURE_MATCH="$PNG_SIGNATURE_MATCH" \
+          EV_DECODABLE="$DECODABLE" \
+          EV_BYTE_CLASSIFICATION="$BYTE_CLASSIFICATION" \
+          EV_OUT_W="$OUT_W" \
+          EV_OUT_H="$OUT_H" \
+          EV_OUT_FMT="$OUT_FMT" \
+          EV_PRODUCTION_ROUTING="$PRODUCTION_ROUTING" \
+          EV_PROVIDER_POST_COUNT="$PROVIDER_POST_COUNT" \
+          EV_GPU="$GPU" \
+          EV_GPU_INFERENCE_EXECUTED="$GPU_INFERENCE_EXECUTED" \
+          EV_DELAY_MS="$DELAY_MS" \
+          EV_EXEC_MS="$EXEC_MS" \
+          EV_WARMUP_ELAPSED="${{ steps.warm-worker.outputs.warmup_elapsed_seconds }}" \
+          EV_ACTUAL_COST="$ACTUAL_COST" \
+          python3 - "$RUNNER_TEMP/canary_output_metadata.json" <<'PYEOF'
+          import json, os, sys
+          meta = {
+              "runId": os.environ.get("GITHUB_RUN_ID", ""),
+              "imageDigest": os.environ.get("IMAGE_DIGEST", ""),
+              "jobStatus": os.environ.get("EV_STATUS", ""),
+              "producerOutputBytes": os.environ.get("EV_OUT_BYTES", ""),
+              "producerOutputSha256": os.environ.get("EV_PRODUCER_SHA256", ""),
+              "outputBase64Length": os.environ.get("EV_B64_LENGTH", ""),
+              "outputBase64LengthMod4": os.environ.get("EV_B64_LENGTH_MOD4", ""),
+              "decodedByteCount": os.environ.get("EV_DECODED_BYTES", ""),
+              "decodedSha256": os.environ.get("EV_OUT_SHA256", ""),
+              "outputBytesMatch": os.environ.get("EV_OUTPUT_BYTES_MATCH", ""),
+              "producerHashMatch": os.environ.get("EV_PRODUCER_HASH_MATCH", ""),
+              "first8DecodedBytesHex": os.environ.get("EV_FIRST8_HEX", ""),
+              "pngSignatureExpected": "89504e470d0a1a0a",
+              "pngSignatureMatch": os.environ.get("EV_PNG_SIGNATURE_MATCH", ""),
+              "pillowVerifyPassed": os.environ.get("EV_DECODABLE", ""),
+              "byteClassification": os.environ.get("EV_BYTE_CLASSIFICATION", ""),
+              "outputWidth": os.environ.get("EV_OUT_W", ""),
+              "outputHeight": os.environ.get("EV_OUT_H", ""),
+              "outputFormat": os.environ.get("EV_OUT_FMT", ""),
+              "productionRoutingAllowed": os.environ.get("EV_PRODUCTION_ROUTING", ""),
+              "configuredProductionRoutingAllowed": "false",
+              "providerPostCount": os.environ.get("EV_PROVIDER_POST_COUNT", ""),
+              "gpu": os.environ.get("EV_GPU", ""),
+              "gpuInferenceExecuted": os.environ.get("EV_GPU_INFERENCE_EXECUTED", ""),
+              "delayMs": os.environ.get("EV_DELAY_MS", ""),
+              "executionMs": os.environ.get("EV_EXEC_MS", ""),
+              "warmupElapsedSeconds": os.environ.get("EV_WARMUP_ELAPSED", ""),
+              "actualCostUsd": os.environ.get("EV_ACTUAL_COST", ""),
+          }
+          with open(sys.argv[1], "w") as f:
+              json.dump(meta, f, indent=2, sort_keys=True)
+          print("wrote sanitized metadata artifact (no base64/secret/weight content)")
+          PYEOF
 
           {
             echo "status=${STATUS}"
@@ -650,6 +770,13 @@ jobs:
             echo "output_decoded_bytes=${DECODED_BYTES}"
             echo "output_bytes_match=${OUTPUT_BYTES_MATCH}"
             echo "output_sha256=${OUT_SHA256}"
+            echo "producer_sha256=${PRODUCER_SHA256}"
+            echo "producer_hash_match=${PRODUCER_HASH_MATCH}"
+            echo "output_base64_length=${B64_LENGTH}"
+            echo "output_base64_length_mod4=${B64_LENGTH_MOD4}"
+            echo "first8_decoded_bytes_hex=${FIRST8_HEX}"
+            echo "png_signature_match=${PNG_SIGNATURE_MATCH}"
+            echo "byte_classification=${BYTE_CLASSIFICATION}"
             echo "output_decodable=${DECODABLE}"
             echo "delay_ms=${DELAY_MS}"
             echo "execution_ms=${EXEC_MS}"
@@ -679,6 +806,10 @@ jobs:
           echo "providerPostCount=${PROVIDER_POST_COUNT} productionRoutingAllowed=${PRODUCTION_ROUTING}"
           echo "output: ${OUT_W}x${OUT_H} ${OUT_FMT} ${OUT_BYTES} bytes (handler-reported) sha256=${OUT_SHA256} decodable=${DECODABLE}"
           echo "outputDecodedBytes=${DECODED_BYTES} outputBytesMatch=${OUTPUT_BYTES_MATCH} (decoded-file size vs handler-reported outputBytes)"
+          echo "producerSha256=${PRODUCER_SHA256} producerHashMatch=${PRODUCER_HASH_MATCH}"
+          echo "outputBase64Length=${B64_LENGTH} lengthMod4=${B64_LENGTH_MOD4} (length only; the base64 payload itself is never logged)"
+          echo "first8DecodedBytesHex=${FIRST8_HEX} pngSignatureMatch=${PNG_SIGNATURE_MATCH} (expected 89504e470d0a1a0a)"
+          echo "byteClassification=${BYTE_CLASSIFICATION}"
           echo "delayMs=${DELAY_MS} executionMs=${EXEC_MS} actualCostUsd=${ACTUAL_COST}"
           echo "outputIsJson=${OUTPUT_IS_JSON} errorMsg=${ERROR_MSG} errorDetail=${ERROR_DETAIL}"
           echo "sanitizedOutput (<=500 chars, outputBase64 stripped): ${SANITIZED_OUTPUT}"
@@ -688,6 +819,28 @@ jobs:
           echo "NOTE: RunPod's job status API exposes no stdout/stderr endpoint (confirmed"
           echo "against docs.runpod.io and rest.runpod.io/v1/openapi.json); only the"
           echo "handler's own JSON output/error fields above are obtainable."
+
+      # ---------------------------------------------------------------
+      # Retain bounded diagnostic artifacts for postmortem, since RunPod
+      # resources (and therefore the original output) are deleted by the
+      # mandatory cleanup step below. Uploads only the decoded PNG (if one
+      # was produced) and the sanitized metadata JSON built in the evidence
+      # step above -- never the base64 payload, the input image, secrets,
+      # weights, or a raw authenticated response. if: always() so evidence
+      # is retained on both success and failure; short 1-day retention.
+      # This upload does not participate in and cannot weaken the Success
+      # gate step below, which runs independently on its own criteria.
+      # ---------------------------------------------------------------
+      - name: "Retain bounded diagnostic artifacts (canary output PNG + sanitized metadata, 1 day)"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate3-canary-output-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/canary_out.png
+            ${{ runner.temp }}/canary_output_metadata.json
+          if-no-files-found: ignore
+          retention-days: 1
 
       # ---------------------------------------------------------------
       # Diagnostics: worker/queue health snapshot, captured before cleanup
