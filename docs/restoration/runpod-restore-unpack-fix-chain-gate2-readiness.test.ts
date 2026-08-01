@@ -8,15 +8,17 @@ const assert = (condition: unknown, message: string) => {
   if (!condition) throw new Error(message);
 };
 
-// Fail-closed executable state: this is a readiness review, not an approval.
-assert(manifest.approved === false, "approved must remain false (readiness review only)");
-assert(manifest.publicationAllowed === false, "publicationAllowed must remain false");
+// Gate 2 for this corrected chain is now APPROVED/PUBLISHED/CONSUMED. It
+// remains fail-closed for everything downstream: no republication, no Gate 3.
+assert(manifest.approved === true, "approved must be true (Gate 2 publication approval was given and consumed)");
+assert(manifest.publicationAllowed === false, "publicationAllowed must be false (one-time approval now consumed)");
+assert(manifest.publicationConsumed === true, "publicationConsumed must be true");
 assert(manifest.gate3ExecutionAllowed === false, "gate3ExecutionAllowed must remain false");
 assert(manifest.productionRoutingAllowed === false, "productionRoutingAllowed must remain false");
-assert(manifest.gpuInferenceExecuted === false, "gpuInferenceExecuted must be false (build-only)");
+assert(manifest.gpuInferenceExecuted === false, "gpuInferenceExecuted must be false (no GPU inference anywhere in this task)");
 assert(manifest.runpodApiCalls === 0, "runpodApiCalls must be 0");
 assert(manifest.runpodResourcesCreated === "none", "runpodResourcesCreated must be none");
-assert(manifest.imagesPublished === "none", "imagesPublished must be none");
+assert(manifest.imagesPublished === "all three, consistently, in dependency order", "imagesPublished must record all three published together");
 
 // Root cause fix
 const fix = (manifest.rootCauseFix ?? {}) as Record<string, unknown>;
@@ -71,5 +73,45 @@ assert(statement.toLowerCase().includes("does not") || statement.toLowerCase().i
 assert(Array.isArray(manifest.priorGate3ApprovalsConsumed) && (manifest.priorGate3ApprovalsConsumed as string[]).length === 2, "both prior Gate 3 approvals must be recorded as consumed");
 assert(String(manifest.gate4Status).toLowerCase().includes("prohibited"), "Gate 4 must remain prohibited");
 assert(String(manifest.replicateStatus).toLowerCase().includes("production"), "Replicate must remain recorded as production");
+
+// Actual publication record: one identical source SHA tag, three real digests,
+// each pinned (no floating tags), post-publication verification by fresh pull.
+const pub = (manifest.publicationRecord ?? {}) as Record<string, unknown>;
+assert(pub.publicationWorkflowPr === 91, "must record the publication workflow PR number");
+assert(typeof pub.publicationWorkflowRun === "string" && (pub.publicationWorkflowRun as string).length > 0, "must record the publication workflow run ID");
+assert(pub.dispatchConclusion === "success", "publication dispatch must have succeeded");
+assert(pub.sourceShaTag === "31a6e19aa992f4ad2ab952312999258399aab9cf", "must record the exact published source SHA tag");
+assert(pub.sourceShaTagIdenticalAcrossAllThree === true, "the same tag must be used for all three images");
+assert(pub.noExistingTagConfirmedBeforePublication === true, "must confirm no pre-existing tag before publishing");
+
+const publishedImages = pub.publishedImages as Array<Record<string, unknown>>;
+assert(Array.isArray(publishedImages) && publishedImages.length === 3, "must record exactly three published images");
+for (const img of publishedImages) {
+  assert(typeof img.digest === "string" && (img.digest as string).startsWith("sha256:"), `${img.role}: must record a real digest`);
+  assert((img.repoTag as string).includes(":31a6e19aa992f4ad2ab952312999258399aab9cf"), `${img.role}: repoTag must use the immutable source SHA tag`);
+}
+assert(publishedImages[0].digest !== "sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a", "published CLI digest must never equal the old buggy digest");
+
+// Each chain link's publishedImage sub-record must also be present and consistent
+for (const link of chain) {
+  const published = (link.publishedImage ?? {}) as Record<string, unknown>;
+  assert(published.immutableTag === "31a6e19aa992f4ad2ab952312999258399aab9cf", `${link.role}: publishedImage tag must match the chain-wide source SHA`);
+  assert(typeof published.digest === "string" && (published.digest as string).startsWith("sha256:"), `${link.role}: publishedImage must record a real digest`);
+  assert(published.floatingTagUsed === false, `${link.role}: floating tag must not have been used`);
+}
+assert((chain[1].publishedImage as Record<string, unknown>).parentImageActual === `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix@${(chain[0].publishedImage as Record<string, unknown>).digest}`, "Serverless image must actually derive from the published CLI digest");
+assert((chain[2].publishedImage as Record<string, unknown>).parentImageActual === `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev@${(chain[1].publishedImage as Record<string, unknown>).digest}`, "Volume-mapped image must actually derive from the published Serverless digest");
+
+const verify = (pub.postPublicationVerification ?? {}) as Record<string, unknown>;
+assert(verify.allThreePassed === true, "post-publication verification must have passed for all three images");
+assert(verify.method === "docker pull by exact digest (fresh), then docker run --network none against each pulled image", "must record the verification method used");
+assert(verify.correctedUnpackLinePresentInPublishedVolumeImage === true, "published volume image must be confirmed to carry the corrected unpack line");
+assert(verify.oldBuggyUnpackLineAbsentInPublishedVolumeImage === true, "published volume image must be confirmed to lack the old buggy unpack line");
+assert(String(verify.volumeSymlinkTarget) === "/runpod-volume/models", "published volume image symlink must be confirmed");
+assert(verify.gpuInferenceExecuted === false, "no GPU inference during post-publication verification");
+
+assert(pub.gate2Status === "APPROVED / PUBLISHED / CONSUMED for this corrected chain", "gate2Status must record the final consumed state");
+assert(String(pub.oldImageChainNote).toLowerCase().includes("historical"), "must record that the old image chain is historical only and must not be reused");
+assert(String(pub.gate3Note).includes((chain[2].publishedImage as Record<string, unknown>).digest as string), "Gate 3 note must reference the new final volume-handler digest specifically");
 
 console.log("runpod restore-unpack-fix chain Gate 2 readiness validator passed");
