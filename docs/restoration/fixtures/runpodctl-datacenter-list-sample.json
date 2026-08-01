@@ -1,0 +1,27 @@
+[
+  {
+    "id": "US-KS-2",
+    "name": "Kansas",
+    "location": "United States",
+    "gpuAvailability": [
+      { "gpuTypeId": "NVIDIA RTX A4000", "displayName": "RTX A4000", "stockStatus": "Low" }
+    ]
+  },
+  {
+    "id": "EU-RO-1",
+    "name": "Romania",
+    "location": "Europe",
+    "gpuAvailability": [
+      { "gpuTypeId": "NVIDIA RTX A4000", "displayName": "RTX A4000", "stockStatus": "Medium" },
+      { "gpuTypeId": "NVIDIA RTX A4500", "displayName": "RTX A4500", "stockStatus": "Low" }
+    ]
+  },
+  {
+    "id": "US-TX-3",
+    "name": "Texas",
+    "location": "United States",
+    "gpuAvailability": [
+      { "gpuTypeId": "NVIDIA A100 80GB PCIe", "displayName": "A100 PCIe", "stockStatus": "High" }
+    ]
+  }
+]

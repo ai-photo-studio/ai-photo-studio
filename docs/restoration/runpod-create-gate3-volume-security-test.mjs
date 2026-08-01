@@ -123,10 +123,16 @@ assert(installStep !== undefined, "must have an explicit runpodctl install step"
 assert(!/\|\s*(sudo\s+)?bash\b/.test(installStep.run), "must not pipe a remote install script into bash/sudo bash");
 assert(/releases\/download\//.test(installStep.run), "must download a specific pinned GitHub release binary");
 
-// Test 14: datacenter/GPU JSON parsing fails closed (exits 1) when no compatible pair is found
-assert(/exit 1/.test(preflightStep.run), "preflight must exit non-zero when no compatible datacenter/GPU is found");
-assert(/STORAGE_DCS|storageSupport|supportNetworkVolume/.test(preflightStep.run), "must filter datacenters by storage/network-volume support");
-assert(/COMPATIBLE_GPUS|A4000|A4500/.test(preflightStep.run), "must filter GPUs by 16GB-class compatibility");
+// Test 14: datacenter/GPU JSON parsing fails closed (exits 1) when compatibility cannot be
+// established. `runpodctl datacenter list` structurally never returns a storage/network-volume
+// capability field (confirmed against the runpodctl source: internal/api's DataCenter struct
+// and its GraphQL query only carry id/name/location/gpuAvailability), so the preflight must
+// NOT invent a storage-capability signal from GPU availability alone, and must not silently
+// treat an absent field as a false/negative result without saying so.
+assert(/exit 1/.test(preflightStep.run), "preflight must exit non-zero when compatibility cannot be established");
+assert(/COMPATIBLE_GPU_DCS|dataCenterAvailability|A4000|A4500/.test(preflightStep.run), "must cross-reference GPU compatibility using the documented dataCenterAvailability field");
+assert(!/storageSupport|supportNetworkVolume|storage_support/.test(preflightStep.run), "must not reference a storage-capability field that runpodctl does not actually return");
+assert(/cannot be verified|cannot verify|unverifiable/i.test(preflightStep.run), "must honestly state that storage capability cannot be verified, not fabricate a negative result");
 
 // Test 15: the volume creation request body matches the official NetworkVolumeCreateInput
 // schema exactly (name, size, dataCenterId) — no unsupported fields like 'tier'.

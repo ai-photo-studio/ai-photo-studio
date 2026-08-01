@@ -1,0 +1,45 @@
+[
+  {
+    "gpuId": "NVIDIA RTX A4000",
+    "displayName": "RTX A4000",
+    "memoryInGb": 16,
+    "secureCloud": true,
+    "communityCloud": true,
+    "securePricePerHr": 0.17,
+    "communityPricePerHr": 0.14,
+    "stockStatus": "Low",
+    "available": true,
+    "dataCenterAvailability": [
+      { "dataCenterId": "US-KS-2", "stockStatus": "Low" },
+      { "dataCenterId": "EU-RO-1", "stockStatus": "Medium" }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA RTX A4500",
+    "displayName": "RTX A4500",
+    "memoryInGb": 20,
+    "secureCloud": true,
+    "communityCloud": false,
+    "securePricePerHr": 0.19,
+    "communityPricePerHr": null,
+    "stockStatus": "Low",
+    "available": true,
+    "dataCenterAvailability": [
+      { "dataCenterId": "EU-RO-1", "stockStatus": "Low" }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA A100 80GB PCIe",
+    "displayName": "A100 PCIe",
+    "memoryInGb": 80,
+    "secureCloud": true,
+    "communityCloud": true,
+    "securePricePerHr": 2.72,
+    "communityPricePerHr": 2.49,
+    "stockStatus": "High",
+    "available": true,
+    "dataCenterAvailability": [
+      { "dataCenterId": "US-TX-3", "stockStatus": "High" }
+    ]
+  }
+]
