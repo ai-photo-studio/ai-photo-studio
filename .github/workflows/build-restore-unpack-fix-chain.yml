@@ -30,8 +30,16 @@ jobs:
       - name: Check repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@v2
+      # Plain `docker build` (not docker/build-push-action + buildx) is used
+      # for all three stages deliberately: docker/setup-buildx-action creates
+      # an isolated docker-container builder whose image store is separate
+      # from the host Docker engine, so a later stage's "FROM <local-tag>"
+      # cannot see an earlier stage's locally-built image and instead tries
+      # (and fails) to resolve it from a registry. Plain `docker build`
+      # always uses the host engine's shared image store, so each stage's
+      # FROM reference to the previous stage's local tag resolves correctly.
+      # This is build-only, push:false in spirit (no --push, no registry
+      # login anywhere in this job).
 
       # -----------------------------------------------------------------
       # Stage 1: corrected CLI worker candidate
@@ -40,13 +48,7 @@ jobs:
         run: cp docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch apps/api/runpod-worker-gpu-dev-restore-unpack-fix/basicsr-v142-functional-tensor-fix.patch
 
       - name: "Stage 1 - Build corrected CLI worker candidate (no push)"
-        uses: docker/build-push-action@v6
-        with:
-          context: apps/api/runpod-worker-gpu-dev-restore-unpack-fix
-          file: apps/api/runpod-worker-gpu-dev-restore-unpack-fix/Dockerfile
-          push: false
-          tags: gfpgan-cli-restore-fix:local
-          load: true
+        run: docker build --tag gfpgan-cli-restore-fix:local --file apps/api/runpod-worker-gpu-dev-restore-unpack-fix/Dockerfile apps/api/runpod-worker-gpu-dev-restore-unpack-fix
 
       - name: "Stage 1 - Inspect CLI candidate metadata"
         id: cli-meta
@@ -130,13 +132,7 @@ jobs:
       # Stage 2: corrected Serverless handler candidate (FROM stage 1, local)
       # -----------------------------------------------------------------
       - name: "Stage 2 - Build corrected Serverless handler candidate (no push)"
-        uses: docker/build-push-action@v6
-        with:
-          context: apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev
-          file: apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/Dockerfile
-          push: false
-          tags: gfpgan-serverless-restore-fix:local
-          load: true
+        run: docker build --tag gfpgan-serverless-restore-fix:local --file apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/Dockerfile apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev
 
       - name: "Stage 2 - Inspect handler candidate metadata"
         id: handler-meta
@@ -211,13 +207,7 @@ jobs:
       # Stage 3: corrected volume-mapped candidate (FROM stage 2, local)
       # -----------------------------------------------------------------
       - name: "Stage 3 - Build corrected volume-mapped candidate (no push)"
-        uses: docker/build-push-action@v6
-        with:
-          context: apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev
-          file: apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/Dockerfile
-          push: false
-          tags: gfpgan-serverless-volume-restore-fix:local
-          load: true
+        run: docker build --tag gfpgan-serverless-volume-restore-fix:local --file apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/Dockerfile apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev
 
       - name: "Stage 3 - Inspect volume candidate metadata"
         id: volume-meta
