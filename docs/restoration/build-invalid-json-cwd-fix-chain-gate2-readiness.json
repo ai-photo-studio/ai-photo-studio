@@ -1,7 +1,9 @@
 {
-  "approved": false,
+  "approved": true,
+  "approvalDate": "2026-08-01",
   "publicationAllowed": false,
-  "expectedDigest": "",
+  "publicationConsumed": true,
+  "expectedDigest": "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d",
   "gate3ExecutionAllowed": false,
   "productionRoutingAllowed": false,
   "recordedAt": "2026-08-01",
@@ -51,11 +53,13 @@
         "includesCleanStdoutRegression": true
       },
       "noSecretLeakageVerified": true,
-      "proposedPublication": {
+      "publishedImage": {
         "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev",
-        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
-        "expectedDigest": "",
-        "floatingTagAllowed": false
+        "immutableTag": "38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6",
+        "digest": "sha256:af09003de27bbdfd1c7ef5bf83139dbbb7de2cee33dd015e900dee8a2b5d87d5",
+        "floatingTagUsed": false,
+        "anonymousPullConfirmed": true,
+        "parentImageActual": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix@sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052"
       }
     },
     {
@@ -89,11 +93,13 @@
       "endToEndVerificationMethod": "grep for 'cwd=WORKER_DIR' in /srv/handler/handler.py and '_, _, out = model.enhance' in /srv/worker/worker.py inside the built volume image; TORCH_FORCE_WEIGHTS_ONLY_LOAD re-verified",
       "noWeightsBundled": true,
       "noRuntimeDownload": true,
-      "proposedPublication": {
+      "publishedImage": {
         "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev",
-        "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
-        "expectedDigest": "",
-        "floatingTagAllowed": false
+        "immutableTag": "38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6",
+        "digest": "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d",
+        "floatingTagUsed": false,
+        "anonymousPullConfirmed": true,
+        "parentImageActual": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev@sha256:af09003de27bbdfd1c7ef5bf83139dbbb7de2cee33dd015e900dee8a2b5d87d5"
       }
     }
   ],
@@ -106,10 +112,40 @@
   "gpuInferenceExecuted": false,
   "runpodApiCalls": 0,
   "s3Calls": 0,
-  "registryLogin": false,
-  "packagesWritePermission": false,
-  "imagesPublished": "none",
-  "approvalPacketStatement": "Both required chain images (2-serverless-handler-cwd-fix, 3-volume-mapped-handler-cwd-fix) must be published together with role 1-cli-worker referenced unchanged by its existing immutable published digest. Publishing only one of the two new images is insufficient: the deployed volume-mapped image derives, layer by layer, from the handler layer, so a fix only at the handler layer that is not also rebuilt into a new volume-mapped image would never reach a deployable artifact. Any source, base-digest, or dependency change to either of the two new candidates invalidates this entire readiness record for both. Publication requires a separate, explicit Gate 2 approval -- it is not implied by this build-only readiness review. Publication of this chain does NOT itself authorize Gate 3; a further separate, explicit Gate 3 approval is required afterward, and must reference the new final volume-mapped handler digest once published, not the currently deployed digest (sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286), which lacks this fix.",
+  "registryLogin": "GHCR via GITHUB_TOKEN only (publication run)",
+  "packagesWritePermission": "used only in the publication workflow, scoped exactly to contents:read + packages:write",
+  "imagesPublished": "both, together, in this single dispatch",
+  "publicationRecord": {
+    "approvalStatement": "explicit user Gate 2 publication approval, 2026-08-01, for BOTH cwd-fix images together, publication only -- does not authorize RunPod, Gate 3, Gate 4, deployment, GPU execution, or production routing",
+    "publicationWorkflow": ".github/workflows/publish-invalid-json-cwd-fix-chain.yml",
+    "publicationWorkflowPr": 101,
+    "publicationWorkflowMergeCommit": "38e313f",
+    "publicationWorkflowRun": "30706738102",
+    "dispatchConclusion": "success",
+    "dispatchDurationSeconds": 1401,
+    "sourceShaTag": "38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6",
+    "sourceShaTagIdenticalAcrossBoth": true,
+    "noExistingTagConfirmedBeforePublication": true,
+    "publishedImages": [
+      {"role": "2-serverless-handler-cwd-fix", "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev:38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6", "digest": "sha256:af09003de27bbdfd1c7ef5bf83139dbbb7de2cee33dd015e900dee8a2b5d87d5"},
+      {"role": "3-volume-mapped-handler-cwd-fix", "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev:38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6", "digest": "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d"}
+    ],
+    "postPublicationVerification": {
+      "method": "docker pull by exact digest (fresh, not the local build cache), then functional docker run checks against each pulled image",
+      "handlerCwdFixConfirmed": "real import inside the freshly pulled handler image: WORKER_DIR == '/srv/worker', EXECUTION_TIMEOUT_SECONDS == 120",
+      "volumeSymlinkTarget": "/runpod-volume/models",
+      "volumeHealthResponse": "ok=true, providerPostCount=0, productionRoutingAllowed=false, python=3.10.12, torch=2.6.0+cu126, safeLoad=true, weightPresent=false, auxDetectionPresent=false, auxParsingPresent=false (no volume mounted in this check, as expected)",
+      "cwdFixPresentInPublishedVolumeImage": true,
+      "unpackFixPresentInPublishedVolumeImage": true,
+      "gpuInferenceExecuted": false,
+      "allPassed": true
+    },
+    "gate2Status": "APPROVED / PUBLISHED / CONSUMED for this cwd-fix chain",
+    "oldHandlerChainNote": "The previously published, currently deployed volume-mapped image (digest sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286, and its handler layer sha256:99c2ae93688087abb2988646386aad1fd86a468304814de326a8459c280f6a4e) lacks the cwd= fix and remains historical/current-production evidence only; it is unaffected and unchanged by this publication. Deploying the new fix requires a separate RunPod Serverless endpoint configuration change referencing the new digest, which is explicitly out of scope here.",
+    "gate3Note": "Gate 3 remains approved=false. This publication does not authorize Gate 3. Any future Gate 3 approval must explicitly reference the NEW volume-mapped handler digest sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d -- not the currently deployed digest, which lacks this fix."
+  },
+  "anyFutureSourceBaseOrDependencyChangeInvalidatesThisRecord": true,
+  "approvalPacketStatement": "Both required chain images (2-serverless-handler-cwd-fix, 3-volume-mapped-handler-cwd-fix) were published together with role 1-cli-worker referenced unchanged by its existing immutable published digest. Publishing only one of the two new images would have been insufficient: the volume-mapped image derives, layer by layer, from the handler layer, so a fix only at the handler layer that was not also rebuilt into a new volume-mapped image would never have reached a deployable artifact. Any source, base-digest, or dependency change to either of the two new candidates invalidates this entire publication record for both and requires a fresh, separate, explicit Gate 2 approval and republication under a new source-SHA tag. This publication does NOT itself authorize Gate 3; a further separate, explicit Gate 3 approval is required afterward, and must reference the new final volume-mapped handler digest sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d specifically, not the currently deployed digest sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286, which lacks this fix.",
   "priorGate3ApprovalsConsumed": [
     "2026-08-01 first approval (run 30691401701, and its two preceding failed dispatches)",
     "2026-08-01 second approval (run 30692613631)",
