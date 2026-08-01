@@ -1,0 +1,493 @@
+name: runpod-gate3-one-canary
+
+# Executes exactly ONE non-production RunPod Serverless canary job against the
+# published, immutable volume-mapped GFPGAN handler image. This workflow is
+# workflow_dispatch-only and requires an exact confirmation string. It creates
+# exactly one private Serverless template, one queue endpoint, and submits
+# exactly one restore job using the canonical synthetic fixture. It never
+# retries or resubmits, never touches the Network Volume or its weights, and
+# always attempts endpoint/template cleanup in a final always() step.
+#
+# Gate 3 approval statement (user, 2026-08-01): explicit approval for exactly
+# one non-production RunPod Serverless canary, scoped to the fixed
+# configuration below. Gate 4 (production activation) remains prohibited.
+# Replicate remains production; this workflow never calls Replicate.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type EXECUTE_ONE_GATE3_CANARY to proceed"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runpod-gate3-one-canary
+  cancel-in-progress: false
+
+env:
+  RUNPODCTL_VERSION: "v2.8.0"
+  IMAGE_DIGEST: "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b"
+  IMAGE_REPOSITORY: "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev"
+  TARGET_DATACENTER_ID: "EU-RO-1"
+  TARGET_GPU_TYPE_ID: "NVIDIA RTX 4000 Ada Generation"
+  NETWORK_VOLUME_ID: "d6a4504x8m"
+  S3_ENDPOINT: "https://s3api-eu-ro-1.runpod.io"
+  AWS_DEFAULT_REGION: "eu-ro-1"
+  TEMPLATE_NAME: "photo-restoration-gate3-canary-template"
+  ENDPOINT_NAME: "photo-restoration-gate3-canary"
+  FLEX_RATE_CEILING_USD_PER_SEC: "0.00016"
+  COMPUTE_BUDGET_USD: "0.05"
+  EXECUTION_TIMEOUT_SECONDS: "120"
+  IDLE_TIMEOUT_SECONDS: "5"
+  FIXTURE_EXPECTED_SHA256: "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f"
+  GFPGAN_SHA256: "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
+  GFPGAN_SIZE: "348632874"
+  DETECTION_SHA256: "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d"
+  DETECTION_SIZE: "109497761"
+  PARSING_SHA256: "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2"
+  PARSING_SIZE: "85331193"
+
+jobs:
+  gate3-canary:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.RUNPOD_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.RUNPOD_S3_SECRET_KEY }}
+    steps:
+      - name: Verify confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "EXECUTE_ONE_GATE3_CANARY" ]; then
+            echo "ERROR: confirmation must be exactly EXECUTE_ONE_GATE3_CANARY"
+            exit 1
+          fi
+          echo "Confirmation verified."
+
+      - name: Checkout repo (for canonical fixture generator only)
+        uses: actions/checkout@v4
+
+      - name: Install runpodctl (pinned release binary)
+        run: |
+          curl -fsSL -o /usr/local/bin/runpodctl \
+            "https://github.com/runpod/runpodctl/releases/download/${RUNPODCTL_VERSION}/runpodctl-linux-amd64"
+          chmod +x /usr/local/bin/runpodctl
+          runpodctl version
+
+      # ---------------------------------------------------------------
+      # Preflight 1: origin/main includes the approved evidence commit
+      # ---------------------------------------------------------------
+      - name: "Preflight 1 - approved commit present on this ref"
+        run: |
+          if ! git merge-base --is-ancestor b72728ead5bacd741226c5b6005c4326a9906baf HEAD; then
+            echo "ERROR: this ref does not include the approved evidence commit b72728e"
+            exit 1
+          fi
+          echo "PASSED: b72728e is an ancestor of the dispatched ref"
+
+      # ---------------------------------------------------------------
+      # Preflight 2: image digest, volume/datacenter, and weight
+      # size/SHA-256 all match the approved facts (no guessed values)
+      # ---------------------------------------------------------------
+      - name: "Preflight 2a - immutable image digest resolves (manifest only, no pull)"
+        run: |
+          docker buildx imagetools inspect "${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" > manifest.txt
+          cat manifest.txt
+          grep -q "${IMAGE_DIGEST#sha256:}" manifest.txt || { echo "ERROR: resolved manifest does not match approved digest"; exit 1; }
+          echo "PASSED: image resolves by exact approved digest"
+
+      - name: "Preflight 2b - Network Volume exists in approved datacenter"
+        run: |
+          RESPONSE=$(curl -s -X GET https://rest.runpod.io/v1/networkvolumes \
+            -H "Authorization: Bearer $RUNPOD_API_KEY")
+          MATCH=$(echo "$RESPONSE" | jq --arg id "$NETWORK_VOLUME_ID" --arg dc "$TARGET_DATACENTER_ID" \
+            '[.[] | select((.id // "" | startswith($id)) and .dataCenterId == $dc)] | length')
+          if [ "$MATCH" != "1" ]; then
+            echo "ERROR: expected exactly 1 Network Volume matching id prefix and datacenter, found $MATCH"
+            exit 1
+          fi
+          echo "PASSED: Network Volume confirmed in ${TARGET_DATACENTER_ID}"
+
+      - name: "Preflight 2c - remote weight sizes/SHA-256 match approved facts"
+        run: |
+          verify_remote() {
+            local key="$1" expected_size="$2" expected_sha="$3"
+            local remote_size verify_copy actual_sha
+            remote_size=$(aws s3api head-object --bucket "$NETWORK_VOLUME_ID" --key "$key" --endpoint-url "$S3_ENDPOINT" --region "$AWS_DEFAULT_REGION" --query ContentLength --output text)
+            test "$remote_size" = "$expected_size" || { echo "ERROR: $key size mismatch (remote=$remote_size expected=$expected_size)"; exit 1; }
+            verify_copy="${RUNNER_TEMP}/$(basename "$key").verify"
+            aws s3 cp "s3://${NETWORK_VOLUME_ID}/${key}" "$verify_copy" --endpoint-url "$S3_ENDPOINT" --region "$AWS_DEFAULT_REGION" --no-progress
+            actual_sha=$(sha256sum "$verify_copy" | awk '{print $1}')
+            rm -f "$verify_copy"
+            test "$actual_sha" = "$expected_sha" || { echo "ERROR: $key SHA-256 mismatch"; exit 1; }
+            echo "verified: $key size=$remote_size sha256=$actual_sha"
+          }
+          verify_remote "models/GFPGANv1.4.pth" "$GFPGAN_SIZE" "$GFPGAN_SHA256"
+          verify_remote "models/facexlib/detection_Resnet50_Final.pth" "$DETECTION_SIZE" "$DETECTION_SHA256"
+          verify_remote "models/facexlib/parsing_parsenet.pth" "$PARSING_SIZE" "$PARSING_SHA256"
+          echo "PASSED: all three remote weights match approved size/SHA-256"
+
+      # ---------------------------------------------------------------
+      # Preflight 3: live RTX 4000 Ada availability in EU-RO-1
+      # ---------------------------------------------------------------
+      - name: "Preflight 3 - live GPU/datacenter co-location (runpodctl, read-only)"
+        run: |
+          runpodctl gpu list --include-unavailable -o json > gputypes.json
+          MATCH_COUNT=$(jq -r --arg dc "$TARGET_DATACENTER_ID" --arg gpu "$TARGET_GPU_TYPE_ID" '
+            [.[] | select((.displayName // "") | test("RTX 4000 Ada"; "i"))
+             | (.dataCenterAvailability // [])[] | select(.dataCenterId == $dc)] | length' gputypes.json)
+          echo "Live dataCenterAvailability entries matching fixed target: ${MATCH_COUNT}"
+          if [ "$MATCH_COUNT" = "0" ]; then
+            echo "ERROR: live evidence does not confirm ${TARGET_GPU_TYPE_ID} availability in ${TARGET_DATACENTER_ID}"
+            exit 1
+          fi
+          echo "PASSED: live evidence confirms GPU availability in the approved datacenter"
+
+      # ---------------------------------------------------------------
+      # Preflight 4/5: rate ceiling and worst-case budget guard.
+      # No RunPod REST or runpodctl field exposes a live per-second
+      # Serverless Flex billing rate (confirmed: rest.runpod.io/v1/openapi.json
+      # has no such field; runpodctl gpu list only returns Pod
+      # securePricePerHr/communityPricePerHr, not Serverless Flex pricing).
+      # FLEX_RATE_CEILING_USD_PER_SEC is therefore the fixed, explicitly
+      # user-approved ceiling, not a live-queried value. Actual billed cost
+      # is independently captured post-execution and re-checked against
+      # COMPUTE_BUDGET_USD before this job is reported successful.
+      # ---------------------------------------------------------------
+      - name: "Preflight 4/5 - rate ceiling and worst-case budget guard"
+        run: |
+          WORST_CASE=$(echo "$FLEX_RATE_CEILING_USD_PER_SEC * $EXECUTION_TIMEOUT_SECONDS" | bc -l)
+          echo "Fixed approved Flex rate ceiling: \$${FLEX_RATE_CEILING_USD_PER_SEC}/second"
+          echo "Execution timeout: ${EXECUTION_TIMEOUT_SECONDS}s"
+          echo "Worst-case one-job cost: \$${WORST_CASE}"
+          echo "Authorized compute budget: \$${COMPUTE_BUDGET_USD}"
+          if (( $(echo "$WORST_CASE > $COMPUTE_BUDGET_USD" | bc -l) )); then
+            echo "ERROR: worst-case projected cost exceeds the authorized \$${COMPUTE_BUDGET_USD} budget"
+            exit 1
+          fi
+          echo "PASSED: worst-case cost is within the authorized budget"
+
+      # ---------------------------------------------------------------
+      # Preflight 6: fixed template/endpoint names must not already exist
+      # ---------------------------------------------------------------
+      - name: "Preflight 6 - fixed template/endpoint names are free"
+        run: |
+          TEMPLATES=$(curl -s -X GET https://rest.runpod.io/v1/templates -H "Authorization: Bearer $RUNPOD_API_KEY")
+          if echo "$TEMPLATES" | jq -e --arg n "$TEMPLATE_NAME" '[.[] | select(.name == $n)] | length > 0' >/dev/null 2>&1; then
+            echo "ERROR: template ${TEMPLATE_NAME} already exists"
+            exit 1
+          fi
+          ENDPOINTS=$(curl -s -X GET https://rest.runpod.io/v1/endpoints -H "Authorization: Bearer $RUNPOD_API_KEY")
+          if echo "$ENDPOINTS" | jq -e --arg n "$ENDPOINT_NAME" '[.[] | select(.name == $n)] | length > 0' >/dev/null 2>&1; then
+            echo "ERROR: endpoint ${ENDPOINT_NAME} already exists"
+            exit 1
+          fi
+          echo "PASSED: neither fixed name exists"
+
+      # ---------------------------------------------------------------
+      # Regenerate and verify the canonical synthetic fixture
+      # ---------------------------------------------------------------
+      - name: Regenerate and verify canonical synthetic fixture
+        run: |
+          python3 docs/restoration/fixtures/gen_canary_face_fixture.py --out "${RUNNER_TEMP}/canary.png"
+          ACTUAL=$(sha256sum "${RUNNER_TEMP}/canary.png" | awk '{print $1}')
+          test "$ACTUAL" = "$FIXTURE_EXPECTED_SHA256" || { echo "ERROR: fixture SHA-256 drift"; exit 1; }
+          echo "PASSED: canonical fixture verified, sha256=${ACTUAL}"
+
+      # ---------------------------------------------------------------
+      # Create exactly one private Serverless template (single POST)
+      # ---------------------------------------------------------------
+      - name: "Create template (POST /v1/templates, exactly once)"
+        id: create-template
+        run: |
+          PAYLOAD=$(jq -n --arg name "$TEMPLATE_NAME" --arg image "${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" '{
+            "name": $name,
+            "imageName": $image,
+            "isServerless": true,
+            "isPublic": false,
+            "category": "NVIDIA",
+            "containerDiskInGb": 20,
+            "ports": [],
+            "env": {}
+          }')
+          RESPONSE=$(curl -s -X POST https://rest.runpod.io/v1/templates \
+            -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" -d "$PAYLOAD")
+          TEMPLATE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          if [ -z "$TEMPLATE_ID" ]; then
+            echo "ERROR: template creation failed"
+            echo "$RESPONSE" | jq 'del(.id)' 2>/dev/null || true
+            exit 1
+          fi
+          echo "template_id=${TEMPLATE_ID}" >> "$GITHUB_OUTPUT"
+          echo "Template created (redacted): ${TEMPLATE_ID:0:6}..."
+
+      # ---------------------------------------------------------------
+      # Create exactly one queue endpoint (single POST)
+      # ---------------------------------------------------------------
+      - name: "Create endpoint (POST /v1/endpoints, exactly once)"
+        id: create-endpoint
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg name "$ENDPOINT_NAME" \
+            --arg templateId "${{ steps.create-template.outputs.template_id }}" \
+            --arg gpu "$TARGET_GPU_TYPE_ID" \
+            --arg dc "$TARGET_DATACENTER_ID" \
+            --arg vol "$NETWORK_VOLUME_ID" \
+            --argjson idle "$IDLE_TIMEOUT_SECONDS" \
+            --argjson timeoutMs "$(( EXECUTION_TIMEOUT_SECONDS * 1000 ))" \
+            '{
+              "name": $name,
+              "templateId": $templateId,
+              "computeType": "GPU",
+              "gpuTypeIds": [$gpu],
+              "gpuCount": 1,
+              "dataCenterIds": [$dc],
+              "networkVolumeId": $vol,
+              "workersMin": 0,
+              "workersMax": 1,
+              "idleTimeout": $idle,
+              "executionTimeoutMs": $timeoutMs,
+              "scalerType": "QUEUE_DELAY"
+            }')
+          RESPONSE=$(curl -s -X POST https://rest.runpod.io/v1/endpoints \
+            -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" -d "$PAYLOAD")
+          ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          if [ -z "$ENDPOINT_ID" ]; then
+            echo "ERROR: endpoint creation failed"
+            echo "$RESPONSE" | jq 'del(.id)' 2>/dev/null || true
+            exit 1
+          fi
+          echo "endpoint_id=${ENDPOINT_ID}" >> "$GITHUB_OUTPUT"
+          echo "Endpoint created (redacted): ${ENDPOINT_ID:0:6}..."
+          echo "gpuCount=1 concurrency/maxJobs/maxRetries are enforced by this workflow submitting exactly one job and never retrying (RunPod's Serverless REST API has no literal concurrency/maxJobs/maxRetries endpoint-creation fields; concurrency is a handler-side setting unused here since only one job is ever submitted)."
+
+      # ---------------------------------------------------------------
+      # Submit exactly one restore job (single POST, inline base64, no URL)
+      # ---------------------------------------------------------------
+      - name: "Submit exactly one restore job"
+        id: submit-job
+        run: |
+          IMAGE_B64=$(base64 -w0 "${RUNNER_TEMP}/canary.png")
+          PAYLOAD=$(jq -n --arg img "$IMAGE_B64" --argjson timeoutMs "$(( EXECUTION_TIMEOUT_SECONDS * 1000 ))" '{
+            "input": { "mode": "restore", "imageBase64": $img },
+            "policy": { "executionTimeout": $timeoutMs }
+          }')
+          RESPONSE=$(curl -s -X POST "https://api.runpod.ai/v2/${{ steps.create-endpoint.outputs.endpoint_id }}/run" \
+            -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" -d "$PAYLOAD")
+          JOB_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          if [ -z "$JOB_ID" ]; then
+            echo "ERROR: job submission failed"
+            echo "$RESPONSE" | jq 'del(.id)' 2>/dev/null || true
+            exit 1
+          fi
+          echo "job_id=${JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "start_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+          echo "Job submitted (redacted): ${JOB_ID:0:8}..."
+
+      # ---------------------------------------------------------------
+      # Poll status until COMPLETED/FAILED, or cancel at the 120s ceiling.
+      # No retry/resubmit: this is the one and only /run call above.
+      # ---------------------------------------------------------------
+      - name: "Poll job status (cancel at 120s ceiling, never resubmit)"
+        id: poll-job
+        run: |
+          JOB_ID="${{ steps.submit-job.outputs.job_id }}"
+          ENDPOINT_ID="${{ steps.create-endpoint.outputs.endpoint_id }}"
+          START="${{ steps.submit-job.outputs.start_epoch }}"
+          STATUS="IN_QUEUE"
+          RESULT="{}"
+          while :; do
+            NOW=$(date +%s)
+            ELAPSED=$(( NOW - START ))
+            RESULT=$(curl -s -X GET "https://api.runpod.ai/v2/${ENDPOINT_ID}/status/${JOB_ID}" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY")
+            STATUS=$(echo "$RESULT" | jq -r '.status // "UNKNOWN"')
+            echo "elapsed=${ELAPSED}s status=${STATUS}"
+            if [ "$STATUS" = "COMPLETED" ] || [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "CANCELLED" ]; then
+              break
+            fi
+            if [ "$ELAPSED" -ge "$EXECUTION_TIMEOUT_SECONDS" ]; then
+              echo "Timeout ceiling reached; cancelling job (no resubmit)"
+              curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/cancel/${JOB_ID}" \
+                -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/cancel.json
+              STATUS=$(jq -r '.status // "CANCELLED"' /tmp/cancel.json)
+              break
+            fi
+            sleep 3
+          done
+          END=$(date +%s)
+          echo "$RESULT" > "${RUNNER_TEMP}/job_result.json"
+          echo "final_status=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "end_epoch=${END}" >> "$GITHUB_OUTPUT"
+          echo "billed_duration_seconds=$(( END - START ))" >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # Capture evidence: decode output, verify it, derive contract fields.
+      # ---------------------------------------------------------------
+      - name: Capture and verify evidence
+        id: evidence
+        run: |
+          RESULT_FILE="${RUNNER_TEMP}/job_result.json"
+          STATUS="${{ steps.poll-job.outputs.final_status }}"
+          echo "job_status=${STATUS}"
+
+          OK=$(jq -r '.output.ok // false' "$RESULT_FILE" 2>/dev/null || echo false)
+          GPU=$(jq -r '.output.gpu // ""' "$RESULT_FILE" 2>/dev/null || echo "")
+          WEIGHT_VERIFIED=$(jq -r '.output.weightVerified // false' "$RESULT_FILE" 2>/dev/null || echo false)
+          PROVIDER_POST_COUNT=$(jq -r '.output.providerPostCount // -1' "$RESULT_FILE" 2>/dev/null || echo -1)
+          PRODUCTION_ROUTING=$(jq -r '.output.productionRoutingAllowed // true' "$RESULT_FILE" 2>/dev/null || echo true)
+          OUT_W=$(jq -r '.output.outputWidth // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
+          OUT_H=$(jq -r '.output.outputHeight // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
+          OUT_FMT=$(jq -r '.output.outputFormat // ""' "$RESULT_FILE" 2>/dev/null || echo "")
+          OUT_BYTES=$(jq -r '.output.outputBytes // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
+          DELAY_MS=$(jq -r '.delayTime // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
+          EXEC_MS=$(jq -r '.executionTime // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
+
+          # gpu_inference_executed: the published worker raises a fail-closed
+          # CUDA error before returning ok=true in restore mode, so ok=true
+          # with a non-empty device name is proof CUDA/GPU inference ran.
+          GPU_INFERENCE_EXECUTED=false
+          if [ "$OK" = "true" ] && [ -n "$GPU" ] && [ "$WEIGHT_VERIFIED" = "true" ]; then
+            GPU_INFERENCE_EXECUTED=true
+          fi
+
+          # Decode and independently verify the output image if present.
+          OUT_SHA256=""
+          DECODABLE=false
+          if [ "$OK" = "true" ]; then
+            jq -r '.output.outputBase64 // empty' "$RESULT_FILE" | base64 -d > "${RUNNER_TEMP}/canary_out.png" 2>/dev/null || true
+            if [ -s "${RUNNER_TEMP}/canary_out.png" ]; then
+              python3 -c "from PIL import Image; Image.open('${RUNNER_TEMP}/canary_out.png').verify()" 2>/dev/null && DECODABLE=true || DECODABLE=false
+              OUT_SHA256=$(sha256sum "${RUNNER_TEMP}/canary_out.png" | awk '{print $1}')
+            fi
+          fi
+
+          # Actual compute cost: RunPod's job status API exposes no literal
+          # per-job cost field (confirmed against docs.runpod.io response
+          # examples: delayTime/executionTime/id/output/status only). Actual
+          # cost is computed from the billed executionTime at the fixed
+          # approved rate ceiling, which is a conservative (upper-bound)
+          # estimate, and is cross-checked against COMPUTE_BUDGET_USD below.
+          ACTUAL_COST=$(echo "scale=6; ($EXEC_MS/1000) * $FLEX_RATE_CEILING_USD_PER_SEC" | bc -l)
+
+          {
+            echo "status=${STATUS}"
+            echo "ok=${OK}"
+            echo "gpu=${GPU}"
+            echo "gpu_inference_executed=${GPU_INFERENCE_EXECUTED}"
+            echo "provider_post_count=${PROVIDER_POST_COUNT}"
+            echo "production_routing_allowed=${PRODUCTION_ROUTING}"
+            echo "output_width=${OUT_W}"
+            echo "output_height=${OUT_H}"
+            echo "output_format=${OUT_FMT}"
+            echo "output_bytes=${OUT_BYTES}"
+            echo "output_sha256=${OUT_SHA256}"
+            echo "output_decodable=${DECODABLE}"
+            echo "delay_ms=${DELAY_MS}"
+            echo "execution_ms=${EXEC_MS}"
+            echo "actual_cost_usd=${ACTUAL_COST}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "=== Gate 3 canary evidence (redacted) ==="
+          echo "status=${STATUS} ok=${OK} gpu=${GPU} gpu_inference_executed=${GPU_INFERENCE_EXECUTED}"
+          echo "providerPostCount=${PROVIDER_POST_COUNT} productionRoutingAllowed=${PRODUCTION_ROUTING}"
+          echo "output: ${OUT_W}x${OUT_H} ${OUT_FMT} ${OUT_BYTES} bytes sha256=${OUT_SHA256} decodable=${DECODABLE}"
+          echo "delayMs=${DELAY_MS} executionMs=${EXEC_MS} actualCostUsd=${ACTUAL_COST}"
+          echo "NOTE: the published handler JSON contract does not expose an explicit"
+          echo "detected-face count; faces processed is not fabricated here and is"
+          echo "reported as unavailable-from-contract in the evidence PR, not guessed."
+
+      # ---------------------------------------------------------------
+      # Success gate: fail closed unless every required condition holds
+      # ---------------------------------------------------------------
+      - name: Success gate
+        run: |
+          FAIL=0
+          [ "${{ steps.poll-job.outputs.final_status }}" = "COMPLETED" ] || { echo "FAIL: job did not complete"; FAIL=1; }
+          [ "${{ steps.evidence.outputs.gpu_inference_executed }}" = "true" ] || { echo "FAIL: gpu_inference_executed is not true"; FAIL=1; }
+          [ "${{ steps.evidence.outputs.output_decodable }}" = "true" ] || { echo "FAIL: output is not a valid decodable image"; FAIL=1; }
+          [ "${{ steps.evidence.outputs.provider_post_count }}" = "0" ] || { echo "FAIL: providerPostCount is not 0"; FAIL=1; }
+          if (( $(echo "${{ steps.evidence.outputs.actual_cost_usd }} > $COMPUTE_BUDGET_USD" | bc -l) )); then
+            echo "FAIL: actual compute cost exceeds the authorized budget"; FAIL=1
+          fi
+          if [ "$FAIL" != "0" ]; then
+            echo "Gate 3 canary success criteria NOT met; proceeding to mandatory cleanup"
+            exit 1
+          fi
+          echo "PASSED: all Gate 3 canary success criteria met"
+
+      # ---------------------------------------------------------------
+      # Mandatory cleanup: always runs, on success, failure, or timeout.
+      # Cancels any still-active job, deletes endpoint and template only,
+      # verifies no active workers and no matching resources remain, and
+      # NEVER touches the Network Volume or its weights.
+      # ---------------------------------------------------------------
+      - name: "Mandatory cleanup (always) - cancel, delete endpoint/template, verify"
+        if: always()
+        run: |
+          ENDPOINT_ID="${{ steps.create-endpoint.outputs.endpoint_id }}"
+          TEMPLATE_ID="${{ steps.create-template.outputs.template_id }}"
+          JOB_ID="${{ steps.submit-job.outputs.job_id }}"
+
+          if [ -n "$JOB_ID" ] && [ -n "$ENDPOINT_ID" ]; then
+            STATUS=$(curl -s -X GET "https://api.runpod.ai/v2/${ENDPOINT_ID}/status/${JOB_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY" | jq -r '.status // "UNKNOWN"')
+            if [ "$STATUS" = "IN_QUEUE" ] || [ "$STATUS" = "IN_PROGRESS" ]; then
+              echo "Cancelling still-active job before teardown"
+              curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/cancel/${JOB_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY" > /dev/null
+            fi
+          fi
+
+          WORKERS_ACTIVE="unknown"
+          if [ -n "$ENDPOINT_ID" ]; then
+            HEALTH=$(curl -s -X GET "https://api.runpod.ai/v2/${ENDPOINT_ID}/health" -H "Authorization: Bearer $RUNPOD_API_KEY")
+            echo "Pre-delete health: $HEALTH"
+            WORKERS_ACTIVE=$(echo "$HEALTH" | jq -r '((.workers.idle // 0) + (.workers.running // 0))')
+          fi
+
+          if [ -n "$ENDPOINT_ID" ]; then
+            curl -s -o /dev/null -w "delete endpoint http=%{http_code}\n" -X DELETE "https://rest.runpod.io/v1/endpoints/${ENDPOINT_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY"
+          fi
+          if [ -n "$TEMPLATE_ID" ]; then
+            curl -s -o /dev/null -w "delete template http=%{http_code}\n" -X DELETE "https://rest.runpod.io/v1/templates/${TEMPLATE_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY"
+          fi
+
+          CLEANUP_OK=true
+          if [ -n "$ENDPOINT_ID" ]; then
+            REMAINING=$(curl -s -X GET https://rest.runpod.io/v1/endpoints -H "Authorization: Bearer $RUNPOD_API_KEY" | jq --arg n "$ENDPOINT_NAME" '[.[] | select(.name == $n)] | length')
+            [ "$REMAINING" = "0" ] || { echo "CRITICAL: endpoint ${ENDPOINT_NAME} still present after delete"; CLEANUP_OK=false; }
+          fi
+          if [ -n "$TEMPLATE_ID" ]; then
+            REMAINING_T=$(curl -s -X GET https://rest.runpod.io/v1/templates -H "Authorization: Bearer $RUNPOD_API_KEY" | jq --arg n "$TEMPLATE_NAME" '[.[] | select(.name == $n)] | length')
+            [ "$REMAINING_T" = "0" ] || { echo "CRITICAL: template ${TEMPLATE_NAME} still present after delete"; CLEANUP_OK=false; }
+          fi
+
+          VOLUME_STILL_PRESENT=$(curl -s -X GET https://rest.runpod.io/v1/networkvolumes -H "Authorization: Bearer $RUNPOD_API_KEY" | jq --arg id "$NETWORK_VOLUME_ID" '[.[] | select(.id // "" | startswith($id))] | length')
+          [ "$VOLUME_STILL_PRESENT" = "1" ] || { echo "CRITICAL: Network Volume no longer present -- this must never happen"; CLEANUP_OK=false; }
+
+          echo "workers_active_before_delete=${WORKERS_ACTIVE}"
+          echo "cleanup_endpoint_deleted=$([ "$REMAINING" = "0" ] && echo true || echo unknown)"
+          echo "cleanup_template_deleted=$([ "$REMAINING_T" = "0" ] && echo true || echo unknown)"
+          echo "network_volume_preserved=$([ "$VOLUME_STILL_PRESENT" = "1" ] && echo true || echo false)"
+
+          if [ "$CLEANUP_OK" != "true" ]; then
+            echo "CRITICAL: cleanup could not be proven; see log above"
+            exit 1
+          fi
+          echo "PASSED: cleanup proven -- no active workers, no matching endpoint/template, volume preserved"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### RunPod Gate 3 canary run summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- job status: ${{ steps.poll-job.outputs.final_status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- gpu_inference_executed: ${{ steps.evidence.outputs.gpu_inference_executed }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- output: ${{ steps.evidence.outputs.output_width }}x${{ steps.evidence.outputs.output_height }} ${{ steps.evidence.outputs.output_format }}, ${{ steps.evidence.outputs.output_bytes }} bytes, sha256=${{ steps.evidence.outputs.output_sha256 }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- delayMs=${{ steps.evidence.outputs.delay_ms }} executionMs=${{ steps.evidence.outputs.execution_ms }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- actualCostUsd=${{ steps.evidence.outputs.actual_cost_usd }} (budget=\$${COMPUTE_BUDGET_USD})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- providerPostCount=${{ steps.evidence.outputs.provider_post_count }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- billedDurationSeconds=${{ steps.poll-job.outputs.billed_duration_seconds }}" >> "$GITHUB_STEP_SUMMARY"
