@@ -24,8 +24,15 @@ assert(manifest.maxRetries === 0, "retries must be zero");
 assert(manifest.timeoutSeconds === 120, "timeout must be 120 seconds");
 assert(manifest.concurrency === 1, "concurrency must be one");
 assert(manifest.productionRoutingAllowed === false, "production routing must be disabled");
-assert(manifest.weightsPresent === false, "weightsPresent must remain false");
-assert(manifest.weightsVerified === false, "weightsVerified must remain false");
+assert(manifest.weightsPresent === true, "weightsPresent must be true after remote verification");
+assert(manifest.weightsVerified === true, "weightsVerified must be true after remote verification");
+const remote = (manifest.remoteWeightVerification ?? {}) as Record<string, unknown>;
+assert(String(remote.workflow) === "runpod-upload-gate3-weights.yml", "remote verification workflow mismatch");
+assert(String(remote.run) === "30690211053", "remote verification run mismatch");
+assert(Array.isArray(remote.objects) && remote.objects.length === 3, "three remote weight objects required");
+for (const object of remote.objects as Array<Record<string, unknown>>) {
+  assert(object.status === "uploaded-and-verified", "every remote weight must be uploaded and verified");
+}
 
 // Immutable image: tag AND digest both present and match
 assert(typeof manifest.immutableImageTag === "string" && String(manifest.immutableImageTag).startsWith(tagPrefix), "immutable image tag missing/wrong");

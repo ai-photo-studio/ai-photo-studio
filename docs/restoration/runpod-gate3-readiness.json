@@ -32,8 +32,21 @@
     "endpointTemplateWorkerJobExists": false,
     "computeCostUsd": 0.0
   },
-  "weightsPresent": false,
-  "weightsVerified": false,
+  "weightsPresent": true,
+  "weightsVerified": true,
+  "remoteWeightVerification": {
+    "workflow": "runpod-upload-gate3-weights.yml",
+    "run": "30690211053",
+    "verifiedAt": "2026-08-01T07:41:28Z",
+    "bucket": "d6a4504x8m",
+    "endpoint": "https://s3api-eu-ro-1.runpod.io",
+    "region": "eu-ro-1",
+    "objects": [
+      {"key": "models/GFPGANv1.4.pth", "size": 348632874, "sha256": "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad", "status": "uploaded-and-verified"},
+      {"key": "models/facexlib/detection_Resnet50_Final.pth", "size": 109497761, "sha256": "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d", "status": "uploaded-and-verified"},
+      {"key": "models/facexlib/parsing_parsenet.pth", "size": 85331193, "sha256": "3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2", "status": "uploaded-and-verified"}
+    ]
+  },
   "mountPathCompatibility": {
     "publishedHandlerCompatible": true,
     "evidence": "mount-path-audit.yml run 30659523185: original digest sha256:1a74aefec1a7f77ebdbf7fd19ba2b9a816600f1e3d43ac7ce10b3b87367a3895 was incompatible (weightPresent/auxDetectionPresent/auxParsingPresent all false when synthetic fixtures mounted at /runpod-volume; control mount directly at /models reported all true; no /runpod-volume reference in source). The correction candidate below resolves this and is now the published, compatible image.",
