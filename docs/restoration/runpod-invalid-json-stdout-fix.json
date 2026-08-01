@@ -1,0 +1,118 @@
+{
+  "objective": "Diagnose offline (no RunPod/S3 call) the 'worker produced invalid non-JSON output' failure observed live in Gate 3 canary run 30702245089, reproduce it deterministically, and prepare the smallest unpublished fix candidate.",
+  "runReconciled": "30702245089",
+  "priorEvidence": {
+    "correctedDigestUsed": "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286",
+    "workerBecameReadySeconds": 74,
+    "jobReachedInProgress": true,
+    "executionMs": 9616,
+    "errorDetail": "worker produced invalid non-JSON output",
+    "priorUnpackDefectStatus": "already fixed in this image (GFPGANer.enhance() 3-tuple unpack, confirmed ROOT_CAUSE_CONFIRMED and fixed prior to this run)"
+  },
+  "classification": "ROOT_CAUSE_CONFIRMED",
+  "stdoutProtocol": {
+    "handlerFile": "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/handler.py",
+    "protocolLine": "result = json.loads(proc.stdout)  (line 99)",
+    "protocolDescription": "handler.py requires the CLI worker subprocess's ENTIRE stdout stream to be exactly one JSON document -- not one JSON line among others, not the final JSON line, not a JSON-looking substring. Any byte written to stdout before or after the worker's own single print(json.dumps(result)) call breaks this contract and is rejected as RuntimeError('worker produced invalid non-JSON output').",
+    "workerFile": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/worker.py",
+    "workerOwnStdoutDiscipline": "worker.py's own code writes to stdout exactly once, on the success path only (print(json.dumps(result)) in main()); every error path prints to stderr. worker.py's own source is stdout-clean by construction.",
+    "verifiedSourceReferences": [
+      "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/handler.py:99 (json.loads(proc.stdout), unmodified, direct read)",
+      "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/worker.py:276 (print(json.dumps(result)), the only stdout write in worker.py's own source, direct read)",
+      "pip-downloaded gfpgan==1.3.8 (pinned, exact version) gfpgan/utils.py:87 (GFPGANer.__init__ hardcodes FaceRestoreHelper(..., model_rootpath='gfpgan/weights'), a RELATIVE literal string, verified by direct source inspection, not memory)",
+      "pip-downloaded facexlib==0.3.0 (pinned, exact version) facexlib/utils/misc.py:59-78 (load_file_from_url: when save_dir is provided it is used AS-IS, not joined with any package-relative root; cached_file = os.path.abspath(os.path.join(save_dir, filename)) resolves against the PROCESS'S CURRENT WORKING DIRECTORY; on a cache miss it print()s 'Downloading: ...' to stdout and calls download_url_to_file(), a real network download)",
+      "facexlib==0.3.0 facexlib/detection/__init__.py:18-19 and facexlib/parsing/__init__.py:18-19 (both init_detection_model and init_parsing_model call load_file_from_url(..., save_dir=model_rootpath) with the exact same relative-path-forwarding pattern)",
+      "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/worker.py:34,91-108 (FACE_WEIGHTS_DIR is an ABSOLUTE path derived from worker.py's own __file__; prepare_face_aux_symlinks() creates symlinks there -- correct for the CLI image run standalone, but not consulted by gfpgan/facexlib's relative model_rootpath lookup unless the process CWD happens to equal that same absolute directory)",
+      "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/Dockerfile:63,96 (WORKDIR ${APP_HOME}=/srv/worker, matching worker.py's own script directory when the CLI image's own ENTRYPOINT runs it standalone)",
+      "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/Dockerfile:32,42 (WORKDIR ${APP_HOME}=/srv/handler, a DIFFERENT directory, inherited as the handler process's own CWD)",
+      "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/handler.py:81-88 (subprocess.run([*WORKER, '--input-file', in_path], ..., check=False) -- no cwd= argument, so the worker subprocess inherits the handler's own /srv/handler working directory, not /srv/worker)"
+    ]
+  },
+  "confirmedRootCause": {
+    "mechanism": "handler.py's subprocess.run() call omits cwd=, so the worker.py subprocess runs with CWD=/srv/handler (the Serverless container's own WORKDIR) instead of /srv/worker (the directory worker.py's own script lives in and where its symlinks are created). gfpgan==1.3.8's GFPGANer.__init__ hardcodes a RELATIVE model_rootpath='gfpgan/weights' when constructing FaceRestoreHelper, and facexlib==0.3.0's load_file_from_url resolves that relative path against the process's actual CWD, not against worker.py's script directory. With CWD=/srv/handler, facexlib looks for the auxiliary detection/parsing weights at /srv/handler/gfpgan/weights/*, which do not exist (the real files/symlinks live at /srv/worker/gfpgan/weights/*), so for BOTH auxiliary weights it prints 'Downloading: \"<url>\" to <path>\\n\\n' to stdout and attempts a genuine, unauthorized runtime network download from GitHub. If that download succeeds (plausible; RunPod GPU workers commonly have outbound internet access, and executionMs=9616ms in the observed run is consistent with a brief network fetch before GPU work), inference completes normally and worker.py appends its own single JSON line at the end -- but the combined stdout (two 'Downloading:' print blocks followed by the JSON line) is no longer a single valid JSON document, so handler.py's json.loads(proc.stdout) raises JSONDecodeError, caught and reported as exactly 'worker produced invalid non-JSON output' with the worker's own exit code remaining EXIT_OK=0 (a legitimate success codepath masked purely by the stdout-protocol violation) -- precisely matching run 30702245089's evidence (job reached IN_PROGRESS, ran 9.6s, exit implicitly 0-class since handler.py's own exit-code check passed before the JSON-parse check failed).",
+    "reproductionMethod": "Empirical, two-stage, fully offline (no network call performed; simulated downloads only), through the real subprocess boundary, using the exact real, unmodified worker.py and handler.py candidate source plus the exact pinned facexlib==0.3.0 source (pip-downloaded, unmodified, loaded directly via importlib bypassing facexlib/__init__.py so only lightweight cv2/torch stubs were needed). Stage 1 called the REAL facexlib.utils.misc.load_file_from_url function directly with the real gfpgan==1.3.8 call signature (model_dir='facexlib/weights', save_dir='gfpgan/weights') from two different working directories, proving the CWD-relative lookup: from a mismatched CWD it produced a print() to stdout (354 bytes, containing the exact string 'Downloading: \"https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth\"') and 2 download attempts; from the matching CWD it produced 0 bytes of stdout and 0 download attempts. Stage 2 ran the REAL worker.py as an actual python3 subprocess (via a reproduction-only launcher that monkeypatches only validate_weight and cuda_info, the two functions this task's own instructions explicitly authorize mocking, plus a faithful gfpgan stub whose GFPGANer.__init__ calls the same real facexlib function and whose enhance() returns the real verified 3-tuple shape with a real Pillow-encoded PNG) with cwd=/srv/handler (buggy) and cwd=/srv/worker (fixed). The buggy run produced 813 bytes of stdout (two real 'Downloading:' blocks + the worker's own valid JSON line) that failed json.loads() as a whole; the fixed run produced exactly 459 bytes of clean, single-document JSON. The real captured buggy stdout was then fed into the REAL, unmodified handler.py's real handler() function (via mock.patch.object(H.subprocess, 'run', ...), the same technique this project's own committed test_handler.py already uses) and it returned exactly {'error': 'worker produced invalid non-JSON output', 'detail': 'worker produced invalid non-JSON output'} -- the EXACT string observed in run 30702245089. The real captured fixed stdout produced ok=true, providerPostCount=0, productionRoutingAllowed=false.",
+    "exactObservedErrorReproduced": "worker produced invalid non-JSON output",
+    "distinctFromPriorUnpackDefect": "This is a different, independent defect from the previously confirmed-and-fixed GFPGANer.enhance() 2-vs-3-value unpack bug (runs 30691401701/30692613631, EXIT_INTERNAL/exit code 1). That defect was inside worker.py's own inference call; this defect is in how the Serverless handler invokes worker.py as a subprocess (a missing cwd=), interacting with gfpgan/facexlib's own relative-path weight lookup. Both are now independently confirmed and (for this one) a fix is prepared."
+  },
+  "correctionCandidateChain": {
+    "fixScope": "handler-only",
+    "cliCandidateUnchanged": {
+      "path": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/",
+      "publishedDigest": "sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052",
+      "modified": false,
+      "note": "Not touched. The corrected, already-published CLI image is reused as-is by immutable registry digest (anonymous GHCR pull, confirmed resolvable in this task via a live manifest lookup, HTTP 200)."
+    },
+    "serverlessHandlerCandidate": {
+      "path": "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/",
+      "baseImageReference": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix@sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052",
+      "change": "exactly one added keyword argument: subprocess.run([..., cwd=WORKER_DIR), where WORKER_DIR = os.path.dirname(WORKER[1]) ('/srv/worker'), derived from the existing WORKER constant rather than duplicated as an independent literal",
+      "unrelatedFieldsUnchanged": ["input validation", "timeout", "exit-code mapping (EXIT_OK/EXIT_INPUT/EXIT_WEIGHT/EXIT_CUDA)", "JSON-parse fail-closed behavior", "_safe_error sanitization", "providerPostCount=0", "productionRoutingAllowed=false", "temp-file cleanup"],
+      "published": false,
+      "built": false,
+      "deployed": false,
+      "productionRoutingAllowed": false,
+      "gate2ReviewStatus": "a fresh, separate Gate 2 review is required before any publication",
+      "newTests": [
+        "test_subprocess_run_passes_cwd_matching_worker_dir",
+        "test_old_unfixed_contaminated_stdout_reproduces_the_real_observed_failure",
+        "test_corrected_clean_stdout_parses_deterministically",
+        "test_empty_stdout_rejected",
+        "test_multiple_json_documents_rejected",
+        "test_harmless_stderr_does_not_break_success",
+        "test_worker_dir_derived_not_hardcoded_twice",
+        "test_no_base64_or_path_logging"
+      ]
+    },
+    "volumeMappedCandidate": {
+      "path": "apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev/",
+      "baseImageReference": "gfpgan-serverless-restore-fix-cwd:local (unpublished; local build-chain reference only, matching the existing volume-mapped Dockerfile convention)",
+      "change": "none beyond what its base carries; adds only the existing, unchanged /models -> /runpod-volume/models symlink",
+      "published": false,
+      "built": false,
+      "deployed": false,
+      "productionRoutingAllowed": false,
+      "gate2ReviewStatus": "a fresh, separate Gate 2 review is required before any publication (of the full three-image chain, CLI reused + these two new layers)",
+      "testsUnchanged": true
+    }
+  },
+  "testsRun": [
+    "docs/restoration/runpod-invalid-json-stdout-fix.test.ts",
+    "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-cwd-dev/test_handler.py (34 tests, python -m unittest, real handler.py, mocks only)",
+    "docs/restoration/runpod-gate3-one-canary-security-test.mjs",
+    "docs/restoration/region.gate3.validator.mjs",
+    "docs/restoration/runpod-create-gate3-volume-security-test.mjs",
+    "docs/restoration/runpod-upload-gate3-weights-security-test.mjs",
+    "docs/restoration/runpod-volume-preflight-parser.validator.mjs",
+    "docs/restoration/publish-restore-unpack-fix-chain-security-test.mjs",
+    "docs/restoration/basicsr-master-compatibility.test.ts",
+    "docs/restoration/basicsr-v142-minimal-patch.test.ts",
+    "docs/restoration/gfpgan-aux-weight-provenance.test.ts",
+    "docs/restoration/gfpgan-offline-external-weight-evidence.test.ts",
+    "docs/restoration/gfpgan-v14-weight-provenance.test.ts",
+    "docs/restoration/runpod-approved-weight-scope.test.ts",
+    "docs/restoration/runpod-gate3-canary-image-env-evidence.test.ts",
+    "docs/restoration/runpod-gate3-canary-sanitized-error-parser.test.ts",
+    "docs/restoration/runpod-gate3-canary-template-env-payload.test.ts",
+    "docs/restoration/runpod-gate3-readiness.test.ts",
+    "docs/restoration/runpod-gpu-gate2-readiness.test.ts",
+    "docs/restoration/runpod-handler-gate2-readiness.test.ts",
+    "docs/restoration/runpod-restore-unpack-fix-candidate.test.ts",
+    "docs/restoration/runpod-restore-unpack-fix-chain-gate2-readiness.test.ts",
+    "docs/restoration/runpod-volume-handler-gate2-readiness.test.ts",
+    "apps/api worker/isolation/budget tests (test:runpod-worker, test:runpod-isolation, test:runpod-budget)",
+    "restoration replay (test:restoration:replay, replicatePostCount: 0)",
+    "apps/api typecheck",
+    "apps/api build"
+  ],
+  "gpuInferenceExecuted": false,
+  "gate3ApprovalsConsumed": ["run 30691401701", "run 30692613631", "run 30699352406", "run 30702245089"],
+  "gate2Status": "corrected chain (three original images) remains APPROVED/PUBLISHED/CONSUMED and unchanged; the two new cwd-fix candidates require a fresh, separate Gate 2 review before any publication",
+  "gate3Status": "approved=false; no current Gate 3 approval exists; this task consumed no approval and dispatched nothing",
+  "gate4Status": "prohibited",
+  "replicateStatus": "remains production; not called in this task",
+  "runpodS3CallsMade": 0,
+  "publicationOccurred": false,
+  "buildOccurred": false,
+  "deploymentOccurred": false,
+  "recordedAt": "2026-08-01"
+}
