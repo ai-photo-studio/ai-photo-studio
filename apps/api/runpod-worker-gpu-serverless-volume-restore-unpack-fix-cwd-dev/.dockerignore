@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+.gitattributes
+node_modules/
+*.pth
+*.bin
+tests/
