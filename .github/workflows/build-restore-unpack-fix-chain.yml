@@ -1,0 +1,387 @@
+name: Build Corrected Restore-Unpack-Fix Chain (CLI -> Serverless -> Volume)
+
+# Build-only, unpublished, three-image dependency chain verification for the
+# Gate 2 readiness review of the corrected GFPGANer.enhance() unpack fix
+# (confirmed root cause of Gate 3 canary runs 30691401701 and 30692613631).
+# Builds, in strict dependency order, entirely with LOCAL image references
+# (no registry pull for the corrected images, since none are published):
+#   1. corrected CLI worker      -> apps/api/runpod-worker-gpu-dev-restore-unpack-fix/
+#   2. corrected Serverless handler -> apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/  (FROM #1, local tag)
+#   3. corrected volume-mapped handler -> apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/  (FROM #2, local tag)
+# No registry login. No packages:write. push:false only, everywhere. No
+# RunPod/S3 call. No GPU inference. No image publication.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: restore-unpack-fix-chain-build
+  cancel-in-progress: false
+
+jobs:
+  build-test-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      # -----------------------------------------------------------------
+      # Stage 1: corrected CLI worker candidate
+      # -----------------------------------------------------------------
+      - name: Copy tracked BasicSR patch into CLI candidate build context
+        run: cp docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch apps/api/runpod-worker-gpu-dev-restore-unpack-fix/basicsr-v142-functional-tensor-fix.patch
+
+      - name: "Stage 1 - Build corrected CLI worker candidate (no push)"
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-dev-restore-unpack-fix
+          file: apps/api/runpod-worker-gpu-dev-restore-unpack-fix/Dockerfile
+          push: false
+          tags: gfpgan-cli-restore-fix:local
+          load: true
+
+      - name: "Stage 1 - Inspect CLI candidate metadata"
+        id: cli-meta
+        run: |
+          docker image inspect gfpgan-cli-restore-fix:local > "$RUNNER_TEMP/cli-inspect.json"
+          echo "image_id=$(jq -r '.[0].Id' "$RUNNER_TEMP/cli-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$(jq -r '.[0].Size' "$RUNNER_TEMP/cli-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/cli-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "env=$(jq -c '.[0].Config.Env' "$RUNNER_TEMP/cli-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "cmd=$(jq -c '.[0].Config.Cmd' "$RUNNER_TEMP/cli-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "entrypoint=$(jq -c '.[0].Config.Entrypoint' "$RUNNER_TEMP/cli-inspect.json")" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/cli-inspect.json" | jq '.[0] | {Id,Size,Config:{User,Env,Cmd,Entrypoint}}'
+
+      - name: "Stage 1 - Verify non-root, no bundled weight, TORCH_FORCE_WEIGHTS_ONLY_LOAD=1"
+        run: |
+          set -euo pipefail
+          user=$(docker run --rm --entrypoint whoami gfpgan-cli-restore-fix:local)
+          [ "$user" != "root" ] || { echo "ERROR: runs as root" >&2; exit 1; }
+          has=$(docker run --rm --entrypoint sh gfpgan-cli-restore-fix:local -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          [ "$has" = "absent" ] || { echo "ERROR: weight bundled" >&2; exit 1; }
+          env_has_flag=$(docker run --rm --entrypoint sh gfpgan-cli-restore-fix:local -c 'echo $TORCH_FORCE_WEIGHTS_ONLY_LOAD')
+          [ "$env_has_flag" = "1" ] || { echo "ERROR: TORCH_FORCE_WEIGHTS_ONLY_LOAD not 1" >&2; exit 1; }
+          echo "Stage 1 PASSED: non-root ($user), no bundled weight, safe-load env present"
+
+      - name: "Stage 1 - Prove exactly the one-line unpack fix, no other functional change"
+        run: |
+          set -euo pipefail
+          fixed_line=$(docker run --rm --entrypoint sh gfpgan-cli-restore-fix:local -c "grep -n 'model.enhance' /srv/worker/worker.py")
+          echo "enhance() call site: $fixed_line"
+          echo "$fixed_line" | grep -q '_, _, out = model.enhance' || { echo "ERROR: corrected unpack line not found" >&2; exit 1; }
+          if echo "$fixed_line" | grep -q '^[0-9]*:out, _ = model.enhance'; then
+            echo "ERROR: old buggy 2-value unpack still present" >&2; exit 1
+          fi
+          echo "Stage 1 PASSED: corrected 3-value unpack confirmed; old 2-value unpack absent"
+
+      - name: "Stage 1 - Contract tests: health, gpu_probe, fail-closed restore (network none)"
+        run: |
+          echo '{"mode":"health"}' | docker run --rm -i --network none gfpgan-cli-restore-fix:local --stdin
+          echo '{"mode":"gpu_probe"}' | docker run --rm -i --network none gfpgan-cli-restore-fix:local --stdin
+          mkdir -p "$RUNNER_TEMP/empty_models"
+          set +e
+          echo '{"mode":"restore","imageBase64":""}' | docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/empty_models:/models" gfpgan-cli-restore-fix:local --stdin
+          code=$?
+          set -e
+          [ "$code" -ne 0 ] || { echo "ERROR: restore succeeded without weight/CUDA" >&2; exit 1; }
+          echo "Stage 1 PASSED: fail-closed restore without weight/CUDA (exit $code)"
+
+      - name: "Stage 1 - Run full candidate test suite (mocked unpack regression, no GPU)"
+        run: |
+          docker run --rm -i --network none \
+            -v "$PWD/apps/api/runpod-worker-gpu-dev-restore-unpack-fix/test_worker.py":/srv/worker/test_worker.py:ro \
+            -w /srv/worker --entrypoint python3.10 \
+            gfpgan-cli-restore-fix:local test_worker.py
+
+      - name: "Stage 1 - SBOM and vulnerability scan"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-cli-restore-fix:local
+          format: cyclonedx
+          output: cli-sbom.json
+
+      - name: "Stage 1 - Scan for CRITICAL (must be zero)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-cli-restore-fix:local
+          format: json
+          output: cli-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 1 - Assert zero CRITICAL and CVE-2025-32434 absent"
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' cli-trivy.json >/dev/null 2>&1 \
+            || { echo "CLI CRITICAL PRESENT" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" cli-trivy.json; then echo "CLI CVE-2025-32434 PRESENT" >&2; exit 1; fi
+          echo "Stage 1: SBOM components: $(jq -r '.components | length' cli-sbom.json 2>/dev/null || echo n/a)"
+
+      # -----------------------------------------------------------------
+      # Stage 2: corrected Serverless handler candidate (FROM stage 1, local)
+      # -----------------------------------------------------------------
+      - name: "Stage 2 - Build corrected Serverless handler candidate (no push)"
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev
+          file: apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/Dockerfile
+          push: false
+          tags: gfpgan-serverless-restore-fix:local
+          load: true
+
+      - name: "Stage 2 - Inspect handler candidate metadata"
+        id: handler-meta
+        run: |
+          docker image inspect gfpgan-serverless-restore-fix:local > "$RUNNER_TEMP/handler-inspect.json"
+          echo "image_id=$(jq -r '.[0].Id' "$RUNNER_TEMP/handler-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$(jq -r '.[0].Size' "$RUNNER_TEMP/handler-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/handler-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "env=$(jq -c '.[0].Config.Env' "$RUNNER_TEMP/handler-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "cmd=$(jq -c '.[0].Config.Cmd' "$RUNNER_TEMP/handler-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "entrypoint=$(jq -c '.[0].Config.Entrypoint' "$RUNNER_TEMP/handler-inspect.json")" >> "$GITHUB_OUTPUT"
+          rootfs=$(jq -r '.[0].RootFS.Layers | length' "$RUNNER_TEMP/handler-inspect.json")
+          echo "rootfs_layers=$rootfs" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/handler-inspect.json" | jq '.[0] | {Id,Size,Config:{User,Cmd,Entrypoint}}'
+
+      - name: "Stage 2 - Verify non-root, cleared entrypoint, handler CMD, no weight"
+        run: |
+          set -euo pipefail
+          user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/handler-inspect.json")
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' "$RUNNER_TEMP/handler-inspect.json")
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' "$RUNNER_TEMP/handler-inspect.json")
+          [ "$user" != "root" ] && [ "$user" != "" ] || { echo "ERROR: not non-root" >&2; exit 1; }
+          [ "$entry" = "null" ] || [ "$entry" = "[]" ] || { echo "ERROR: entrypoint not cleared" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "ERROR: handler CMD missing" >&2; exit 1; }
+          has=$(docker run --rm --entrypoint sh gfpgan-serverless-restore-fix:local -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          [ "$has" = "absent" ] || { echo "ERROR: weight bundled" >&2; exit 1; }
+          echo "Stage 2 PASSED: user=$user entrypoint=$entry cmd=$cmd, no bundled weight"
+
+      - name: "Stage 2 - Run handler unit tests in container (network none, mocks only)"
+        run: |
+          docker run --rm -i --network none \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/test_handler.py":/srv/handler/test_handler.py:ro \
+            -w /srv/handler \
+            gfpgan-serverless-restore-fix:local \
+            python3.10 -m unittest test_handler -v 2>&1 | tail -10
+
+      - name: "Stage 2 - Handler entrypoint smoke (module import only, no RunPod connection)"
+        run: |
+          docker run --rm -i --network none -w /srv/handler gfpgan-serverless-restore-fix:local \
+            sh -c 'python3.10 -c "import handler as h; assert callable(h.handler); print(\"handler callable\")"'
+
+      - name: "Stage 2 - Successful CLI JSON passes through unchanged (timeout=120s preserved)"
+        run: |
+          docker run --rm -i --network none -w /srv/handler gfpgan-serverless-restore-fix:local \
+            python3.10 -c "import handler as h; assert h.EXECUTION_TIMEOUT_SECONDS == 120; assert h.WORKER == [\"python3.10\", \"/srv/worker/worker.py\"]; print(\"timeout+argv unchanged\")"
+
+      - name: "Stage 2 - SBOM and vulnerability scan"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-restore-fix:local
+          format: cyclonedx
+          output: handler-sbom.json
+
+      - name: "Stage 2 - Scan for CRITICAL (must be zero)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-restore-fix:local
+          format: json
+          output: handler-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 2 - Assert zero CRITICAL and CVE-2025-32434 absent"
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' handler-trivy.json >/dev/null 2>&1 \
+            || { echo "HANDLER CRITICAL PRESENT" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" handler-trivy.json; then echo "HANDLER CVE-2025-32434 PRESENT" >&2; exit 1; fi
+          echo "Stage 2: SBOM components: $(jq -r '.components | length' handler-sbom.json 2>/dev/null || echo n/a)"
+
+      # -----------------------------------------------------------------
+      # Stage 3: corrected volume-mapped candidate (FROM stage 2, local)
+      # -----------------------------------------------------------------
+      - name: "Stage 3 - Build corrected volume-mapped candidate (no push)"
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev
+          file: apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/Dockerfile
+          push: false
+          tags: gfpgan-serverless-volume-restore-fix:local
+          load: true
+
+      - name: "Stage 3 - Inspect volume candidate metadata"
+        id: volume-meta
+        run: |
+          docker image inspect gfpgan-serverless-volume-restore-fix:local > "$RUNNER_TEMP/volume-inspect.json"
+          echo "image_id=$(jq -r '.[0].Id' "$RUNNER_TEMP/volume-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$(jq -r '.[0].Size' "$RUNNER_TEMP/volume-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/volume-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "cmd=$(jq -c '.[0].Config.Cmd' "$RUNNER_TEMP/volume-inspect.json")" >> "$GITHUB_OUTPUT"
+          echo "entrypoint=$(jq -c '.[0].Config.Entrypoint' "$RUNNER_TEMP/volume-inspect.json")" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/volume-inspect.json" | jq '.[0] | {Id,Size,Config:{User,Cmd,Entrypoint}}'
+
+      - name: "Stage 3 - Verify non-root, cleared entrypoint, inherited handler CMD"
+        run: |
+          set -euo pipefail
+          user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/volume-inspect.json")
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' "$RUNNER_TEMP/volume-inspect.json")
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' "$RUNNER_TEMP/volume-inspect.json")
+          [ "$user" = "workeruser" ] || { echo "ERROR: not workeruser" >&2; exit 1; }
+          [ "$entry" = "null" ] || [ "$entry" = "[]" ] || { echo "ERROR: entrypoint not cleared" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "ERROR: handler CMD missing/changed" >&2; exit 1; }
+          echo "Stage 3 PASSED: user=$user entrypoint=$entry cmd=$cmd"
+
+      - name: "Stage 3 - Verify /models symlink contract (build-time only, root not present at runtime)"
+        run: |
+          set -euo pipefail
+          target=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix:local -c 'readlink /models')
+          [ "$target" = "/runpod-volume/models" ] || { echo "ERROR: symlink target mismatch: $target" >&2; exit 1; }
+          is_link=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix:local -c 'test -L /models && echo yes || echo no')
+          [ "$is_link" = "yes" ] || { echo "ERROR: /models is not a symlink" >&2; exit 1; }
+          runtime_user=$(docker run --rm --network none --entrypoint whoami gfpgan-serverless-volume-restore-fix:local)
+          [ "$runtime_user" = "workeruser" ] || { echo "ERROR: root leaked into runtime: $runtime_user" >&2; exit 1; }
+          echo "Stage 3 PASSED: symlink -> $target, runtime user $runtime_user"
+
+      - name: "Stage 3 - Verify no weights bundled"
+        run: |
+          set +e
+          has=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix:local -c "test -f /runpod-volume/models/GFPGANv1.4.pth 2>/dev/null && echo present || echo absent")
+          set -e
+          [ "$has" = "absent" ] || { echo "ERROR: weights present" >&2; exit 1; }
+
+      - name: "Stage 3 - Build synthetic (non-real) placeholder weight fixtures for mount tests"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/valid-volume/models/facexlib"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/GFPGANv1.4.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/detection_Resnet50_Final.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/parsing_parsenet.pth"
+
+      - name: "Stage 3 - Test A: valid mapping (three mounted dummy paths visible through /models)"
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            --entrypoint sh \
+            gfpgan-serverless-volume-restore-fix:local -c '
+              test -f /models/GFPGANv1.4.pth || { echo "main weight not visible" >&2; exit 1; }
+              test -f /models/facexlib/detection_Resnet50_Final.pth || { echo "aux detection not visible" >&2; exit 1; }
+              test -f /models/facexlib/parsing_parsenet.pth || { echo "aux parsing not visible" >&2; exit 1; }
+              echo "Test A PASSED: all three weight paths visible through /models"
+            '
+
+      - name: "Stage 3 - Test B: missing volume fails closed (EXIT_WEIGHT=4, no download)"
+        run: |
+          set -euo pipefail
+          set +e
+          out=$(docker run --rm -i --network none --entrypoint python3.10 gfpgan-serverless-volume-restore-fix:local \
+            /srv/worker/worker.py --stdin <<< '{"mode":"restore","imageBase64":"AAAA"}' 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 4 ] || { echo "EXPECTED EXIT_WEIGHT(4), GOT $rc" >&2; exit 1; }
+          echo "Test B PASSED: missing volume fails closed before model construction"
+
+      - name: "Stage 3 - Test: invalid weights (wrong size/hash) rejected before model construction"
+        run: |
+          set -euo pipefail
+          set +e
+          out=$(docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            --entrypoint python3.10 \
+            gfpgan-serverless-volume-restore-fix:local /srv/worker/worker.py --stdin <<< '{"mode":"restore","imageBase64":"AAAA"}' 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 4 ] || { echo "EXPECTED EXIT_WEIGHT(4) FOR MISMATCHED CHECKSUM, GOT $rc" >&2; exit 1; }
+          echo "$out" | grep -qi "checksum mismatch\|size mismatch" || { echo "EXPECTED SIZE/CHECKSUM MESSAGE" >&2; exit 1; }
+          echo "Test PASSED: invalid weight rejected before model construction (gpu_inference_executed=false)"
+
+      - name: "Stage 3 - Test D: health delegates through symlink, providerPostCount=0, productionRoutingAllowed=false"
+        run: |
+          set -euo pipefail
+          out=$(docker run --rm -i --network none --entrypoint python3.10 gfpgan-serverless-volume-restore-fix:local \
+            /srv/worker/worker.py --stdin <<< '{"mode":"health"}')
+          echo "$out"
+          echo "$out" | jq -e '.providerPostCount == 0 and .productionRoutingAllowed == false' >/dev/null \
+            || { echo "FAIL-CLOSED INVARIANTS MISSING" >&2; exit 1; }
+
+      - name: "Stage 3 - Symlink cannot be replaced by the runtime user"
+        run: |
+          set -euo pipefail
+          set +e
+          docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix:local -c "rm -f /models" 2>err.txt
+          rc=$?
+          set -e
+          cat err.txt
+          [ "$rc" -ne 0 ] || { echo "ERROR: workeruser was able to remove /models" >&2; exit 1; }
+          echo "Stage 3 PASSED: symlink not writable by workeruser"
+
+      - name: "Stage 3 - Run mount-contract and handler unit tests unchanged (network none)"
+        run: |
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev/test_mount_contract.py":/srv/handler/test_mount_contract.py:ro \
+            -w /srv/handler \
+            gfpgan-serverless-volume-restore-fix:local \
+            python3.10 -m unittest test_mount_contract -v 2>&1 | tail -20
+
+      - name: "Stage 3 - Prove chain does NOT inherit the old buggy CLI digest"
+        run: |
+          set -euo pipefail
+          fixed_line=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix:local -c "grep -n 'model.enhance' /srv/worker/worker.py")
+          echo "$fixed_line"
+          echo "$fixed_line" | grep -q '_, _, out = model.enhance' || { echo "ERROR: volume-mapped image does not carry the corrected worker.py" >&2; exit 1; }
+          echo "REJECTED old digest: this chain carries the corrected worker.py end to end"
+
+      - name: "Stage 3 - SBOM and vulnerability scan"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-volume-restore-fix:local
+          format: cyclonedx
+          output: volume-sbom.json
+
+      - name: "Stage 3 - Scan for CRITICAL (must be zero)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-volume-restore-fix:local
+          format: json
+          output: volume-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 3 - Assert zero CRITICAL and CVE-2025-32434 absent"
+        run: |
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' volume-trivy.json >/dev/null 2>&1 \
+            || { echo "VOLUME CRITICAL PRESENT" >&2; exit 1; }
+          if grep -q "CVE-2025-32434" volume-trivy.json; then echo "VOLUME CVE-2025-32434 PRESENT" >&2; exit 1; fi
+          echo "Stage 3: SBOM components: $(jq -r '.components | length' volume-sbom.json 2>/dev/null || echo n/a)"
+
+      - name: Chain summary
+        if: always()
+        run: |
+          echo "### Corrected restore-unpack-fix chain build summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- source_commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Stage 1 (CLI): image_id=${{ steps.cli-meta.outputs.image_id }} size=${{ steps.cli-meta.outputs.size_bytes }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Stage 2 (Serverless handler): image_id=${{ steps.handler-meta.outputs.image_id }} size=${{ steps.handler-meta.outputs.size_bytes }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Stage 3 (Volume-mapped): image_id=${{ steps.volume-meta.outputs.image_id }} size=${{ steps.volume-meta.outputs.size_bytes }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- gpu_inference_executed=false" >> "$GITHUB_STEP_SUMMARY"
+          echo "- published=false; runpod_resources_created=none; runpod_api_calls=0" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup transient files (always)
+        if: always()
+        run: |
+          rm -f apps/api/runpod-worker-gpu-dev-restore-unpack-fix/basicsr-v142-functional-tensor-fix.patch
+          rm -rf "$RUNNER_TEMP/valid-volume" "$RUNNER_TEMP/empty_models" 2>/dev/null || true
+          echo "transient files removed; no weight uploaded; no image published"
