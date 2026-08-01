@@ -19,3 +19,24 @@ GFPGANv1.4 weight provenance is established by the `gfpgan-weight-provenance.yml
 Verify and create repository-relative directories before applying patches. Never use absolute Windows paths as patch targets. When Docker is unavailable locally, direct worker tests plus the build-only manual CI workflow are required; CI may not push, deploy, contact RunPod, or access secrets.
 
 Worker CLI validation uses PowerShell-safe stdin or file input: `'{"mode":"health"}' | node worker.mjs --stdin` or `node worker.mjs --input-file "C:\path with spaces\request.json"`.
+
+## Gate 3 production-approval audit — 2026-08-02
+
+- Classification is `READY_FOR_OWNER_APPROVAL`, not approval. `approved=false` remains required until a separate explicit owner decision.
+- The current exact candidate is `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d`, parent chain `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d -> sha256:af09003de27bbdfd1c7ef5bf83139dbbb7de2cee33dd015e900dee8a2b5d87d5 -> sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052`, tag `38e313fc54d87ebfa8b8ab9be9e224ad20f2dab6`; Gate 2 is APPROVED/PUBLISHED/CONSUMED and not reusable.
+- Run `30713365669` passed all criteria with `providerPostCount=0`, `productionRoutingAllowed=false`, `$0.001378` cost against `$0.05`, and endpoint/template/active-worker counts zero. The 10GB EU-RO-1 Network Volume and exact verified weights remain preserved; no technical canary-track blocker remains.
+- Evidence-only controls: workers 1/1, GPU 1, concurrency 1, one job, zero retries, FlashBoot true, warm-up 180s, execution 120000ms, lifecycle 295s, cleanup reserve 10s, rate ceiling `$0.00016/s`, maximum estimate `$0.0472`, non-root/safe loading, externally mounted verified weights, no bundled/runtime download, fail-closed cleanup.
+- Owner approval, if later granted, would not authorize dispatch, deployment, resource creation, provider calls, weight/volume changes, routing activation, Replicate replacement, another canary, or Gate 4. Roll back/disable on digest/config/mount/weight drift, provider POST, routing not false, output/verification/startup/timeout/cost/security/cleanup/quality failure, or owner revocation.
+- Gate 4 remains prohibited; Replicate remains production; routing activation is unauthorized. Older digest, region, and pending-weight statements are append-only historical evidence; pending-weight statements are historical and superseded.
+
+## Gate 3 security-validator repair FINAL — 2026-08-02
+
+- Original exact error: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'js-yaml' imported from docs/restoration/runpod-gate3-one-canary-security-test.mjs`.
+- Root cause was dependency absence: `js-yaml` is not declared or installed. The repair changed only `docs/restoration/runpod-gate3-one-canary-security-test.mjs` and uses Node standard-library parsing for the workflow's existing YAML subset.
+- Nested mappings, sequences, and block scalars are parsed locally; every prior security assertion remains present and active. No security control was weakened, removed, bypassed, or reduced.
+- Final security validator, Gate 2/Gate 3 validators, postmortem, replay (`replicatePostCount: 0`), API typecheck/build, and diff check passed. No network or production action occurred.
+
+## Gate 3 owner decision — 2026-08-02
+
+- Owner selected `APPROVE_GATE_3` for `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d`. It makes only this candidate production-eligible under settled controls; `approved=false` remains fail-closed.
+- Do not deploy, dispatch, create resources, call providers, mutate weights/volumes, route traffic, replace Replicate, authorize another canary, or activate Gate 4 without separate explicit authorization. Gate 2 remains consumed; Gate 4 remains prohibited; Replicate remains production; routing remains unauthorized.

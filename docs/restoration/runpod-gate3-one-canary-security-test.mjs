@@ -6,11 +6,83 @@
 // or weights).
 
 import fs from "node:fs";
-import yaml from "js-yaml";
+
+// The repository intentionally does not declare js-yaml. This validator only
+// needs the workflow's small YAML subset, so parse it locally without adding a
+// dependency or weakening any security assertions below.
+const parseWorkflowYaml = (text) => {
+  const root = {};
+  const stack = [{ indent: -1, value: root }];
+  const scalar = (value) => {
+    const trimmed = value.trim();
+    if (trimmed === "") return {};
+    if (trimmed === "true") return true;
+    if (trimmed === "false") return false;
+    if (trimmed === "null") return null;
+    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed);
+    if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      return trimmed.slice(1, -1);
+    }
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        return JSON.parse(trimmed.replace(/'/g, '"'));
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  };
+
+  const lines = text.split(/\r?\n/);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const sourceLine = lines[lineIndex];
+    if (!sourceLine.trim() || sourceLine.trimStart().startsWith("#")) continue;
+    const indent = sourceLine.length - sourceLine.trimStart().length;
+    const line = sourceLine.trim();
+    const isSequence = line.startsWith("- ");
+    const content = isSequence ? line.slice(2).trim() : line;
+    if (isSequence && content === "") continue;
+    const separator = content.indexOf(":");
+    if (separator < 0) continue;
+    const key = content.slice(0, separator).trim().replace(/^['"]|['"]$/g, "");
+    const rawValue = content.slice(separator + 1).trim();
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) stack.pop();
+    const parent = stack[stack.length - 1].value;
+    if (isSequence) {
+      if (!Array.isArray(parent)) continue;
+      const item = {};
+      parent.push(item);
+      item[key] = scalar(rawValue);
+      stack.push({ indent, value: item });
+      if (rawValue === "") stack.push({ indent: indent + 1, value: item[key] });
+    } else {
+      parent[key] = scalar(rawValue);
+    if (rawValue === "|" || rawValue === ">") {
+      const blockLines = [];
+      const nextLine = lines[lineIndex + 1];
+      const blockIndent = nextLine ? nextLine.length - nextLine.trimStart().length : indent + 1;
+      while (lineIndex + 1 < lines.length) {
+        const candidate = lines[lineIndex + 1];
+        const candidateIndent = candidate.length - candidate.trimStart().length;
+        if (candidate.trim() && candidateIndent <= indent) break;
+        lineIndex += 1;
+        blockLines.push(candidate.length >= blockIndent ? candidate.slice(blockIndent) : "");
+      }
+      parent[key] = rawValue === ">" ? blockLines.join(" ").trim() : blockLines.join("\n");
+    } else if (rawValue === "") {
+      const next = lines.slice(lineIndex + 1).find((candidate) => candidate.trim() && !candidate.trimStart().startsWith("#"));
+      const nextTrimmed = next?.trimStart() || "";
+      parent[key] = nextTrimmed.startsWith("- ") ? [] : {};
+      stack.push({ indent, value: parent[key] });
+    }
+    }
+  }
+  return root;
+};
 
 const workflowPath = ".github/workflows/runpod-gate3-one-canary.yml";
 const raw = fs.readFileSync(workflowPath, "utf8");
-const workflow = yaml.load(raw);
+const workflow = parseWorkflowYaml(raw);
 
 const assert = (cond, msg) => {
   if (!cond) throw new Error(`[SECURITY] ${msg}`);
