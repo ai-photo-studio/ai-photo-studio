@@ -104,6 +104,7 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - `/models/facexlib/parsing_parsenet.pth` — size `85331193`, SHA-256 `3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2`
 - Weights enter the Network Volume externally (never bundled); checksum-verified before handler inference; no runtime download; cleanup after the canary; access restricted to the canary resources.
 - Weights are NOT uploaded in this task. The Network Volume created in run `30677597137` (EU-RO-1, 10GB, `photo-restoration-gate3-models`) is empty; weight upload requires new, separate authorization.
+- Scope/licence correction: the approved volume-mapped worker requires only the three GFPGAN/facexlib assets listed above. CodeFormer is neither loaded nor required, so its S-Lab license is irrelevant to this worker. The official GFPGAN and facexlib release pages identify the assets and state no separate asset-specific commercial-use restriction; repository licenses are Apache-2.0 and MIT respectively, and are not treated as weight redistribution grants. Local copies were downloaded from those exact official GitHub release assets and checksum-verified under `D:\models\runpod-gate3\`; they are outside Git, unbundled, and not uploaded. RunPod S3 credentials remain absent; no RunPod or S3 call occurred. Gate 3 remains blocked until separately authorized remote upload verification and separate approval; Gate 4 remains prohibited and Replicate remains production.
 
 ## Canary Fixture — RESOLVED (synthetic, verified offline)
 
