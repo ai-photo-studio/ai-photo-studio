@@ -1,6 +1,8 @@
 {
-  "approved": false,
+  "approved": true,
+  "approvalDate": "2026-08-01",
   "publicationAllowed": false,
+  "publicationConsumed": true,
   "gate3ExecutionAllowed": false,
   "productionRoutingAllowed": false,
   "recordedAt": "2026-08-01",
@@ -32,6 +34,13 @@
         "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
         "expectedDigest": "",
         "floatingTagAllowed": false
+      },
+      "publishedImage": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix",
+        "immutableTag": "31a6e19aa992f4ad2ab952312999258399aab9cf",
+        "digest": "sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052",
+        "floatingTagUsed": false,
+        "parentImageActual": "ubuntu:22.04@sha256:0d779ea97881505f5ef0039336ee85edba27519bdba968c284c86ee066a973c8"
       }
     },
     {
@@ -54,6 +63,13 @@
         "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
         "expectedDigest": "",
         "floatingTagAllowed": false
+      },
+      "publishedImage": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev",
+        "immutableTag": "31a6e19aa992f4ad2ab952312999258399aab9cf",
+        "digest": "sha256:99c2ae93688087abb2988646386aad1fd86a468304814de326a8459c280f6a4e",
+        "floatingTagUsed": false,
+        "parentImageActual": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix@sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052"
       }
     },
     {
@@ -84,6 +100,13 @@
         "immutableTag": "<full source SHA of the merge commit that publishes this candidate, not yet known>",
         "expectedDigest": "",
         "floatingTagAllowed": false
+      },
+      "publishedImage": {
+        "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev",
+        "immutableTag": "31a6e19aa992f4ad2ab952312999258399aab9cf",
+        "digest": "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286",
+        "floatingTagUsed": false,
+        "parentImageActual": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev@sha256:99c2ae93688087abb2988646386aad1fd86a468304814de326a8459c280f6a4e"
       }
     }
   ],
@@ -95,7 +118,37 @@
   "gpuInferenceExecuted": false,
   "runpodApiCalls": 0,
   "runpodResourcesCreated": "none",
-  "imagesPublished": "none",
+  "imagesPublished": "all three, consistently, in dependency order",
+  "publicationRecord": {
+    "approvalStatement": "explicit user Gate 2 publication approval, 2026-08-01, for the COMPLETE corrected three-image chain, published together, immutable full-source-SHA tags only",
+    "publicationWorkflow": ".github/workflows/publish-restore-unpack-fix-chain.yml",
+    "publicationWorkflowPr": 91,
+    "publicationWorkflowRun": "30695221556",
+    "dispatchConclusion": "success",
+    "sourceShaTag": "31a6e19aa992f4ad2ab952312999258399aab9cf",
+    "sourceShaTagIdenticalAcrossAllThree": true,
+    "noExistingTagConfirmedBeforePublication": true,
+    "publishedImages": [
+      {"role": "1-cli-worker", "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix:31a6e19aa992f4ad2ab952312999258399aab9cf", "digest": "sha256:f97245866394310c3aed065e48ebac63555e8f451480b79eebea98f437cb4052"},
+      {"role": "2-serverless-handler", "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev:31a6e19aa992f4ad2ab952312999258399aab9cf", "digest": "sha256:99c2ae93688087abb2988646386aad1fd86a468304814de326a8459c280f6a4e"},
+      {"role": "3-volume-mapped-handler", "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev:31a6e19aa992f4ad2ab952312999258399aab9cf", "digest": "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286"}
+    ],
+    "postPublicationVerification": {
+      "method": "docker pull by exact digest (fresh), then docker run --network none against each pulled image",
+      "cliRuntimeUser": "workeruser",
+      "cliHealthResponse": "ok=true, providerPostCount=0, productionRoutingAllowed=false, python=3.10.12, torch=2.6.0+cu126, safeLoad=true",
+      "serverlessHandlerImportable": true,
+      "volumeSymlinkTarget": "/runpod-volume/models",
+      "volumeHealthResponse": "ok=true, providerPostCount=0, productionRoutingAllowed=false, safeLoad=true",
+      "correctedUnpackLinePresentInPublishedVolumeImage": true,
+      "oldBuggyUnpackLineAbsentInPublishedVolumeImage": true,
+      "gpuInferenceExecuted": false,
+      "allThreePassed": true
+    },
+    "gate2Status": "APPROVED / PUBLISHED / CONSUMED for this corrected chain",
+    "oldImageChainNote": "The previously published chain (CLI digest sha256:049a304b44bec75562a74eac3f5be312feacd6133da80a0dc86d0a136a86a63a and its dependent Serverless/volume-mapped images) remains historical evidence only and must NEVER be reused or referenced as current for any future canary.",
+    "gate3Note": "Gate 3 remains approved=false. This publication does not authorize Gate 3. Any future Gate 3 approval must explicitly reference the NEW final volume-mapped handler digest sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286 -- not the digest used in the two prior failed canaries."
+  },
   "approvalPacketStatement": "All required chain images (1-cli-worker, 2-serverless-handler, 3-volume-mapped-handler) must be published consistently, each pinned by full source SHA with no floating tag. Publishing only the CLI image is insufficient and would not fix the canary, because the currently published Serverless and volume-mapped images derive from the old buggy CLI digest and would remain broken. Any source, base-digest, or dependency change to ANY of the three candidates invalidates this entire readiness record for the whole chain, not just the changed image. Publication of any or all three images requires a separate, explicit Gate 2 approval per image (or a single approval explicitly covering all three, at the approver's discretion) -- it is not implied by this build-only readiness review. Publication of the chain does NOT itself authorize Gate 3; a further separate, explicit Gate 3 approval is required afterward, and must reference the new final volume-mapped handler digest (role 3) specifically, not the digest used in the two prior failed canaries.",
   "priorGate3ApprovalsConsumed": [
     "2026-08-01 first approval (run 30691401701, and its two preceding failed dispatches)",
