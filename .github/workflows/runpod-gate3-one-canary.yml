@@ -281,6 +281,20 @@ jobs:
       - name: "Create endpoint (POST /v1/endpoints, exactly once)"
         id: create-endpoint
         run: |
+          # FlashBoot (rest.runpod.io/v1/openapi.json: EndpointCreateInput.flashboot,
+          # boolean) is requested explicitly here as defense-in-depth, even though
+          # RunPod's docs state new endpoints already have it enabled by default.
+          # Per official guidance (docs.runpod.io/serverless/endpoints/endpoint-
+          # configurations): FlashBoot "reduces cold starts by retaining worker
+          # state after spin-down, allowing faster revival than fresh boots" -- it
+          # is most effective on endpoints with consistent traffic where workers
+          # cycle between active and idle. It does NOT guarantee a fast first boot
+          # for a brand-new endpoint's very first worker, which is exactly this
+          # canary's situation. workersMin=1 (active worker) is what removes
+          # REQUEST-TIME cold starts once the worker reaches ready; the one-time
+          # initial image/model initialization before that point still occurs and
+          # is still billable, and is exactly what the bounded warm-worker step
+          # below measures and bounds.
           PAYLOAD=$(jq -n \
             --arg name "$ENDPOINT_NAME" \
             --arg templateId "${{ steps.create-template.outputs.template_id }}" \
@@ -301,7 +315,8 @@ jobs:
               "workersMax": 1,
               "idleTimeout": $idle,
               "executionTimeoutMs": $timeoutMs,
-              "scalerType": "QUEUE_DELAY"
+              "scalerType": "QUEUE_DELAY",
+              "flashboot": true
             }')
           RESPONSE=$(curl -s -X POST https://rest.runpod.io/v1/endpoints \
             -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" -d "$PAYLOAD")
@@ -311,9 +326,26 @@ jobs:
             echo "$RESPONSE" | jq 'del(.id)' 2>/dev/null || true
             exit 1
           fi
+
+          # The documented Endpoint response schema (rest.runpod.io/v1/openapi.json)
+          # has NO "flashboot" property at all -- confirmed by direct schema
+          # inspection, not memory. Its omission from the response is therefore
+          # structurally expected and must never be treated as flashboot=false.
+          # jq's "//" operator collapses both null and false to the same
+          # fallback, so an explicit "== null" check is used instead to avoid
+          # silently mapping a real "false" response into "null".
+          FLASHBOOT_CONFIRMED=$(echo "$RESPONSE" | jq -r 'if .flashboot == null then "null" else (.flashboot | tostring) end')
+          if [ "$FLASHBOOT_CONFIRMED" = "false" ]; then
+            echo "ERROR: endpoint response explicitly confirms flashboot=false despite requesting true" >&2
+            exit 1
+          fi
+          echo "flashboot_requested=true" >> "$GITHUB_OUTPUT"
+          echo "flashboot_confirmed=${FLASHBOOT_CONFIRMED}" >> "$GITHUB_OUTPUT"
           echo "endpoint_id=${ENDPOINT_ID}" >> "$GITHUB_OUTPUT"
+          echo "endpoint_created_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
           echo "lifecycle_start_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
           echo "Endpoint created (redacted): ${ENDPOINT_ID:0:6}..."
+          echo "flashbootRequested=true flashbootConfirmed=${FLASHBOOT_CONFIRMED} (null means the documented response schema omits this optional field, not that flashboot is disabled)"
           echo "gpuCount=1 concurrency/maxJobs/maxRetries are enforced by this workflow submitting exactly one job and never retrying (RunPod's Serverless REST API has no literal concurrency/maxJobs/maxRetries endpoint-creation fields; concurrency is a handler-side setting unused here since only one job is ever submitted)."
 
       # ---------------------------------------------------------------
@@ -326,12 +358,16 @@ jobs:
           ENDPOINT_ID="${{ steps.create-endpoint.outputs.endpoint_id }}"
           START="${{ steps.create-endpoint.outputs.lifecycle_start_epoch }}"
           TRANSITIONS=""
+          FIRST_INITIALIZING_EPOCH=""
+          FIRST_READY_EPOCH=""
           while :; do
             NOW=$(date +%s)
             ELAPSED=$(( NOW - START ))
             if [ "$ELAPSED" -ge "$WARMUP_TIMEOUT_SECONDS" ]; then
               echo "warmup_elapsed_seconds=${ELAPSED}" >> "$GITHUB_OUTPUT"
               echo "worker_state_transitions=${TRANSITIONS}" >> "$GITHUB_OUTPUT"
+              echo "first_initializing_timestamp=${FIRST_INITIALIZING_EPOCH:-null}" >> "$GITHUB_OUTPUT"
+              echo "first_ready_timestamp=${FIRST_READY_EPOCH:-null}" >> "$GITHUB_OUTPUT"
               echo "job_submitted=false" >> "$GITHUB_OUTPUT"
               echo "cancellation_reason=warmup_timeout_no_job" >> "$GITHUB_OUTPUT"
               echo "ERROR: worker did not become ready before warm-up timeout; submitting zero jobs"
@@ -342,12 +378,20 @@ jobs:
             INITIALIZING=$(echo "$HEALTH" | jq -r '.workers.initializing // 0')
             STATE="ready=${READY},initializing=${INITIALIZING}"
             TRANSITIONS="${TRANSITIONS}${TRANSITIONS:+;}${ELAPSED}s:${STATE}"
+            if [ -z "$FIRST_INITIALIZING_EPOCH" ] && [ "$INITIALIZING" -ge 1 ]; then
+              FIRST_INITIALIZING_EPOCH="$NOW"
+            fi
+            if [ -z "$FIRST_READY_EPOCH" ] && [ "$READY" -ge 1 ]; then
+              FIRST_READY_EPOCH="$NOW"
+            fi
             echo "warmup elapsed=${ELAPSED}s ${STATE}"
             if [ "$READY" -ge 1 ] && [ "$INITIALIZING" = "0" ]; then
               REMAINING=$(( TOTAL_LIFECYCLE_SECONDS - ELAPSED - CLEANUP_RESERVE_SECONDS ))
               if [ "$REMAINING" -lt 30 ]; then
                 echo "warmup_elapsed_seconds=${ELAPSED}" >> "$GITHUB_OUTPUT"
                 echo "worker_state_transitions=${TRANSITIONS}" >> "$GITHUB_OUTPUT"
+                echo "first_initializing_timestamp=${FIRST_INITIALIZING_EPOCH:-null}" >> "$GITHUB_OUTPUT"
+                echo "first_ready_timestamp=${FIRST_READY_EPOCH:-null}" >> "$GITHUB_OUTPUT"
                 echo "job_submitted=false" >> "$GITHUB_OUTPUT"
                 echo "cancellation_reason=insufficient_lifecycle_before_cleanup" >> "$GITHUB_OUTPUT"
                 echo "ERROR: fewer than 30 seconds remain before cleanup reserve; submitting zero jobs"
@@ -355,6 +399,8 @@ jobs:
               fi
               echo "warmup_elapsed_seconds=${ELAPSED}" >> "$GITHUB_OUTPUT"
               echo "worker_state_transitions=${TRANSITIONS}" >> "$GITHUB_OUTPUT"
+              echo "first_initializing_timestamp=${FIRST_INITIALIZING_EPOCH:-null}" >> "$GITHUB_OUTPUT"
+              echo "first_ready_timestamp=${FIRST_READY_EPOCH:-null}" >> "$GITHUB_OUTPUT"
               echo "job_submitted=false" >> "$GITHUB_OUTPUT"
               echo "cancellation_reason=" >> "$GITHUB_OUTPUT"
               echo "PASSED: warm worker ready with ${REMAINING}s available before cleanup reserve"
@@ -463,6 +509,8 @@ jobs:
             CANCELLATION_REASON="${{ steps.warm-worker.outputs.cancellation_reason }}"
             WARMUP_ELAPSED="${{ steps.warm-worker.outputs.warmup_elapsed_seconds }}"
             STATE_TRANSITIONS="${{ steps.warm-worker.outputs.worker_state_transitions }}"
+            FIRST_INITIALIZING_TS="${{ steps.warm-worker.outputs.first_initializing_timestamp }}"
+            FIRST_READY_TS="${{ steps.warm-worker.outputs.first_ready_timestamp }}"
             REASON_LABEL="${CANCELLATION_REASON:-unknown}"
             ESTIMATED_COST=$(echo "scale=6; ${WARMUP_ELAPSED:-0} * $RATE_CEILING_USD_PER_SECOND" | bc -l)
             {
@@ -488,6 +536,12 @@ jobs:
               echo "warmup_elapsed_seconds=${WARMUP_ELAPSED:-0}"
               echo "worker_state_transitions=${STATE_TRANSITIONS:-}"
               echo "cancellation_reason=${CANCELLATION_REASON:-}"
+              echo "flashboot_requested=${{ steps.create-endpoint.outputs.flashboot_requested }}"
+              echo "flashboot_confirmed=${{ steps.create-endpoint.outputs.flashboot_confirmed }}"
+              echo "endpoint_created_epoch=${{ steps.create-endpoint.outputs.endpoint_created_epoch }}"
+              echo "first_initializing_timestamp=${FIRST_INITIALIZING_TS:-null}"
+              echo "first_ready_timestamp=${FIRST_READY_TS:-null}"
+              echo "total_warmup_elapsed_seconds=${WARMUP_ELAPSED:-0}"
             } >> "$GITHUB_OUTPUT"
             {
               echo "sanitized_output<<GATE3_EOF"
@@ -579,6 +633,12 @@ jobs:
             echo "warmup_elapsed_seconds=${{ steps.warm-worker.outputs.warmup_elapsed_seconds }}"
             echo "worker_state_transitions=${{ steps.warm-worker.outputs.worker_state_transitions }}"
             echo "cancellation_reason=${{ steps.poll-job.outputs.cancellation_reason }}"
+            echo "flashboot_requested=${{ steps.create-endpoint.outputs.flashboot_requested }}"
+            echo "flashboot_confirmed=${{ steps.create-endpoint.outputs.flashboot_confirmed }}"
+            echo "endpoint_created_epoch=${{ steps.create-endpoint.outputs.endpoint_created_epoch }}"
+            echo "first_initializing_timestamp=${{ steps.warm-worker.outputs.first_initializing_timestamp }}"
+            echo "first_ready_timestamp=${{ steps.warm-worker.outputs.first_ready_timestamp }}"
+            echo "total_warmup_elapsed_seconds=${{ steps.warm-worker.outputs.warmup_elapsed_seconds }}"
           } >> "$GITHUB_OUTPUT"
           {
             echo "sanitized_output<<GATE3_EOF"
@@ -719,4 +779,7 @@ jobs:
           echo "- outputIsJson=${{ steps.evidence.outputs.output_is_json }} errorMsg=${{ steps.evidence.outputs.error_msg }} errorDetail=${{ steps.evidence.outputs.error_detail }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- warmupElapsedSeconds=${{ steps.evidence.outputs.warmup_elapsed_seconds }} cancellationReason=${{ steps.evidence.outputs.cancellation_reason }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- workerStateTransitions=${{ steps.evidence.outputs.worker_state_transitions }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- flashbootRequested=${{ steps.evidence.outputs.flashboot_requested }} flashbootConfirmed=${{ steps.evidence.outputs.flashboot_confirmed }} (null means the documented response schema omits this optional field)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- endpointCreatedEpoch=${{ steps.evidence.outputs.endpoint_created_epoch }} firstInitializingTimestamp=${{ steps.evidence.outputs.first_initializing_timestamp }} firstReadyTimestamp=${{ steps.evidence.outputs.first_ready_timestamp }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- totalWarmupElapsedSeconds=${{ steps.evidence.outputs.total_warmup_elapsed_seconds }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- workerHealthSnapshot=${{ steps.health-snapshot.outputs.health_snapshot }}" >> "$GITHUB_STEP_SUMMARY"

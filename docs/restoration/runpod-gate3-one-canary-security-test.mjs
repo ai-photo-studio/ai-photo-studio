@@ -225,6 +225,47 @@ assert(!/final_status.*==.*(COMPLETED|FAILED|CANCELLED)/.test(cleanupStep.run), 
 assert(cleanupStep.run.includes('"IN_QUEUE"') && cleanupStep.run.includes('"IN_PROGRESS"'), "cleanup must still cancel a job that is unexpectedly still active regardless of the poll loop's own outcome");
 assert(cleanupStep.run.includes("workers_active_before_delete"), "cleanup must record worker activity for all three outcome paths");
 
+// FlashBoot: explicitly requested; confirmation is read only from the
+// documented EndpointCreateInput/Endpoint schemas (rest.runpod.io/v1/
+// openapi.json), never a guessed/floating field; response omission of the
+// optional "flashboot" property must be represented as null, never coerced
+// to false, and must never by itself fail the run.
+assert(endpointCreateStep.run.includes('"flashboot": true'), "endpoint creation payload must explicitly request flashboot: true");
+assert(endpointCreateStep.run.includes('echo "flashboot_requested=true"'), "must unconditionally record flashbootRequested=true");
+assert(/if \.flashboot == null then "null" else \(\.flashboot \| tostring\) end/.test(endpointCreateStep.run), "flashboot confirmation must distinguish real null/omission from an explicit false, not use a falsy-collapsing // fallback");
+assert(endpointCreateStep.run.includes("flashboot_confirmed=${FLASHBOOT_CONFIRMED}"), "must record flashbootConfirmed exactly as read from the response (true/false/null)");
+// Fail-closed condition must trigger only on an explicit "false" string
+// (i.e. the response really did confirm flashboot is off), never on the
+// "null" string that both a missing key and a JSON null produce -- so the
+// only string literal compared inside the `if` is "false".
+assert(endpointCreateStep.run.includes('"$FLASHBOOT_CONFIRMED" = "false" ]; then'), "must fail closed only when the response explicitly confirms flashboot=false, not on omission");
+assert(!/"\$FLASHBOOT_CONFIRMED"\s*=\s*"null"/.test(endpointCreateStep.run), "must never treat the omission/null case as a failure condition");
+// No fabricated/guessed RunPod response fields for flashboot confirmation:
+// the only field ever read for this purpose is the documented `.flashboot`.
+assert(!/flashBootEnabled|flashbootStatus|flashboot_active|flashBootConfirmed/.test(source), "must not invent undocumented flashboot response field names");
+
+// FlashBoot/timestamp evidence threaded through to the always() evidence
+// step and Summary on both the job-submitted and no-job-submitted paths.
+assert((evidenceStep.run.match(/flashboot_requested=/g) || []).length >= 2, "flashboot_requested must be reported on both the job-submitted and no-job-submitted evidence paths");
+assert((evidenceStep.run.match(/flashboot_confirmed=/g) || []).length >= 2, "flashboot_confirmed must be reported on both the job-submitted and no-job-submitted evidence paths");
+assert((evidenceStep.run.match(/first_initializing_timestamp=/g) || []).length >= 2, "first_initializing_timestamp must be reported on both evidence paths");
+assert((evidenceStep.run.match(/first_ready_timestamp=/g) || []).length >= 2, "first_ready_timestamp must be reported on both evidence paths");
+assert(warmWorkerStep.run.includes("first_initializing_timestamp") && warmWorkerStep.run.includes("first_ready_timestamp"), "warm-worker step must capture first-seen initializing/ready timestamps as bounded evidence");
+const summaryStep = allSteps.find((s) => s.name === "Summary");
+assert(summaryStep !== undefined, "must have a Summary step");
+assert(summaryStep.run.includes("flashbootRequested") && summaryStep.run.includes("flashbootConfirmed"), "Summary must surface flashboot evidence");
+assert(summaryStep.run.includes("firstInitializingTimestamp") && summaryStep.run.includes("firstReadyTimestamp"), "Summary must surface first-initializing/first-ready timestamp evidence");
+
+// No new RUNPOD_INIT_TIMEOUT and no GPU/datacenter broadening introduced by
+// this change: re-verify the fixed single-element arrays and absence of any
+// init-timeout env var.
+assert(workflow.env.RUNPOD_INIT_TIMEOUT === undefined, "must not add RUNPOD_INIT_TIMEOUT");
+assert(!/RUNPOD_INIT_TIMEOUT/.test(source), "must not reference RUNPOD_INIT_TIMEOUT anywhere in the workflow");
+assert(endpointCreateStep.run.includes('"dataCenterIds": [$dc]') && endpointCreateStep.run.includes('"gpuTypeIds": [$gpu]'), "GPU/datacenter must remain single-element, unbroadened by the flashboot change");
+
+// Image digest/weights/Gate 2 untouched by this change (re-verified)
+assert(workflow.env.IMAGE_DIGEST === "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286", "image digest must remain unchanged by the flashboot alignment change");
+
 // Dispatch semantics protection is documented, not just implied
 assert(raw.includes("DISPATCH SEMANTICS"), "workflow header must document dispatch semantics protection");
 assert(raw.includes("consumes that dispatch's authorization"), "must state that any preflight/workflow defect consumes the dispatch authorization");
