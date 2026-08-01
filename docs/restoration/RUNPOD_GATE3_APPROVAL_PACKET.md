@@ -61,6 +61,17 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - **Whether an eligible datacenter exists for this account remains classified `UNPROVEN`** pending authoritative confirmation. A concise RunPod support request has been prepared (not sent) asking: (1) which datacenters currently permit Network Volume creation for this account; (2) whether Network Volumes require account-level enablement; (3) whether a compatible 16GB Serverless GPU exists in the same datacenter; (4) which API/read-only field should be used for capability discovery going forward.
 - Storage architecture fallback comparison (prepared, not implemented) is recorded in `docs/restoration/RUNPOD_NETWORK_VOLUME_ALTERNATIVES.md`. Current preference remains external Network Volume weights unless evidence proves it unavailable for this account.
 
+### Third authorized dispatch — SUCCESS, one Network Volume created (run `30677597137`); region compatibility RESOLVED
+
+- Manual RunPod console evidence (Create Network Volume UI, GPU filter "NVIDIA RTX 4000 Ada Generation", 2026-08-01) resolved the `UNPROVEN` classification above: selectable datacenters were EU-RO-1 (Low availability, Global Networking, S3), EUR-IS-1 (Low availability, S3), and US-CA-2 (N/A). **EU-RO-1** was selected. Fixed volume size 10GB, storage rate $0.07/GB/month, maximum $0.70/month.
+- The workflow was updated (PR #74, commit `2872e37`, merge `28b8e7d`) to use this fixed, console-proven configuration (`TARGET_DATACENTER_ID=EU-RO-1`, `TARGET_GPU_DISPLAY_NAME=RTX 4000 Ada`, `VOLUME_SIZE_GB=10`, `MAX_MONTHLY_STORAGE_COST_USD=0.70`), replacing the prior dynamic-discovery preflight. The preflight still re-verifies the fixed pairing against live `runpodctl gpu list` data via the documented `dataCenterAvailability` field, and stops before any mutation if live evidence contradicts the supplied console evidence.
+- Under a third, separate, explicit one-time dispatch authorization scoped to this exact configuration, the corrected workflow was dispatched exactly once (`main`, 2026-08-01T01:17:52Z, run `30677597137`). **All steps succeeded**, including "Create Network Volume (POST exactly once)" and "Post-creation verification (GET volumes)".
+- **Live re-verification result:** `Live dataCenterAvailability entries matching fixed target: 1` — `PASSED: live evidence confirms RTX 4000 Ada availability in EU-RO-1`.
+- **Volume created:** name `photo-restoration-gate3-models`, size **10 GB**, datacenter **EU-RO-1**, redacted ID `d6a4504x...`. Post-creation `GET /v1/networkvolumes` confirmed exactly 1 matching volume, size 10 GB (expected 10 GB, match), datacenter prefix `EU-R***` (expected prefix `EU-R`, match).
+- **Costs:** storage $0.70/month maximum (10GB × $0.07/GB/month), computed cost matched the cap exactly. **Compute cost: $0.00.** No endpoint, template, worker, or job was created. No weights were uploaded.
+- This third-dispatch authorization is now **consumed**; **no fourth dispatch is authorized.** Any future volume resize or deletion requires new, separate authorization.
+- `regionCompatibilityResolved` is now **`true`** in `runpod-region-evidence.json` and `runpod-gate3-readiness.json` — datacenter/GPU co-location proven via live data, and a real Network Volume now exists in that same datacenter. **This does not by itself resolve Gate 3.** Weights are not uploaded, and no separate Gate 3 approval statement has been given; Gate 3 remains BLOCKED on those two independent grounds.
+
 ## Mount-Path Compatibility — BLOCKED (published image), correction candidate available (unpublished)
 
 - Read-only, build-test-only audit (`.github/workflows/mount-path-audit.yml`, run `30659523185`, `main`) pulled the published handler image by exact digest and tested it under `--network none` with synthetic (non-real) placeholder files mounted at `/runpod-volume`, the RunPod Serverless Network Volume convention.
@@ -93,7 +104,7 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 - `/models/facexlib/detection_Resnet50_Final.pth` — size `109497761`, SHA-256 `6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d`
 - `/models/facexlib/parsing_parsenet.pth` — size `85331193`, SHA-256 `3d558d8d0e42c20224f13cf5a29c79eba2d59913419f945545d8cf7b72920de2`
 - Weights enter the Network Volume externally (never bundled); checksum-verified before handler inference; no runtime download; cleanup after the canary; access restricted to the canary resources.
-- Weights are NOT uploaded in this task.
+- Weights are NOT uploaded in this task. The Network Volume created in run `30677597137` (EU-RO-1, 10GB, `photo-restoration-gate3-models`) is empty; weight upload requires new, separate authorization.
 
 ## Canary Fixture — RESOLVED (synthetic, verified offline)
 
@@ -107,10 +118,11 @@ Readiness-only for the one-job RunPod Serverless canary using the published hand
 
 ## Current Blockers
 
-- GPU/volume region coexistence unresolved (`regionCompatibilityResolved: false`) — the account has zero Network Volumes, so no datacenter/GPU pairing can be proven. Creating a volume requires separate, non-read-only authorization.
-- Mount-path: the **currently published** handler image is proven incompatible with `/runpod-volume`. An unpublished correction candidate exists and passed build-only CI, but publishing it requires a fresh Gate 2 readiness review and explicit publication approval — neither has occurred.
-- Registry (public) and canary fixture (proven offline) are resolved.
-- After a Network Volume exists, GPU/datacenter co-location is proven, and a mount-path-compatible handler is published with fresh Gate 2 approval, Gate 3 still requires a separate, explicit written approval statement before any canary execution.
+- ~~GPU/volume region coexistence~~ **RESOLVED** (`regionCompatibilityResolved: true`) — one Network Volume (`photo-restoration-gate3-models`, 10GB, EU-RO-1) was created in run `30677597137` under explicit third-dispatch authorization; RTX 4000 Ada availability in EU-RO-1 was confirmed against live data before creation.
+- Mount-path: the **currently published** handler image is proven incompatible with `/runpod-volume`. An unpublished correction candidate exists and passed build-only CI, but publishing it requires a fresh Gate 2 readiness review and explicit publication approval — neither has occurred. **This remains a blocker.**
+- Registry (public), canary fixture (proven offline), and region compatibility are resolved.
+- Weights are not uploaded to the created volume — requires new, separate authorization.
+- Gate 3 still requires a separate, explicit written approval statement before any canary execution, independent of the above.
 
 ## Abort / Cleanup
 
