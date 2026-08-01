@@ -1,0 +1,95 @@
+{
+  "runId": "30711816812",
+  "dispatchTimestamp": "2026-08-01T18:00:00Z",
+  "workflow": ".github/workflows/runpod-gate3-one-canary.yml",
+  "headSha": "e0b9ddb519c393082b48e4048520d817e7210cf6",
+  "imageDigest": "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d",
+  "imageRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-cwd-dev",
+  "approvalConsumed": true,
+  "fourthDispatchAuthorized": false,
+  "jobEvidence": {
+    "status": "COMPLETED",
+    "ok": true,
+    "gpu": "NVIDIA RTX 4000 Ada Generation",
+    "gpuInferenceExecuted": true,
+    "providerPostCount": 0,
+    "productionRoutingAllowed": false,
+    "configuredProductionRoutingAllowed": false,
+    "delayMs": 8862,
+    "executionMs": 8332,
+    "warmupElapsedSeconds": 74,
+    "actualCostUsd": 0.001333,
+    "budgetUsd": 0.05
+  },
+  "byteEvidence": {
+    "producerOutputBytes": 1815,
+    "producerOutputFormat": "png",
+    "producerOutputWidth": 512,
+    "producerOutputHeight": 512,
+    "producerOutputSha256": "",
+    "producerOutputSha256Note": "handler/worker JSON contract does not expose an output SHA field; not fabricated",
+    "outputBase64Length": 2420,
+    "outputBase64LengthMod4": 0,
+    "decodedByteCount": 1815,
+    "decodedSha256": "b1c6843de051434a10c64d931eec36b74b9a1d357046854ee6bbde488a14c4b8",
+    "outputBytesMatch": true,
+    "producerHashMatch": false,
+    "producerHashMatchNote": "no producer hash was available to compare against (see producerOutputSha256Note)",
+    "first8DecodedBytesHex": "89504e470d0a1a0a",
+    "pngSignatureExpected": "89504e470d0a1a0a",
+    "pngSignatureMatch": true,
+    "pillowVerifyPassedOnRunner": false,
+    "byteClassification": "producer_generated_invalid_png_or_metadata_inconsistency"
+  },
+  "independentOfflineVerification": {
+    "method": "artifact downloaded via gh run download; SHA-256 confirmed byte-identical to decodedSha256 above; then parsed with a dependency-free PNG chunk walker validating every chunk CRC-32 against the PNG specification (not relying on any Pillow version's behavior)",
+    "signatureValid": true,
+    "chunksFound": ["IHDR", "IDAT", "IEND"],
+    "ihdrCrcValid": true,
+    "idatCrcValid": true,
+    "iendCrcValid": true,
+    "totalBytesConsumedByChunks": 1815,
+    "trailingUnparsedBytes": 0,
+    "wellFormedPerPngSpec": true,
+    "independentPillowReVerification": {
+      "pillowVersion": "12.2.0",
+      "environment": "local (not the GitHub Actions runner)",
+      "verifyResult": "PASS"
+    }
+  },
+  "classification": {
+    "resolvedTo": "verification_tooling_defect_missing_pillow_install",
+    "confidence": "strongly evidenced, not stderr-confirmed",
+    "reasoning": "The .github/workflows/runpod-gate3-one-canary.yml file contains zero occurrences of 'pip install' or 'Pillow'. ubuntu-latest runners do not guarantee Pillow preinstalled. The verify command's stderr was intentionally redirected to /dev/null by design, so a ModuleNotFoundError and a genuine PNG defect both silently collapse to decodable=false. Independent CRC-validated chunk parsing plus a separate Pillow 12.2.0 installation both confirm the exact downloaded bytes are a well-formed PNG, ruling out a producer/worker/handler/transport defect.",
+    "rulesOut": ["double_base64_encoding", "payload_truncation", "data_url_prefix_contamination", "url_safe_base64_alphabet", "wrong_field_extraction", "worker_generated_invalid_png"],
+    "notConfirmedBecause": "the runner's actual stderr for this specific python3 invocation was not captured (redirected to /dev/null by the existing workflow design); direct proof of ModuleNotFoundError specifically was not obtained"
+  },
+  "cleanupProof": {
+    "endpointDeleted": true,
+    "templateDeleted": true,
+    "networkVolumePreserved": true,
+    "activeWorkersRemaining": 0,
+    "criticalReported": false,
+    "cleanupLogLine": "PASSED: cleanup proven -- no active workers, no matching endpoint/template, volume preserved"
+  },
+  "artifactRetention": {
+    "artifactName": "gate3-canary-output-evidence-30711816812",
+    "artifactId": 8822130086,
+    "sizeBytes": 969,
+    "retentionDays": 1,
+    "expiresAt": "2026-08-02T18:09:30Z",
+    "filesIncluded": ["canary_out.png", "canary_output_metadata.json"],
+    "sensitiveContentIncluded": false
+  },
+  "gateStatus": {
+    "gate2": "unchanged; APPROVED/PUBLISHED/CONSUMED; not reopened; no source/base/dependency change occurred",
+    "gate3": {
+      "approved": false,
+      "sixthApprovalConsumed": true,
+      "seventhDispatchAuthorized": false
+    },
+    "gate4": "prohibited, unchanged",
+    "replicate": "production, uncalled"
+  },
+  "exactNextBlocker": "A narrow, low-risk workflow fix (explicit Pillow installation before the verify step) has not yet been authorized or made; a new, separate, explicit Gate 3 approval is required for any further canary dispatch"
+}
