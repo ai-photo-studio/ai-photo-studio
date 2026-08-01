@@ -1,14 +1,22 @@
 {
-  "regionCompatibilityResolved": false,
-  "blocker": "no existing RunPod Network Volume on the account; region co-location cannot be established regardless of datacenter or GPU choice",
-  "queryMethod": "GitHub Actions workflow_dispatch (runpod-region-readonly.yml), run 30658355014, on main after PR #63 merge",
+  "regionCompatibilityResolved": true,
+  "blocker": "",
+  "resolutionMethod": "manual RunPod console evidence (Create Network Volume UI, GPU filter 'NVIDIA RTX 4000 Ada Generation') supplied the fixed datacenter EU-RO-1; workflow run 30677597137 re-verified this against live runpodctl gpu list dataCenterAvailability data (1 matching entry) before creating the volume",
+  "volumeCreationRun": "30677597137",
+  "volumeCreationTimestamp": "2026-08-01T01:17:54Z",
+  "volumeName": "photo-restoration-gate3-models",
+  "volumeSizeGb": 10,
+  "volumeIdRedacted": "d6a4504x...",
+  "queryMethod": "GitHub Actions workflow_dispatch (runpod-create-gate3-volume.yml), run 30677597137, on main after PR #74 merge",
   "queriesPerformed": [
-    "GET https://rest.runpod.io/v1/networkvolumes",
-    "POST https://api.runpod.io/graphql (query gpuTypes; no mutation)"
+    "runpodctl gpu list --include-unavailable -o json (read-only, preflight)",
+    "GET https://rest.runpod.io/v1/networkvolumes (read-only, pre-existing-volume check)",
+    "POST https://rest.runpod.io/v1/networkvolumes (single mutation, name/size/dataCenterId only)",
+    "GET https://rest.runpod.io/v1/networkvolumes (read-only, post-creation verification)"
   ],
   "authVerified": true,
-  "networkVolumesFound": 0,
-  "dataCenterId": "",
+  "networkVolumesFound": 1,
+  "dataCenterId": "EU-RO-1",
   "gpuPoolAvailable": true,
   "gpuPoolCandidates16Gb": [
     { "id": "NVIDIA RTX A4000", "memoryInGb": 16, "stockStatus": "Low", "uninterruptablePriceUsdPerHr": 0.17 },
@@ -19,11 +27,22 @@
   "gpuPoolAlternativeUnapproved": [
     { "id": "NVIDIA A40", "memoryInGb": 48, "stockStatus": "High", "uninterruptablePriceUsdPerHr": 0.35, "note": "larger than preferred 16GB-class; not silently substituted; recorded only as an alternative" }
   ],
-  "networkVolumeSameDc": false,
+  "networkVolumeSameDc": true,
+  "selectedGpuDisplayName": "RTX 4000 Ada",
+  "selectedGpuDataCenterAvailabilityMatchCount": 1,
+  "officialServerlessFlexRateUsdPerHr": 0.58,
+  "gpuRateUsdPerSecond": 0.00016111,
   "gpuRateUsdPerSecondCheapestCandidate": 0.00004722,
   "worstCaseCostUsdCheapestCandidate": 0.00566666666,
   "budgetUsd0_05Sufficient": true,
-  "createdAnyResource": false,
+  "monthlyStorageCostUsd": 0.7,
+  "monthlyStorageCostCapUsd": 0.7,
+  "createdAnyResource": true,
+  "createdResourceType": "networkvolume",
+  "createdResourceCount": 1,
   "submittedAnyJob": false,
-  "queryTimestamp": "2026-07-31T19:14:53Z"
+  "computeCostUsd": 0.0,
+  "weightsUploaded": false,
+  "endpointTemplateWorkerJobExists": false,
+  "queryTimestamp": "2026-08-01T01:17:55Z"
 }
