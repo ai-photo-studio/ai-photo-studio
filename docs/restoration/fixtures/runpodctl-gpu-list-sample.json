@@ -29,6 +29,21 @@
     ]
   },
   {
+    "gpuId": "NVIDIA RTX 4000 Ada Generation",
+    "displayName": "RTX 4000 Ada",
+    "memoryInGb": 20,
+    "secureCloud": true,
+    "communityCloud": true,
+    "securePricePerHr": 0.20,
+    "communityPricePerHr": 0.18,
+    "stockStatus": "Low",
+    "available": true,
+    "dataCenterAvailability": [
+      { "dataCenterId": "EU-RO-1", "stockStatus": "Low" },
+      { "dataCenterId": "EUR-IS-1", "stockStatus": "Low" }
+    ]
+  },
+  {
     "gpuId": "NVIDIA A100 80GB PCIe",
     "displayName": "A100 PCIe",
     "memoryInGb": 80,

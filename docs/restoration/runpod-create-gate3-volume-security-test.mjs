@@ -80,10 +80,15 @@ assert(postCount === 1, "must have exactly one POST call (no retries)");
 assert(!putPatchDeleteFound, "must not use PUT/PATCH/DELETE");
 assert(!retryFound, "must not retry POST operations");
 
-// Test 6: Fixed volume size and name, no configuration options
+// Test 6: Fixed volume size and name, no configuration options. Size is sourced from the
+// workflow-level env VOLUME_SIZE_GB (a fixed literal, not a runtime-computed/discovered value)
+// and passed into jq via --argjson, so the create step's payload template references the env
+// var rather than embedding a literal number; the fixed value itself is asserted directly
+// against the workflow's top-level env block.
 const createStep = createJob.steps.find(s => s.name && s.name.includes("Create Network Volume"));
 assert(createStep !== undefined, "must have explicit Create Network Volume step");
-assert(createStep.run && createStep.run.includes('"size": 5'), "volume size must be fixed to 5 GB");
+assert(String(workflow.env?.VOLUME_SIZE_GB) === "10", "volume size must be fixed to 10 GB in workflow env");
+assert(createStep.run && /--argjson\s+size\s+"\$VOLUME_SIZE_GB"/.test(createStep.run), "create step must source size from the fixed VOLUME_SIZE_GB env var, not a literal or discovered value");
 assert(createStep.run && createStep.run.includes('"name": "photo-restoration-gate3-models"'), "volume name must be fixed");
 
 // Test 7: No endpoint/template/worker/job API calls
@@ -110,10 +115,9 @@ const allRunScripts = createJob.steps.map(s => s.run || "").join("\n");
 assert(!/\bdatacenters\s*\{/.test(allRunScripts), "must not query the nonexistent root 'datacenters' GraphQL field");
 assert(!/gpuTypes\s*\(\s*input:\s*\{\s*gpuCount/.test(allRunScripts), "must not pass gpuCount directly into gpuTypes(input:) — it belongs under lowestPrice(input:)");
 
-// Test 12: Datacenter/GPU discovery uses runpodctl (proven official commands), not GraphQL
-const preflightStep = createJob.steps.find(s => s.name && s.name.includes("Preflight - Query datacenters and GPU types"));
+// Test 12: GPU discovery uses runpodctl (proven official command), not GraphQL
+const preflightStep = createJob.steps.find(s => s.name && s.name.includes("Preflight") && s.name.includes("datacenter"));
 assert(preflightStep !== undefined, "must have a datacenter/GPU preflight step");
-assert(/runpodctl\s+datacenter\s+list/.test(preflightStep.run), "must use 'runpodctl datacenter list' for datacenter discovery");
 assert(/runpodctl\s+gpu\s+list\s+--include-unavailable/.test(preflightStep.run), "must use 'runpodctl gpu list --include-unavailable' for GPU discovery");
 assert(!/query.*\{\s*datacenters/s.test(preflightStep.run) && !preflightStep.run.includes("api.runpod.io/graphql"), "must not fall back to unproven GraphQL queries for discovery");
 
@@ -123,35 +127,46 @@ assert(installStep !== undefined, "must have an explicit runpodctl install step"
 assert(!/\|\s*(sudo\s+)?bash\b/.test(installStep.run), "must not pipe a remote install script into bash/sudo bash");
 assert(/releases\/download\//.test(installStep.run), "must download a specific pinned GitHub release binary");
 
-// Test 14: datacenter/GPU JSON parsing fails closed (exits 1) when compatibility cannot be
-// established. `runpodctl datacenter list` structurally never returns a storage/network-volume
-// capability field (confirmed against the runpodctl source: internal/api's DataCenter struct
-// and its GraphQL query only carry id/name/location/gpuAvailability), so the preflight must
-// NOT invent a storage-capability signal from GPU availability alone, and must not silently
-// treat an absent field as a false/negative result without saying so.
-assert(/exit 1/.test(preflightStep.run), "preflight must exit non-zero when compatibility cannot be established");
-assert(/COMPATIBLE_GPU_DCS|dataCenterAvailability|A4000|A4500/.test(preflightStep.run), "must cross-reference GPU compatibility using the documented dataCenterAvailability field");
+// Test 14: the fixed, console-proven datacenter/GPU pairing is re-verified against live
+// runpodctl evidence, and the preflight fails closed (exits 1) if live data contradicts it.
+// No storage-capability field (which runpodctl does not return, confirmed via source
+// inspection) may be referenced; only the documented dataCenterAvailability field may be used.
+assert(String(workflow.env?.TARGET_DATACENTER_ID) === "EU-RO-1", "fixed target datacenter must be EU-RO-1 (console-proven)");
+assert(String(workflow.env?.TARGET_GPU_DISPLAY_NAME).includes("RTX 4000 Ada"), "fixed target GPU must be RTX 4000 Ada (console-proven)");
+assert(/exit 1/.test(preflightStep.run), "preflight must exit non-zero when live evidence contradicts the fixed target");
+assert(/dataCenterAvailability/.test(preflightStep.run), "must cross-reference GPU compatibility using the documented dataCenterAvailability field");
 assert(!/storageSupport|supportNetworkVolume|storage_support/.test(preflightStep.run), "must not reference a storage-capability field that runpodctl does not actually return");
-assert(/cannot be verified|cannot verify|unverifiable/i.test(preflightStep.run), "must honestly state that storage capability cannot be verified, not fabricate a negative result");
+assert(/MATCH_COUNT.*=.*0|contradict/i.test(preflightStep.run), "must detect and fail closed on a contradiction between fixed evidence and live data");
 
 // Test 15: the volume creation request body matches the official NetworkVolumeCreateInput
-// schema exactly (name, size, dataCenterId) — no unsupported fields like 'tier'.
+// schema exactly (name, size, dataCenterId) — no unsupported fields like 'tier'. The
+// dataCenterId sent must be the value the preflight verified (via $TARGET_DC), not a
+// literal embedded directly in this step (which would bypass the live re-verification).
 assert(!/"tier"\s*:/.test(createStep.run), "must not send unsupported 'tier' field (not part of NetworkVolumeCreateInput)");
-assert(/dataCenterId/.test(createStep.run), "must send a dataCenterId resolved from preflight, not a hardcoded guess");
-assert(!/"dataCenterId"\s*:\s*"us-east-1"/.test(createStep.run), "must not hardcode an unverified datacenter ID literal");
+assert(/--arg\s+dc\s+"\$TARGET_DC"/.test(createStep.run), "must send the dataCenterId resolved and verified by preflight ($TARGET_DC), not a literal");
+assert(!/"dataCenterId"\s*:\s*"(us-east-1|EU-RO-1)"/.test(createStep.run), "must not hardcode a datacenter ID literal directly into the JSON payload (must flow through the verified $TARGET_DC variable)");
+assert(createStep.run.includes('$TARGET_DATACENTER_ID'), "must cross-check TARGET_DC against the fixed authorized TARGET_DATACENTER_ID before POSTing");
+
+// Test 16: cost cap matches the console-proven $0.70/month for 10GB (fixed, not discovered)
+assert(String(workflow.env?.MAX_MONTHLY_STORAGE_COST_USD) === "0.70", "monthly storage cap must be fixed to $0.70 (console-proven, 10GB @ $0.07/GB/month)");
+const costGuardStep = createJob.steps.find(s => s.name && s.name.includes("Cost guard"));
+assert(costGuardStep !== undefined, "must have a cost guard step");
+assert(/MAX_MONTHLY_STORAGE_COST_USD/.test(costGuardStep.run), "cost guard must check against the fixed MAX_MONTHLY_STORAGE_COST_USD cap");
 
 console.log("✓ Workflow security test PASSED");
 console.log("  - workflow_dispatch only, no automatic triggers");
 console.log("  - confirmation input required: CREATE_ONE_GATE3_VOLUME");
 console.log("  - RUNPOD_API_KEY from secrets only, never logged");
 console.log("  - exactly one POST (no retries), no PUT/PATCH/DELETE");
-console.log("  - fixed volume size (5 GB) and name (photo-restoration-gate3-models)");
+console.log("  - fixed volume size (10 GB) and name (photo-restoration-gate3-models)");
+console.log("  - fixed datacenter (EU-RO-1) and GPU (RTX 4000 Ada), console-proven and live-reverified");
+console.log("  - fixed monthly storage cap ($0.70)");
 console.log("  - no endpoint/template/worker/job APIs");
 console.log("  - verifies existing volume before POST");
 console.log("  - verifies volume after POST");
 console.log("  - no raw authenticated response uploaded");
 console.log("  - no unsupported/invalid GraphQL fields (datacenters root field, gpuTypes(gpuCount))");
-console.log("  - datacenter/GPU discovery uses proven runpodctl commands, not guessed GraphQL");
+console.log("  - GPU discovery uses proven runpodctl commands, not guessed GraphQL");
 console.log("  - runpodctl installed from pinned release binary, not curl|bash");
-console.log("  - preflight fails closed when no compatible datacenter/GPU pair is found");
+console.log("  - preflight fails closed if live evidence contradicts the fixed datacenter/GPU pairing");
 console.log("  - create request body matches official NetworkVolumeCreateInput schema exactly");

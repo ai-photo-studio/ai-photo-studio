@@ -13,6 +13,16 @@ permissions:
 
 env:
   RUNPODCTL_VERSION: "v2.8.0"
+  # Fixed, console-proven configuration (RunPod Create Network Volume UI, manual evidence
+  # supplied 2026-08-01): GPU filter "NVIDIA RTX 4000 Ada Generation" showed EU-RO-1 as
+  # selectable with Low availability, Global Networking, S3. Volume size and rate are the
+  # UI-displayed values for this datacenter. This is a fixed, non-discovered value -- the
+  # preflight step below re-verifies it against live runpodctl GPU/datacenter evidence and
+  # stops before any mutation if the live data contradicts it.
+  TARGET_DATACENTER_ID: "EU-RO-1"
+  TARGET_GPU_DISPLAY_NAME: "RTX 4000 Ada"
+  VOLUME_SIZE_GB: "10"
+  MAX_MONTHLY_STORAGE_COST_USD: "0.70"
 
 jobs:
   create-volume:
@@ -34,81 +44,56 @@ jobs:
           chmod +x /usr/local/bin/runpodctl
           runpodctl version
 
-      - name: Preflight - Query datacenters and GPU types (runpodctl, read-only)
+      - name: Preflight - Verify fixed datacenter against live GPU evidence (runpodctl, read-only)
         id: preflight
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
-          echo "=== Preflight: querying datacenter and GPU availability via runpodctl ==="
+          echo "=== Preflight: verifying the fixed, console-proven datacenter against live runpodctl evidence ==="
           # The API key is read directly from the environment (viper.AutomaticEnv());
           # the deprecated 'runpodctl config' subcommand is not used.
+          echo "Fixed target: datacenter=${TARGET_DATACENTER_ID} gpu=${TARGET_GPU_DISPLAY_NAME} size=${VOLUME_SIZE_GB}GB cap=\$${MAX_MONTHLY_STORAGE_COST_USD}/mo"
 
-          runpodctl datacenter list -o json > datacenters.json 2>datacenters.err || true
           runpodctl gpu list --include-unavailable -o json > gputypes.json 2>gputypes.err || true
 
-          echo "Datacenter query exit evidence (stderr, key redacted):"
-          sed 's/[A-Za-z0-9_-]\{20,\}/***REDACTED***/g' datacenters.err || true
           echo "GPU query exit evidence (stderr, key redacted):"
           sed 's/[A-Za-z0-9_-]\{20,\}/***REDACTED***/g' gputypes.err || true
 
-          if [ ! -s datacenters.json ] || ! jq -e . datacenters.json >/dev/null 2>&1; then
-            echo "ERROR: datacenter list did not return valid JSON"
-            exit 1
-          fi
           if [ ! -s gputypes.json ] || ! jq -e . gputypes.json >/dev/null 2>&1; then
             echo "ERROR: gpu list did not return valid JSON"
             exit 1
           fi
 
           echo ""
-          echo "Preflight checklist:"
-          echo "  - 16GB-class GPU availability, cross-referenced to datacenter IDs"
-          echo "  - Serverless Flex rate <= \$0.58/hr (official documented rate, not queried here)"
-          echo "  - Storage rate <= \$0.07/GB/month (5GB volume cost <= \$0.35/mo)"
-          echo ""
-          echo "NOTE: 'runpodctl datacenter list' returns only id/name/location/gpuAvailability"
-          echo "(confirmed against runpodctl source: internal/api DataCenter struct and its"
-          echo "GraphQL query). 'runpodctl gpu list' returns gpuId/displayName/memoryInGb/"
-          echo "secureCloud/communityCloud/securePricePerHr/communityPricePerHr/stockStatus/"
-          echo "available/dataCenterAvailability[dataCenterId,stockStatus]. Neither documented"
-          echo "field set exposes Network Volume / storage support per datacenter, so this"
-          echo "preflight step does not claim to verify it and does not guess a datacenter."
+          echo "NOTE: 'runpodctl gpu list' returns gpuId/displayName/memoryInGb/secureCloud/"
+          echo "communityCloud/securePricePerHr/communityPricePerHr/stockStatus/available/"
+          echo "dataCenterAvailability[dataCenterId,stockStatus] (confirmed via runpodctl v2.8.0"
+          echo "source inspection). This is the only documented field usable to prove GPU/"
+          echo "datacenter co-location; no storage-capability field exists in any runpodctl or"
+          echo "REST output, so this step does not claim to verify storage support -- it relies"
+          echo "on the manually supplied RunPod console evidence for that, and only verifies the"
+          echo "GPU side against live data before allowing any mutation."
 
-          # 16GB-class GPU candidates, cross-referenced to the datacenters that actually
-          # stock them via the documented dataCenterAvailability field (this is the field
-          # runpodctl itself populates from ListDataCenters()'s gpuAvailability data, per
-          # source inspection of cmd/gpu/list.go and internal/api/gpu.go).
-          COMPATIBLE_GPU_DCS=$(jq -r '
-            [.[] | select((.displayName // "") | test("A4000|A4500|RTX 4000 Ada|RTX 2000 Ada"; "i"))
-             | (.dataCenterAvailability // [])[] | .dataCenterId] | unique | .[]' gputypes.json 2>/dev/null || true)
-
-          COMPATIBLE_GPU_COUNT=$(jq -r '
-            [.[] | select((.displayName // "") | test("A4000|A4500|RTX 4000 Ada|RTX 2000 Ada"; "i"))] | length' gputypes.json 2>/dev/null || echo 0)
+          # Does the fixed target GPU (by display name) actually list the fixed target
+          # datacenter in its documented dataCenterAvailability? This directly re-verifies the
+          # manually supplied console evidence (EU-RO-1 / RTX 4000 Ada) against live data.
+          MATCH_COUNT=$(jq -r --arg dc "$TARGET_DATACENTER_ID" --arg gpu "$TARGET_GPU_DISPLAY_NAME" '
+            [.[] | select((.displayName // "") | test($gpu; "i"))
+             | (.dataCenterAvailability // [])[] | select(.dataCenterId == $dc)] | length' gputypes.json 2>/dev/null || echo 0)
 
           echo ""
-          echo "Compatible 16GB-class GPU types found: ${COMPATIBLE_GPU_COUNT}"
-          echo "Datacenters stocking a compatible GPU (via dataCenterAvailability): $(echo "$COMPATIBLE_GPU_DCS" | grep -c . || true)"
+          echo "Live dataCenterAvailability entries matching fixed target: ${MATCH_COUNT}"
 
-          if [ "$COMPATIBLE_GPU_COUNT" = "0" ]; then
-            echo "FAILED: No compatible 16GB-class GPU type found"
+          if [ "$MATCH_COUNT" = "0" ]; then
+            echo "FAILED: live runpodctl evidence does not confirm ${TARGET_GPU_DISPLAY_NAME} is"
+            echo "available in ${TARGET_DATACENTER_ID}. This contradicts the manually supplied"
+            echo "console evidence. Stopping before any mutation; do not proceed on stale or"
+            echo "mismatched evidence."
             exit 1
           fi
 
-          # Storage/Network-Volume support per datacenter is not exposed by any documented
-          # runpodctl or REST field available to this workflow (verified: REST openapi.json
-          # has no /datacenters or /networkvolumes/regions endpoint; runpodctl datacenter/gpu
-          # list structs carry no storage-capability field). Per fail-closed policy, this step
-          # does not invent capability from GPU availability alone and does not guess a target
-          # datacenter. It must stop here until storage capability is verified through an
-          # authoritative source (e.g. RunPod support confirmation, or a proven schema field).
-          echo ""
-          echo "FAILED: storage/Network-Volume support per datacenter cannot be verified from"
-          echo "any documented runpodctl or REST field. GPU/datacenter compatibility alone is"
-          echo "not sufficient evidence to select a target datacenter for volume creation."
-          echo "This is an honest fail-closed stop, not a claim that RunPod has no eligible"
-          echo "datacenter for this account -- that remains unproven pending authoritative"
-          echo "confirmation (see docs/restoration/RUNPOD_GATE3_APPROVAL_PACKET.md)."
-          exit 1
+          echo "PASSED: live evidence confirms ${TARGET_GPU_DISPLAY_NAME} availability in ${TARGET_DATACENTER_ID}"
+          echo "datacenter_id=${TARGET_DATACENTER_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Preflight - Verify existing volumes
         env:
@@ -129,29 +114,29 @@ jobs:
 
       - name: Cost guard
         run: |
-          echo "=== Cost Guard: Verifying size and storage rate ==="
-          VOLUME_SIZE_GB=5
+          echo "=== Cost Guard: Verifying fixed size and console-displayed storage rate ==="
           STANDARD_RATE_PER_GB_MONTH=0.07
-          MAX_STORAGE_COST=$(echo "$VOLUME_SIZE_GB * $STANDARD_RATE_PER_GB_MONTH" | bc)
+          COMPUTED_COST=$(echo "$VOLUME_SIZE_GB * $STANDARD_RATE_PER_GB_MONTH" | bc)
 
-          echo "Volume configuration:"
-          echo "  Size: $VOLUME_SIZE_GB GB"
-          echo "  Storage rate: $STANDARD_RATE_PER_GB_MONTH /GB/month (Standard tier)"
-          echo "  Maximum monthly cost: $MAX_STORAGE_COST"
+          echo "Volume configuration (fixed, console-proven):"
+          echo "  Size: ${VOLUME_SIZE_GB} GB"
+          echo "  Storage rate: $STANDARD_RATE_PER_GB_MONTH /GB/month (console-displayed rate, EU-RO-1)"
+          echo "  Computed monthly cost: $COMPUTED_COST"
+          echo "  Authorized monthly cap: \$${MAX_MONTHLY_STORAGE_COST_USD}"
           echo ""
 
-          if (( $(echo "$MAX_STORAGE_COST > 0.35" | bc -l) )); then
-            echo "ERROR: Monthly storage cost $MAX_STORAGE_COST exceeds limit of 0.35"
+          if (( $(echo "$COMPUTED_COST > $MAX_MONTHLY_STORAGE_COST_USD" | bc -l) )); then
+            echo "ERROR: Computed monthly storage cost $COMPUTED_COST exceeds authorized cap of \$${MAX_MONTHLY_STORAGE_COST_USD}"
             exit 1
           fi
 
-          if (( $(echo "$STANDARD_RATE_PER_GB_MONTH > 0.07" | bc -l) )); then
-            echo "ERROR: Storage rate per GB/month exceeds limit of 0.07"
+          if [ "$VOLUME_SIZE_GB" != "10" ]; then
+            echo "ERROR: Volume size must be exactly 10 GB (fixed, console-proven)"
             exit 1
           fi
 
           echo "Cost guard verification PASSED"
-          echo "Authorized spending: exactly $MAX_STORAGE_COST for storage only"
+          echo "Authorized spending: exactly $COMPUTED_COST for storage only"
 
       - name: Create Network Volume (POST exactly once)
         id: create-volume
@@ -161,14 +146,14 @@ jobs:
         run: |
           echo "=== Creating Network Volume (single POST, no retry) ==="
 
-          if [ -z "$TARGET_DC" ]; then
-            echo "ERROR: no target datacenter resolved from preflight"
+          if [ -z "$TARGET_DC" ] || [ "$TARGET_DC" != "$TARGET_DATACENTER_ID" ]; then
+            echo "ERROR: no target datacenter resolved from preflight, or it does not match the fixed authorized datacenter"
             exit 1
           fi
 
-          PAYLOAD=$(jq -n --arg dc "$TARGET_DC" '{
+          PAYLOAD=$(jq -n --arg dc "$TARGET_DC" --argjson size "$VOLUME_SIZE_GB" '{
             "name": "photo-restoration-gate3-models",
-            "size": 5,
+            "size": $size,
             "dataCenterId": $dc
           }')
 
@@ -218,11 +203,16 @@ jobs:
           echo ""
           echo "Verification passed:"
           echo "  - Volume count: 1 (photo-restoration-gate3-models)"
-          echo "  - Size: $SIZE GB (expected: 5 GB)"
-          echo "  - Datacenter (redacted): ${DATACENTER:0:4}***"
+          echo "  - Size: $SIZE GB (expected: ${VOLUME_SIZE_GB} GB)"
+          echo "  - Datacenter (redacted): ${DATACENTER:0:4}*** (expected prefix matches ${TARGET_DATACENTER_ID:0:4})"
 
-          if [ "$SIZE" != "5" ]; then
-            echo "ERROR: Size mismatch: expected 5 GB, got $SIZE GB"
+          if [ "$SIZE" != "$VOLUME_SIZE_GB" ]; then
+            echo "ERROR: Size mismatch: expected ${VOLUME_SIZE_GB} GB, got $SIZE GB"
+            exit 1
+          fi
+
+          if [ "$DATACENTER" != "$TARGET_DATACENTER_ID" ]; then
+            echo "ERROR: Datacenter mismatch: expected ${TARGET_DATACENTER_ID}, got a different value"
             exit 1
           fi
 
