@@ -45,8 +45,8 @@ concurrency:
 
 env:
   RUNPODCTL_VERSION: "v2.8.0"
-  IMAGE_DIGEST: "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b"
-  IMAGE_REPOSITORY: "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-dev"
+  IMAGE_DIGEST: "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286"
+  IMAGE_REPOSITORY: "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev"
   TARGET_DATACENTER_ID: "EU-RO-1"
   TARGET_GPU_TYPE_ID: "NVIDIA RTX 4000 Ada Generation"
   NETWORK_VOLUME_ID: "d6a4504x8m"

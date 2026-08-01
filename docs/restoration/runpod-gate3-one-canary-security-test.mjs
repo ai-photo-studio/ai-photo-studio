@@ -38,7 +38,8 @@ assert(Object.keys(workflow.permissions).length === 1, "no extra permissions all
 assert(job.if === "github.ref == 'refs/heads/main'", "must only run from the default branch");
 
 // Fixed configuration, no guessing
-assert(workflow.env.IMAGE_DIGEST === "sha256:29ca5aa0aae46ab03719c52ae25fa98a61830adbbc8b317bd244ffb7ff837d9b", "image digest must be fixed to the approved digest");
+assert(workflow.env.IMAGE_DIGEST === "sha256:cd57e507aad2e2230b10784f13a51cb1fd860720037a3c280a5ff7ebfe6db286", "image digest must be fixed to the corrected, approved digest");
+assert(workflow.env.IMAGE_REPOSITORY === "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev", "image repository must be fixed to the corrected chain's repository");
 assert(workflow.env.NETWORK_VOLUME_ID === "d6a4504x8m", "network volume id must be fixed");
 assert(workflow.env.TARGET_DATACENTER_ID === "EU-RO-1", "datacenter must be fixed");
 assert(workflow.env.TARGET_GPU_TYPE_ID === "NVIDIA RTX 4000 Ada Generation", "GPU type must be fixed");
