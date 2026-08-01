@@ -107,6 +107,41 @@
       "dispatchSemanticsProtection": "the workflow now documents explicitly that any preflight/workflow defect consumes a dispatch's authorization and that a new, separate, explicit Gate 3 approval is required before any further dispatch -- the 2026-08-01 three-dispatch record is documented as historical, not as precedent for multiple dispatches under one approval"
     }
   },
+  "gate3CanaryAttempt2": {
+    "approvalStatement": "second, separate, explicit user Gate 3 approval, 2026-08-01, for exactly one new non-production RunPod Serverless canary dispatch of the corrected workflow (PR #85, merge 8c4db06)",
+    "executionWorkflow": ".github/workflows/runpod-gate3-one-canary.yml",
+    "correctionPr": 85,
+    "dispatch": {
+      "run": "30692613631",
+      "outcome": "all preflights passed including the new pre-submit env assertion; template, endpoint, and job created; job executed on a real Flex GPU worker and reported status FAILED with no decodable output; cleanup verified",
+      "runpodResourcesCreated": true,
+      "jobSubmitted": true,
+      "jobIdRedacted": "54c63b38...",
+      "endpointIdRedacted": "8d8bai...",
+      "templateIdRedacted": "ut67kt...",
+      "templateEnvConfirmed": {"TORCH_FORCE_WEIGHTS_ONLY_LOAD": "1"},
+      "status": "FAILED",
+      "delayMs": 51978,
+      "executionMs": 9911,
+      "billedDurationSeconds": 62,
+      "gpuInferenceExecuted": false,
+      "outputIsJson": true,
+      "errorMsg": "",
+      "errorDetail": "worker exited with unexpected code 1",
+      "sanitizedOutput": "{\"detail\":\"worker exited with unexpected code 1\"}",
+      "outputDecodable": false,
+      "providerPostCount": null,
+      "actualCostUsd": 0.001585,
+      "cleanupVerified": true,
+      "workersActiveBeforeDelete": 1,
+      "networkVolumePreserved": true
+    },
+    "consumed": true,
+    "consumedNote": "Run 30692613631 submitted and executed exactly one real restore job on a live Flex GPU worker with the corrected template env confirmed present via the pre-submit assertion. This consumes the second Gate 3 approval regardless of outcome. No further canary may be dispatched without a new, separate, explicit Gate 3 approval statement.",
+    "successCriteriaMet": false,
+    "diagnosticFinding": "The improved sanitized diagnostics (added in PR #85) captured errorDetail='worker exited with unexpected code 1' for the first time -- this is handler.py's generic RuntimeError message for a CLI worker subprocess exit code outside (EXIT_OK=0, EXIT_INPUT=2, EXIT_WEIGHT=4, EXIT_CUDA=5). Exit code 1 is worker.py's EXIT_INTERNAL, its catch-all for an unclassified/uncaught exception in main(). This positively rules out the EXIT_WEIGHT (missing/invalid weight) and EXIT_CUDA (no CUDA available) failure paths specifically -- if either had occurred, the exit code would have been 4 or 5, not 1 -- which is further confirmation that the env-var hypothesis from run 30691401701 was correctly classified CONTRADICTED. The exact Python exception/traceback remains unavailable: worker.py prints 'internal error: {e}' to its own stderr, which handler.py's subprocess.run() call does capture (stderr=subprocess.PIPE) but does not include in the RuntimeError message or the JSON response returned to the RunPod job API -- so this specific stderr text was never retrievable from the job status response, and mandatory cleanup deleted the worker before any other retrieval path existed.",
+    "recordedAt": "2026-08-01"
+  },
   "proposed": {
     "gpuType": "A4000-class (16GB), e.g. A4000/A4500/RTX 4000",
     "rateUsdPerSecond": 0.000161111,
