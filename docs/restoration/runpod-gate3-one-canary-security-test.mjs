@@ -45,10 +45,24 @@ assert(workflow.env.TARGET_DATACENTER_ID === "EU-RO-1", "datacenter must be fixe
 assert(workflow.env.TARGET_GPU_TYPE_ID === "NVIDIA RTX 4000 Ada Generation", "GPU type must be fixed");
 assert(workflow.env.TEMPLATE_NAME === "photo-restoration-gate3-canary-template", "template name must be fixed");
 assert(workflow.env.ENDPOINT_NAME === "photo-restoration-gate3-canary", "endpoint name must be fixed");
-assert(workflow.env.EXECUTION_TIMEOUT_SECONDS === "120", "execution timeout must be fixed to 120 seconds");
+assert(workflow.env.EXECUTION_TIMEOUT_MS === "120000", "execution timeout must be fixed to 120000ms");
 assert(workflow.env.IDLE_TIMEOUT_SECONDS === "5", "idle timeout must be fixed to 5 seconds");
-assert(workflow.env.COMPUTE_BUDGET_USD === "0.05", "compute budget must be fixed to $0.05");
+assert(workflow.env.BUDGET_USD === "0.05", "compute budget must be fixed to $0.05");
+assert(workflow.env.RATE_CEILING_USD_PER_SECOND === "0.00016", "rate ceiling must be fixed to $0.00016/second");
+assert(workflow.env.WARMUP_TIMEOUT_SECONDS === "180", "warm-up timeout must be fixed to 180 seconds");
+assert(workflow.env.TOTAL_LIFECYCLE_SECONDS === "295", "total lifecycle ceiling must be fixed to 295 seconds");
+assert(workflow.env.CLEANUP_RESERVE_SECONDS === "10", "cleanup reserve must be fixed to 10 seconds");
 assert(workflow.env.FIXTURE_EXPECTED_SHA256 === "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f", "fixture sha256 must be fixed to the canonical value");
+
+// Lifecycle/budget arithmetic: 295 x 0.00016 = 0.0472 <= 0.05
+const lifecycleSeconds = Number(workflow.env.TOTAL_LIFECYCLE_SECONDS);
+const rateCeiling = Number(workflow.env.RATE_CEILING_USD_PER_SECOND);
+const budget = Number(workflow.env.BUDGET_USD);
+const worstCase = Math.round(lifecycleSeconds * rateCeiling * 1e6) / 1e6;
+assert(worstCase === 0.0472, `worst-case lifecycle cost must be exactly 0.0472, got ${worstCase}`);
+assert(worstCase <= budget, "worst-case lifecycle cost must not exceed the authorized budget");
+const oldExecutionTimeoutSeconds = 120;
+assert(Number(workflow.env.EXECUTION_TIMEOUT_MS) === oldExecutionTimeoutSeconds * 1000, "execution timeout in ms must still correspond to 120 seconds");
 
 // Exactly one template POST, one endpoint POST, one job submission
 const templatePosts = (source.match(/-X POST https:\/\/rest\.runpod\.io\/v1\/templates(?!\/)/g) || []).length;
@@ -78,11 +92,29 @@ assert(!/dockerEntrypoint|dockerStartCmd/.test(templateCreateStep.run), "templat
 const endpointCreateStep = allSteps.find((s) => s.name && s.name.includes("Create endpoint"));
 assert(endpointCreateStep.run.includes("$NETWORK_VOLUME_ID"), "endpoint must attach the fixed network volume");
 assert(endpointCreateStep.run.includes('"gpuCount": 1'), "endpoint must request exactly one GPU");
-assert(endpointCreateStep.run.includes('"workersMin": 0'), "endpoint workersMin must be 0");
-assert(endpointCreateStep.run.includes('"workersMax": 1'), "endpoint workersMax must be 1");
+assert(endpointCreateStep.run.includes('"workersMin": 1'), "endpoint workersMin must be exactly 1 (warm worker)");
+assert(endpointCreateStep.run.includes('"workersMax": 1'), "endpoint workersMax must be exactly 1 -- active worker count cannot broaden");
 assert(endpointCreateStep.run.includes("$IDLE_TIMEOUT_SECONDS") || endpointCreateStep.run.includes("idle"), "endpoint must set the fixed idle timeout");
-assert(endpointCreateStep.run.includes("EXECUTION_TIMEOUT_SECONDS"), "endpoint executionTimeoutMs must derive from the fixed timeout");
-assert(endpointCreateStep.run.includes('"dataCenterIds": [$dc]'), "endpoint must target exactly one fixed datacenter (single-element array), no fallback list");
+assert(endpointCreateStep.run.includes("EXECUTION_TIMEOUT_MS"), "endpoint executionTimeoutMs must derive from the fixed timeout constant");
+assert(endpointCreateStep.run.includes('"dataCenterIds": [$dc]'), "endpoint must target exactly one fixed datacenter (single-element array), no fallback list -- GPU/datacenter cannot broaden");
+assert(endpointCreateStep.run.includes('"gpuTypeIds": [$gpu]'), "endpoint must target exactly one fixed GPU type (single-element array), no fallback list -- GPU/datacenter cannot broaden");
+assert(endpointCreateStep.run.includes("lifecycle_start_epoch"), "endpoint creation must start the lifecycle timer immediately");
+
+// Warm-up: no job submission before ready state; zero jobs on warm-up timeout
+const warmWorkerStep = allSteps.find((s) => s.name && s.name.includes("Warm worker before job submission"));
+assert(warmWorkerStep !== undefined, "must have an explicit warm-worker step");
+assert(warmWorkerStep.id === "warm-worker", "warm-worker step must have a stable id");
+assert(warmWorkerStep.run.includes("WARMUP_TIMEOUT_SECONDS"), "warm-worker step must bound its wait to the fixed warm-up timeout");
+assert(warmWorkerStep.run.includes('"job_submitted=false"'), "warm-worker step must never itself mark a job as submitted");
+assert(/READY.*-ge 1.*&&.*INITIALIZING.*=.*"0"/.test(warmWorkerStep.run.replace(/\s+/g, " ")), "warm-worker must require workers.ready>=1 AND workers.initializing==0 before proceeding");
+assert(warmWorkerStep.run.includes("cancellation_reason=warmup_timeout_no_job"), "warm-worker must record a distinct cancellation reason on warm-up timeout");
+assert(warmWorkerStep.run.includes("CLEANUP_RESERVE_SECONDS") && warmWorkerStep.run.includes("insufficient_lifecycle_before_cleanup"), "warm-worker must refuse to submit a job when insufficient lifecycle remains before the cleanup reserve");
+assert(!/for\s+.*curl.*\/run\b/.test(warmWorkerStep.run), "warm-worker step must never itself call /run");
+
+const warmWorkerIndex = allSteps.indexOf(warmWorkerStep);
+const submitIndex = allSteps.indexOf(submitStep);
+assert(warmWorkerIndex < submitIndex, "warm-worker step must run before job submission");
+assert(submitStep.if === "success()", "job submission must be gated on all prior steps (including warm-worker) succeeding -- no job before ready state, zero jobs on warm-up timeout");
 
 assert(submitStep.run.includes('"mode": "restore"'), "job must use restore mode");
 assert(submitStep.run.includes("imageBase64"), "job must send inline base64 image");
@@ -120,7 +152,7 @@ const successGateStep = allSteps.find((s) => s.name === "Success gate");
 assert(successGateStep !== undefined, "must have an explicit success gate step");
 assert(successGateStep.run.includes("gpu_inference_executed"), "success gate must require gpu_inference_executed=true");
 assert(successGateStep.run.includes("provider_post_count"), "success gate must require providerPostCount=0");
-assert(successGateStep.run.includes("COMPUTE_BUDGET_USD"), "success gate must enforce the compute budget");
+assert(successGateStep.run.includes("BUDGET_USD"), "success gate must enforce the compute budget");
 const successGateIndex = allSteps.indexOf(successGateStep);
 const cleanupIndex = allSteps.indexOf(cleanupStep);
 assert(successGateIndex < cleanupIndex, "success gate must run before cleanup so cleanup can react to failures");
@@ -146,12 +178,36 @@ assert(preSubmitIndex < endpointCreateIndex, "pre-submit assertion must run befo
 // Improved sanitized diagnostics, bounded and secret-free
 const evidenceStep = allSteps.find((s) => s.name === "Capture and verify evidence");
 assert(evidenceStep !== undefined, "must have an explicit evidence-capture step");
+assert(evidenceStep.if === "always()", "evidence-capture must run with if: always() so it also reports the no-job-submitted (warm-up timeout) path");
 assert(evidenceStep.run.includes("cut -c1-200"), "error message/detail must be truncated to a small fixed limit");
 assert(evidenceStep.run.includes("cut -c1-500"), "sanitized output object must be truncated to a small fixed limit");
 assert(evidenceStep.run.includes("del(.outputBase64)"), "sanitized output must strip outputBase64 before logging");
 assert(evidenceStep.run.includes("output_is_json"), "must record whether the job output was valid JSON");
 assert(!/outputBase64.*GITHUB_OUTPUT|GITHUB_OUTPUT.*outputBase64/.test(evidenceStep.run), "must never write raw outputBase64 to GITHUB_OUTPUT");
 assert(!/stdout|stderr/.test(evidenceStep.run) || /no stdout\/stderr endpoint/.test(evidenceStep.run), "if stdout/stderr is mentioned it must be documenting the API limitation, not inventing a log endpoint");
+
+// Absent output must never silently become productionRoutingAllowed=true
+assert(!/productionRoutingAllowed\s*\/\/\s*true/.test(evidenceStep.run), "must never default productionRoutingAllowed to true when output is absent");
+assert(evidenceStep.run.includes('if .output == null then "null"'), "must explicitly report null/unavailable when no output exists, not a fabricated default");
+assert(evidenceStep.run.includes('echo "production_routing_allowed=null"'), "the no-job-submitted path must report production_routing_allowed as null, never true");
+assert(evidenceStep.run.includes('echo "configured_production_routing_allowed=false"'), "must separately report the fixed, governance-level configuredProductionRoutingAllowed=false");
+assert((evidenceStep.run.match(/configured_production_routing_allowed=false/g) || []).length >= 2, "configuredProductionRoutingAllowed=false must be reported in both the job-submitted and no-job-submitted paths");
+
+// No job was submitted before ready state: the evidence step must derive
+// its job-submitted branch strictly from steps.submit-job's own output,
+// never assume a job ran.
+assert(evidenceStep.run.includes("JOB_SUBMITTED"), "evidence step must explicitly branch on whether a job was actually submitted");
+assert(evidenceStep.run.includes('steps.submit-job.outputs.job_submitted'), "evidence step must read job_submitted strictly from the submit-job step's own output");
+
+// Job/queue poll step: cancels at the earlier of execution limit or lifecycle
+// deadline minus cleanup reserve; still exactly one job, still no resubmit.
+assert(pollStep.run.includes("EXECUTION_LIMIT_SECONDS") && pollStep.run.includes("DEADLINE_LIMIT"), "poll step must enforce both the execution limit and the lifecycle-deadline-minus-reserve limit");
+assert(pollStep.run.includes("CLEANUP_RESERVE_SECONDS"), "poll step's deadline must account for the cleanup reserve");
+assert(!/for\s+.*-X POST.*\/run\b|while\s+.*-X POST.*\/run\b/.test(pollStep.run), "poll step must never loop-resubmit a job");
+
+// This is a static file/YAML/regex test only: it reads the workflow file
+// from local disk (fs.readFileSync above) and makes no network or RunPod
+// API call of any kind.
 
 // Pre-cleanup worker/queue health snapshot, bounded (single call, always())
 const healthSnapshotStep = allSteps.find((s) => s.name && s.name.includes("Capture worker/queue health snapshot"));

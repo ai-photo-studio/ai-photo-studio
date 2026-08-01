@@ -54,9 +54,12 @@ env:
   AWS_DEFAULT_REGION: "eu-ro-1"
   TEMPLATE_NAME: "photo-restoration-gate3-canary-template"
   ENDPOINT_NAME: "photo-restoration-gate3-canary"
-  FLEX_RATE_CEILING_USD_PER_SEC: "0.00016"
-  COMPUTE_BUDGET_USD: "0.05"
-  EXECUTION_TIMEOUT_SECONDS: "120"
+  RATE_CEILING_USD_PER_SECOND: "0.00016"
+  BUDGET_USD: "0.05"
+  EXECUTION_TIMEOUT_MS: "120000"
+  WARMUP_TIMEOUT_SECONDS: "180"
+  TOTAL_LIFECYCLE_SECONDS: "295"
+  CLEANUP_RESERVE_SECONDS: "10"
   IDLE_TIMEOUT_SECONDS: "5"
   FIXTURE_EXPECTED_SHA256: "f4368b08487cfc366f049becbcbc63c7e2345808902021639e051b9c3e08cc1f"
   GFPGAN_SHA256: "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
@@ -178,16 +181,19 @@ jobs:
       # ---------------------------------------------------------------
       - name: "Preflight 4/5 - rate ceiling and worst-case budget guard"
         run: |
-          WORST_CASE=$(echo "$FLEX_RATE_CEILING_USD_PER_SEC * $EXECUTION_TIMEOUT_SECONDS" | bc -l)
-          echo "Fixed approved Flex rate ceiling: \$${FLEX_RATE_CEILING_USD_PER_SEC}/second"
-          echo "Execution timeout: ${EXECUTION_TIMEOUT_SECONDS}s"
-          echo "Worst-case one-job cost: \$${WORST_CASE}"
-          echo "Authorized compute budget: \$${COMPUTE_BUDGET_USD}"
-          if (( $(echo "$WORST_CASE > $COMPUTE_BUDGET_USD" | bc -l) )); then
-            echo "ERROR: worst-case projected cost exceeds the authorized \$${COMPUTE_BUDGET_USD} budget"
+          WORST_CASE=$(echo "$TOTAL_LIFECYCLE_SECONDS * $RATE_CEILING_USD_PER_SECOND" | bc -l)
+          echo "Fixed rate ceiling: \$${RATE_CEILING_USD_PER_SECOND}/second"
+          echo "Total lifecycle ceiling: ${TOTAL_LIFECYCLE_SECONDS}s"
+          echo "Estimated maximum lifecycle cost: \$${WORST_CASE}"
+          echo "Authorized compute budget: \$${BUDGET_USD}"
+          if (( $(echo "$WORST_CASE > $BUDGET_USD" | bc -l) )); then
+            echo "ERROR: worst-case projected cost exceeds the authorized \$${BUDGET_USD} budget"
             exit 1
           fi
-          echo "PASSED: worst-case cost is within the authorized budget"
+          test "$TOTAL_LIFECYCLE_SECONDS" = "295"
+          test "$CLEANUP_RESERVE_SECONDS" = "10"
+          test "$WARMUP_TIMEOUT_SECONDS" = "180"
+          echo "PASSED: 295 x 0.00016 = 0.0472 <= 0.05"
 
       # ---------------------------------------------------------------
       # Preflight 6: fixed template/endpoint names must not already exist
@@ -282,7 +288,7 @@ jobs:
             --arg dc "$TARGET_DATACENTER_ID" \
             --arg vol "$NETWORK_VOLUME_ID" \
             --argjson idle "$IDLE_TIMEOUT_SECONDS" \
-            --argjson timeoutMs "$(( EXECUTION_TIMEOUT_SECONDS * 1000 ))" \
+            --argjson timeoutMs "$EXECUTION_TIMEOUT_MS" \
             '{
               "name": $name,
               "templateId": $templateId,
@@ -291,7 +297,7 @@ jobs:
               "gpuCount": 1,
               "dataCenterIds": [$dc],
               "networkVolumeId": $vol,
-              "workersMin": 0,
+              "workersMin": 1,
               "workersMax": 1,
               "idleTimeout": $idle,
               "executionTimeoutMs": $timeoutMs,
@@ -306,21 +312,72 @@ jobs:
             exit 1
           fi
           echo "endpoint_id=${ENDPOINT_ID}" >> "$GITHUB_OUTPUT"
+          echo "lifecycle_start_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
           echo "Endpoint created (redacted): ${ENDPOINT_ID:0:6}..."
           echo "gpuCount=1 concurrency/maxJobs/maxRetries are enforced by this workflow submitting exactly one job and never retrying (RunPod's Serverless REST API has no literal concurrency/maxJobs/maxRetries endpoint-creation fields; concurrency is a handler-side setting unused here since only one job is ever submitted)."
 
       # ---------------------------------------------------------------
-      # Submit exactly one restore job (single POST, inline base64, no URL)
+      # Warm-up is distinct from executionTimeoutMs. A worker may be billable
+      # while initializing; this bounded window submits no job until ready.
+      # ---------------------------------------------------------------
+      - name: "Warm worker before job submission (bounded, no job on timeout)"
+        id: warm-worker
+        run: |
+          ENDPOINT_ID="${{ steps.create-endpoint.outputs.endpoint_id }}"
+          START="${{ steps.create-endpoint.outputs.lifecycle_start_epoch }}"
+          TRANSITIONS=""
+          while :; do
+            NOW=$(date +%s)
+            ELAPSED=$(( NOW - START ))
+            if [ "$ELAPSED" -ge "$WARMUP_TIMEOUT_SECONDS" ]; then
+              echo "warmup_elapsed_seconds=${ELAPSED}" >> "$GITHUB_OUTPUT"
+              echo "worker_state_transitions=${TRANSITIONS}" >> "$GITHUB_OUTPUT"
+              echo "job_submitted=false" >> "$GITHUB_OUTPUT"
+              echo "cancellation_reason=warmup_timeout_no_job" >> "$GITHUB_OUTPUT"
+              echo "ERROR: worker did not become ready before warm-up timeout; submitting zero jobs"
+              exit 1
+            fi
+            HEALTH=$(curl -s -X GET "https://api.runpod.ai/v2/${ENDPOINT_ID}/health" -H "Authorization: Bearer $RUNPOD_API_KEY")
+            READY=$(echo "$HEALTH" | jq -r '.workers.ready // 0')
+            INITIALIZING=$(echo "$HEALTH" | jq -r '.workers.initializing // 0')
+            STATE="ready=${READY},initializing=${INITIALIZING}"
+            TRANSITIONS="${TRANSITIONS}${TRANSITIONS:+;}${ELAPSED}s:${STATE}"
+            echo "warmup elapsed=${ELAPSED}s ${STATE}"
+            if [ "$READY" -ge 1 ] && [ "$INITIALIZING" = "0" ]; then
+              REMAINING=$(( TOTAL_LIFECYCLE_SECONDS - ELAPSED - CLEANUP_RESERVE_SECONDS ))
+              if [ "$REMAINING" -lt 30 ]; then
+                echo "warmup_elapsed_seconds=${ELAPSED}" >> "$GITHUB_OUTPUT"
+                echo "worker_state_transitions=${TRANSITIONS}" >> "$GITHUB_OUTPUT"
+                echo "job_submitted=false" >> "$GITHUB_OUTPUT"
+                echo "cancellation_reason=insufficient_lifecycle_before_cleanup" >> "$GITHUB_OUTPUT"
+                echo "ERROR: fewer than 30 seconds remain before cleanup reserve; submitting zero jobs"
+                exit 1
+              fi
+              echo "warmup_elapsed_seconds=${ELAPSED}" >> "$GITHUB_OUTPUT"
+              echo "worker_state_transitions=${TRANSITIONS}" >> "$GITHUB_OUTPUT"
+              echo "job_submitted=false" >> "$GITHUB_OUTPUT"
+              echo "cancellation_reason=" >> "$GITHUB_OUTPUT"
+              echo "PASSED: warm worker ready with ${REMAINING}s available before cleanup reserve"
+              exit 0
+            fi
+            sleep 3
+          done
+
+      # ---------------------------------------------------------------
+      # Submit exactly one restore job (single POST, inline base64, no URL).
+      # Only runs if the warm-worker step above exited 0 (worker ready with
+      # sufficient remaining lifecycle); never runs on warm-up timeout.
       # ---------------------------------------------------------------
       - name: "Submit exactly one restore job"
         id: submit-job
+        if: success()
         run: |
           # The base64 fixture (~1MB) exceeds the kernel's single-argument
           # length limit (MAX_ARG_STRLEN, 128KB on Linux), so it must never be
           # passed as a jq/curl command-line argument. It is written to a file
           # and read via jq --rawfile / curl --data-binary @file instead.
           base64 -w0 "${RUNNER_TEMP}/canary.png" > "${RUNNER_TEMP}/canary.b64"
-          jq -n --rawfile img "${RUNNER_TEMP}/canary.b64" --argjson timeoutMs "$(( EXECUTION_TIMEOUT_SECONDS * 1000 ))" '{
+          jq -n --rawfile img "${RUNNER_TEMP}/canary.b64" --argjson timeoutMs "$EXECUTION_TIMEOUT_MS" '{
             "input": { "mode": "restore", "imageBase64": $img },
             "policy": { "executionTimeout": $timeoutMs }
           }' > "${RUNNER_TEMP}/job_payload.json"
@@ -334,19 +391,23 @@ jobs:
             exit 1
           fi
           echo "job_id=${JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "job_submitted=true" >> "$GITHUB_OUTPUT"
           echo "start_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
           echo "Job submitted (redacted): ${JOB_ID:0:8}..."
 
       # ---------------------------------------------------------------
-      # Poll status until COMPLETED/FAILED, or cancel at the 120s ceiling.
+      # Poll status until terminal state, execution limit, or the lifecycle
+      # deadline minus cleanup reserve, whichever happens first.
       # No retry/resubmit: this is the one and only /run call above.
       # ---------------------------------------------------------------
-      - name: "Poll job status (cancel at 120s ceiling, never resubmit)"
+      - name: "Poll job status (cancel at execution/lifecycle limit, never resubmit)"
         id: poll-job
+        if: success()
         run: |
           JOB_ID="${{ steps.submit-job.outputs.job_id }}"
           ENDPOINT_ID="${{ steps.create-endpoint.outputs.endpoint_id }}"
           START="${{ steps.submit-job.outputs.start_epoch }}"
+          LIFECYCLE_START="${{ steps.create-endpoint.outputs.lifecycle_start_epoch }}"
           STATUS="IN_QUEUE"
           RESULT="{}"
           while :; do
@@ -359,11 +420,17 @@ jobs:
             if [ "$STATUS" = "COMPLETED" ] || [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "CANCELLED" ]; then
               break
             fi
-            if [ "$ELAPSED" -ge "$EXECUTION_TIMEOUT_SECONDS" ]; then
-              echo "Timeout ceiling reached; cancelling job (no resubmit)"
+            LIFECYCLE_ELAPSED=$(( NOW - LIFECYCLE_START ))
+            EXECUTION_LIMIT_SECONDS=$(( EXECUTION_TIMEOUT_MS / 1000 ))
+            DEADLINE_LIMIT=$(( TOTAL_LIFECYCLE_SECONDS - CLEANUP_RESERVE_SECONDS ))
+            if [ "$ELAPSED" -ge "$EXECUTION_LIMIT_SECONDS" ] || [ "$LIFECYCLE_ELAPSED" -ge "$DEADLINE_LIMIT" ]; then
+              REASON=execution_timeout
+              if [ "$LIFECYCLE_ELAPSED" -ge "$DEADLINE_LIMIT" ]; then REASON=lifecycle_deadline_before_cleanup; fi
+              echo "Cancellation limit reached: ${REASON}; cancelling job (no resubmit)"
               curl -s -X POST "https://api.runpod.ai/v2/${ENDPOINT_ID}/cancel/${JOB_ID}" \
                 -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/cancel.json
               STATUS=$(jq -r '.status // "CANCELLED"' /tmp/cancel.json)
+              echo "cancellation_reason=${REASON}" >> "$GITHUB_OUTPUT"
               break
             fi
             sleep 3
@@ -376,10 +443,63 @@ jobs:
 
       # ---------------------------------------------------------------
       # Capture evidence: decode output, verify it, derive contract fields.
+      # if: always() so this step also runs -- and reports honest, bounded
+      # diagnostics -- when the warm-worker step never let a job be
+      # submitted (warm-up timeout or insufficient remaining lifecycle).
+      # It always exits 0 itself; the Success gate step below is what
+      # actually fails the run when criteria are not met.
       # ---------------------------------------------------------------
       - name: Capture and verify evidence
         id: evidence
+        if: always()
         run: |
+          JOB_SUBMITTED="${{ steps.submit-job.outputs.job_submitted }}"
+          if [ "$JOB_SUBMITTED" != "true" ]; then
+            # No job was ever submitted: warm-up timed out or insufficient
+            # remaining lifecycle before the cleanup reserve. Report the
+            # warm-worker step's own bounded diagnostics; do not fabricate
+            # job-shaped fields, and do not try to read a job_result.json
+            # that was never written.
+            CANCELLATION_REASON="${{ steps.warm-worker.outputs.cancellation_reason }}"
+            WARMUP_ELAPSED="${{ steps.warm-worker.outputs.warmup_elapsed_seconds }}"
+            STATE_TRANSITIONS="${{ steps.warm-worker.outputs.worker_state_transitions }}"
+            REASON_LABEL="${CANCELLATION_REASON:-unknown}"
+            ESTIMATED_COST=$(echo "scale=6; ${WARMUP_ELAPSED:-0} * $RATE_CEILING_USD_PER_SECOND" | bc -l)
+            {
+              echo "status=NO_JOB_${REASON_LABEL}"
+              echo "ok=false"
+              echo "gpu="
+              echo "gpu_inference_executed=false"
+              echo "provider_post_count=-1"
+              echo "production_routing_allowed=null"
+              echo "configured_production_routing_allowed=false"
+              echo "output_width=0"
+              echo "output_height=0"
+              echo "output_format="
+              echo "output_bytes=0"
+              echo "output_sha256="
+              echo "output_decodable=false"
+              echo "delay_ms=0"
+              echo "execution_ms=0"
+              echo "actual_cost_usd=${ESTIMATED_COST}"
+              echo "output_is_json=false"
+              echo "error_msg="
+              echo "error_detail=no job was submitted: ${REASON_LABEL}"
+              echo "warmup_elapsed_seconds=${WARMUP_ELAPSED:-0}"
+              echo "worker_state_transitions=${STATE_TRANSITIONS:-}"
+              echo "cancellation_reason=${CANCELLATION_REASON:-}"
+            } >> "$GITHUB_OUTPUT"
+            {
+              echo "sanitized_output<<GATE3_EOF"
+              echo "{}"
+              echo "GATE3_EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "=== Gate 3 canary evidence (redacted): NO JOB SUBMITTED ==="
+            echo "cancellationReason=${REASON_LABEL} warmupElapsedSeconds=${WARMUP_ELAPSED:-0} estimatedCostUsd=${ESTIMATED_COST}"
+            echo "workerStateTransitions=${STATE_TRANSITIONS:-}"
+            exit 0
+          fi
+
           RESULT_FILE="${RUNNER_TEMP}/job_result.json"
           STATUS="${{ steps.poll-job.outputs.final_status }}"
           echo "job_status=${STATUS}"
@@ -388,7 +508,7 @@ jobs:
           GPU=$(jq -r '.output.gpu // ""' "$RESULT_FILE" 2>/dev/null || echo "")
           WEIGHT_VERIFIED=$(jq -r '.output.weightVerified // false' "$RESULT_FILE" 2>/dev/null || echo false)
           PROVIDER_POST_COUNT=$(jq -r '.output.providerPostCount // -1' "$RESULT_FILE" 2>/dev/null || echo -1)
-          PRODUCTION_ROUTING=$(jq -r '.output.productionRoutingAllowed // true' "$RESULT_FILE" 2>/dev/null || echo true)
+          PRODUCTION_ROUTING=$(jq -r 'if .output == null then "null" else (.output.productionRoutingAllowed // "null") end' "$RESULT_FILE" 2>/dev/null || echo null)
           OUT_W=$(jq -r '.output.outputWidth // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
           OUT_H=$(jq -r '.output.outputHeight // 0' "$RESULT_FILE" 2>/dev/null || echo 0)
           OUT_FMT=$(jq -r '.output.outputFormat // ""' "$RESULT_FILE" 2>/dev/null || echo "")
@@ -434,7 +554,7 @@ jobs:
           # cost is computed from the billed executionTime at the fixed
           # approved rate ceiling, which is a conservative (upper-bound)
           # estimate, and is cross-checked against COMPUTE_BUDGET_USD below.
-          ACTUAL_COST=$(echo "scale=6; ($EXEC_MS/1000) * $FLEX_RATE_CEILING_USD_PER_SEC" | bc -l)
+          ACTUAL_COST=$(echo "scale=6; ($EXEC_MS/1000) * $RATE_CEILING_USD_PER_SECOND" | bc -l)
 
           {
             echo "status=${STATUS}"
@@ -455,6 +575,10 @@ jobs:
             echo "output_is_json=${OUTPUT_IS_JSON}"
             echo "error_msg=${ERROR_MSG}"
             echo "error_detail=${ERROR_DETAIL}"
+            echo "configured_production_routing_allowed=false"
+            echo "warmup_elapsed_seconds=${{ steps.warm-worker.outputs.warmup_elapsed_seconds }}"
+            echo "worker_state_transitions=${{ steps.warm-worker.outputs.worker_state_transitions }}"
+            echo "cancellation_reason=${{ steps.poll-job.outputs.cancellation_reason }}"
           } >> "$GITHUB_OUTPUT"
           {
             echo "sanitized_output<<GATE3_EOF"
@@ -497,16 +621,21 @@ jobs:
           echo "health_snapshot=$(echo "$HEALTH" | jq -c '.')" >> "$GITHUB_OUTPUT"
 
       # ---------------------------------------------------------------
-      # Success gate: fail closed unless every required condition holds
+      # Success gate: fail closed unless every required condition holds.
+      # if: always() so it still reports a clear FAIL reason even when the
+      # warm-worker step itself failed (warm-up timeout / insufficient
+      # remaining lifecycle) -- steps.evidence always has bounded output by
+      # this point, including in the no-job-submitted path.
       # ---------------------------------------------------------------
       - name: Success gate
+        if: always()
         run: |
           FAIL=0
           [ "${{ steps.poll-job.outputs.final_status }}" = "COMPLETED" ] || { echo "FAIL: job did not complete"; FAIL=1; }
           [ "${{ steps.evidence.outputs.gpu_inference_executed }}" = "true" ] || { echo "FAIL: gpu_inference_executed is not true"; FAIL=1; }
           [ "${{ steps.evidence.outputs.output_decodable }}" = "true" ] || { echo "FAIL: output is not a valid decodable image"; FAIL=1; }
           [ "${{ steps.evidence.outputs.provider_post_count }}" = "0" ] || { echo "FAIL: providerPostCount is not 0"; FAIL=1; }
-          if (( $(echo "${{ steps.evidence.outputs.actual_cost_usd }} > $COMPUTE_BUDGET_USD" | bc -l) )); then
+          if (( $(echo "${{ steps.evidence.outputs.actual_cost_usd }} > $BUDGET_USD" | bc -l) )); then
             echo "FAIL: actual compute cost exceeds the authorized budget"; FAIL=1
           fi
           if [ "$FAIL" != "0" ]; then
@@ -578,12 +707,16 @@ jobs:
         if: always()
         run: |
           echo "### RunPod Gate 3 canary run summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "- job status: ${{ steps.poll-job.outputs.final_status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- job status: ${{ steps.evidence.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- job_submitted: ${{ steps.submit-job.outputs.job_submitted }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- gpu_inference_executed: ${{ steps.evidence.outputs.gpu_inference_executed }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- output: ${{ steps.evidence.outputs.output_width }}x${{ steps.evidence.outputs.output_height }} ${{ steps.evidence.outputs.output_format }}, ${{ steps.evidence.outputs.output_bytes }} bytes, sha256=${{ steps.evidence.outputs.output_sha256 }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- delayMs=${{ steps.evidence.outputs.delay_ms }} executionMs=${{ steps.evidence.outputs.execution_ms }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- actualCostUsd=${{ steps.evidence.outputs.actual_cost_usd }} (budget=\$${COMPUTE_BUDGET_USD})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- actualCostUsd=${{ steps.evidence.outputs.actual_cost_usd }} (budget=\$${BUDGET_USD})" >> "$GITHUB_STEP_SUMMARY"
           echo "- providerPostCount=${{ steps.evidence.outputs.provider_post_count }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- productionRoutingAllowed=${{ steps.evidence.outputs.production_routing_allowed }} (configured=${{ steps.evidence.outputs.configured_production_routing_allowed }})" >> "$GITHUB_STEP_SUMMARY"
           echo "- billedDurationSeconds=${{ steps.poll-job.outputs.billed_duration_seconds }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- outputIsJson=${{ steps.evidence.outputs.output_is_json }} errorMsg=${{ steps.evidence.outputs.error_msg }} errorDetail=${{ steps.evidence.outputs.error_detail }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- warmupElapsedSeconds=${{ steps.evidence.outputs.warmup_elapsed_seconds }} cancellationReason=${{ steps.evidence.outputs.cancellation_reason }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- workerStateTransitions=${{ steps.evidence.outputs.worker_state_transitions }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- workerHealthSnapshot=${{ steps.health-snapshot.outputs.health_snapshot }}" >> "$GITHUB_STEP_SUMMARY"
