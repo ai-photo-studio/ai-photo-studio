@@ -1,0 +1,331 @@
+name: Build Combined cwd+outputSha256 Restore-Unpack-Fix Chain (CLI -> Serverless -> Volume)
+
+# Build-only, unpublished, three-image dependency chain verification for the
+# combined RunPod worker candidate that merges two independently verified
+# fixes:
+#   1. outputSha256 -- SHA-256 evidence of the exact final PNG bytes, carried
+#      unchanged by the existing CLI worker (apps/api/runpod-worker-gpu-dev-restore-unpack-fix/).
+#   2. cwd=WORKER_DIR -- the Serverless handler passes cwd=WORKER_DIR to the
+#      worker subprocess so facexlib cannot attempt a runtime weight download
+#      from a wrong working directory and corrupt the single-JSON-document
+#      stdout protocol (confirmed root cause of Gate 3 canary run 30702245089).
+#
+# This workflow builds, in strict dependency order, entirely with LOCAL image
+# references (no registry pull, no registry push, nothing published):
+#   1. CLI worker (reused, unchanged)   -> apps/api/runpod-worker-gpu-dev-restore-unpack-fix/
+#   2. combined Serverless handler      -> apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-combined-dev/  (FROM #1, local tag)
+#   3. combined volume-mapped handler   -> apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-combined-dev/  (FROM #2, local tag)
+#
+# No registry login. No packages:write. No --push anywhere. No RunPod/S3
+# call. No GPU inference. No image publication. No endpoint creation. No
+# secret is read or written by this workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: restore-unpack-fix-combined-chain-build
+  cancel-in-progress: false
+
+jobs:
+  build-test-combined-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v4
+
+      - name: Record source commit
+        run: |
+          echo "github.sha=${{ github.sha }}"
+          echo "source_commit=${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+
+      # Plain `docker build` (not docker/build-push-action + buildx) is used
+      # for all three stages deliberately: a buildx docker-container builder
+      # keeps an isolated image store, so a later stage's "FROM <local-tag>"
+      # would not see an earlier stage's locally-built image. Plain
+      # `docker build` shares the host engine's image store, so each stage's
+      # FROM reference to the previous stage's local tag resolves correctly.
+      # No --push anywhere; nothing leaves this runner.
+
+      # -----------------------------------------------------------------
+      # Stage 1: CLI worker (reused, unchanged) -- carries outputSha256 fix
+      # -----------------------------------------------------------------
+      - name: Copy tracked BasicSR patch into CLI worker build context
+        run: cp docs/restoration/patches/basicsr-v142-functional-tensor-fix.patch apps/api/runpod-worker-gpu-dev-restore-unpack-fix/basicsr-v142-functional-tensor-fix.patch
+
+      - name: "Stage 1 - Build CLI worker (no push)"
+        run: docker build --tag gfpgan-cli-restore-fix:local --file apps/api/runpod-worker-gpu-dev-restore-unpack-fix/Dockerfile apps/api/runpod-worker-gpu-dev-restore-unpack-fix
+
+      - name: "Stage 1 - Verify non-root, no bundled weight"
+        run: |
+          set -euo pipefail
+          user=$(docker run --rm --entrypoint whoami gfpgan-cli-restore-fix:local)
+          [ "$user" != "root" ] || { echo "ERROR: runs as root" >&2; exit 1; }
+          has=$(docker run --rm --entrypoint sh gfpgan-cli-restore-fix:local -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          [ "$has" = "absent" ] || { echo "ERROR: weight bundled" >&2; exit 1; }
+          echo "Stage 1 PASSED: non-root ($user), no bundled weight"
+
+      - name: "Stage 1 - Assert CLI worker source carries the outputSha256 fix"
+        run: |
+          set -euo pipefail
+          match=$(docker run --rm --entrypoint sh gfpgan-cli-restore-fix:local -c "grep -n 'outputSha256' /srv/worker/worker.py" || true)
+          echo "$match"
+          echo "$match" | grep -q 'outputSha256' || { echo "ERROR: outputSha256 fix not found in built CLI worker image" >&2; exit 1; }
+          echo "Stage 1 PASSED: outputSha256 fix present in built image"
+
+      - name: "Stage 1 - Contract tests: health, gpu_probe, fail-closed restore (network none)"
+        run: |
+          echo '{"mode":"health"}' | docker run --rm -i --network none gfpgan-cli-restore-fix:local --stdin
+          echo '{"mode":"gpu_probe"}' | docker run --rm -i --network none gfpgan-cli-restore-fix:local --stdin
+          mkdir -p "$RUNNER_TEMP/empty_models"
+          set +e
+          echo '{"mode":"restore","imageBase64":""}' | docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/empty_models:/models" gfpgan-cli-restore-fix:local --stdin
+          code=$?
+          set -e
+          [ "$code" -ne 0 ] || { echo "ERROR: restore succeeded without weight/CUDA" >&2; exit 1; }
+          echo "Stage 1 PASSED: fail-closed restore without weight/CUDA (exit $code)"
+
+      - name: "Stage 1 - Run full CLI worker test suite (25 tests, no GPU, network none)"
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$PWD/apps/api/runpod-worker-gpu-dev-restore-unpack-fix/test_worker.py":/srv/worker/test_worker.py:ro \
+            -w /srv/worker --entrypoint python3.10 \
+            gfpgan-cli-restore-fix:local test_worker.py -v
+
+      - name: "Stage 1 - SBOM and vulnerability scan"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-cli-restore-fix:local
+          format: cyclonedx
+          output: cli-sbom.json
+
+      - name: "Stage 1 - Scan for CRITICAL (must be zero)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-cli-restore-fix:local
+          format: json
+          output: cli-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 1 - Assert zero CRITICAL"
+        run: |
+          set -euo pipefail
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' cli-trivy.json >/dev/null \
+            || { echo "CLI CRITICAL PRESENT" >&2; exit 1; }
+          echo "Stage 1: SBOM components: $(jq -r '.components | length' cli-sbom.json 2>/dev/null || echo n/a)"
+
+      # -----------------------------------------------------------------
+      # Stage 2: combined Serverless handler (FROM stage 1, local) --
+      # carries cwd=WORKER_DIR and forwards outputSha256 unchanged
+      # -----------------------------------------------------------------
+      - name: "Stage 2 - Build combined Serverless handler (no push)"
+        run: docker build --tag gfpgan-serverless-restore-fix-combined:local --file apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-combined-dev/Dockerfile apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-combined-dev
+
+      - name: "Stage 2 - Verify non-root, cleared entrypoint, handler CMD, no weight"
+        run: |
+          set -euo pipefail
+          docker image inspect gfpgan-serverless-restore-fix-combined:local > "$RUNNER_TEMP/handler-inspect.json"
+          user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/handler-inspect.json")
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' "$RUNNER_TEMP/handler-inspect.json")
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' "$RUNNER_TEMP/handler-inspect.json")
+          [ "$user" != "root" ] && [ "$user" != "" ] || { echo "ERROR: not non-root" >&2; exit 1; }
+          [ "$entry" = "null" ] || [ "$entry" = "[]" ] || { echo "ERROR: entrypoint not cleared" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "ERROR: handler CMD missing" >&2; exit 1; }
+          has=$(docker run --rm --entrypoint sh gfpgan-serverless-restore-fix-combined:local -c "test -f /models/GFPGANv1.4.pth && echo present || echo absent")
+          [ "$has" = "absent" ] || { echo "ERROR: weight bundled" >&2; exit 1; }
+          echo "Stage 2 PASSED: user=$user entrypoint=$entry cmd=$cmd, no bundled weight"
+
+      - name: "Stage 2 - Assert built handler carries cwd=WORKER_DIR fix"
+        run: |
+          set -euo pipefail
+          match=$(docker run --rm --entrypoint sh gfpgan-serverless-restore-fix-combined:local -c "grep -n 'cwd=WORKER_DIR' /srv/handler/handler.py" || true)
+          echo "$match"
+          echo "$match" | grep -q 'cwd=WORKER_DIR' || { echo "ERROR: cwd=WORKER_DIR fix not found in built combined handler image" >&2; exit 1; }
+          echo "Stage 2 PASSED: cwd=WORKER_DIR fix present in built image"
+
+      - name: "Stage 2 - Handler entrypoint smoke (module import only, no RunPod connection)"
+        run: |
+          docker run --rm -i --network none -w /srv/handler gfpgan-serverless-restore-fix-combined:local \
+            sh -c 'python3.10 -c "import handler as h; assert callable(h.handler); print(\"handler callable\")"'
+
+      - name: "Stage 2 - Run combined handler test suite (40 tests, network none)"
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-combined-dev/test_handler.py":/srv/handler/test_handler.py:ro \
+            -w /srv/handler \
+            gfpgan-serverless-restore-fix-combined:local \
+            python3.10 -m unittest test_handler -v
+
+      - name: "Stage 2 - SBOM and vulnerability scan"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-restore-fix-combined:local
+          format: cyclonedx
+          output: handler-sbom.json
+
+      - name: "Stage 2 - Scan for CRITICAL (must be zero)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-restore-fix-combined:local
+          format: json
+          output: handler-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 2 - Assert zero CRITICAL"
+        run: |
+          set -euo pipefail
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' handler-trivy.json >/dev/null \
+            || { echo "HANDLER CRITICAL PRESENT" >&2; exit 1; }
+          echo "Stage 2: SBOM components: $(jq -r '.components | length' handler-sbom.json 2>/dev/null || echo n/a)"
+
+      # -----------------------------------------------------------------
+      # Stage 3: combined volume-mapped handler (FROM stage 2, local)
+      # -----------------------------------------------------------------
+      - name: "Stage 3 - Build combined volume-mapped candidate (no push)"
+        run: docker build --tag gfpgan-serverless-volume-restore-fix-combined:local --file apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-combined-dev/Dockerfile apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-combined-dev
+
+      - name: "Stage 3 - Verify non-root runtime user, cleared entrypoint, inherited handler CMD"
+        run: |
+          set -euo pipefail
+          docker image inspect gfpgan-serverless-volume-restore-fix-combined:local > "$RUNNER_TEMP/volume-inspect.json"
+          user=$(jq -r '.[0].Config.User' "$RUNNER_TEMP/volume-inspect.json")
+          entry=$(jq -r '.[0].Config.Entrypoint | tojson' "$RUNNER_TEMP/volume-inspect.json")
+          cmd=$(jq -r '.[0].Config.Cmd | tojson' "$RUNNER_TEMP/volume-inspect.json")
+          [ "$user" = "workeruser" ] || { echo "ERROR: not workeruser" >&2; exit 1; }
+          [ "$entry" = "null" ] || [ "$entry" = "[]" ] || { echo "ERROR: entrypoint not cleared" >&2; exit 1; }
+          echo "$cmd" | grep -q "handler.py" || { echo "ERROR: handler CMD missing/changed" >&2; exit 1; }
+          echo "Stage 3 PASSED: user=$user entrypoint=$entry cmd=$cmd"
+
+      - name: "Stage 3 - Verify /models symlink contract (build-time only, root not present at runtime)"
+        run: |
+          set -euo pipefail
+          target=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix-combined:local -c 'readlink /models')
+          [ "$target" = "/runpod-volume/models" ] || { echo "ERROR: symlink target mismatch: $target" >&2; exit 1; }
+          is_link=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix-combined:local -c 'test -L /models && echo yes || echo no')
+          [ "$is_link" = "yes" ] || { echo "ERROR: /models is not a symlink" >&2; exit 1; }
+          runtime_user=$(docker run --rm --network none --entrypoint whoami gfpgan-serverless-volume-restore-fix-combined:local)
+          [ "$runtime_user" = "workeruser" ] || { echo "ERROR: root leaked into runtime: $runtime_user" >&2; exit 1; }
+          echo "Stage 3 PASSED: symlink -> $target, runtime user $runtime_user"
+
+      - name: "Stage 3 - Verify no weights bundled"
+        run: |
+          set +e
+          has=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix-combined:local -c "test -f /runpod-volume/models/GFPGANv1.4.pth 2>/dev/null && echo present || echo absent")
+          set -e
+          [ "$has" = "absent" ] || { echo "ERROR: weights present" >&2; exit 1; }
+
+      - name: "Stage 3 - Build synthetic (non-real) placeholder weight fixtures for mount tests"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/valid-volume/models/facexlib"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/GFPGANv1.4.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/detection_Resnet50_Final.pth"
+          printf 'synthetic-not-a-real-weight' > "$RUNNER_TEMP/valid-volume/models/facexlib/parsing_parsenet.pth"
+
+      - name: "Stage 3 - Valid mapping (three mounted dummy paths visible through /models)"
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            --entrypoint sh \
+            gfpgan-serverless-volume-restore-fix-combined:local -c '
+              test -f /models/GFPGANv1.4.pth || { echo "main weight not visible" >&2; exit 1; }
+              test -f /models/facexlib/detection_Resnet50_Final.pth || { echo "aux detection not visible" >&2; exit 1; }
+              test -f /models/facexlib/parsing_parsenet.pth || { echo "aux parsing not visible" >&2; exit 1; }
+              echo "Valid mapping PASSED: all three weight paths visible through /models"
+            '
+
+      - name: "Stage 3 - Symlink cannot be replaced by the runtime user"
+        run: |
+          set -euo pipefail
+          set +e
+          docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix-combined:local -c "rm -f /models" 2>err.txt
+          rc=$?
+          set -e
+          cat err.txt
+          [ "$rc" -ne 0 ] || { echo "ERROR: workeruser was able to remove /models" >&2; exit 1; }
+          echo "Stage 3 PASSED: symlink not writable by workeruser"
+
+      - name: "Stage 3 - Run volume mount-contract tests (network none)"
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none \
+            -v "$RUNNER_TEMP/valid-volume:/runpod-volume:ro" \
+            -v "$PWD/apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-combined-dev/test_mount_contract.py":/srv/handler/test_mount_contract.py:ro \
+            -w /srv/handler \
+            gfpgan-serverless-volume-restore-fix-combined:local \
+            python3.10 -m unittest test_mount_contract -v
+
+      - name: "Stage 3 - Final image contains both fixes (cwd=WORKER_DIR and outputSha256)"
+        run: |
+          set -euo pipefail
+          handler_match=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix-combined:local -c "grep -n 'cwd=WORKER_DIR' /srv/handler/handler.py" || true)
+          echo "$handler_match"
+          echo "$handler_match" | grep -q 'cwd=WORKER_DIR' || { echo "ERROR: final image handler.py missing cwd=WORKER_DIR" >&2; exit 1; }
+          worker_match=$(docker run --rm --network none --entrypoint sh gfpgan-serverless-volume-restore-fix-combined:local -c "grep -n 'outputSha256' /srv/worker/worker.py" || true)
+          echo "$worker_match"
+          echo "$worker_match" | grep -q 'outputSha256' || { echo "ERROR: final image worker.py missing outputSha256" >&2; exit 1; }
+          echo "Stage 3 PASSED: final image carries both the cwd=WORKER_DIR fix and the outputSha256 fix"
+
+      - name: "Stage 3 - JSON validity and no-runtime-download check (health mode, no volume mounted)"
+        run: |
+          set -euo pipefail
+          out=$(docker run --rm -i --network none --entrypoint python3.10 gfpgan-serverless-volume-restore-fix-combined:local \
+            /srv/worker/worker.py --stdin <<< '{"mode":"health"}')
+          echo "$out"
+          echo "$out" | jq -e '.providerPostCount == 0 and .productionRoutingAllowed == false' >/dev/null \
+            || { echo "ERROR: fail-closed invariants missing or health output is not valid JSON" >&2; exit 1; }
+          echo "JSON validity PASSED; no runtime weight download attempted"
+
+      - name: "Stage 3 - SBOM and vulnerability scan"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-volume-restore-fix-combined:local
+          format: cyclonedx
+          output: volume-sbom.json
+
+      - name: "Stage 3 - Scan for CRITICAL (must be zero)"
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: gfpgan-serverless-volume-restore-fix-combined:local
+          format: json
+          output: volume-trivy.json
+          exit-code: 0
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: "Stage 3 - Assert zero CRITICAL"
+        run: |
+          set -euo pipefail
+          jq -e '(.Results | to_entries | map(.value.Vulnerabilities // []) | add | length) == 0' volume-trivy.json >/dev/null \
+            || { echo "VOLUME CRITICAL PRESENT" >&2; exit 1; }
+          echo "Stage 3: SBOM components: $(jq -r '.components | length' volume-sbom.json 2>/dev/null || echo n/a)"
+
+      - name: Chain summary
+        if: always()
+        run: |
+          echo "### Combined cwd+outputSha256 restore-unpack-fix chain build summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- source_commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- gpu_inference_executed=false" >> "$GITHUB_STEP_SUMMARY"
+          echo "- published=false; runpod_resources_created=none; runpod_api_calls=0; endpoint_created=false" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup transient files and local images (always)
+        if: always()
+        run: |
+          rm -f apps/api/runpod-worker-gpu-dev-restore-unpack-fix/basicsr-v142-functional-tensor-fix.patch
+          rm -rf "$RUNNER_TEMP/valid-volume" "$RUNNER_TEMP/empty_models" 2>/dev/null || true
+          rm -f err.txt cli-sbom.json cli-trivy.json handler-sbom.json handler-trivy.json volume-sbom.json volume-trivy.json
+          docker image rm gfpgan-serverless-volume-restore-fix-combined:local gfpgan-serverless-restore-fix-combined:local gfpgan-cli-restore-fix:local 2>/dev/null || true
+          echo "transient files and local images removed; no weight uploaded; no image published"
