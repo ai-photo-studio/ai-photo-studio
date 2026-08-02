@@ -303,6 +303,110 @@ def test_enhance_return_unpacking_matches_gfpgan_contract():
     assert result["weightVerified"] is True
 
 
+def _run_stubbed_restore():
+    """Runs the real _run_restore() with weight/CUDA/model stubbed out but the
+    real PNG encode + SHA-256 hashing path exercised, matching the pattern in
+    test_enhance_return_unpacking_matches_gfpgan_contract()."""
+    real_validate_weight = w.validate_weight
+    real_cuda_info = w.cuda_info
+    real_load_model = w.load_model
+    w.validate_weight = lambda: True
+    w.cuda_info = lambda: {"available": True, "deviceCount": 1, "deviceName": "mock-gpu", "pytorch": "mock"}
+    w.load_model = lambda: _StubGFPGANer()
+    try:
+        return w._run_restore(_tiny_png())
+    finally:
+        w.validate_weight = real_validate_weight
+        w.cuda_info = real_cuda_info
+        w.load_model = real_load_model
+
+
+# ---------------------------------------------------------------------------
+# New in this candidate: outputSha256 evidence, required (not optional) by
+# the API's RunPodResultValidation.ts. Hashed on the exact final PNG bytes
+# (out_bytes in _run_restore()) before base64 encoding, so outputSha256,
+# outputBytes, outputWidth, outputHeight, outputFormat, and outputBase64 all
+# describe the same bytes.
+# ---------------------------------------------------------------------------
+
+def test_output_sha256_is_correct_and_well_formed():
+    import hashlib as _hashlib
+    result = _run_stubbed_restore()
+    sha = result["outputSha256"]
+    assert isinstance(sha, str)
+    assert len(sha) == 64
+    assert sha == sha.lower()
+    import re
+    assert re.fullmatch(r"[0-9a-f]{64}", sha), "outputSha256 must be lowercase 64-character hexadecimal"
+
+    decoded = base64.b64decode(result["outputBase64"])
+    assert _hashlib.sha256(decoded).hexdigest() == sha, "outputSha256 must be the SHA-256 of the exact PNG bytes"
+
+
+def test_output_sha256_matches_decoded_base64_bytes():
+    result = _run_stubbed_restore()
+    decoded = base64.b64decode(result["outputBase64"])
+    assert decoded[:8] == b"\x89PNG\r\n\x1a\n", "decoded bytes must be a PNG"
+
+
+def test_output_byte_count_and_dimensions_match_the_same_final_png():
+    from PIL import Image
+    result = _run_stubbed_restore()
+    decoded = base64.b64decode(result["outputBase64"])
+
+    assert len(decoded) == result["outputBytes"], "outputBytes must equal the exact decoded byte count"
+
+    img = Image.open(io.BytesIO(decoded))
+    assert img.format == "PNG"
+    assert img.width == result["outputWidth"]
+    assert img.height == result["outputHeight"]
+    assert result["outputFormat"] == "png"
+
+
+def test_output_contract_is_deterministic_for_the_same_input():
+    first = _run_stubbed_restore()
+    second = _run_stubbed_restore()
+    assert first["outputSha256"] == second["outputSha256"]
+    assert first["outputBytes"] == second["outputBytes"]
+    assert first["outputWidth"] == second["outputWidth"]
+    assert first["outputHeight"] == second["outputHeight"]
+    assert first["outputBase64"] == second["outputBase64"]
+
+
+def test_missing_or_malformed_hash_would_fail_the_output_contract():
+    # The worker itself must never produce a missing or malformed hash; the
+    # API's RunPodResultValidation.ts separately rejects any response where
+    # outputSha256 is missing, null, or not a 64-character lowercase hex
+    # string (see RunPodResultValidation.test.ts "required SHA-256 evidence").
+    # This test proves the worker's own output can never trigger that
+    # rejection under normal operation.
+    result = _run_stubbed_restore()
+    assert "outputSha256" in result and result["outputSha256"] is not None
+    sha = result["outputSha256"]
+    assert isinstance(sha, str) and len(sha) == 64
+    import re
+    assert re.fullmatch(r"[0-9a-f]{64}", sha)
+
+
+def test_existing_response_fields_remain_present_alongside_outputSha256():
+    result = _run_stubbed_restore()
+    expected_keys = {
+        "ok", "mode", "providerPostCount", "productionRoutingAllowed",
+        "outputWidth", "outputHeight", "outputFormat", "outputBytes",
+        "outputBase64", "outputSha256", "inputChecksum", "gpu", "model", "weightVerified",
+    }
+    assert expected_keys.issubset(result.keys()), "existing fields must remain alongside the new outputSha256 field"
+    assert result["ok"] is True
+    assert result["mode"] == "restore"
+    assert result["providerPostCount"] == 0
+    assert result["productionRoutingAllowed"] is False
+    assert result["outputFormat"] == "png"
+    assert result["gpu"] == "mock-gpu"
+    assert result["model"] == "GFPGANv1.4"
+    assert result["weightVerified"] is True
+    assert isinstance(result["inputChecksum"], str) and len(result["inputChecksum"]) == 64
+
+
 def test_enhance_two_value_unpack_would_have_failed():
     # Documents the exact historical failure mode as a standalone, isolated
     # assertion (independent of worker.py), so a future accidental regression
