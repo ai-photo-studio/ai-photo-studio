@@ -293,5 +293,91 @@
       "externally mounted weights require continued checksum and access integrity"
     ]
   },
-  "historicalStateNote": "Earlier dispatch records, old digests, region blockers, and pending-weight statements remain append-only historical evidence. They are superseded for current state by the final digest, verified weights, preserved volume, and run 30713365669 evidence."
+  "historicalStateNote": "Earlier dispatch records, old digests, region blockers, and pending-weight statements remain append-only historical evidence. They are superseded for current state by the final digest, verified weights, preserved volume, and run 30713365669 evidence.",
+  "gate2CandidateOutputSha256Fix": {
+    "recordedAt": "2026-08-02",
+    "description": "A SEPARATE, DIFFERENT Gate 2 candidate that adds required outputSha256 evidence to the worker response contract. This is not the same digest as the Gate 3 owner-approved candidate above (immutableImageDigest / currentDecision.ownerDecisionDigest, sha256:91052a53...), and none of that candidate's Gate 3 evidence, canary runs, or owner approval may be read as applying to this one. This section does not modify, replace, or supersede anything above; it is appended alongside it.",
+    "gate2Status": "PUBLISHED_AND_VERIFIED",
+    "gate3Status": "NOT_REVIEWED",
+    "approved": false,
+    "productionEligible": false,
+    "deployed": false,
+    "routed": false,
+    "endpointAuthorized": false,
+    "runpodRoutingAuthorizedEnvFlag": false,
+    "sourceCommit": "66b49028109351a9596b1170044ca15a1de8cd6c",
+    "priorUnmergedCommit": "d00d5a45c4b1ffb2db1ab9f287018d933b4d81ce",
+    "mergePr": 110,
+    "fix": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/worker.py _run_restore(): output_sha256 = hashlib.sha256(out_bytes).hexdigest() computed on the exact final PNG bytes (out_bytes = buf.getvalue(), immediately after out_img.save(buf, \"PNG\")) before base64 encoding; returned as outputSha256 (lowercase 64-character hex) alongside the pre-existing outputBytes/outputWidth/outputHeight/outputFormat/outputBase64, all describing that same out_bytes value",
+    "workerTestResults": {
+      "totalTests": 25,
+      "passed": 25,
+      "outputSha256TestsIncluded": true,
+      "testNames": [
+        "test_output_sha256_is_correct_and_well_formed",
+        "test_output_sha256_matches_decoded_base64_bytes",
+        "test_output_byte_count_and_dimensions_match_the_same_final_png",
+        "test_output_contract_is_deterministic_for_the_same_input",
+        "test_missing_or_malformed_hash_would_fail_the_output_contract",
+        "test_existing_response_fields_remain_present_alongside_outputSha256"
+      ]
+    },
+    "publicationWorkflow": ".github/workflows/publish-restore-unpack-fix-chain.yml",
+    "publicationWorkflowRun": "30739176823",
+    "dispatchConclusion": "success",
+    "sourceShaTag": "66b49028109351a9596b1170044ca15a1de8cd6c",
+    "sourceShaTagIdenticalAcrossAllThree": true,
+    "noExistingTagConfirmedBeforePublication": true,
+    "floatingTagUsed": false,
+    "latestTagCreatedOrChanged": false,
+    "publishedImages": [
+      {
+        "role": "1-cli-worker",
+        "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix:66b49028109351a9596b1170044ca15a1de8cd6c",
+        "digest": "sha256:0c9b6233276c46159c8f907e04ad8b164846b2c3607ff43d9ae5850699f08714"
+      },
+      {
+        "role": "2-serverless-handler",
+        "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev:66b49028109351a9596b1170044ca15a1de8cd6c",
+        "digest": "sha256:d315893119b859a724d0b83e2d53e08f1448070e2ecc830f24cf10c689e01968",
+        "parentImageActual": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix@sha256:0c9b6233276c46159c8f907e04ad8b164846b2c3607ff43d9ae5850699f08714"
+      },
+      {
+        "role": "3-volume-mapped-handler",
+        "repoTag": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev:66b49028109351a9596b1170044ca15a1de8cd6c",
+        "digest": "sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b",
+        "parentImageActual": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev@sha256:d315893119b859a724d0b83e2d53e08f1448070e2ecc830f24cf10c689e01968"
+      }
+    ],
+    "childStagesPinnedToParentDigest": true,
+    "finalCandidateRepository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev",
+    "finalCandidateDigest": "sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b",
+    "postPublicationVerification": {
+      "method": "docker pull by exact digest (fresh), then docker run --network none against each pulled image",
+      "allThreePassed": true
+    },
+    "platform": "linux/amd64",
+    "securityScans": {
+      "zeroCriticalAllThreeImages": true,
+      "cve202532434AbsentAllThreeImages": true,
+      "sbomComponents": { "cliWorker": 248, "serverlessHandler": 324, "volumeMappedHandler": 324 }
+    },
+    "noBundledWeights": true,
+    "noRuntimeWeightDownload": true,
+    "noSecretsFound": true,
+    "gpuInferenceExecuted": false,
+    "runpodApiCalls": 0,
+    "deploymentOrRoutingAction": "none",
+    "gate3Note": "Gate 3 has NOT been reviewed for this candidate and no canary has been dispatched against it. None of the Gate 3 evidence, canary runs, or owner approval recorded above for sha256:91052a53... may be reused or referenced as approval for this digest. A separate, explicit Gate 3 approval statement and canary referencing sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b specifically is required before any production-eligibility consideration.",
+    "gate4Status": "prohibited; not touched",
+    "replicateStatus": "production; unaffected; no call made",
+    "routingActivationAuthorized": false,
+    "gate3EligibilityAssessment": {
+      "recordedAt": "2026-08-02",
+      "gate3Eligible": false,
+      "reason": "Its Serverless and volume-mapped images derive from apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/handler.py, which does not pass cwd=WORKER_DIR to the worker subprocess. This is the exact confirmed root cause of Gate 3 canary run 30702245089's \"worker produced invalid non-JSON output\" failure (see docs/restoration/runpod-invalid-json-stdout-fix.json). A canary against this digest would very likely reproduce that same failure.",
+      "assessmentIsNotARetraction": "This assessment does not change gate2Status, productionEligible, deployed, routed, or any other field above -- the Gate 2 publication for this digest remains exactly as recorded. It only records that a Gate 3 canary should not be dispatched against this specific digest as-is.",
+      "remedyPrepared": "A combined, source-only, unbuilt, unpublished candidate chain merging this digest's outputSha256 CLI worker with the separately-verified cwd=WORKER_DIR handler fix has been prepared: see docs/restoration/runpod-combined-chain-source-readiness.json. No build, publish, or Gate 2/3 review of that combined chain has occurred."
+    }
+  }
 }

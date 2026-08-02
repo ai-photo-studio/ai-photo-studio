@@ -182,3 +182,63 @@ Older digest, region, and pending-weight statements in this packet are historica
 ## Gate 3 Owner Decision — 2026-08-02
 
 The owner explicitly selected `APPROVE_GATE_3` for immutable digest `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d` under the settled controls in this packet. This records production eligibility only. It does not change `approved=false` and does not authorize deployment, dispatch, endpoint/template creation, provider calls, weight or volume changes, production routing, Replicate replacement, another canary, or Gate 4.
+
+## Gate 2 Candidate — outputSha256 Contract Fix — 2026-08-02
+
+**This is a separate, different candidate from the digest approved above.** None of the Gate 3 canary evidence, owner approval, or settled-controls review recorded above for `sha256:91052a53...` applies to this candidate. This section records a Gate 2 publication only; it does not touch, reopen, or reinterpret anything above.
+
+### What changed
+
+`apps/api/runpod-worker-gpu-dev-restore-unpack-fix/worker.py` was missing `outputSha256` evidence in its `_run_restore()` response — the API's `RunPodResultValidation.ts` requires this field, but the previously approved worker only returned `inputChecksum` (a hash of the *input*, not the output). The fix adds `output_sha256 = hashlib.sha256(out_bytes).hexdigest()`, computed on the exact final PNG bytes (`out_bytes = buf.getvalue()`, immediately after `out_img.save(buf, "PNG")`) before base64 encoding, and returns it as `outputSha256` (lowercase 64-character hex) alongside the existing `outputBytes`/`outputWidth`/`outputHeight`/`outputFormat`/`outputBase64` — all describing that same `out_bytes` value. No other functional change was made. Source commit: `66b49028109351a9596b1170044ca15a1de8cd6c` (merged via PR #110 from `fix/runpod-output-sha256-contract`, prior unmerged commit `d00d5a45c4b1ffb2db1ab9f287018d933b4d81ce`).
+
+### Verification
+
+- Worker contract: 25/25 `test_worker.py` tests passed, including 6 new tests proving `outputSha256` correctness, decoded-base64/hash match, byte-count/dimension consistency with the same final PNG, determinism, and that existing response fields remain compatible.
+- Build-only CI (`build-restore-unpack-fix-chain.yml`, run `30737979728`): all three chain stages built and passed the same contract tests plus SBOM/vulnerability scans (zero CRITICAL, CVE-2025-32434 absent), no push.
+- Gate 2 publication (`publish-restore-unpack-fix-chain.yml`, run `30739176823`, dispatched against `main` at the commit above): all three images built, tested, scanned, and published under the identical source-SHA tag `66b49028109351a9596b1170044ca15a1de8cd6c` (no floating tag, no `latest`), each child stage's Dockerfile pinned to its parent's just-resolved registry digest. Post-publication step pulled all three images fresh **by digest** from GHCR and re-verified them. Platform `linux/amd64` throughout. Zero CRITICAL vulnerabilities and CVE-2025-32434 absent on all three. No bundled weights, no runtime weight download, no secrets found in the run logs. No deployment, endpoint, RunPod API call, or routing action occurred; `deploy.yml` was not triggered.
+
+### Published images
+
+| Role | Repository:tag | Digest |
+| --- | --- | --- |
+| 1-cli-worker | `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-dev-restore-unpack-fix:66b49028109351a9596b1170044ca15a1de8cd6c` | `sha256:0c9b6233276c46159c8f907e04ad8b164846b2c3607ff43d9ae5850699f08714` |
+| 2-serverless-handler | `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-restore-unpack-fix-dev:66b49028109351a9596b1170044ca15a1de8cd6c` | `sha256:d315893119b859a724d0b83e2d53e08f1448070e2ecc830f24cf10c689e01968` |
+| 3-volume-mapped-handler (final candidate) | `ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev:66b49028109351a9596b1170044ca15a1de8cd6c` | `sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b` |
+
+### Status
+
+- Gate 2: **published and verified**.
+- Gate 3: **not reviewed** — no canary has been dispatched against this digest.
+- `approved`: **false**. Not production eligible. Not deployed. Not routed. Not an endpoint authorization.
+- `RUNPOD_ROUTING_AUTHORIZED` remains `false`; Replicate remains production; Gate 4 remains prohibited.
+- A separate, explicit Gate 3 approval and canary referencing `sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b` specifically is required before any production-eligibility consideration. The Gate 3 owner approval recorded above for the other digest does not carry over.
+
+## Gate 3 Ineligibility Finding — `sha256:44a42808...` — 2026-08-02
+
+**This does not retract or alter the Gate 2 publication record immediately above.** The digest remains `PUBLISHED_AND_VERIFIED` for Gate 2. This finding only concerns whether a Gate 3 canary should be dispatched against it.
+
+`sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b`'s Serverless and volume-mapped images derive from `apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/handler.py`, which does **not** pass `cwd=WORKER_DIR` to the worker subprocess. This is the exact confirmed root cause of Gate 3 canary run `30702245089`'s `"worker produced invalid non-JSON output"` failure (see `docs/restoration/runpod-invalid-json-stdout-fix.json`): without it, the worker subprocess inherits the handler container's own working directory, causing facexlib to attempt an unauthorized runtime weight download and print to stdout, corrupting the single-JSON-document stdout protocol. **A canary against this digest would very likely reproduce that same failure. It is therefore classified Gate 3 ineligible as-is.**
+
+### Prepared remedy: combined chain (source only, unbuilt, unpublished)
+
+A new candidate chain merging both previously-separate, independently-verified fixes has been prepared:
+
+| Role | Path | Status |
+| --- | --- | --- |
+| 1-cli-worker | `apps/api/runpod-worker-gpu-dev-restore-unpack-fix/` | **Reused unchanged** — already carries `outputSha256` |
+| 2-serverless-handler-combined | `apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-combined-dev/` | **New** — carries `cwd=WORKER_DIR`; Dockerfile builds `FROM gfpgan-cli-restore-fix:local` (picks up the outputSha256-corrected CLI worker) |
+| 3-volume-mapped-handler-combined | `apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-combined-dev/` | **New** — unchanged symlink contract, Dockerfile builds `FROM gfpgan-serverless-restore-fix-combined:local` |
+
+Verification performed in this task: CLI worker `test_worker.py` (unchanged) 25/25 passed; combined handler `test_handler.py` (new, 40 tests including cwd-fix proof, wrong-cwd-simulation fail-closed proof, worker-field forwarding proof, plain-handler-regression-rejection proof, and Dockerfile/source consistency proof) 40/40 passed. Full record: `docs/restoration/runpod-combined-chain-source-readiness.json`.
+
+### Status
+
+- **No build has been dispatched.** No CI workflow currently references either new directory.
+- **No publication, no new digest, no deployment, no endpoint.**
+- Gate 2: not started for the combined chain. Gate 3: not reviewed.
+- `RUNPOD_ROUTING_AUTHORIZED` remains `false`; Replicate remains production; Gate 4 remains prohibited.
+- The protected digest `sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d` is unaffected by this finding and this prepared remedy.
+
+### Remaining work (explicitly out of scope for this task)
+
+Unrelated Gate 3 workflow, endpoint, cost, cleanup, API routing, preview, and wallet findings were not addressed in this task and remain outstanding.

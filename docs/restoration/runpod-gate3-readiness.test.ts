@@ -93,4 +93,35 @@ assert(decision.routingActivationAuthorized === false, "routing activation must 
 assert(Array.isArray(decision.rollbackConditions) && decision.rollbackConditions.length >= 3, "rollback conditions missing");
 assert(String(manifest.historicalStateNote).includes("append-only historical evidence"), "historical state boundary missing");
 
+// New, separate Gate 2 candidate (outputSha256 contract fix) -- must never be
+// confused with, or read as replacing, the Gate 3-approved candidate above.
+const gate2Candidate = (manifest.gate2CandidateOutputSha256Fix ?? {}) as Record<string, unknown>;
+assert(gate2Candidate.gate2Status === "PUBLISHED_AND_VERIFIED", "new candidate Gate 2 status mismatch");
+assert(gate2Candidate.gate3Status === "NOT_REVIEWED", "new candidate must not claim Gate 3 review");
+assert(gate2Candidate.approved === false, "new candidate must remain approved=false");
+assert(gate2Candidate.productionEligible === false, "new candidate must not be production eligible");
+assert(gate2Candidate.deployed === false && gate2Candidate.routed === false && gate2Candidate.endpointAuthorized === false, "new candidate must not be deployed, routed, or endpoint-authorized");
+assert(gate2Candidate.runpodRoutingAuthorizedEnvFlag === false, "RUNPOD_ROUTING_AUTHORIZED must remain false for the new candidate");
+assert(gate2Candidate.sourceCommit === "66b49028109351a9596b1170044ca15a1de8cd6c", "new candidate source commit mismatch");
+assert(gate2Candidate.finalCandidateDigest === "sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b", "new candidate final digest mismatch");
+assert(gate2Candidate.finalCandidateDigest !== expectedDigest, "new candidate digest must differ from the protected Gate 3-approved digest");
+const gate2WorkerTests = (gate2Candidate.workerTestResults ?? {}) as Record<string, unknown>;
+assert(gate2WorkerTests.totalTests === 25 && gate2WorkerTests.passed === 25, "new candidate must record 25/25 worker tests passed");
+assert(gate2WorkerTests.outputSha256TestsIncluded === true, "new candidate must confirm outputSha256 tests were included");
+const gate2Images = gate2Candidate.publishedImages as Array<Record<string, unknown>>;
+assert(Array.isArray(gate2Images) && gate2Images.length === 3, "new candidate must record exactly three published images");
+for (const img of gate2Images) {
+  assert(typeof img.digest === "string" && (img.digest as string).startsWith("sha256:"), "new candidate image must record a real digest");
+  assert((img.repoTag as string).includes(":66b49028109351a9596b1170044ca15a1de8cd6c"), "new candidate repoTag must use the immutable source SHA tag");
+}
+assert(gate2Candidate.floatingTagUsed === false && gate2Candidate.latestTagCreatedOrChanged === false, "new candidate must not use a floating or latest tag");
+assert(gate2Candidate.childStagesPinnedToParentDigest === true, "new candidate child stages must be pinned to parent digests");
+const gate2Security = (gate2Candidate.securityScans ?? {}) as Record<string, unknown>;
+assert(gate2Security.zeroCriticalAllThreeImages === true && gate2Security.cve202532434AbsentAllThreeImages === true, "new candidate security scan results missing or failing");
+assert(gate2Candidate.noBundledWeights === true && gate2Candidate.noRuntimeWeightDownload === true, "new candidate weight isolation controls missing");
+assert(gate2Candidate.noSecretsFound === true, "new candidate must confirm no secrets found");
+assert(gate2Candidate.platform === "linux/amd64", "new candidate platform mismatch");
+assert(gate2Candidate.deploymentOrRoutingAction === "none", "new candidate must record no deployment or routing action");
+assert(gate2Candidate.gate4Status === "prohibited; not touched" && gate2Candidate.replicateStatus === "production; unaffected; no call made", "new candidate protected-state boundary missing");
+
 console.log("runpod gate3 readiness manifest passed");

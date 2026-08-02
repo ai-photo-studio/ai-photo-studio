@@ -1,0 +1,66 @@
+{
+  "recordedAt": "2026-08-02",
+  "description": "Source-only, unbuilt, unpublished combined RunPod worker chain merging two previously separate fixes: cwd=WORKER_DIR (stdout-protocol, confirmed by Gate 3 canary run 30702245089) and outputSha256 (final-PNG hash evidence). Prepared because the Gate 2 candidate sha256:44a42808... was found to be Gate 3 ineligible (missing cwd=WORKER_DIR). This record does not modify, retract, or reinterpret any existing digest or approval.",
+  "sourceOnly": true,
+  "built": false,
+  "published": false,
+  "deployed": false,
+  "endpointCreated": false,
+  "gate2Status": "NOT_STARTED",
+  "gate3Status": "NOT_REVIEWED",
+  "approved": false,
+  "newDigestExists": false,
+  "chain": [
+    {
+      "role": "1-cli-worker",
+      "path": "apps/api/runpod-worker-gpu-dev-restore-unpack-fix/",
+      "reusedUnchanged": true,
+      "carriesOutputSha256Fix": true,
+      "testFile": "test_worker.py",
+      "testResults": { "totalTests": 25, "passed": 25 }
+    },
+    {
+      "role": "2-serverless-handler-combined",
+      "path": "apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-combined-dev/",
+      "newInThisTask": true,
+      "carriesCwdFix": true,
+      "carriesOutputSha256Forwarding": true,
+      "dockerfileLocalBaseTag": "gfpgan-cli-restore-fix:local",
+      "testFile": "test_handler.py",
+      "testResults": { "totalTests": 40, "passed": 40 }
+    },
+    {
+      "role": "3-volume-mapped-handler-combined",
+      "path": "apps/api/runpod-worker-gpu-serverless-volume-restore-unpack-fix-combined-dev/",
+      "newInThisTask": true,
+      "dockerfileLocalBaseTag": "gfpgan-serverless-restore-fix-combined:local",
+      "symlinkContract": "/models -> /runpod-volume/models (build-time only, unchanged pattern)",
+      "testFile": "test_mount_contract.py",
+      "testRequiresBuiltImage": true,
+      "runLocallyInThisTask": false
+    }
+  ],
+  "rejectedGate3Candidate": {
+    "digest": "sha256:44a42808c0ebdef72ea5b2914325016170701e489a6835f8433507566969781b",
+    "repository": "ghcr.io/ai-photo-studio/ai-photo-studio/runpod-worker-gpu-serverless-volume-restore-unpack-fix-dev",
+    "gate3Eligible": false,
+    "reason": "Its Serverless and volume-mapped images derive from apps/api/runpod-worker-gpu-serverless-restore-unpack-fix-dev/handler.py, which does not pass cwd=WORKER_DIR to the worker subprocess. Without it, the worker subprocess inherits the handler container's own working directory, causing facexlib to attempt an unauthorized runtime weight download and print to stdout, corrupting the single-JSON-document stdout protocol -- the exact failure mode confirmed for Gate 3 canary run 30702245089 (\"worker produced invalid non-JSON output\").",
+    "gate2StatusUnchanged": "PUBLISHED_AND_VERIFIED",
+    "note": "This finding does not retract, alter, or reinterpret the Gate 2 publication record for this digest (see docs/restoration/runpod-gate3-readiness.json 'gate2CandidateOutputSha256Fix' and RUNPOD_GATE3_APPROVAL_PACKET.md 'Gate 2 Candidate — outputSha256 Contract Fix'). It only records that this specific digest should not proceed to Gate 3 as-is; the combined chain above is the prepared remedy."
+  },
+  "protectedDigestUnchanged": {
+    "digest": "sha256:91052a538454d2996b6f27b561a8b9f7d07636d396f7dd8d1713baf9f9a5ea0d",
+    "note": "Unaffected by this task. Remains the sole Gate 3 owner-approved, production-eligible-only candidate. Not overwritten, reinterpreted, or superseded by this record."
+  },
+  "gate4Status": "prohibited; not touched",
+  "replicateStatus": "production; unaffected; no call made",
+  "routingActivationAuthorized": false,
+  "runpodRoutingAuthorizedEnvFlag": false,
+  "buildOrPublishDispatchedInThisTask": false,
+  "remainingWork": [
+    "Separate, explicit build authorization for the combined chain (no CI workflow references these new directories yet)",
+    "Separate, explicit Gate 2 publication authorization for the combined chain",
+    "Separate, explicit Gate 3 canary/review for whatever digest the combined chain produces",
+    "Out of scope for this task: unrelated Gate 3 workflow, endpoint, cost, cleanup, API routing, preview, and wallet findings"
+  ]
+}
