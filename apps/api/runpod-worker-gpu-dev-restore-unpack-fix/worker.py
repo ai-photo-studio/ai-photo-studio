@@ -167,6 +167,10 @@ def _run_restore(image_bytes):
     buf = io.BytesIO()
     out_img.save(buf, "PNG")
     out_bytes = buf.getvalue()
+    # Hashed here, on the exact final PNG bytes, before base64 encoding --
+    # outputSha256/outputBytes/outputWidth/outputHeight/outputFormat/imageBase64
+    # below all describe this same out_bytes value, computed once.
+    output_sha256 = hashlib.sha256(out_bytes).hexdigest()
     return {
         "ok": True,
         "mode": "restore",
@@ -177,6 +181,7 @@ def _run_restore(image_bytes):
         "outputFormat": "png",
         "outputBytes": len(out_bytes),
         "outputBase64": base64.b64encode(out_bytes).decode("ascii"),
+        "outputSha256": output_sha256,
         "inputChecksum": hashlib.sha256(image_bytes).hexdigest(),
         "gpu": info["deviceName"],
         "model": "GFPGANv1.4",
