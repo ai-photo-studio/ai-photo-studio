@@ -1,5 +1,5 @@
 ﻿# Next Task
 
-## Repository verification and project-state validation
+## Identify and safely recover valid work from the dirty backup
 
-Do not start a feature. Reconcile repository documents, source structure, package scripts, Git state, CI presence, Prisma migration history, provider status, and deployment documentation. Resolve discrepancies using repository evidence only. Keep protected application areas unchanged unless a later task explicitly authorizes them.
+Do not start a feature. Inspect the dirty backup for recoverable repository changes, classify what belongs in the project and what should stay excluded, and prepare a safe recovery plan that avoids protected application areas unless explicitly authorized.
