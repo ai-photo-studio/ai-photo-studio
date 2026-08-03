@@ -9,6 +9,7 @@ Updated: 2026-08-03
 - Web: TypeScript/React/Vite application with Playwright browser tests.
 - Additional worker package: `runpod-worker-dev`; API also contains RunPod provider/worker code.
 - Root scripts define build, typecheck, lint, scope checks, focused API tests, browser tests, database validation, and deployment-readiness checks.
+- GitHub workflows exist under `.github/workflows` in `HEAD`.
 - Repository documentation references Cloudflare Pages for the frontend, Northflank for the API, managed PostgreSQL/Redis, and Cloudflare R2. These are documented architecture facts, not live deployment verification.
 - `rules.md` documents Replicate as the active production AI provider and RunPod as protected/disabled unless separately authorized.
 - `AI_code_audit_report.md` exists and is preserved as the audit-report convention.
@@ -16,19 +17,21 @@ Updated: 2026-08-03
 
 ## Confirmed from direct verification
 - `git branch --show-current` reported `setup/project-automation`.
+- `npm ci` completed successfully.
+- Prisma Client generated successfully.
 - `npm run typecheck` passed for API and web.
 - `npm run build` passed for API and web; Vite produced a build.
 - `npm run scope:check` failed because the script expects `main`.
-- `npm run project-info` failed because `PROJECT_LOCK.json` is missing.
-- No CI workflow files were found under `.github/workflows` during inspection.
+- `npm run project-info` succeeded but showed Railway fields as absent/undefined in `PROJECT_LOCK.json`.
+- `git status --short` was clean after verification.
 
 ## Confirmed repository state
-- Git status contains pre-existing staged, unstaged, and untracked changes outside this setup task.
-- This task added project automation documentation files only.
+- Git status is clean.
+- This task updated only the project-state documents and `reports/LATEST.md`.
 
 ## Known issues and uncertainty
 - Production deployment state, cloud credentials, runtime environment values, payment activation, proxy topology, and live provider availability were not verified and must not be inferred from source files.
-- Exact CI configuration is unknown because no workflow files were found.
+- Exact CI behavior and live deployment state remain unverified even though workflow files exist in the repository.
 - Current and historical deployment/provider documents should be reconciled during the next validation task.
 
 ## Safe verification commands
