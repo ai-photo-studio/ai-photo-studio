@@ -1,6 +1,9 @@
 # Railway Deployment
 
-This repository now targets the Phase 1 production deployment path:
+> **RETIRED — historical reference only; not an active deploy or rollback target.**
+> Current production deployment (see `rules.md`, the authoritative architecture record): frontend on Cloudflare Pages, API on Northflank at `api.thannow.com`. Railway is no longer in use. The remainder of this document is preserved unmodified as historical evidence of a prior deployment path; do not follow it for a current or rollback deployment.
+
+This repository now targets the Phase 1 production deployment path (superseded — see notice above):
 
 `Cloudflare Pages -> Railway API -> Neon PostgreSQL -> Redis -> Cloudflare R2 -> Replicate`
 

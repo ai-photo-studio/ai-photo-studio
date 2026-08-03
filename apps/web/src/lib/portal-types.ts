@@ -448,3 +448,239 @@ export type RestoreUploadResult = {
     expiresAt: string;
   };
 };
+
+// R9.2-P1A: free upload / original preview / digital fixed-order types.
+// Client never sends or trusts an authoritative market/currency/amount --
+// these fields are always server-derived/server-owned in the responses below.
+
+// The runtime `as const` arrays below are the single source of truth: each
+// union type is derived from its array, so a value can never be valid in one
+// place and unknown in the other. UI code that must validate user input at
+// runtime (e.g. the admin commerce filter form) imports the array; nothing
+// re-declares the literal list a second time.
+export const MARKETS = ["PAKISTAN", "INTERNATIONAL"] as const;
+export type Market = (typeof MARKETS)[number];
+
+export const FIXED_ORDER_CURRENCIES = ["PKR", "USD"] as const;
+export type FixedOrderCurrency = (typeof FIXED_ORDER_CURRENCIES)[number];
+
+export const DIGITAL_TIERS = ["ORIGINAL", "HD_2X", "HD_4X"] as const;
+export type DigitalTier = (typeof DIGITAL_TIERS)[number];
+
+export type RestorationDraftRecord = {
+  id: string;
+  status: "UPLOADED" | "PREVIEW_READY" | "ORDER_SELECTION" | "EXPIRED" | "CANCELLED";
+  market: Market | null;
+  country: string | null;
+  currency: FixedOrderCurrency | null;
+  originalMimeType: string | null;
+  originalWidth: number | null;
+  originalHeight: number | null;
+  originalFileSizeBytes: number | null;
+  previewUrl: string;
+  previewExpiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Present once, only in the create-draft response, for a guest (non-logged-in) upload. */
+  guestOwnershipToken?: string;
+};
+
+export type DigitalOffer = {
+  tier: DigitalTier;
+  label: string;
+  market: Market;
+  currency: FixedOrderCurrency;
+  amountMinor: number;
+  description: string;
+  source: "local_fixture";
+};
+
+export type DraftOffersResponse = {
+  market: Market;
+  currency: FixedOrderCurrency;
+  /** `available: false` (with a truthful `reason`) when no approved price exists for this market yet -- never a fabricated offer. */
+  offers: DigitalOffer[] | { available: false; reason: string };
+};
+
+export type FixedOrderItemRecord = {
+  id: string;
+  kind: string;
+  tierOrSku: string | null;
+  quantity: number;
+  unitAmountMinor: string;
+  totalAmountMinor: string;
+  currency: FixedOrderCurrency;
+  /** R9.2-P1B pricing provenance -- "local_fixture" is never eligible for payment. */
+  pricingSource: string;
+  pricingApproved: boolean;
+};
+
+export const FIXED_ORDER_TYPES = [
+  "RESTORATION_DIGITAL",
+  "RESTORATION_WITH_PRINT",
+  "DIGITAL_UPGRADE",
+  "PRINT_ADD_ON"
+] as const;
+export type FixedOrderType = (typeof FIXED_ORDER_TYPES)[number];
+
+export const FIXED_ORDER_STATUSES = [
+  "CREATED",
+  "PAYMENT_PENDING",
+  "PAYMENT_VERIFIED",
+  "LOCKED",
+  "CANCELLED",
+  "EXPIRED"
+] as const;
+export type FixedOrderStatus = (typeof FIXED_ORDER_STATUSES)[number];
+
+export type FixedOrderRecord = {
+  id: string;
+  orderNo: string;
+  type: FixedOrderType;
+  market: Market;
+  currency: FixedOrderCurrency;
+  totalAmountMinor: string;
+  status: FixedOrderStatus;
+  immutableAt: string;
+  createdAt: string;
+  /** Immutable PriceBook snapshot captured at order creation -- null only when the order's pricing did not come from an approved PriceBook (e.g. a fixture offer). Never recomputed after order creation. */
+  priceBookVersion: string | null;
+  priceBookApprovalReference: string | null;
+  priceBookEffectiveAt: string | null;
+  items: FixedOrderItemRecord[];
+  /** Present once, only in the create-order response, for a guest (non-logged-in) order. */
+  guestOwnershipToken?: string;
+};
+
+// R9.2-P1B: payment readiness and PaymentAttempt types. The server is always
+// the sole source of amount/currency/provider/readiness -- nothing here is
+// ever computed or overridden on the client.
+
+export type PaymentReadinessResponse = {
+  ready: boolean;
+  /** Truthful, human-readable blocker reasons. Empty only when `ready` is true. */
+  reasons: string[];
+  order: {
+    orderNo: string;
+    market: Market;
+    currency: FixedOrderCurrency;
+    totalAmountMinor: string;
+    status: string;
+  };
+};
+
+export const PAYMENT_ATTEMPT_STATUSES = [
+  "CREATED",
+  "REDIRECT_READY",
+  "CUSTOMER_RETURNED",
+  "CANCELLED_BY_CUSTOMER",
+  "EXPIRED",
+  "CALLBACK_PENDING",
+  "AUTHORIZED",
+  "PAID",
+  "FAILED",
+  "CANCELLED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+  "DISPUTED",
+  "CHARGEBACK"
+] as const;
+export type PaymentAttemptStatus = (typeof PAYMENT_ATTEMPT_STATUSES)[number];
+
+export type PaymentAttemptRecord = {
+  id: string;
+  fixedOrderId: string;
+  orderNo: string;
+  provider: string;
+  status: PaymentAttemptStatus;
+  amountMinor: string;
+  currency: FixedOrderCurrency;
+  providerRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Only present immediately after a successful provider initialization -- never fabricated, never replayed on a later read. */
+  checkoutUrl?: string;
+};
+
+// R9.2-P2R-ADMIN: read-only admin visibility for FixedOrder/PriceBook/
+// PaymentAttempt. These types describe GET-only admin responses -- there is
+// no corresponding write/mutation request type because no such endpoint
+// exists.
+
+export type AdminCommerceOrderListItem = {
+  id: string;
+  orderNo: string;
+  type: FixedOrderRecord["type"];
+  market: Market;
+  currency: FixedOrderCurrency;
+  totalAmountMinor: string;
+  status: string;
+  paymentStatus: PaymentAttemptStatus | string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminCommerceOrderItemView = {
+  id: string;
+  kind: string;
+  tierOrSku: string | null;
+  quantity: number;
+  unitAmountMinor: string;
+  totalAmountMinor: string;
+  currency: FixedOrderCurrency;
+  pricingSource: string;
+  pricingApproved: boolean;
+};
+
+// R9.2-P2R-CUSTOMER-ORDERS: authenticated, read-only customer FixedOrder
+// history. GET-only -- there is no corresponding write/mutation request type.
+
+export type CustomerFixedOrderListItem = {
+  orderNo: string;
+  type: FixedOrderRecord["type"];
+  status: string;
+  market: Market;
+  currency: FixedOrderCurrency;
+  totalAmountMinor: string;
+  priceBookVersion: string | null;
+  items: Array<{
+    tierOrSku: string | null;
+    pricingSource: string;
+    pricingApproved: boolean;
+  }>;
+  paymentAttempt: { id: string; status: PaymentAttemptStatus | string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerFixedOrderListResponse = {
+  items: CustomerFixedOrderListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type AdminCommerceOrderDetail = {
+  orderNo: string;
+  type: FixedOrderRecord["type"];
+  status: string;
+  market: Market;
+  currency: FixedOrderCurrency;
+  totalAmountMinor: string;
+  priceBookVersion: string | null;
+  priceBookApprovalReference: string | null;
+  priceBookEffectiveAt: string | null;
+  items: AdminCommerceOrderItemView[];
+  paymentReadiness: {
+    ready: boolean;
+    reasons: string[];
+  };
+  paymentAttempt: {
+    id: string;
+    status: string;
+    provider: string;
+    providerRef: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};

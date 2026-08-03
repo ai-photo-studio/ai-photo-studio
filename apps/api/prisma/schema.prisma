@@ -91,17 +91,17 @@ model Customer {
 }
 
 model AdminUser {
-  id           String      @id @default(cuid())
-  email        String      @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
   name         String?
-  role         AdminRole   @default(READ_ONLY)
-  isActive     Boolean     @default(true)
+  role         AdminRole @default(READ_ONLY)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  sessions AdminSession[]
+  sessions  AdminSession[]
   auditLogs AdminAuditLog[]
 
   @@index([role, isActive])
@@ -125,15 +125,15 @@ model AdminSession {
 }
 
 model AdminAuditLog {
-  id           String   @id @default(cuid())
+  id          String   @id @default(cuid())
   adminUserId String?
-  action       String
-  entityType   String?
-  entityId     String?
-  metadata     Json?
-  ipAddress    String?
-  userAgent    String?
-  createdAt    DateTime @default(now())
+  action      String
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
 
   adminUser AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
 
@@ -142,58 +142,58 @@ model AdminAuditLog {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  customerId   String?  @unique
-  customer     Customer? @relation("CustomerUser", fields: [customerId], references: [id])
-  wallet       Wallet?
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  name          String?
+  customerId    String?        @unique
+  customer      Customer?      @relation("CustomerUser", fields: [customerId], references: [id])
+  wallet        Wallet?
   subscriptions Subscription[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   orders Order[] @relation("UserOrders")
 }
 
 model Order {
-  id             String   @id @default(cuid())
-  orderNo       String       @unique
-  customerId    String
-  userId        String?
-  packageId     String
-  whatsappSenderNumber String?
-  whatsappMessageId     String? @unique
-  whatsappMediaId       String?
+  id                      String        @id @default(cuid())
+  orderNo                 String        @unique
+  customerId              String
+  userId                  String?
+  packageId               String
+  whatsappSenderNumber    String?
+  whatsappMessageId       String?       @unique
+  whatsappMediaId         String?
   guestOwnershipTokenHash String?
-  orderStatus   OrderStatus  @default(NEW)
-  paymentStatus PaymentStatus @default(PENDING)
-  currency      String       @default("PKR")
-  subtotal      Decimal      @db.Decimal(10, 2)
-  total         Decimal      @db.Decimal(10, 2)
-  notes         String?
-  originalStorageKey   String?
-  originalUrl          String?
-  originalExpiresAt    DateTime?
-  processedStorageKey  String?
-  processedUrl         String?
-  processedExpiresAt   DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  orderStatus             OrderStatus   @default(NEW)
+  paymentStatus           PaymentStatus @default(PENDING)
+  currency                String        @default("PKR")
+  subtotal                Decimal       @db.Decimal(10, 2)
+  total                   Decimal       @db.Decimal(10, 2)
+  notes                   String?
+  originalStorageKey      String?
+  originalUrl             String?
+  originalExpiresAt       DateTime?
+  processedStorageKey     String?
+  processedUrl            String?
+  processedExpiresAt      DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
-  customer Customer     @relation(fields: [customerId], references: [id])
-  user     User?        @relation("UserOrders", fields: [userId], references: [id])
-  package  Package      @relation(fields: [packageId], references: [id])
-  items    OrderItem[]
-  images   OrderImage[]
-  payments Payment[]
+  customer           Customer             @relation(fields: [customerId], references: [id])
+  user               User?                @relation("UserOrders", fields: [userId], references: [id])
+  package            Package              @relation(fields: [packageId], references: [id])
+  items              OrderItem[]
+  images             OrderImage[]
+  payments           Payment[]
   walletTransactions WalletTransaction[]
-  aiJobs   AiJob[]
-  processingJobs ProcessingJob[]
+  aiJobs             AiJob[]
+  processingJobs     ProcessingJob[]
   imageQualityScores ImageQualityScore[]
-  statusHistory OrderStatusHistory[]
+  statusHistory      OrderStatusHistory[]
   creativeStudioJobs CreativeStudioJob[]
-  providerCostLogs ProviderCostLog[]
+  providerCostLogs   ProviderCostLog[]
 
   @@index([customerId, createdAt])
   @@index([orderStatus, paymentStatus])
@@ -216,7 +216,7 @@ model OrderItem {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   processingJobs ProcessingJob[]
 
   @@index([orderId, createdAt])
@@ -224,41 +224,41 @@ model OrderItem {
 }
 
 model ProcessingJob {
-  id              String    @id @default(cuid())
-  orderId         String
-  orderItemId     String?
-  queueName       String
-  jobName         String
-  providerName    String?
-  workflowType    String?
-  workflowMode    String?
-  status          JobStatus @default(QUEUED)
-  attempts        Int       @default(0)
-  maxAttempts     Int       @default(5)
-  queueJobId      String?   @unique
-  errorMessage    String?
-  deadLetterReason String?
-  failureStage    String?
-  lastHeartbeat   DateTime?
+  id                  String    @id @default(cuid())
+  orderId             String
+  orderItemId         String?
+  queueName           String
+  jobName             String
+  providerName        String?
+  workflowType        String?
+  workflowMode        String?
+  status              JobStatus @default(QUEUED)
+  attempts            Int       @default(0)
+  maxAttempts         Int       @default(5)
+  queueJobId          String?   @unique
+  errorMessage        String?
+  deadLetterReason    String?
+  failureStage        String?
+  lastHeartbeat       DateTime?
   processingStartedAt DateTime?
-  processingWorkerId String?
-  gpuSecondsSpent Int       @default(0)
-  estimatedGpuCost Decimal? @db.Decimal(10, 4)
-  cloudRunCost    Decimal?  @db.Decimal(10, 4)
-  runpodCost      Decimal?  @db.Decimal(10, 4)
-  refundProcessed Boolean   @default(false)
-  refundNote      String?
-  payload         Json?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  failedAt        DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  processingWorkerId  String?
+  gpuSecondsSpent     Int       @default(0)
+  estimatedGpuCost    Decimal?  @db.Decimal(10, 4)
+  cloudRunCost        Decimal?  @db.Decimal(10, 4)
+  runpodCost          Decimal?  @db.Decimal(10, 4)
+  refundProcessed     Boolean   @default(false)
+  refundNote          String?
+  payload             Json?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  order              Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem          OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   imageQualityScores ImageQualityScore[]
-  providerCostLogs ProviderCostLog[]
+  providerCostLogs   ProviderCostLog[]
 
   @@index([orderId, status])
   @@index([queueName, status])
@@ -268,14 +268,14 @@ model ProcessingJob {
 }
 
 model OrderStatusHistory {
-  id         String      @id @default(cuid())
+  id         String       @id @default(cuid())
   orderId    String
   fromStatus OrderStatus?
   toStatus   OrderStatus
   source     String
   reason     String?
   meta       Json?
-  createdAt  DateTime    @default(now())
+  createdAt  DateTime     @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -295,32 +295,32 @@ model OrderImage {
   expiresAt     DateTime?
   createdAt     DateTime  @default(now())
 
-  order Order @relation(fields: [orderId], references: [id])
+  order              Order               @relation(fields: [orderId], references: [id])
   creativeStudioJobs CreativeStudioJob[]
 
   @@index([orderId, kind])
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  orderId         String
-  provider        String
-  providerRef     String?
-  checkoutUrl     String?
-  status          PaymentStatus @default(PENDING)
-  amount          Decimal       @db.Decimal(10, 2)
-  currency        String        @default("PKR")
-  screenshotPath  String?
+  id                   String        @id @default(cuid())
+  orderId              String
+  provider             String
+  providerRef          String?
+  checkoutUrl          String?
+  status               PaymentStatus @default(PENDING)
+  amount               Decimal       @db.Decimal(10, 2)
+  currency             String        @default("PKR")
+  screenshotPath       String?
   screenshotStorageKey String?
-  reviewedAt      DateTime?
-  reviewedBy      String?
-  reviewNotes     String?
-  rawPayload      Json?
-  paidAt          DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  reviewedAt           DateTime?
+  reviewedBy           String?
+  reviewNotes          String?
+  rawPayload           Json?
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
+  order              Order               @relation(fields: [orderId], references: [id])
   walletTransactions WalletTransaction[]
 
   @@index([orderId, createdAt])
@@ -328,27 +328,27 @@ model Payment {
 }
 
 model Package {
-  id                  String   @id @default(cuid())
-  code                String   @unique
-  name                String
-  description         String?
-  price               Decimal  @db.Decimal(10, 2)
-  currency            String   @default("PKR")
-  active              Boolean  @default(true)
-  featured            Boolean  @default(false)
-  sortOrder           Int      @default(0)
-  maxImages           Int?
-  creditsIncluded     Int      @default(0)
-  monthlyCreditLimit  Int      @default(0)
-  workflowType        String   @default("PRODUCT")
-  workflowMode        String   @default("PRODUCT_STUDIO")
-  includesJson        Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  name               String
+  description        String?
+  price              Decimal  @db.Decimal(10, 2)
+  currency           String   @default("PKR")
+  active             Boolean  @default(true)
+  featured           Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  maxImages          Int?
+  creditsIncluded    Int      @default(0)
+  monthlyCreditLimit Int      @default(0)
+  workflowType       String   @default("PRODUCT")
+  workflowMode       String   @default("PRODUCT_STUDIO")
+  includesJson       Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  orders       Order[]
+  orders        Order[]
   subscriptions Subscription[]
-  sampleAssets SampleAsset[]
+  sampleAssets  SampleAsset[]
 }
 
 model Wallet {
@@ -362,38 +362,38 @@ model Wallet {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions   WalletTransaction[]
-  subscriptions  Subscription[]
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  WalletTransaction[]
+  subscriptions Subscription[]
 
   @@index([balance])
 }
 
 model WalletTransaction {
-  id              String                @id @default(cuid())
-  walletId        String
-  paymentId       String?
-  orderId         String?
-  subscriptionId  String?
-  type            WalletTransactionType
-  state           WalletTransactionState @default(SETTLED)
-  creditSource    CreditSourceType?
-  amount          Int
-  balanceBefore   Int
-  balanceAfter    Int
-  reservedBefore  Int                  @default(0)
-  reservedAfter   Int                  @default(0)
-  referenceType   String?
-  referenceId     String?
-  note            String?
-  metadata        Json?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id             String                 @id @default(cuid())
+  walletId       String
+  paymentId      String?
+  orderId        String?
+  subscriptionId String?
+  type           WalletTransactionType
+  state          WalletTransactionState @default(SETTLED)
+  creditSource   CreditSourceType?
+  amount         Int
+  balanceBefore  Int
+  balanceAfter   Int
+  reservedBefore Int                    @default(0)
+  reservedAfter  Int                    @default(0)
+  referenceType  String?
+  referenceId    String?
+  note           String?
+  metadata       Json?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
-  wallet         Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  payment        Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  order          Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  wallet       Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  payment      Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  order        Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([walletId, createdAt])
   @@index([referenceType, referenceId])
@@ -402,28 +402,28 @@ model WalletTransaction {
 }
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  userId               String
-  walletId             String
-  packageId            String
-  planCode             String
-  status               SubscriptionStatus @default(ACTIVE)
-  monthlyCreditLimit   Int                @default(0)
-  monthlyCreditsUsed   Int                @default(0)
-  monthlyCreditsReserved Int              @default(0)
-  periodStart          DateTime
-  periodEnd            DateTime
-  nextResetAt          DateTime
-  lastResetAt          DateTime?
-  startedAt            DateTime           @default(now())
-  endedAt              DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                     String             @id @default(cuid())
+  userId                 String
+  walletId               String
+  packageId              String
+  planCode               String
+  status                 SubscriptionStatus @default(ACTIVE)
+  monthlyCreditLimit     Int                @default(0)
+  monthlyCreditsUsed     Int                @default(0)
+  monthlyCreditsReserved Int                @default(0)
+  periodStart            DateTime
+  periodEnd              DateTime
+  nextResetAt            DateTime
+  lastResetAt            DateTime?
+  startedAt              DateTime           @default(now())
+  endedAt                DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallet        Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  package       Package           @relation(fields: [packageId], references: [id], onDelete: Restrict)
-  usage         SubscriptionUsage[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet             Wallet              @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  package            Package             @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  usage              SubscriptionUsage[]
   walletTransactions WalletTransaction[]
 
   @@index([userId, status])
@@ -433,18 +433,18 @@ model Subscription {
 }
 
 model SubscriptionUsage {
-  id                String   @id @default(cuid())
-  subscriptionId    String
-  periodStart       DateTime
-  periodEnd         DateTime
-  creditsReserved   Int      @default(0)
-  creditsSpent      Int      @default(0)
-  creditsReleased   Int      @default(0)
-  jobsReserved      Int      @default(0)
-  jobsCompleted     Int      @default(0)
-  jobsFailed        Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  periodStart     DateTime
+  periodEnd       DateTime
+  creditsReserved Int      @default(0)
+  creditsSpent    Int      @default(0)
+  creditsReleased Int      @default(0)
+  jobsReserved    Int      @default(0)
+  jobsCompleted   Int      @default(0)
+  jobsFailed      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
@@ -453,15 +453,15 @@ model SubscriptionUsage {
 }
 
 model SampleAsset {
-  id          String   @id @default(cuid())
-  packageId   String?
-  title       String
-  type        String
-  storageKey  String
-  publicUrl   String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  packageId  String?
+  title      String
+  type       String
+  storageKey String
+  publicUrl  String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   package Package? @relation(fields: [packageId], references: [id])
 
@@ -469,46 +469,46 @@ model SampleAsset {
 }
 
 model ImageQualityScore {
-  id                String   @id @default(cuid())
-  orderId           String
-  processingJobId   String
-  providerName      String
-  imageStorageKey   String?
-  category          String?
+  id                       String   @id @default(cuid())
+  orderId                  String
+  processingJobId          String
+  providerName             String
+  imageStorageKey          String?
+  category                 String?
   classificationConfidence Float?
-  pipelineUsed      String?
-  processingProfile String?
-  productDetected   Boolean  @default(true)
-  confidence        Float
-  processingStage   String?
-  beforeBlurScore   Float?
-  beforeBrightnessScore Float?
-  beforeContrastScore   Float?
-  beforeVisibilityScore Float?
-  beforeCropQualityScore Float?
-  beforeOverallScore Int?
-  blurScore         Float
-  brightnessScore   Float
-  contrastScore     Float
-  visibilityScore   Float
-  cropQualityScore  Float
-  overallScore      Int
-  enhancementScore  Int?
-  enhancementDelta  Int?
-  boundingBoxLeft   Int?
-  boundingBoxTop    Int?
-  boundingBoxWidth  Int?
-  boundingBoxHeight Int?
-  cropLeft          Int?
-  cropTop           Int?
-  cropRight         Int?
-  cropBottom        Int?
-  sourceWidth       Int?
-  sourceHeight      Int?
-  canvasWidth       Int?
-  canvasHeight      Int?
-  metadata          Json?
-  createdAt         DateTime @default(now())
+  pipelineUsed             String?
+  processingProfile        String?
+  productDetected          Boolean  @default(true)
+  confidence               Float
+  processingStage          String?
+  beforeBlurScore          Float?
+  beforeBrightnessScore    Float?
+  beforeContrastScore      Float?
+  beforeVisibilityScore    Float?
+  beforeCropQualityScore   Float?
+  beforeOverallScore       Int?
+  blurScore                Float
+  brightnessScore          Float
+  contrastScore            Float
+  visibilityScore          Float
+  cropQualityScore         Float
+  overallScore             Int
+  enhancementScore         Int?
+  enhancementDelta         Int?
+  boundingBoxLeft          Int?
+  boundingBoxTop           Int?
+  boundingBoxWidth         Int?
+  boundingBoxHeight        Int?
+  cropLeft                 Int?
+  cropTop                  Int?
+  cropRight                Int?
+  cropBottom               Int?
+  sourceWidth              Int?
+  sourceHeight             Int?
+  canvasWidth              Int?
+  canvasHeight             Int?
+  metadata                 Json?
+  createdAt                DateTime @default(now())
 
   order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   processingJob ProcessingJob @relation(fields: [processingJobId], references: [id], onDelete: Cascade)
@@ -519,36 +519,36 @@ model ImageQualityScore {
 }
 
 model AiJob {
-  id             String    @id @default(cuid())
-  orderId        String
-  orderImageId   String?
-  provider       String
-  operation      String
-  status         JobStatus @default(QUEUED)
-  attempts       Int       @default(0)
-  errorMessage   String?
-  inputKey       String?
-  outputKey      String?
-  startedAt      DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  orderId      String
+  orderImageId String?
+  provider     String
+  operation    String
+  status       JobStatus @default(QUEUED)
+  attempts     Int       @default(0)
+  errorMessage String?
+  inputKey     String?
+  outputKey    String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
+  order            Order             @relation(fields: [orderId], references: [id])
   providerCostLogs ProviderCostLog[]
 
   @@index([orderId, status])
 }
 
 model WebhookEvent {
-  id               String   @id @default(cuid())
-  source           String
-  providerEventId  String
-  eventType        String
-  payload          Json
-  processed        Boolean  @default(false)
-  processedAt      DateTime?
-  createdAt        DateTime @default(now())
+  id              String    @id @default(cuid())
+  source          String
+  providerEventId String
+  eventType       String
+  payload         Json
+  processed       Boolean   @default(false)
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
 
   @@unique([source, providerEventId])
   @@index([source, eventType, createdAt])
@@ -565,14 +565,14 @@ model Setting {
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  actorType   String
-  actorId     String?
-  action      String
-  entityType  String
-  entityId    String?
-  meta        Json?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  actorType  String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
 
   @@index([entityType, entityId, createdAt])
   @@index([actorType, createdAt])
@@ -611,24 +611,24 @@ enum ImageCategory {
 }
 
 model RestorationOrder {
-  id              String            @id @default(cuid())
-  orderNo         String            @unique
-  userId          String?
-  customerId      String?
-  packageId       String?
+  id                      String            @id @default(cuid())
+  orderNo                 String            @unique
+  userId                  String?
+  customerId              String?
+  packageId               String?
   guestOwnershipTokenHash String?
-  title           String?
-  notes           String?
-  status          RestorationStatus @default(PENDING)
-  totalItems      Int               @default(0)
-  completedItems  Int               @default(0)
-  failedItems     Int               @default(0)
-  totalDurationMs Int?
-  qualityImprovement Int?
-  estimatedCost   Decimal?          @db.Decimal(10, 4)
-  metadata        Json?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  title                   String?
+  notes                   String?
+  status                  RestorationStatus @default(PENDING)
+  totalItems              Int               @default(0)
+  completedItems          Int               @default(0)
+  failedItems             Int               @default(0)
+  totalDurationMs         Int?
+  qualityImprovement      Int?
+  estimatedCost           Decimal?          @db.Decimal(10, 4)
+  metadata                Json?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
   items RestorationItem[]
 
@@ -639,71 +639,71 @@ model RestorationOrder {
 }
 
 model RestorationItem {
-  id                    String           @id @default(cuid())
-  restorationOrderId    String
-  originalStorageKey    String
-  previewStorageKey     String?
-  finalStorageKey       String?
-  maskStorageKey        String?
-  damageMaskStorageKey  String?
-  mimeType              String?
-  width                 Int?
-  height                Int?
-  fileSizeBytes         Int?
-  status                RestorationStatus @default(PENDING)
-  damageSeverity        DamageSeverity   @default(UNKNOWN)
-  imageCategory         ImageCategory    @default(GENERAL)
-  damageScore           Float?
-  qualityScore          Int?
-  beforeQualityScore    Int?
-  afterQualityScore     Int?
-  afterBlurScore        Int?
-  afterNoiseScore       Int?
-  afterSharpnessScore   Int?
-  afterBrightnessScore  Int?
-  afterContrastScore    Int?
-  afterColorCastScore   Int?
-  beforeEntropy         Float?
-  afterEntropy          Float?
-  beforeEdgeDensity     Float?
-  afterEdgeDensity      Float?
-  beforeTextureEnergy   Float?
-  afterTextureEnergy    Float?
-  beforeLaplacianVar    Float?
-  afterLaplacianVar     Float?
-  beforeHistogramSpread Float?
-  afterHistogramSpread  Float?
-  beforeLocalContrast   Float?
-  afterLocalContrast    Float?
-  qualityRegressionStage String?
+  id                      String            @id @default(cuid())
+  restorationOrderId      String
+  originalStorageKey      String
+  previewStorageKey       String?
+  finalStorageKey         String?
+  maskStorageKey          String?
+  damageMaskStorageKey    String?
+  mimeType                String?
+  width                   Int?
+  height                  Int?
+  fileSizeBytes           Int?
+  status                  RestorationStatus @default(PENDING)
+  damageSeverity          DamageSeverity    @default(UNKNOWN)
+  imageCategory           ImageCategory     @default(GENERAL)
+  damageScore             Float?
+  qualityScore            Int?
+  beforeQualityScore      Int?
+  afterQualityScore       Int?
+  afterBlurScore          Int?
+  afterNoiseScore         Int?
+  afterSharpnessScore     Int?
+  afterBrightnessScore    Int?
+  afterContrastScore      Int?
+  afterColorCastScore     Int?
+  beforeEntropy           Float?
+  afterEntropy            Float?
+  beforeEdgeDensity       Float?
+  afterEdgeDensity        Float?
+  beforeTextureEnergy     Float?
+  afterTextureEnergy      Float?
+  beforeLaplacianVar      Float?
+  afterLaplacianVar       Float?
+  beforeHistogramSpread   Float?
+  afterHistogramSpread    Float?
+  beforeLocalContrast     Float?
+  afterLocalContrast      Float?
+  qualityRegressionStage  String?
   qualityRegressionDetail String?
-  beforeBlurScore       Int?
-  beforeNoiseScore      Int?
-  beforeSharpnessScore  Int?
-  beforeBrightnessScore Int?
-  beforeContrastScore   Int?
-  beforeColorCastScore  Int?
-  faceCount             Int?
-  faceConfidence        Float?
-  imageResolutionWidth  Int?
-  imageResolutionHeight Int?
-  colorMode             String?
-  artifactScore         Int?
-  printQuality          Int?
-  ssimScore             Float?
-  psnrScore             Float?
-  revisionCount         Int               @default(0)
-  processingStage       String?
-  providerUsed          String?
-  totalDurationMs       Int?
-  errorMessage          String?
-  retryCount            Int              @default(0)
-  packageTier           String?
-  metadata              Json?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  beforeBlurScore         Int?
+  beforeNoiseScore        Int?
+  beforeSharpnessScore    Int?
+  beforeBrightnessScore   Int?
+  beforeContrastScore     Int?
+  beforeColorCastScore    Int?
+  faceCount               Int?
+  faceConfidence          Float?
+  imageResolutionWidth    Int?
+  imageResolutionHeight   Int?
+  colorMode               String?
+  artifactScore           Int?
+  printQuality            Int?
+  ssimScore               Float?
+  psnrScore               Float?
+  revisionCount           Int               @default(0)
+  processingStage         String?
+  providerUsed            String?
+  totalDurationMs         Int?
+  errorMessage            String?
+  retryCount              Int               @default(0)
+  packageTier             String?
+  metadata                Json?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
-  restorationOrder RestorationOrder @relation(fields: [restorationOrderId], references: [id], onDelete: Cascade)
+  restorationOrder RestorationOrder  @relation(fields: [restorationOrderId], references: [id], onDelete: Cascade)
   providerCostLogs ProviderCostLog[]
 
   @@index([restorationOrderId, status])
@@ -730,28 +730,28 @@ enum ProviderCostType {
 }
 
 model ProviderCostLog {
-  id              String           @id @default(cuid())
-  provider        String
-  operation       String
-  costType        ProviderCostType?
-  durationMs      Int
-  inputSizeBytes  Int?
-  outputSizeBytes Int?
-  estimatedCost   Decimal        @db.Decimal(10, 4) @default(0)
-  actualCost      Decimal?       @db.Decimal(10, 4)
-  orderId         String?
-  processingJobId String?
-  aiJobId         String?
+  id                  String            @id @default(cuid())
+  provider            String
+  operation           String
+  costType            ProviderCostType?
+  durationMs          Int
+  inputSizeBytes      Int?
+  outputSizeBytes     Int?
+  estimatedCost       Decimal           @default(0) @db.Decimal(10, 4)
+  actualCost          Decimal?          @db.Decimal(10, 4)
+  orderId             String?
+  processingJobId     String?
+  aiJobId             String?
   creativeStudioJobId String?
-  restorationItemId String?
-  metadata        Json?
-  createdAt       DateTime       @default(now())
+  restorationItemId   String?
+  metadata            Json?
+  createdAt           DateTime          @default(now())
 
-  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  processingJob ProcessingJob? @relation(fields: [processingJobId], references: [id], onDelete: SetNull)
-  aiJob AiJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
+  order             Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  processingJob     ProcessingJob?     @relation(fields: [processingJobId], references: [id], onDelete: SetNull)
+  aiJob             AiJob?             @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
   creativeStudioJob CreativeStudioJob? @relation(fields: [creativeStudioJobId], references: [id], onDelete: SetNull)
-  restorationItem RestorationItem? @relation(fields: [restorationItemId], references: [id], onDelete: SetNull)
+  restorationItem   RestorationItem?   @relation(fields: [restorationItemId], references: [id], onDelete: SetNull)
 
   @@index([provider, createdAt])
   @@index([orderId, createdAt])
@@ -786,25 +786,25 @@ enum CreativeGenerationStatus {
 }
 
 model CreativeStudioJob {
-  id                String                  @id @default(cuid())
-  orderId           String?
-  orderImageId      String?
-  creativeType      CreativeType
-  sceneType         CreativeSceneType
-  generationStatus  CreativeGenerationStatus @default(PENDING)
-  providerUsed      String
-  inputStorageKey   String?
-  outputStorageKey  String?
-  promptSummary     String?
-  durationMs        Int?
-  estimatedCost     Decimal                 @db.Decimal(10, 4) @default(0)
-  actualCost        Decimal?                @db.Decimal(10, 4)
-  metadata          Json?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
+  id               String                   @id @default(cuid())
+  orderId          String?
+  orderImageId     String?
+  creativeType     CreativeType
+  sceneType        CreativeSceneType
+  generationStatus CreativeGenerationStatus @default(PENDING)
+  providerUsed     String
+  inputStorageKey  String?
+  outputStorageKey String?
+  promptSummary    String?
+  durationMs       Int?
+  estimatedCost    Decimal                  @default(0) @db.Decimal(10, 4)
+  actualCost       Decimal?                 @db.Decimal(10, 4)
+  metadata         Json?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
-  order       Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  orderImage  OrderImage?  @relation(fields: [orderImageId], references: [id], onDelete: SetNull)
+  order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderImage       OrderImage?       @relation(fields: [orderImageId], references: [id], onDelete: SetNull)
   providerCostLogs ProviderCostLog[]
 
   @@index([orderId, createdAt])
@@ -814,20 +814,479 @@ model CreativeStudioJob {
 }
 
 model ProviderPerformance {
-  id              String   @id @default(cuid())
-  provider        String
-  imageCategory   String
+  id               String   @id @default(cuid())
+  provider         String
+  imageCategory    String
   benchmarkVersion String
-  avgScore        Float
-  avgLatencyMs    Int
-  avgCost         Decimal  @db.Decimal(10, 4)
-  successRate     Float
-  lastBenchmarkAt DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  avgScore         Float
+  avgLatencyMs     Int
+  avgCost          Decimal  @db.Decimal(10, 4)
+  successRate      Float
+  lastBenchmarkAt  DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([provider, imageCategory, benchmarkVersion])
   @@index([provider, benchmarkVersion])
   @@index([imageCategory, benchmarkVersion])
   @@index([avgScore])
+}
+
+// ---------------------------------------------------------------------------
+// R9.2-P0A: Fixed-order data foundation and one-call guards (additive only).
+//
+// These models introduce the restoration-first commerce contract:
+// free upload/original preview -> immutable FixedOrder -> verified payment
+// gate (implemented in a later packet) -> exactly one first restoration
+// execution -> permanent RestorationMaster -> Sharp variants/add-ons (later
+// packets). No existing model above this line is modified. New models
+// reference legacy models (Order, RestorationOrder, RestorationItem) only via
+// plain, unindexed-by-relation scalar id columns (no Prisma `@relation` back
+// onto the legacy models) so legacy reads are byte-for-byte unaffected.
+// Payment, provider dispatch, Sharp variant generation, print fulfilment,
+// and deployment activation are explicitly out of scope for this packet;
+// these models exist so later packets can be additive as well.
+// ---------------------------------------------------------------------------
+
+enum Market {
+  PAKISTAN
+  INTERNATIONAL
+}
+
+enum FixedOrderCurrency {
+  PKR
+  USD
+}
+
+enum FixedOrderType {
+  RESTORATION_DIGITAL
+  RESTORATION_WITH_PRINT
+  DIGITAL_UPGRADE
+  PRINT_ADD_ON
+}
+
+enum FixedOrderStatus {
+  CREATED
+  PAYMENT_PENDING
+  PAYMENT_VERIFIED
+  LOCKED
+  CANCELLED
+  EXPIRED
+}
+
+enum RestorationDraftStatus {
+  UPLOADED
+  PREVIEW_READY
+  ORDER_SELECTION
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentAttemptStatus {
+  CREATED
+  REDIRECT_READY
+  CUSTOMER_RETURNED
+  CANCELLED_BY_CUSTOMER
+  EXPIRED
+  CALLBACK_PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  DISPUTED
+  CHARGEBACK
+}
+
+enum RestorationEntitlementStatus {
+  GRANTED
+  CONSUMED
+  REVOKED
+}
+
+enum RestorationMasterStatus {
+  NOT_STARTED
+  PROCESSING
+  VALIDATED
+  FAILED
+}
+
+enum ReplicateExecutionStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+enum DigitalTier {
+  ORIGINAL
+  HD_2X
+  HD_4X
+}
+
+enum ImageVariantStatus {
+  PENDING
+  AVAILABLE
+  FAILED
+}
+
+enum DigitalEntitlementStatus {
+  LOCKED
+  GENERATING
+  AVAILABLE
+  DOWNLOADED
+}
+
+enum PrintEntitlementStatus {
+  PREPAID
+  WAITING_FOR_MASTER
+  PRINT_FILE_READY
+  FULFILMENT_READY
+  IN_PRODUCTION
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+}
+
+enum FulfilmentOrderStatus {
+  PENDING
+  IN_PRODUCTION
+  DISPATCHED
+  DELIVERED
+  EXCEPTION
+}
+
+enum ShipmentStatus {
+  PENDING
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+}
+
+model RestorationDraft {
+  id                      String                 @id @default(cuid())
+  ownerUserId             String?
+  ownerCustomerId         String?
+  guestOwnershipTokenHash String?
+  market                  Market?
+  country                 String?
+  currency                FixedOrderCurrency?
+  originalStorageKey      String
+  originalMimeType        String?
+  originalWidth           Int?
+  originalHeight          Int?
+  originalFileSizeBytes   Int?
+  originalSha256          String?
+  previewStorageKey       String?
+  status                  RestorationDraftStatus @default(UPLOADED)
+  expiresAt               DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  fixedOrders             FixedOrder[]
+  restorationEntitlements RestorationEntitlement[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([ownerCustomerId, createdAt])
+  @@index([guestOwnershipTokenHash])
+  @@index([status, createdAt])
+}
+
+model FixedOrder {
+  id                       String             @id @default(cuid())
+  orderNo                  String             @unique
+  type                     FixedOrderType
+  market                   Market
+  currency                 FixedOrderCurrency
+  ownerUserId              String?
+  ownerCustomerId          String?
+  guestOwnershipTokenHash  String?
+  sourceDraftId            String?
+  // Legacy commercial linkage kept as plain scalar ids (no Prisma relation)
+  // so RestorationOrder/Order remain untouched by this packet.
+  legacyRestorationOrderId String?
+  legacyOrderId            String?
+  priceBookVersion         String?
+  // R9.2-P1C-B: additional immutable PriceBook snapshot fields -- captured
+  // once at order creation from whichever offer resolved the price, never
+  // recomputed or backfilled later. NULL for local_fixture orders (which
+  // genuinely have no owner approval reference or PriceBook effective date).
+  priceBookApprovalReference String?
+  priceBookEffectiveAt       DateTime?
+  totalAmountMinor         BigInt
+  status                   FixedOrderStatus   @default(CREATED)
+  immutableAt              DateTime           @default(now())
+  lockedAt                 DateTime?
+  cancelledAt              DateTime?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  sourceDraft            RestorationDraft?       @relation(fields: [sourceDraftId], references: [id])
+  items                  FixedOrderItem[]
+  paymentAttempt         PaymentAttempt?
+  restorationEntitlement RestorationEntitlement?
+  addOnLink              AddOnOrderLink?         @relation("AddOnFixedOrder")
+  originalOfAddOns       AddOnOrderLink[]        @relation("OriginalFixedOrder")
+  auditEvents            AuditEvent[]
+
+  // R9.2-P1A: a draft may source at most one FixedOrder, ever -- this unique
+  // index (not just a plain index) is the idempotency/duplicate-order
+  // enforcement mechanism for POST /api/fixed-orders/restoration-digital.
+  // NULL sourceDraftId (non-draft-sourced orders) is unaffected: Postgres
+  // treats multiple NULLs in a unique index as distinct.
+  @@unique([sourceDraftId])
+  @@index([ownerUserId, createdAt])
+  @@index([ownerCustomerId, createdAt])
+  @@index([guestOwnershipTokenHash])
+  @@index([type, status])
+}
+
+model FixedOrderItem {
+  id               String             @id @default(cuid())
+  fixedOrderId     String
+  kind             String
+  tierOrSku        String?
+  quantity         Int                @default(1)
+  unitAmountMinor  BigInt
+  totalAmountMinor BigInt
+  currency         FixedOrderCurrency
+  // R9.2-P1B pricing provenance (additive): explicit, typed columns -- not
+  // generic JSON -- recording where this line's price came from and whether
+  // it is owner-approved/live. Every order created so far (P1A onward) is
+  // priced from FixtureOfferProvider, so both columns default to the truthful
+  // "not eligible for payment" state (LOCAL_FIXTURE / not approved). No
+  // service in this repository can ever set pricingApproved=true yet -- doing
+  // so requires a real, owner-approved price book, which does not exist.
+  pricingSource    String             @default("local_fixture")
+  pricingApproved  Boolean            @default(false)
+  metadata         Json?
+  createdAt        DateTime           @default(now())
+
+  fixedOrder          FixedOrder           @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
+  digitalEntitlements DigitalEntitlement[]
+  printEntitlements   PrintEntitlement[]
+
+  @@index([fixedOrderId, createdAt])
+}
+
+model PaymentAttempt {
+  id             String               @id @default(cuid())
+  fixedOrderId   String               @unique
+  provider       String               @default("bank_alfalah")
+  status         PaymentAttemptStatus @default(CREATED)
+  amountMinor    BigInt
+  currency       FixedOrderCurrency
+  providerRef    String?
+  idempotencyKey String               @unique
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  fixedOrder FixedOrder     @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
+  events     PaymentEvent[]
+
+  @@index([status, createdAt])
+  @@index([provider, providerRef])
+}
+
+model PaymentEvent {
+  id                 String    @id @default(cuid())
+  paymentAttemptId   String
+  provider           String
+  providerEventId    String
+  dedupeHash         String    @unique
+  verified           Boolean   @default(false)
+  matchResult        String?
+  rawPayloadRedacted Json?
+  receivedAt         DateTime  @default(now())
+  processedAt        DateTime?
+
+  paymentAttempt PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerEventId])
+  @@index([paymentAttemptId, receivedAt])
+}
+
+model RestorationEntitlement {
+  id           String                       @id @default(cuid())
+  fixedOrderId String                       @unique
+  draftId      String
+  status       RestorationEntitlementStatus @default(GRANTED)
+  grantedAt    DateTime                     @default(now())
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
+
+  fixedOrder        FixedOrder         @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
+  draft             RestorationDraft   @relation(fields: [draftId], references: [id])
+  restorationMaster RestorationMaster?
+
+  @@index([draftId])
+  @@index([status, createdAt])
+}
+
+model RestorationMaster {
+  id                       String                  @id @default(cuid())
+  restorationEntitlementId String                  @unique
+  storageKey               String?
+  sha256                   String?
+  width                    Int?
+  height                   Int?
+  contentType              String?
+  status                   RestorationMasterStatus @default(NOT_STARTED)
+  validatedAt              DateTime?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  restorationEntitlement RestorationEntitlement @relation(fields: [restorationEntitlementId], references: [id], onDelete: Cascade)
+  replicateExecution     ReplicateExecution?
+  imageVariants          ImageVariant[]
+  digitalEntitlements    DigitalEntitlement[]
+  printEntitlements      PrintEntitlement[]
+  addOnLinks             AddOnOrderLink[]
+
+  @@index([status, createdAt])
+  @@index([sha256])
+}
+
+model ReplicateExecution {
+  id                  String                   @id @default(cuid())
+  restorationMasterId String                   @unique
+  idempotencyKey      String                   @unique
+  status              ReplicateExecutionStatus @default(QUEUED)
+  providerRequestRef  String?
+  outputSha256        String?
+  failureReason       String?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  restorationMaster RestorationMaster @relation(fields: [restorationMasterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model ImageVariant {
+  id                  String             @id @default(cuid())
+  restorationMasterId String
+  variantSpecId       String
+  sourceMasterSha256  String
+  storageKey          String?
+  width               Int?
+  height              Int?
+  contentType         String?
+  status              ImageVariantStatus @default(PENDING)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  restorationMaster   RestorationMaster    @relation(fields: [restorationMasterId], references: [id], onDelete: Cascade)
+  digitalEntitlements DigitalEntitlement[]
+  printEntitlements   PrintEntitlement[]
+
+  @@unique([restorationMasterId, variantSpecId, sourceMasterSha256])
+  @@index([status, createdAt])
+}
+
+model DigitalEntitlement {
+  id                  String                   @id @default(cuid())
+  fixedOrderItemId    String
+  restorationMasterId String
+  tier                DigitalTier
+  imageVariantId      String?
+  status              DigitalEntitlementStatus @default(LOCKED)
+  downloadedAt        DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  fixedOrderItem    FixedOrderItem    @relation(fields: [fixedOrderItemId], references: [id], onDelete: Cascade)
+  restorationMaster RestorationMaster @relation(fields: [restorationMasterId], references: [id])
+  imageVariant      ImageVariant?     @relation(fields: [imageVariantId], references: [id])
+
+  @@unique([fixedOrderItemId, tier])
+  @@index([restorationMasterId, status])
+}
+
+model PrintEntitlement {
+  id                  String                 @id @default(cuid())
+  fixedOrderItemId    String
+  restorationMasterId String
+  printSku            String
+  imageVariantId      String?
+  status              PrintEntitlementStatus @default(PREPAID)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  fixedOrderItem    FixedOrderItem    @relation(fields: [fixedOrderItemId], references: [id], onDelete: Cascade)
+  restorationMaster RestorationMaster @relation(fields: [restorationMasterId], references: [id])
+  imageVariant      ImageVariant?     @relation(fields: [imageVariantId], references: [id])
+  fulfilmentOrder   FulfilmentOrder?
+
+  @@index([restorationMasterId, status])
+  @@index([printSku, status])
+}
+
+model AddOnOrderLink {
+  id                   String   @id @default(cuid())
+  addOnFixedOrderId    String   @unique
+  originalFixedOrderId String
+  restorationMasterId  String
+  createdAt            DateTime @default(now())
+
+  addOnFixedOrder    FixedOrder        @relation("AddOnFixedOrder", fields: [addOnFixedOrderId], references: [id], onDelete: Cascade)
+  originalFixedOrder FixedOrder        @relation("OriginalFixedOrder", fields: [originalFixedOrderId], references: [id])
+  restorationMaster  RestorationMaster @relation(fields: [restorationMasterId], references: [id])
+
+  @@index([originalFixedOrderId, createdAt])
+  @@index([restorationMasterId, createdAt])
+}
+
+model FulfilmentOrder {
+  id                 String                @id @default(cuid())
+  printEntitlementId String                @unique
+  status             FulfilmentOrderStatus @default(PENDING)
+  partnerRef         String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  printEntitlement PrintEntitlement @relation(fields: [printEntitlementId], references: [id], onDelete: Cascade)
+  shipment         Shipment?
+
+  @@index([status, createdAt])
+}
+
+model Shipment {
+  id                String         @id @default(cuid())
+  fulfilmentOrderId String         @unique
+  status            ShipmentStatus @default(PENDING)
+  carrier           String?
+  trackingNumber    String?
+  dispatchedAt      DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  fulfilmentOrder FulfilmentOrder @relation(fields: [fulfilmentOrderId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([trackingNumber])
+}
+
+model AuditEvent {
+  id              String   @id @default(cuid())
+  correlationType String
+  correlationId   String
+  fixedOrderId    String?
+  actorType       String
+  actorId         String?
+  action          String
+  beforeState     Json?
+  afterState      Json?
+  createdAt       DateTime @default(now())
+
+  fixedOrder FixedOrder? @relation(fields: [fixedOrderId], references: [id], onDelete: SetNull)
+
+  @@index([correlationType, correlationId, createdAt])
+  @@index([fixedOrderId, createdAt])
+  @@index([actorType, createdAt])
 }

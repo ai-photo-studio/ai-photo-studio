@@ -3,6 +3,7 @@ import type { AppConfig } from "../config/env";
 import { AdminAuthController } from "../controllers/admin-auth.controller";
 import { AdminController } from "../controllers/admin.controller";
 import { AdminRestorationController } from "../controllers/admin-restoration.controller";
+import { AdminCommerceController } from "../controllers/admin-commerce.controller";
 import { RuntimeDiagnosticController } from "../controllers/runtime-diagnostic.controller";
 import type { AdminRole } from "../services/admin-auth.service";
 import { requireAdminAuth, requireRuntimeDiagnosticAuth } from "../middleware/admin-auth.middleware";
@@ -12,11 +13,17 @@ export const createAdminRouter = (config: AppConfig): Router => {
   const controller = new AdminController(config);
   const authController = new AdminAuthController(config);
   const restorationController = new AdminRestorationController(config);
+  const commerceController = new AdminCommerceController();
   const runtimeDiagnosticController = new RuntimeDiagnosticController(config);
 
   const opsRoles: AdminRole[] = ["SUPER_ADMIN", "OPERATIONS", "SUPPORT"];
   const financeRoles: AdminRole[] = ["SUPER_ADMIN", "FINANCE"];
   const adminRoles: AdminRole[] = ["SUPER_ADMIN"];
+  // R9.2-P2R-ADMIN: read-only FixedOrder/PriceBook/PaymentAttempt visibility.
+  // Per the canonical plan's admin module table (section 9): SUPER_ADMIN and
+  // OPERATIONS full read, FINANCE read. No write role exists for this
+  // controller because it exposes no mutation endpoint at all.
+  const commerceReadRoles: AdminRole[] = ["SUPER_ADMIN", "OPERATIONS", "FINANCE"];
 
   router.post("/admin/auth/login", authController.login);
   router.post("/admin/auth/logout", requireAdminAuth(config), authController.logout);
@@ -62,6 +69,11 @@ export const createAdminRouter = (config: AppConfig): Router => {
   router.post("/admin/restorations/:id/retry", requireAdminAuth(config, opsRoles), restorationController.retryOrder);
   router.post("/admin/restoration-items/:id/retry", requireAdminAuth(config, opsRoles), restorationController.retryItem);
   router.get("/admin/runtime-diagnostic", requireRuntimeDiagnosticAuth(config, opsRoles), runtimeDiagnosticController.get);
+
+  // R9.2-P2R-ADMIN: read-only FixedOrder/PriceBook/PaymentAttempt admin
+  // visibility. Both routes are GET-only; no write endpoint is registered.
+  router.get("/admin/commerce-orders", requireAdminAuth(config, commerceReadRoles), commerceController.listOrders);
+  router.get("/admin/commerce-orders/:orderNo", requireAdminAuth(config, commerceReadRoles), commerceController.getOrderDetail);
 
   return router;
 };

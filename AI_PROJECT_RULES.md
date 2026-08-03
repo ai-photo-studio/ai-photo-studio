@@ -6,13 +6,13 @@
 Never execute `git push` without running `npm run enterprise-verify` first.
 
 ### Rule 2: Never Deploy Without Verification
-Never execute Railway or Cloudflare deployment actions without running `npm run enterprise-verify` first.
+Never execute Northflank or Cloudflare deployment actions without running `npm run enterprise-verify` first. (Railway is RETIRED — historical reference only; not an active deploy or rollback target.)
 
 ### Rule 3: Never Modify Another Repository
 Verify the repository ID and remote URL before any Git operation.
 
-### Rule 4: Never Change Railway Target
-Always verify the Railway project ID is `ad62f340-fcfd-4989-b5bb-18753b28d8c8`.
+### Rule 4: Never Change Production API Target
+Always verify the production API deployment target is Northflank, serving `api.thannow.com`. (Railway project ID `ad62f340-fcfd-4989-b5bb-18753b28d8c8` is RETIRED — historical reference only; not an active deploy or rollback target.)
 
 ### Rule 5: Never Change Production Environment
 Never change production environment variables or settings without explicit human instruction.
@@ -39,7 +39,7 @@ When the database lock is enabled, block migrations and schema changes.
 Never modify, redeploy, relink, rename, or disturb the `hojaseeds` Cloudflare Pages project.
 
 ### Rule 13: Frontend Binding Required
-The public frontend must remain bound to the Railway production API from `ai-photo-studio-whatsapp-web` and must not fall back to `http://localhost:4000` in production builds.
+The public frontend must remain bound to the production API at `api.thannow.com` (Northflank) and must not fall back to `http://localhost:4000` in production builds. (Railway is RETIRED — historical reference only; not an active deploy or rollback target.)
 
 ### Rule 14: Launch Certification Required
 Before declaring production launch, verify phases, monitoring endpoints, WhatsApp mode, AI provider, payment provider, backup/recovery, and CORS configuration.

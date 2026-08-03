@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
+import { RestorationOrdersHistorySection } from "../components/RestorationOrdersHistorySection";
 import { useAuth } from "../lib/auth";
 import { formatDateTime, formatMoney, formatNumber } from "../lib/format";
 import { usePackages } from "../lib/packages";
@@ -25,18 +26,18 @@ const readFileAsBase64 = (file: File) =>
 export function OrdersPage() {
   const { token, status } = useAuth();
   const navigate = useNavigate();
-  const { packages, loading: packagesLoading, error: packagesError } = usePackages();
+  const { packages, loading: packagesLoading, error: _packagesError } = usePackages();
   const [wallet, setWallet] = useState<CustomerWalletResponse | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [selectedPackage, setSelectedPackage] = useState("");
   const [serviceType, setServiceType] = useState("web-upload");
-  const [workflowType, setWorkflowType] = useState<"PRODUCT" | "VEHICLE">("PRODUCT");
+  const [workflowType, _setWorkflowType] = useState<"PRODUCT" | "VEHICLE">("PRODUCT");
   const [workflowMode, setWorkflowMode] = useState<(typeof PRODUCT_MODES)[number] | (typeof VEHICLE_MODES)[number]>(
     "PRODUCT_STUDIO"
   );
-  const [file, setFile] = useState<File | null>(null);
+  const [file, _setFile] = useState<File | null>(null);
   const [currentOrderNo, setCurrentOrderNo] = useState("");
   const [order, setOrder] = useState<CustomerOrderResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -86,7 +87,7 @@ export function OrdersPage() {
     }
   }, [workflowMode, workflowType]);
 
-  const modeOptions = useMemo(
+  const _modeOptions = useMemo(
     () => (workflowType === "VEHICLE" ? VEHICLE_MODES : PRODUCT_MODES),
     [workflowType]
   );
@@ -160,7 +161,7 @@ export function OrdersPage() {
     }
   };
 
-  const uploadImage = async (event: FormEvent<HTMLFormElement>) => {
+  const _uploadImage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || !currentOrderNo || !file) return;
     if (file.size > FILE_LIMIT_BYTES) {
@@ -452,6 +453,8 @@ export function OrdersPage() {
               <p className="helper-text">After you upload an image, the customer record will appear here.</p>
         )}
       </article>
+
+      {token && <RestorationOrdersHistorySection token={token} />}
     </section>
   );
 }

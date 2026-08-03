@@ -5,12 +5,18 @@
     "publicBaseUrl": "https://2eb5eadd4af6da3d3a5f6c61d92437e4.r2.cloudflarestorage.com"
   },
   "gcp": {
+    "status": "RETIRED — historical reference only; not an active deploy or rollback target.",
     "project_id": "project-9540c255-c960-4fa0-a91",
     "region": "us-central1",
     "cloudrun_service": "ai-photo-studio-api",
     "cloudsql_instance": "ai-photo-studio-db",
     "redis_instance": "ai-photo-studio-redis",
     "secret_manager_project": "project-9540c255-c960-4fa0-a91"
+  },
+  "northflank": {
+    "status": "ACTIVE — current production API deployment target.",
+    "apiHostname": "api.thannow.com",
+    "note": "Cloudflare proxy mode/hop-count and Express trust-proxy correctness relative to real ingress topology are unverified; not claimed here."
   },
   "git": {
     "remote": "https://github.com/ai-photo-studio/ai-photo-studio.git",

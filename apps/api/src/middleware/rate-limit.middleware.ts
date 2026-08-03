@@ -10,6 +10,7 @@ const cleanupInterval = setInterval(() => {
     }
   }
 }, 60_000);
+cleanupInterval.unref();
 
 process.on("SIGTERM", () => clearInterval(cleanupInterval));
 process.on("SIGINT", () => clearInterval(cleanupInterval));

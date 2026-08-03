@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:browser": "playwright test tests/browser/smoke.spec.ts tests/browser/network-safety.spec.ts tests/browser/fixed-order-flow.spec.ts tests/browser/payment-attempt-flow.spec.ts tests/browser/fixed-order-review-ui.spec.ts tests/browser/admin-commerce-orders-ui.spec.ts",
+    "test:browser:admin-commerce": "playwright test tests/browser/admin-commerce-orders-ui.spec.ts",
+    "test:browser:responsive": "playwright test tests/browser/responsive.spec.ts",
+    "test:browser:headed": "playwright test tests/browser/smoke.spec.ts tests/browser/network-safety.spec.ts tests/browser/fixed-order-flow.spec.ts tests/browser/payment-attempt-flow.spec.ts --headed"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -14,6 +18,7 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/react": "^18.3.9",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

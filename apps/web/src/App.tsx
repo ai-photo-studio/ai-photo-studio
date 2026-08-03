@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
 import { PublicLayout } from "./components/PublicLayout";
 import { RequireAdminPortal } from "./components/RequireAdminPortal";
+import { RequireAuth } from "./components/RequireAuth";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminJobsPage } from "./pages/AdminJobsPage";
 import { AdminLogsPage } from "./pages/AdminLogsPage";
@@ -11,12 +12,17 @@ import { AdminProvidersPage } from "./pages/AdminProvidersPage";
 import { AdminSystemPage } from "./pages/AdminSystemPage";
 import { AdminRestorationsPage } from "./pages/AdminRestorationsPage";
 import { AdminRestorationDetailPage } from "./pages/AdminRestorationDetailPage";
+import { AdminCommerceOrdersPage } from "./pages/AdminCommerceOrdersPage";
+import { AdminCommerceOrderDetailPage } from "./pages/AdminCommerceOrderDetailPage";
 import { FeaturePage } from "./pages/FeaturePage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PricingPage } from "./pages/PricingPage";
 import { SignupPage } from "./pages/SignupPage";
 import { RestoreNewPage } from "./pages/RestoreNewPage";
+import { OriginalPreviewPage } from "./pages/OriginalPreviewPage";
+import { DigitalTierSelectPage } from "./pages/DigitalTierSelectPage";
+import { FixedOrderReviewPage } from "./pages/FixedOrderReviewPage";
 import { RestoreOrderPage } from "./pages/RestoreOrderPage";
 import { RestorePrintPage } from "./pages/RestorePrintPage";
 import { RestorationHistoryPage } from "./pages/RestorationHistoryPage";
@@ -44,16 +50,21 @@ export function App() {
         <Route path="signup" element={<SignupPage />} />
         <Route path="restore" element={<RestorationHistoryPage />} />
         <Route path="restore/new" element={<RestoreNewPage />} />
+        <Route path="restore/drafts/:draftId/preview" element={<OriginalPreviewPage />} />
+        <Route path="restore/drafts/:draftId/select" element={<DigitalTierSelectPage />} />
+        <Route path="restore/drafts/:draftId/review" element={<FixedOrderReviewPage />} />
         <Route path="restore/:orderId" element={<RestoreOrderPage />} />
         <Route path="restore/:orderId/print" element={<RestorePrintPage />} />
         <Route path="history/restorations" element={<RestorationHistoryPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>
-      <Route element={<CustomerLayout />}>
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="wallet" element={<WalletPage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="subscription" element={<SubscriptionPage />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<CustomerLayout />}>
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="wallet" element={<WalletPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
+        </Route>
       </Route>
       <Route path="admin/login" element={<AdminLoginPage />} />
       <Route
@@ -76,6 +87,8 @@ export function App() {
         <Route path="system" element={<AdminSystemPage />} />
         <Route path="restorations" element={<AdminRestorationsPage />} />
         <Route path="restorations/:id" element={<AdminRestorationDetailPage />} />
+        <Route path="commerce-orders" element={<AdminCommerceOrdersPage />} />
+        <Route path="commerce-orders/:orderNo" element={<AdminCommerceOrderDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

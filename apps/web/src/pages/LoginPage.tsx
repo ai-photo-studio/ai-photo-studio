@@ -29,7 +29,26 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const selectedPlan = searchParams.get("plan") || searchParams.get("package");
-  const from = useMemo(() => (location.state as { from?: string } | null)?.from || "/orders", [location.state]);
+  // Security: `location.state.from` is meant to be a same-origin relative
+  // path set by RequireAuth (see components/RequireAuth.tsx), but
+  // history state is client-settable, so it must never be trusted as an
+  // arbitrary navigation target. Reject anything that isn't a single
+  // leading-slash relative path -- this blocks absolute URLs
+  // ("https://evil.com"), protocol-relative URLs ("//evil.com"), and any
+  // other scheme, preventing an open redirect after login.
+  const from = useMemo(() => {
+    const candidate = (location.state as { from?: unknown } | null)?.from;
+    if (
+      typeof candidate === "string" &&
+      candidate.startsWith("/") &&
+      !candidate.startsWith("//") &&
+      !candidate.includes("://") &&
+      !candidate.trim().toLowerCase().startsWith("/\\")
+    ) {
+      return candidate;
+    }
+    return "/orders";
+  }, [location.state]);
   const errors = validateLogin(email, password);
   const isValid = Object.keys(errors).length === 0;
 

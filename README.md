@@ -46,11 +46,15 @@ See workspace env templates:
 
 No secrets are committed in repository files.
 
-## Railway Deployment Note
-- Deploy as two services (`apps/api` and `apps/web`) or one monorepo with workspace-specific start/build commands.
-- Use managed PostgreSQL and Redis services.
+## Deployment Note
+Current production deployment target (see `rules.md` for the authoritative architecture record):
+- Frontend: Cloudflare Pages (`thannow.com`).
+- API: Northflank, containerized Node.js/Express, auto-deploy from `main` (`api.thannow.com`).
+- Use managed PostgreSQL (Neon) and Redis (Northflank addon) services.
 - Use Cloudflare R2 for all uploaded/processed files (no persistent local image storage).
-- Configure WhatsApp and payment webhook URLs to Railway API domain.
+- Configure WhatsApp and payment webhook URLs to the Northflank API domain (`api.thannow.com`).
+
+Railway and Google Cloud/Cloud Run are RETIRED — historical reference only; not an active deploy or rollback target. `RAILWAY_DEPLOYMENT.md` is preserved as historical evidence of a prior, no-longer-current deployment path. Cloudflare proxy mode/hop-count and Express `trust proxy` correctness relative to the real ingress topology remain unverified and are not claimed here.
 
 ## Current Implementation Status
 - Step 1 (Project documents): complete.

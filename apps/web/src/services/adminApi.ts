@@ -1,5 +1,5 @@
 import { API_BASE_URL, type PaginatedResponse } from "../lib/api";
-import type { AdminDashboardResponse, AdminPaymentRecord, AdminStatsResponse, AdminSubscriptionRecord, AdminWalletRecord, RestorationOrderSummary, RestorationItemRecord } from "../lib/portal-types";
+import type { AdminCommerceOrderDetail, AdminCommerceOrderListItem, AdminDashboardResponse, AdminPaymentRecord, AdminStatsResponse, AdminSubscriptionRecord, AdminWalletRecord, RestorationOrderSummary, RestorationItemRecord } from "../lib/portal-types";
 import type { PackageSummary } from "../lib/api";
 
 const ADMIN_TOKEN_KEY = "ai-photo-studio-admin-access-token";
@@ -123,4 +123,14 @@ export const adminApi = {
 
   businessMetrics: (hours = 24) => request<any>(`/api/admin/business-metrics?hours=${hours}`),
   analytics: (hours = 24) => request<any>(`/api/admin/analytics?hours=${hours}`),
+
+  // R9.2-P2R-ADMIN: read-only FixedOrder/PriceBook/PaymentAttempt admin
+  // visibility. GET-only -- there is no corresponding write method because
+  // no mutation endpoint exists for this resource.
+  commerceOrders: (query = "") =>
+    request<{ items: AdminCommerceOrderListItem[]; total: number; page: number; pageSize: number }>(
+      `/api/admin/commerce-orders${query ? `?${query}` : ""}`
+    ),
+  commerceOrderDetail: (orderNo: string) =>
+    request<AdminCommerceOrderDetail>(`/api/admin/commerce-orders/${encodeURIComponent(orderNo)}`),
 };

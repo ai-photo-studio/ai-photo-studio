@@ -6,7 +6,13 @@ import type {
   CustomerWalletResponse,
   RestorationOrderSummary,
   RestorationItemRecord,
-  RestoreUploadResult
+  RestoreUploadResult,
+  RestorationDraftRecord,
+  DraftOffersResponse,
+  FixedOrderRecord,
+  PaymentReadinessResponse,
+  PaymentAttemptRecord,
+  CustomerFixedOrderListResponse
 } from "../lib/portal-types";
 
 type PaymentRequestInput = {
@@ -220,4 +226,82 @@ export const customerApi = {
       { method: "POST", body: "{}" },
       token
     )
+};
+
+// R9.2-P1A: free upload, original preview, digital tier selection, and
+// immutable RESTORATION_DIGITAL fixed-order creation. No payment step here.
+type CreateDraftInput = {
+  country: string;
+  marketConfirmed: boolean;
+  fileName: string;
+  contentType: string;
+  bodyBase64: string;
+};
+
+export const restorationDraftApi = {
+  createDraft: (input: CreateDraftInput, token?: string) =>
+    apiRequest<RestorationDraftRecord>(
+      "/api/restoration-drafts",
+      { method: "POST", body: JSON.stringify(input) },
+      token
+    ),
+
+  getDraft: (id: string, token?: string, guestToken?: string) =>
+    apiRequest<RestorationDraftRecord>(`/api/restoration-drafts/${id}`, {}, token, guestToken),
+
+  getOffers: (id: string, token?: string, guestToken?: string) =>
+    apiRequest<DraftOffersResponse>(`/api/restoration-drafts/${id}/offers`, {}, token, guestToken)
+};
+
+export const fixedOrderApi = {
+  createRestorationDigitalOrder: (draftId: string, tier: string, token?: string, guestToken?: string) =>
+    apiRequest<FixedOrderRecord>(
+      "/api/fixed-orders/restoration-digital",
+      { method: "POST", body: JSON.stringify({ draftId, tier }) },
+      token,
+      guestToken
+    ),
+
+  getOrder: (orderNo: string, token?: string, guestToken?: string) =>
+    apiRequest<FixedOrderRecord>(`/api/fixed-orders/${orderNo}`, {}, token, guestToken)
+};
+
+// R9.2-P2R-CUSTOMER-ORDERS: authenticated, read-only customer FixedOrder
+// history list -- distinct from `fixedOrderApi.getOrder` (single-order
+// detail, guest-capable, unchanged). This call always requires a token; the
+// server derives ownership solely from that token, never from any
+// client-supplied id.
+export const customerFixedOrdersApi = {
+  list: (
+    token: string,
+    params: { page?: number; pageSize?: number; status?: string; market?: string; currency?: string } = {}
+  ) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set("page", String(params.page));
+    if (params.pageSize) query.set("pageSize", String(params.pageSize));
+    if (params.status) query.set("status", params.status);
+    if (params.market) query.set("market", params.market);
+    if (params.currency) query.set("currency", params.currency);
+    const qs = query.toString();
+    return apiRequest<CustomerFixedOrderListResponse>(`/api/fixed-orders${qs ? `?${qs}` : ""}`, {}, token);
+  }
+};
+
+// R9.2-P1B: payment readiness and PaymentAttempt lifecycle. Every call takes
+// only the locked order number -- the client never sends an amount,
+// currency, or provider; those always come from the server-held order.
+export const paymentAttemptApi = {
+  getReadiness: (orderNo: string, token?: string, guestToken?: string) =>
+    apiRequest<PaymentReadinessResponse>(`/api/fixed-orders/${orderNo}/payment-readiness`, {}, token, guestToken),
+
+  createAttempt: (orderNo: string, token?: string, guestToken?: string) =>
+    apiRequest<PaymentAttemptRecord>(
+      `/api/fixed-orders/${orderNo}/payment-attempts`,
+      { method: "POST" },
+      token,
+      guestToken
+    ),
+
+  getAttempt: (orderNo: string, token?: string, guestToken?: string) =>
+    apiRequest<PaymentAttemptRecord | null>(`/api/fixed-orders/${orderNo}/payment-attempt`, {}, token, guestToken)
 };

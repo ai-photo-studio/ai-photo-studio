@@ -1,17 +1,17 @@
 # Backup & Recovery Guide
 
+> Railway is RETIRED — historical reference only; not an active deploy or rollback target. Current production database is Neon PostgreSQL, reachable from the Northflank API service via `DATABASE_URL`. The commands below no longer apply as written; run `pg_dump`/`psql` directly against the Neon connection string (from Northflank secret configuration) instead of through `railway run`.
+
 ## Database Backups
 
-Railway provides automated PostgreSQL backups for the production database.
-
-### Manual Backup
+### Manual Backup (historical Railway invocation; use a direct Neon `DATABASE_URL` instead)
 ```bash
-railway run -- pg_dump --no-owner --no-acl DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump --no-owner --no-acl "$DATABASE_URL" > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
-### Database Restore
+### Database Restore (historical Railway invocation; use a direct Neon `DATABASE_URL` instead)
 ```bash
-railway run -- psql DATABASE_URL < backup_file.sql
+psql "$DATABASE_URL" < backup_file.sql
 ```
 
 ### Prisma Recovery
