@@ -62,6 +62,12 @@ jobs:
         working-directory: apps/api
         run: npm ci
 
+      - name: Generate Prisma client
+        working-directory: apps/api
+        # Only generates the client from the tracked schema; makes no
+        # database connection and requires no DATABASE_URL.
+        run: npx prisma generate
+
       - name: Run MPGS sandbox smoke test
         id: smoke
         working-directory: apps/api
