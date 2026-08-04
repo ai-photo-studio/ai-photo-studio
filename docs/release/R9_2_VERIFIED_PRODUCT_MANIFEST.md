@@ -1121,3 +1121,231 @@ owner action required per `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`
 §6-§7, followed by a fresh `bank-alfalah-mpgs-sandbox-smoke.yml` dispatch,
 which will now also surface `Content-Type`/`WWW-Authenticate`/correlation-id
 evidence thanks to §12.2.
+
+---
+
+## 13. R9.2-PR125-MERGE-AND-P4B-READINESS — PR #125 merge and P4B Northflank deployment preparation (2026-08-05)
+
+Branch: `chore/r9.2-p4b-northflank-readiness`, built from `origin/main`
+immediately after PR #125 was merged. This section is a dated amendment,
+appended per the Protected Scope Protocol above. Nothing in sections 1–12
+was changed.
+
+### 13.1 PR #125 verification and merge
+
+PR #125 (`ops/r9.2-p4d-mpgs-checkout-flow-verify`, head
+`be0ffdddd9e775d4f82b54b766d44d5ca9834306`) was independently re-verified in
+its own isolated worktree (`git worktree list --porcelain` confirmed HEAD
+`be0ffdddd9e775d4f82b54b766d44d5ca9834306` on that exact branch, working
+tree clean, up to date with `origin/ops/r9.2-p4d-mpgs-checkout-flow-verify`).
+`gh pr view 125` confirmed `mergeStateStatus: CLEAN`, `mergeable: MERGEABLE`,
+`state: OPEN`; `gh pr checks 125` reported no checks configured on this
+repository (no required failing check exists to block merge).
+
+The one test explicitly left un-run by the prior P4D packet (no local
+Postgres available then) was run this session against a disposable, loopback-
+only PostgreSQL 17 instance:
+`p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` — **6/6 pass**
+(single-apply, sequential-idempotent, real-concurrent-race,
+forged-PENDING-rejected, zero-network-call, teardown). Regression
+`p3a-replicate-execution-worker.pg-race.test.ts` — **10/10 pass**
+(unmodified). Full non-DB MPGS sweep — 33 `node:test` assertions plus the
+vitest-based `p4c2-mpgs-provisioning-config-diagnostic.test.ts` (**14/14**,
+run under `vitest` — the one "failure" seen when first invoked under
+`node --test` was a tooling mismatch on the verifier's part, not a code
+regression: that file is a vitest suite, and it passes 14/14 under the
+correct runner). `prisma validate`, `npx eslint` (0 errors, 89 pre-existing
+warnings, unchanged), `tsc --noEmit` (both workspaces), `npm run build`
+(both workspaces), and `git status --porcelain`/`git diff --stat` (clean, no
+modification produced by running tests) all passed. No repair was required
+— no defect was found.
+
+Merged normally (`gh pr merge 125 --merge --delete-branch=false`, matching
+this repository's established merge-commit convention — no squash, no
+force-push). Merge commit: **`5cf50447429aa2844e7b812446505f0c1c427999`**.
+
+### 13.2 Disposable PostgreSQL cleanup proof
+
+- Server: `pg_ctl -D <tempdir>\data stop -m fast` → `"server stopped"`.
+- PID: the exact `postmaster.pid` first line (`5816`) was captured before
+  stop; `Get-Process -Id 5816` after stop returned nothing —
+  **process confirmed gone**.
+- Port: `Get-NetTCPConnection -LocalPort 55779` after stop returned
+  nothing — **port confirmed free**.
+- Temp directory + password file: the entire disposable data directory
+  (including `pwfile.txt`, the random password, and the
+  `DISPOSABLE_DATABASE_URL` scratch file) was deleted with
+  `Remove-Item -Recurse -Force`; `Test-Path` on the directory returned
+  `False` afterward — **temp directory and password confirmed removed**.
+- The password was a fresh random GUID generated only for this instance,
+  never reused, never written to any tracked file, and existed only in the
+  now-deleted `pwfile.txt` and process-scoped `$env:` variables for the
+  duration of this session.
+
+### 13.3 P4B Northflank readiness worktree
+
+`git fetch origin main` (new tip `5cf5044...`, containing the PR #125
+merge) → `git worktree add D:\Temp\r92-p4b-northflank-readiness -b
+chore/r9.2-p4b-northflank-readiness origin/main`. This is a separate,
+disposable worktree from the one used to verify/merge PR #125.
+
+A second disposable PostgreSQL 17 instance (loopback-only, independent
+random high port, independent random password) was created in this
+worktree to run the P4B/P4A/P3A/P3B DB-backed suites. All results below are
+from this second, separately provisioned and separately torn-down instance.
+
+### 13.4 P4B worker inspection (no code changed)
+
+`apps/api/src/scripts/p4b-worker-runner-main.ts` and
+`apps/api/src/services/p4b-internal-worker-runner.service.ts` were read in
+full, not modified. Confirmed directly from source, matching every
+constraint in this task's contract:
+- Sole start command is `npm run worker:p4b` (`tsx
+  src/scripts/p4b-worker-runner-main.ts`); no Express router, no port bound.
+- Fails closed via the same `loadConfig()` the HTTP API uses, plus a
+  dedicated `RESTORATION_PROVIDER !== "replicate"` guard that throws before
+  any adapter is constructed.
+- Constructs only the existing, unmodified Replicate-only P3A adapters
+  (`ReplicateExecutionWorker` + `PrismaReplicateExecutionRepository` +
+  `R2MasterPersistence` + `PipelineOrchestratorProviderExecutor`). No RunPod
+  or Local provider import exists anywhere in this file.
+- `InternalWorkerRunner` runs at concurrency 1; the P3A worker's own atomic
+  `UPDATE ... WHERE status = 'QUEUED'` SQL remains the only real claim —
+  this runner only "peeks" read-only for a candidate.
+- `SIGTERM`/`SIGINT` both route to `requestStop()`, which always lets the
+  in-flight execution finish before stopping.
+- No customer or admin controller, route, or queue processor imports this
+  file or `InternalWorkerRunner` anywhere in the repository (confirmed by
+  the existing static-scan pg-race test `(pg1)` re-run in §13.5, plus a
+  fresh read of the file's own header comment and import list).
+
+A deployment runbook was written from this inspection —
+`docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` — documenting the exact
+start command, the full list of required environment variable **names**
+(no values), single-instance limits, health expectations (process-liveness
+only; no HTTP probe — no port is bound), graceful-shutdown behavior,
+rollback (stateless service; redeploy previous build; no migration tied to
+it), and post-deployment checks. No Northflank service, project, or secret
+group was created by this packet.
+
+### 13.5 Test evidence (this packet, disposable PostgreSQL 17)
+
+- `p4b-internal-worker-runner.service.pg-race.test.ts` — **10/10** pass
+  (unmodified): static no-route-reference scan, ineligible-row exclusion,
+  two-independent-runner real race (exactly one claim/provider call),
+  restart/replay safety, graceful shutdown end-to-end, two fail-closed
+  startup-configuration cases, zero-network-call proof, teardown.
+- `p4a-payment-verified-execution-queue.service.pg-race.test.ts` —
+  **14/14** pass (unmodified).
+- `p3a-replicate-execution-worker.pg-race.test.ts` — **10/10** pass
+  (unmodified).
+- `p3b-replicate-r2-canary.test.ts` — **21/21** pass (unmodified).
+- `p3b-replicate-r2-canary.ts --dry-run` — `RESULT: dry-run PASSED`, with
+  the script's own internal disposable-Postgres instance independently
+  reporting `postgresStopped=true tempDirRemoved=true portFreed=true
+  residualExecutionRows=0`.
+- Full non-DB `node:test` sweep (every other `*.test.ts` under
+  `apps/api/src`: P3A worker, P4A domain fixtures, P4C/P4C2 MPGS,
+  restoration domain/customer/view/entitlement, guest-ownership,
+  admin-auth middleware, image-binary, RunPod isolation/budget/dev-config,
+  utils) — **137/137** pass (unmodified).
+- `p4c2-mpgs-provisioning-config-diagnostic.test.ts` (vitest) — **14/14**
+  pass (unmodified).
+- `npm run lint` — 0 errors, 89 pre-existing `no-explicit-any` warnings
+  (unchanged count; new runbook/docs files carry no lint-relevant code).
+- `npm run typecheck` — exit 0 (both workspaces).
+- `npm run build` — exit 0 (both workspaces).
+- `prisma validate` — valid; no migration added or changed.
+- Secret scan (`Select-String` over tracked `.ts`/`.tsx`/`.md`/`.json` for
+  common API-key/token/private-key shapes) found **no new secret** in any
+  file touched by this packet. One **pre-existing**, already-committed
+  match was found in an unrelated `.kilo/plans/` migration-assessment
+  document (a Replicate token value) — this predates this packet, is
+  outside this packet's scope/files, and was left untouched; it is flagged
+  here for the owner's awareness, not remediated by this packet.
+- `git status --porcelain` in this worktree, scoped to the files this
+  packet actually changed, shows exactly the plan/manifest/runbook/report
+  updates listed in §13.7 — no test run, build, or lint invocation modified
+  any tracked file.
+
+### 13.6 Finalized Protected Scope Protocol
+
+This section formally restates and finalizes the Protected Scope Protocol
+first defined in section 5 above, extending it to explicitly cover the
+P4B-Northflank-readiness packet type and all future deployment-preparation
+packets of the same shape:
+
+1. **Append-only evidence.** This manifest, `rules.md`, and
+   `reports/LATEST.md` are append-only. No existing section is rewritten,
+   condensed, or removed; corrections are appended as a new dated section
+   with the original left intact — unchanged from section 5, restated here
+   for a deployment-preparation packet's benefit.
+2. **Deployment preparation is not deployment.** Writing a runbook,
+   inspecting existing (already-tested, already-merged) code, and running
+   tests against a disposable local database does not create, modify, or
+   authorize any live infrastructure. A packet of this shape must never
+   create a Northflank project/service/secret group, touch a production
+   database, or make a live Replicate/R2/RunPod/Bank Alfalah call — doing
+   so requires a separate, explicitly authorized deployment packet.
+3. **Provider boundary is load-bearing.** The P4B runner's
+   Replicate-only guard (`RESTORATION_PROVIDER !== "replicate"` refuses to
+   start) must never be loosened, wrapped, or bypassed by a
+   deployment-preparation packet. No RunPod or Local provider code path may
+   be added to this runner without a new, separately authorized packet and
+   an explicit amendment here, matching the existing rule in section 5.3
+   for the Replicate release path generally.
+4. **Canonical source stays tracked.** Deployment-preparation packets add
+   or update documentation (plans, manifests, runbooks, reports) but must
+   keep all canonical source, workflows, packets, validators, migrations,
+   tests, and development documentation tracked in Git. Only genuinely
+   temporary evidence and `AI_code_audit_report_RI.md` may be ignored; no
+   broad `.gitignore` pattern and no `git add -f` may be introduced.
+5. **Disposable-database discipline extends here.** Any DB-backed test run
+   during a deployment-preparation packet must use a fresh disposable,
+   loopback-only PostgreSQL instance with a random password and random
+   port, fully torn down (server stopped, PID gone, port free, temp
+   directory and password removed) before the packet is considered
+   complete — the same standard already required for P3A/P4A/P4B/P4C
+   verification work.
+6. **A readiness PR authorizes nothing by itself.** Opening a
+   P4B-readiness PR (this packet) is evidence and preparation only; per
+   item 5 of section 5, it does not authorize activation, live canary
+   runs, or production release. The actual Northflank deployment remains a
+   distinct, separately authorized future task, to be performed by the
+   repository owner directly against the runbook in
+   `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md`.
+
+### 13.7 Files changed (this task)
+
+Added:
+- `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md`
+
+Modified (append-only additions):
+- `rules.md`
+- `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (this section)
+- `reports/LATEST.md`
+
+### 13.8 Zero-live-action proof
+
+- No Northflank project, service, or secret group was created.
+- No secret value was created, read from a live source, or changed.
+- No production database was connected to, queried, or migrated.
+- No live Replicate, R2, RunPod, or Bank Alfalah network call was made —
+  every DB-backed test installs a throwing `globalThis.fetch` spy and
+  asserts zero external call attempts; all such assertions passed.
+- The new P4B-readiness PR (opened from this branch) was explicitly **not**
+  merged and **not** deployed by this packet, per this task's own
+  instruction.
+
+### 13.9 Result
+
+PR #125 merged (`5cf50447429aa2844e7b812446505f0c1c427999`). The
+previously-missing MPGS pg-race test now runs and passes (6/6). The P4B
+internal worker runner remains code-complete, fully tested, and **still not
+deployed as a Northflank service** — this packet adds only documentation and
+regression evidence. `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+remains the standing external blocker for P4D checkout-route wiring,
+unchanged and untouched by this packet. Next owner action: review the new
+P4B-readiness PR, and when ready to actually deploy, follow
+`docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` directly in the
+Northflank console (create the service, attach the secret group, deploy).

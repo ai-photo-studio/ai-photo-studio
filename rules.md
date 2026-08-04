@@ -395,3 +395,59 @@ every rule above it remains in force verbatim.
   database access, no live payment/Replicate/R2/RunPod/Local calls, no
   force-push/`reset --hard`/`clean -fd`, no deletion of product source,
   tests, migrations, canonical documentation, or active GitHub workflows.
+
+### R9.2-PR125-MERGE-AND-P4B-READINESS: PR #125 merged; P4B Northflank deployment preparation (2026-08-05)
+
+Added by the R9.2-PR125-MERGE-AND-P4B-READINESS packet. This section is
+additive; every rule above it remains in force verbatim.
+
+- PR #125 (`ops/r9.2-p4d-mpgs-checkout-flow-verify`, head
+  `be0ffdddd9e775d4f82b54b766d44d5ca9834306`) was independently re-verified
+  in its own isolated worktree (clean, HEAD matched exactly,
+  `mergeStateStatus: CLEAN`, `mergeable: MERGEABLE`, no configured checks)
+  and merged normally: merge commit
+  `5cf50447429aa2844e7b812446505f0c1c427999`.
+- The MPGS pg-race test the prior P4D packet could not run (no local
+  Postgres available then) was run this session against a disposable,
+  loopback-only PostgreSQL 17 instance and **passed 6/6**, with full proof
+  of cleanup afterward (process gone, port free, temp directory and
+  password removed).
+- A second, separate disposable worktree
+  (`D:\Temp\r92-p4b-northflank-readiness`, branch
+  `chore/r9.2-p4b-northflank-readiness`, built from updated `origin/main`
+  containing the PR #125 merge) was used to inspect the existing,
+  already-merged, already-tested P4B internal worker runner
+  (`p4b-internal-worker-runner.service.ts` /
+  `p4b-worker-runner-main.ts`) and write
+  `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` — a deployment runbook
+  documenting the sole start command, required environment-variable names
+  (no values), single-instance limits, health expectations, graceful
+  shutdown, rollback, and post-deployment checks. **No runner code was
+  changed.** No Northflank project, service, or secret group was created.
+- Full P4B/P4A/P3A/P3B DB-backed and non-DB regression suite re-run,
+  unmodified, in this second disposable-Postgres instance — all pass (see
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 13.5 for the
+  complete breakdown). `lint`/`typecheck`/`build`/`prisma validate` all
+  pass. A secret scan found one **pre-existing** token-shaped value in an
+  unrelated `.kilo/plans/` document, outside this packet's scope, flagged
+  for owner awareness and left untouched.
+- **Finalized Protected Scope Protocol** for deployment-preparation
+  packets of this shape (full text in manifest section 13.6): append-only
+  evidence; deployment preparation is never deployment; the P4B runner's
+  Replicate-only provider guard must never be loosened or bypassed and no
+  RunPod/Local path may be added to it without a new authorized packet;
+  canonical source/workflows/packets/validators/migrations/tests/
+  development docs stay tracked (only `AI_code_audit_report_RI.md` and
+  genuine temporary evidence may be ignored — no broad `.gitignore`, no
+  `git add -f`); disposable-database discipline applies to any DB-backed
+  test in such a packet; and opening a readiness PR authorizes nothing by
+  itself — the actual Northflank deployment remains a distinct, separately
+  authorized future task performed directly against the runbook.
+- A new PR (`chore/r9.2-p4b-northflank-readiness` → `main`) was opened
+  carrying this documentation only. **It was explicitly not merged and not
+  deployed** by this packet, per this task's own instruction.
+- Next owner action: when ready to actually deploy the P4B worker, review
+  and merge the new P4B-readiness PR, then follow
+  `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` directly in the
+  Northflank console to create the service, attach the existing `api`
+  secret group, and deploy — no code change is needed to do so.
