@@ -1,0 +1,114 @@
+name: Bank Alfalah MPGS Sandbox Smoke
+
+# R9.2-P4C-INDEPENDENT-REVIEW-SANDBOX-SMOKE-MERGE
+#
+# Manually-triggered, bounded, owner-authorized smoke test of the Bank
+# Alfalah Mastercard Gateway (MPGS) SANDBOX only. Performs exactly two
+# network calls (Hosted Checkout initialization + Retrieve Order v74)
+# against a hardcoded sandbox test origin. NEVER submits card data, NEVER
+# performs a payment capture, and NEVER touches Replicate/R2/RunPod. This
+# workflow must never be triggered by push, pull_request, or schedule.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: bank-alfalah-mpgs-sandbox-smoke
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox-smoke:
+    name: MPGS sandbox smoke (Hosted Checkout init + Retrieve Order)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Hardcoded test gateway origin -- never taken from a secret or input,
+      # so this workflow can never be pointed at a production host.
+      BANK_ALFALAH_MPGS_BASE_URL: https://test-bankalfalah.gateway.mastercard.com
+      BANK_ALFALAH_MPGS_API_VERSION: "74"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify required secrets are present (names only, no values)
+        run: |
+          missing=0
+          for name in MERCHANT_ID API_PASSWORD; do
+            value="${!name}"
+            if [ -z "$value" ]; then
+              echo "MISSING required secret: $name"
+              missing=1
+            else
+              echo "present: $name"
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::One or more required GitHub secrets are absent. Failing closed before any network call."
+            exit 1
+          fi
+        env:
+          MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          API_PASSWORD: ${{ secrets.API_PASSWORD }}
+
+      - name: Install API workspace dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Run MPGS sandbox smoke test
+        id: smoke
+        working-directory: apps/api
+        env:
+          BANK_ALFALAH_MPGS_ENABLED: "true"
+          BANK_ALFALAH_MPGS_MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          BANK_ALFALAH_MPGS_API_PASSWORD: ${{ secrets.API_PASSWORD }}
+          BANK_ALFALAH_MPGS_OPERATOR_ID: ${{ secrets.OPERATOR_ID }}
+        run: |
+          set -o pipefail
+          npx tsx src/scripts/p4c-bank-alfalah-mpgs-sandbox-smoke.ts 2>&1 | tee sandbox-smoke-output.txt
+          exit_code=${PIPESTATUS[0]}
+          echo "smoke_exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit "$exit_code"
+
+      - name: Sanitize evidence (defense-in-depth secret scrub before upload)
+        if: always()
+        working-directory: apps/api
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="sandbox-smoke-output.txt"
+          if [ -f "$file" ]; then
+            # Belt-and-suspenders: the script itself never prints secret
+            # values, but strip anything that happens to match the raw
+            # secret values as an extra safety net before upload.
+            tmp="$(mktemp)"
+            cp "$file" "$tmp"
+            for name in MERCHANT_ID API_PASSWORD OPERATOR_ID; do
+              value="${!name:-}"
+              if [ -n "$value" ]; then
+                sed_safe="$(printf '%s' "$value" | sed -e 's/[\/&]/\\&/g')"
+                sed -i "s/${sed_safe}/[REDACTED]/g" "$tmp"
+              fi
+            done
+            mv "$tmp" "$file"
+          fi
+        env:
+          MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          API_PASSWORD: ${{ secrets.API_PASSWORD }}
+          OPERATOR_ID: ${{ secrets.OPERATOR_ID }}
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bank-alfalah-mpgs-sandbox-smoke-evidence
+          path: apps/api/sandbox-smoke-output.txt
+          retention-days: 30
+          if-no-files-found: warn
