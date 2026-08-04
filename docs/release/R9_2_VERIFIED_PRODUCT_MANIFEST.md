@@ -1445,3 +1445,82 @@ Merge resolution pushed normally (no rebase, no force-push) to
 `mergeable: MERGEABLE`, and was merged normally. Merge commit and full
 command/evidence log: `AI_code_audit_report_RI.md` (ignored, unstaged, local
 audit history only).
+
+## 16. R9.2-RESOLVE-P127-MERGE-AND-RETIRE-DUPLICATE-DOCS — Phase 2: duplicate automation status docs retired (2026-08-05)
+
+Branch: `chore/r9.2-retire-automation-docs`, fast-forwarded to `origin/main`
+(now containing the PR #127 merge, section 15 above) in the existing
+worktree `D:\Temp\r92-retire-automation-docs`. This section is a dated
+amendment, appended per the Protected Scope Protocol; nothing in sections
+1–15 was changed.
+
+### 16.1 Retired-file list (deleted)
+
+- `AGENTS.md`
+- `docs/PROJECT_STATE.md`
+- `docs/NEXT_TASK.md`
+- `docs/PROTECTED_SCOPE.md`
+- `docs/COMPLETION_STATUS.md`
+- `docs/DECISIONS.md`
+- `reports/LATEST.md` (`reports/` was then empty and was removed)
+
+None must be recreated; no replacement status/automation file of the same
+shape may be added.
+
+### 16.2 Reference repair
+
+`git grep` and a PowerShell recursive filesystem search (excluding
+`node_modules`/`.git`/`dist`/`build`) for the seven retired filenames found
+two automation files with active (functional) references to the retired
+workflow — `.github/prompts/continue-project.prompt.md` and
+`scripts/run-next-task.ps1` — both updated to point at the remaining
+authorities (`rules.md`, `.kilo/plans/commerceflownew.md`, this manifest's
+Protected Scope Protocol, `AI_code_audit_report_RI.md`) instead of the
+retired files, with no other behavior changed. One code comment in
+`apps/api/src/scripts/p4b-worker-runner-main.ts` pointing at
+`reports/LATEST.md` was repointed at this manifest. Remaining hits are
+confined to this manifest's own and
+`docs/payments/bank-alfalah-mastercard/P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`'s
+**append-only historical evidence** (past task's recorded file-changed
+lists) — left intact, per the append-only protocol in section 5/13.6/16.4:
+historical record of a file that once existed is not an active pointer.
+
+### 16.3 Validation
+
+- Deleted files absent: confirmed (`Test-Path` false for all seven; `reports/`
+  directory absent).
+- Zero active tracked references: confirmed by `git grep` re-run after the
+  repairs in 16.2 (only the two append-only historical-evidence hits above
+  remain, by design).
+- `npm run lint` / `npm run typecheck` / `npm run build`: exit 0.
+- `npx prisma validate` / `npx prisma generate`: exit 0.
+- P5B focused unit tests (`sharp-variant.service.test.ts`): pass, unmodified.
+- `git diff --check` / `git diff --cached --check`: clean.
+- Zero live external calls: no network-touching command was run this
+  packet; every test file already installs a throwing `globalThis.fetch`
+  spy.
+
+### 16.4 Final documentation authority and Protected Scope Protocol
+
+Remaining documentation authorities: `rules.md`, `.kilo/plans/commerceflownew.md`
+(canonical plan), this manifest (canonical, append-only release evidence),
+feature-specific protocol documents already tracked under `docs/`, and
+`AI_code_audit_report_RI.md` as ignored local audit history (required after
+every task: commands, repairs, tests, changed files, Git evidence,
+percentages, Protected Scope, and next task — never staged or committed).
+
+Protected Scope Protocol for retirement packets of this shape: delete only
+the exact files explicitly authorized; never delete or rewrite canonical
+source, workflows, packets, validators, migrations, tests, or development
+documentation; no `.gitignore` broadening beyond the existing
+`AI_code_audit_report_RI.md` entry; no `git add -f`; no replacement
+status/automation file of the retired shape; historical references inside
+an existing append-only evidence document are left intact.
+
+### 16.5 Result
+
+PR #127 merge (`738fe3c3779c5462bad61a5ea2437704aa0216fe`) incorporated via
+fast-forward. Seven duplicate documentation files retired and deleted.
+Zero active tracked references remain. Completion (this
+documentation-consolidation scope): **100%**. No RunPod, MPGS, deployment,
+or product-scope-expansion change was made.

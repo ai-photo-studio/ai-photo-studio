@@ -451,3 +451,50 @@ additive; every rule above it remains in force verbatim.
   `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` directly in the
   Northflank console to create the service, attach the existing `api`
   secret group, and deploy — no code change is needed to do so.
+
+### R9.2-RESOLVE-P127-MERGE-AND-RETIRE-DUPLICATE-DOCS: PR #127 merged; duplicate automation status docs retired (2026-08-05)
+
+Added by the R9.2-RESOLVE-P127-MERGE-AND-RETIRE-DUPLICATE-DOCS packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #127 (`feat/r9.2-p5b-sharp-variants`) was merged into `main`
+  (merge commit `738fe3c3779c5462bad61a5ea2437704aa0216fe`), after resolving
+  pure documentation-numbering drift against `origin/main` (which by then
+  carried PR #126) in an isolated resolver worktree. Full record:
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 15.
+- The following duplicate/automation status documents are retired and
+  **deleted from the repository**: `AGENTS.md`, `docs/PROJECT_STATE.md`,
+  `docs/NEXT_TASK.md`, `docs/PROTECTED_SCOPE.md`,
+  `docs/COMPLETION_STATUS.md`, `docs/DECISIONS.md`, `reports/LATEST.md`.
+  They must never be recreated, and no replacement status/automation file
+  of the same shape may be added.
+- **AI_code_audit_report_RI.md is now required after every task.** After
+  completing any task in this repository, append a record to
+  `AI_code_audit_report_RI.md` covering: the exact commands run, any
+  repairs applied, the exact tests run and their results, the files
+  changed, Git evidence (branch, commit/merge SHA, PR number when
+  applicable), completion percentages, the current Protected Scope, and
+  the next task. This file is, and remains, ignored by `.gitignore` and is
+  never staged or committed — it is local audit history only, not a
+  tracked deliverable.
+- **Remaining documentation authorities** (all other project-state/
+  status/task-tracking documents are retired): `rules.md` (this file),
+  `.kilo/plans/commerceflownew.md` (canonical plan),
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (canonical, append-only
+  release evidence), feature-specific protocol documents already tracked
+  under `docs/` (e.g. `docs/restoration/`, `docs/payments/`,
+  `docs/deployment/`), and `AI_code_audit_report_RI.md` as ignored local
+  audit history.
+- **Protected Scope Protocol (finalized, retirement packets)**: a
+  retirement packet of this shape may delete only the exact
+  documentation files it was explicitly authorized to delete; it must
+  never delete or rewrite canonical source, workflows, packets,
+  validators, migrations, tests, or development documentation; it must
+  not broaden `.gitignore` beyond `AI_code_audit_report_RI.md`'s existing
+  entry and must never use `git add -f`; and references to a retired file
+  inside an existing **append-only** evidence document (a past task's
+  recorded file-changed list) are historical record, not an active
+  pointer — they are left intact rather than rewritten, consistent with
+  this repository's existing append-only manifest protocol.
+- No RunPod, MPGS, deployment, or product-scope-expansion change was made
+  by this packet.

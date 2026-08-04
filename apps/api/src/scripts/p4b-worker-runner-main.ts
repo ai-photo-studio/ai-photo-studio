@@ -9,7 +9,7 @@
  * or `node dist/scripts/p4b-worker-runner-main.js` after `npm run build`),
  * separate from the `api` web service, exactly like the existing
  * `RESTORATION_PROVIDER`/`STORAGE_PROVIDER`-gated pattern documented in
- * `reports/LATEST.md`.
+ * `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`.
  *
  * Responsibilities, and nothing else:
  *   1. Load and validate configuration with the SAME `loadConfig()` the HTTP
