@@ -197,6 +197,39 @@ manual-proof state, Recovery Protocol).
   future packet that builds on it (e.g. the eventual Bank Alfalah adapter or
   live activation of this runner).
 
+### P4C Bank Alfalah MPGS — merged, sandbox smoke REJECTED (2026-08-04)
+
+Added by the R9.2-P4C packet. This section is additive; every rule above it
+remains in force verbatim.
+
+- PR #118 (`feat/r9.2-p4c-bank-alfalah-mpgs`, head
+  `c52cab8e93c9f2906c98118d7b15b02ab5e894d5`) was independently reviewed
+  clean (no critical/high issue) and merged into `main` without amendment
+  (merge commit `38f768d3b2bc1d52de31d79f457f8049aace3b89`).
+  `apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts`
+  (`BankAlfalahMpgsGateway`) is now on `main`; it remains **not** registered
+  on any Express route/controller.
+- A manual `workflow_dispatch`-only sandbox smoke workflow
+  (`.github/workflows/bank-alfalah-mpgs-sandbox-smoke.yml`) was added and
+  dispatched from `main` twice. The first run failed on a CI
+  build-dependency issue (Prisma client not generated), fixed via PR #120.
+  The second run reached the live MPGS sandbox with the `MERCHANT_ID`/
+  `API_PASSWORD` GitHub secrets present, and Hosted Checkout initialization
+  was **rejected with a structural HTTP 404** before Retrieve Order could be
+  reached. See
+  `docs/payments/bank-alfalah-mastercard/P4C_SANDBOX_SMOKE_EVIDENCE.md` and
+  manifest section 9 for full sanitized evidence.
+- **PKR is NOT `SANDBOX_VERIFIED`.** USD remains `FAIL_CLOSED`. This is a
+  true stop per the Recovery Protocol (external protocol/provisioning
+  uncertainty this repository cannot resolve without owner input) — no
+  further live-sandbox guess-and-retry was attempted. The owner must confirm
+  either the exact expected REST path/API version for this merchant's MPGS
+  sandbox profile, or that the configured `MERCHANT_ID`/`API_PASSWORD`
+  secrets correspond to an actually-provisioned sandbox account, before a
+  future session retries the smoke test.
+- No card data, no payment capture, and no Replicate/R2/worker call occurred
+  anywhere in this packet.
+
 ### R9.2-P4C: Bank Alfalah Mastercard Gateway (MPGS) supersedes legacy APG (2026-08-04)
 
 Added by the R9.2-P4C packet. This section is additive; every rule above it

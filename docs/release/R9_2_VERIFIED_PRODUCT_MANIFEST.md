@@ -710,3 +710,89 @@ RunPod/Local path was modified by this packet. `grep` for
 comments stating the module never touches them (zero actual calls). No real
 Bank Alfalah credential value exists anywhere in this repository, this
 session, or this document.
+
+## 9. R9.2-P4C — Independent review, PR #118 merge, and sandbox smoke attempt (2026-08-04)
+
+### 9.1 PR #118 independent review
+
+PR #118 (`feat/r9.2-p4c-bank-alfalah-mpgs`, head
+`c52cab8e93c9f2906c98118d7b15b02ab5e894d5`) was independently re-inspected
+against every criterion in the R9.2-P4C-INDEPENDENT-REVIEW-SANDBOX-SMOKE-MERGE
+packet: MPGS disabled by default (`BANK_ALFALAH_MPGS_ENABLED` defaults to
+`false`), REST Basic Auth is `merchant.<Merchant ID>` + API Password
+(`buildMpgsAuthHeader`), `BANK_ALFALAH_MPGS_OPERATOR_ID` is never used for
+REST auth, the browser-return handler always re-verifies via Retrieve Order
+before any paid transition, an authenticated Retrieve Order precedes every
+`applyVerifiedPaymentEvidence` call, merchant/order/amount/currency/status
+are matched exactly (`matchRetrievedOrderToAttempt`), USD remains
+fail-closed, the gateway origin is hardcoded/derived only from server config
+(never a webhook-supplied URL), secrets are redacted from
+`getConfigPreview` and never appear in any thrown error message, duplicate/
+concurrent verification is idempotent (proven by
+`p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts`), and zero
+Replicate/R2/worker references exist in the gateway module. No critical or
+high-severity issue was found; the PR was merged without amendment.
+
+`gh pr view 118` confirmed `mergeStateStatus: CLEAN`, `mergeable: MERGEABLE`,
+no required failing checks (none configured on the branch, matching the
+P4A/P4B precedent). Merged with `gh pr merge 118 --merge
+--delete-branch=false`. Merge commit: `38f768d3b2bc1d52de31d79f457f8049aace3b89`.
+
+### 9.2 Full regression + new-test evidence (before merge)
+
+Disposable PostgreSQL 17 (`initdb`/`pg_ctl`/`createdb` on `127.0.0.1:45733`,
+`DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only as environment
+variables, never written to `.env`):
+
+- `p4c-bank-alfalah-mpgs-gateway.service.test.ts` + `p4c-bank-alfalah-mpgs-env.test.ts` + `p4c-bank-alfalah-legacy-apg-retired.test.ts` — **31/31** pass
+- `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` — **6/6** pass (37/37 MPGS tests total)
+- `p4a-payment-verified-execution-queue.service.pg-race.test.ts` — **14/14** pass (unmodified)
+- `p4b-internal-worker-runner.service.test.ts` — **13/13** pass (unmodified)
+- `p4b-internal-worker-runner.service.pg-race.test.ts` — **10/10** pass (unmodified)
+- `p3a-replicate-execution-worker.test.ts` — **24/24** pass (unmodified)
+- `p3a-replicate-execution-worker.pg-race.test.ts` — **10/10** pass (unmodified)
+- `p3b-replicate-r2-canary.test.ts` — **21/21** pass (unmodified)
+- `p3b-replicate-r2-canary.ts --dry-run` — exit 0, `RESULT: dry-run PASSED` (unmodified)
+- `prisma validate` — schema valid; `prisma generate` — exit 0
+- `tsc --noEmit` (api) — exit 0; `npm run build` (api) — exit 0
+- `eslint` on all new/changed P4C files — 0 errors (one pre-existing,
+  unrelated `no-unused-vars` warning on `providerKey` in `env.ts`, on a line
+  this packet does not touch, left as-is)
+- Legacy-APG and no-hardcoded-credential structural scan tests — pass
+
+### 9.3 Sandbox smoke workflow
+
+Added `.github/workflows/bank-alfalah-mpgs-sandbox-smoke.yml`
+(`workflow_dispatch` only, hardcoded sandbox origin
+`https://test-bankalfalah.gateway.mastercard.com`, `timeout-minutes: 10`,
+`concurrency` group of 1, fails closed before any network call if the
+`MERCHANT_ID`/`API_PASSWORD` GitHub secrets are absent, uploads only
+sanitized text evidence) and its underlying script
+`apps/api/src/scripts/p4c-bank-alfalah-mpgs-sandbox-smoke.ts` (exactly two
+calls: Hosted Checkout initialization + Retrieve Order v74; never prints a
+secret value; no card data; no capture; no Replicate/R2/worker call).
+Merged via PR #119 (`7c2adefb60892a905c3cf530465aedaba9e4d376`) and a
+follow-up Prisma-client-generation fix via PR #120
+(`a5c5f2eb9e2ddf39a430939ed2a98a72b514ed77`, first dispatch failed on a CI
+build-dependency error, not a security issue).
+
+### 9.4 Sandbox smoke result: REJECTED (structural HTTP 404)
+
+Dispatched from `main` (run
+[`30910714515`](https://github.com/ai-photo-studio/ai-photo-studio/actions/runs/30910714515)).
+`MERCHANT_ID`/`API_PASSWORD` secrets were confirmed present; Hosted Checkout
+initialization was rejected with a structural HTTP 404 before Retrieve Order
+could be reached. Full sanitized evidence:
+`docs/payments/bank-alfalah-mastercard/P4C_SANDBOX_SMOKE_EVIDENCE.md`.
+
+Per `rules.md`'s Recovery Protocol this is a **true stop**: the exact
+REST path / merchant-provisioning shape this specific Bank Alfalah MPGS
+sandbox account expects is external protocol knowledge this repository
+cannot define without owner-supplied confirming documentation or a working
+reference request. No further live-sandbox guess-and-retry was attempted.
+
+**PKR is NOT `SANDBOX_VERIFIED`.** It retains its pre-existing
+`standard-pattern-fallback` code-level gating only. **USD remains
+`FAIL_CLOSED`** (no merchant capability evidence exists). No card data, no
+payment capture, and no Replicate/R2/worker call occurred at any point in
+this packet.
