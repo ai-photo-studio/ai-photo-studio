@@ -303,3 +303,40 @@ remains in force verbatim.
   the P3A/P3B worker, and RunPod/Local were not touched by this packet. No
   production activation, no real card/funds movement, no credential value in
   repo/logs/reports.
+
+### R9.2: P5A merged; Codex CLI Automation Retirement (2026-08-04)
+
+Added by the retire-Codex-CLI-automation packet. This section is additive;
+every rule above it remains in force verbatim.
+
+- PR #123 (`feat/r9.2-p5a-restoration-status-download`, head
+  `872369bdec57f69957d7a1c889a5aab0cf4bae25`) was verified CLEAN/MERGEABLE
+  with the expected P5A scope and merged normally into `main` (merge commit
+  `1dfd6d180eff3348b4635941268effb92d9bd1e2`).
+- A machine-level audit for "Codex CLI automation" found **nothing to
+  retire**: no global `@openai/codex` npm package, no `codex` binary on
+  `PATH`, no Codex-related Windows Scheduled Task, no startup-folder
+  launcher. The only `codex.exe` process present was the normal OpenAI
+  ChatGPT VS Code extension's editor-integration `app-server`, which is
+  retained — it is normal interactive Agent tooling, not unattended
+  automation, and was not stopped or uninstalled.
+- Stray one-off `.ps1` runner scripts left in `D:\Temp` from an earlier
+  automation period (`r92-parse-check.ps1`, `r92-wrapper-repair.ps1`) were
+  deleted after confirming via `git worktree list` that they were not
+  registered worktrees and had no active reference from any tracked script
+  or workflow. Directories under `D:\Temp` matching the `r92-*` naming
+  pattern that turned out to be registered git worktrees were left
+  untouched, per the "never delete uncertain worktrees" rule.
+- Permanent protocol: Codex CLI unattended automation (detached `codex exec`
+  runs, prompt-orchestration scripts, scheduled unattended dispatch against
+  this repository) is retired. Normal interactive Agent mode — a human
+  opening a workspace and directing Claude Code or an editor's own Agent
+  integration — is the authoritative way work gets done here. See
+  `docs/development/NORMAL_AGENT_WORKFLOW.md`. No status-only completion
+  claim is acceptable: "done" requires remote Git evidence (a pushed branch,
+  a commit SHA, and, when a PR is the deliverable, a real PR number/URL
+  independently verifiable with `gh pr view`).
+- **Protected Scope** (unchanged, restated): no production deployment or
+  database access, no live payment/Replicate/R2/RunPod/Local calls, no
+  force-push/`reset --hard`/`clean -fd`, no deletion of product source,
+  tests, migrations, canonical documentation, or active GitHub workflows.
