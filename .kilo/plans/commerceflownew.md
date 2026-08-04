@@ -97,7 +97,21 @@ Print sizes exist in code. Print order flow NOT implemented. Print options (pape
 
 ## 11. Payment Model
 
-Manual proof: ✅ Active. JazzCash/Easypaisa provider classes: ✅ Exist (inactive). Bank Alfalah gateway: ❌ Not implemented. Demo auto-approve: ❌ Not implemented. Payment guard on processItem: ✅ Active.
+Manual proof: ✅ Active. JazzCash/Easypaisa provider classes: ✅ Exist (inactive). Demo auto-approve: ❌ Not implemented. Payment guard on processItem: ✅ Active.
+
+**Bank Alfalah gateway (updated 2026-08-04, R9.2-P4C):** Legacy "Alfa APG
+v1.1" is retired and was never actually implemented in this repository (there
+was nothing live to migrate off of). The owner-approved replacement is the
+Bank Alfalah **Mastercard Gateway (MPGS)** sandbox
+(`test-bankalfalah.gateway.mastercard.com`), implemented in
+`apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts`: Hosted
+Checkout initiation from server-owned `FixedOrder`/`PaymentAttempt` values,
+untrusted browser return, an always-performed Retrieve Order v74 call before
+any paid transition, and delegation to the existing `applyVerifiedPaymentEvidence`
+(P4A) transaction. PKR is enabled (standard-pattern-fallback evidence); USD
+is fail-closed pending confirming documentation or a sandbox capability test.
+Sandbox-only; not wired to any HTTP route yet and not activated in
+production. See `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md`.
 
 ## 12. Code Mapping
 

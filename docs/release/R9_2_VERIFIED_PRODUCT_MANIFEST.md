@@ -582,3 +582,131 @@ code and is proven correct against a disposable database, but no Northflank
 service was created or deployed, and no live Replicate/R2/Bank Alfalah
 credential was read, constructed into a client, or called (section 7.4,
 zero-network-call proof).
+
+## 8. R9.2-P4C — Bank Alfalah Mastercard Gateway (MPGS) supersedes legacy APG (2026-08-04)
+
+### 8.1 Owner decision and scope
+
+Legacy "Alfa APG v1.1" (never actually implemented in this repository) is
+retired. The Bank Alfalah Mastercard Gateway (MPGS) sandbox
+(`test-bankalfalah.gateway.mastercard.com`) is now the only Bank Alfalah
+integration this repository is permitted to carry. Full evidence:
+`docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md`.
+
+### 8.2 What this packet builds
+
+- `apps/api/src/config/env.ts` — `BANK_ALFALAH_MPGS_*` zod-validated config,
+  disabled by default, required-field enforcement only when enabled,
+  `bankAlfalahMpgs` derived config object, `getConfigPreview` extended to
+  redact nested-object secret fields.
+- `apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts` —
+  `BankAlfalahMpgsGateway` (auth header, Hosted Checkout initiation,
+  Retrieve Order v74), currency gating (`MPGS_CURRENCY_SUPPORT`: PKR
+  enabled, USD fail-closed), and the verify-then-apply orchestrator
+  (`verifyMpgsPaymentByRetrieveOrder`, `handleMpgsBrowserReturn`,
+  `handleMpgsWebhookTrigger`) that delegates to the unmodified P4A
+  `applyVerifiedPaymentEvidence` transaction on an exact match. Not
+  registered on any Express router or controller, matching the P4A/P4B
+  not-yet-routed precedent.
+- `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md` — new
+  tracked evidence document (field names, flow steps, evidence source per
+  field, currency gating rationale, rollback plan). No credential value.
+- `apps/api/.env.example` — `BANK_ALFALAH_MPGS_*` template entries, all
+  `replace_me`/disabled defaults.
+
+### 8.3 Test evidence
+
+All commands run from `apps/api` with `npx tsx --test <file>`:
+
+- `p4c-bank-alfalah-mpgs-gateway.service.test.ts` (fake ports, no DB, no
+  network) — **23/23** pass
+- `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` (real disposable
+  PostgreSQL 17, mocked gateway fetch) — **6/6** pass, covering: single
+  matched-and-applied verification, duplicate sequential webhook-trigger
+  idempotency (one `PaymentEvent`/entitlement/master/`QUEUED` execution
+  across three calls), concurrent browser-return + webhook-trigger race
+  (exactly one paid transition), a forged/PENDING browser return rejected
+  with zero mutation, zero live network calls, and full teardown.
+- `p4c-bank-alfalah-legacy-apg-retired.test.ts` (repo-wide scan, no DB, no
+  network) — **1/1** pass: zero active legacy APG identifiers outside
+  excluded/superseded locations.
+- `apps/api/src/config/p4c-bank-alfalah-mpgs-env.test.ts` — **7/7** pass:
+  fail-closed defaults, required-field enforcement when enabled, checkout
+  mode validation, no API password leak via `getConfigPreview`, no
+  hardcoded non-placeholder credential literal in the evidence doc.
+
+Total new tests: **37/37** pass.
+
+### 8.4 Regression evidence (unmodified suites)
+
+Run against the same disposable PostgreSQL 17 instance used for 8.3:
+
+- `p4a-payment-verified-execution-queue.service.pg-race.test.ts` — **14/14** pass
+- `p4b-internal-worker-runner.service.pg-race.test.ts` — **10/10** pass
+- `p3a-replicate-execution-worker.test.ts` — **24/24** pass
+- `p3a-replicate-execution-worker.pg-race.test.ts` — **10/10** pass
+- `p3b-replicate-r2-canary.test.ts` — **21/21** pass
+- `p3b-replicate-r2-canary.ts --dry-run` — exit 0, `RESULT: dry-run PASSED`
+
+`npx tsc -p tsconfig.json --noEmit` — exit 0. `npm run build` — exit 0.
+`npx prisma validate` — schema valid (no migration added; no Prisma model
+change was needed). `npx eslint` on all new/changed P4C files — 0
+errors/warnings after two small fixes (see 8.5).
+
+### 8.5 Repair iterations
+
+1. `getConfigPreview` in `env.ts` did not type-check against the new nested
+   `bankAlfalahMpgs` object value (`toSafePreview` expected a scalar) —
+   repaired by branching on `typeof value === "object"` and recursively
+   redacting nested keys; re-ran `tsc --noEmit`, exit 0.
+2. The legacy-retirement scan test initially flagged this packet's own
+   trust-boundary comments (which name the retired identifiers in prose to
+   explain what is forbidden) as active hits — repaired by adding a
+   retirement-marker window check (a nearby "retired"/"forbidden" line
+   exempts the mention) and excluding `.codex`/`.claude` scratch
+   directories from the walk; re-ran, 1/1 pass.
+3. Two ESLint `@typescript-eslint/no-var-requires` disable comments in the
+   env test did not match the actually-firing rule name
+   (`no-require-imports` in this ESLint config) — corrected the directive
+   comments; re-ran ESLint, 0 problems. A pre-existing, unrelated
+   `no-unused-vars` warning on `providerKey` in `env.ts` (present before
+   this packet, on a line this packet did not touch) was left as-is.
+
+### 8.6 Disposable PostgreSQL cleanup evidence
+
+PostgreSQL 17 cluster (`initdb`/`pg_ctl`/`createdb` on `127.0.0.1:45997`,
+`DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only as environment
+variables, never written to `.env`). `pg_ctl -m fast -w stop` reported
+`server stopped`; `Test-NetConnection 127.0.0.1:45997` afterward reported
+`TcpTestSucceeded: False`; the temporary data directory was deleted and
+confirmed absent.
+
+### 8.7 Live sandbox smoke test
+
+Skipped: `MERCHANT_ID`, `API_PASSWORD`, `OPERATOR_ID` (and the
+`BANK_ALFALAH_MPGS_*` equivalents) were all confirmed absent as environment
+variables in this session (presence-only check, no value ever printed). When
+the owner has sandbox credentials available, run (in a fresh session, never
+written to `.env`):
+
+```
+$env:BANK_ALFALAH_MPGS_ENABLED = "true"
+$env:BANK_ALFALAH_MPGS_MERCHANT_ID = <loaded securely, never echoed>
+$env:BANK_ALFALAH_MPGS_API_PASSWORD = <loaded securely, never echoed>
+$env:BANK_ALFALAH_MPGS_OPERATOR_ID = <loaded securely, never echoed>
+```
+then exercise `BankAlfalahMpgsGateway.initiateHostedCheckout` /
+`.retrieveOrder` against one bounded sandbox order.
+
+### 8.8 Confirmation this does not activate live processing or touch protected scope
+
+No Express route or controller references the P4C gateway module (same
+not-yet-routed pattern as P4A/P4B). No file under
+`apps/api/src/services/p4a-*`, `apps/api/src/services/p4b-*`,
+`apps/api/src/services/p3a-*`, `apps/api/src/scripts/p3b-*`, or any
+RunPod/Local path was modified by this packet. `grep` for
+`Replicate|R2_|r2Client|RunPod|runpod` inside
+`p4c-bank-alfalah-mpgs-gateway.service.ts` returns only the two trust-boundary
+comments stating the module never touches them (zero actual calls). No real
+Bank Alfalah credential value exists anywhere in this repository, this
+session, or this document.

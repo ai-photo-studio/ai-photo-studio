@@ -196,3 +196,48 @@ manual-proof state, Recovery Protocol).
   distinction from the P4A section above applies unchanged to P4B and to any
   future packet that builds on it (e.g. the eventual Bank Alfalah adapter or
   live activation of this runner).
+
+### R9.2-P4C: Bank Alfalah Mastercard Gateway (MPGS) supersedes legacy APG (2026-08-04)
+
+Added by the R9.2-P4C packet. This section is additive; every rule above it
+remains in force verbatim.
+
+- The legacy "Alfa APG v1.1" Bank Alfalah protocol (`sandbox.bankalfalah.com`
+  / `payments.bankalfalah.com`, `/HS/` endpoints, Store ID/Key1/Key2,
+  `HS_`-prefixed fields, AES/CBC request signing) is **retired** and must
+  never be reintroduced in active code/config. This repository never had a
+  working implementation of it to migrate off of (confirmed by repo-wide
+  grep before this packet); the retirement forecloses that path going
+  forward. Enforced by
+  `apps/api/src/services/p4c-bank-alfalah-legacy-apg-retired.test.ts`, a
+  repository-wide scan test.
+- The only Bank Alfalah integration this repository is permitted to carry is
+  the **Mastercard Gateway (MPGS)** sandbox
+  (`test-bankalfalah.gateway.mastercard.com`), implemented in
+  `apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts`. Config is
+  `BANK_ALFALAH_MPGS_*` in `apps/api/src/config/env.ts`, disabled by default
+  (fail-closed), with `BANK_ALFALAH_MPGS_OPERATOR_ID` reserved as
+  portal-login metadata only (never used for REST Basic Auth, which is
+  `merchant.<Merchant ID>` / API Password).
+- Like `applyVerifiedPaymentEvidence` (P4A), this gateway module is
+  deliberately NOT registered on any Express router and NOT imported by any
+  controller in this packet. It always performs its own Retrieve Order v74
+  call before accepting any paid transition -- it never trusts a browser
+  return or a webhook payload's claimed status, and every status-inquiry
+  request targets only the configured `BANK_ALFALAH_MPGS_BASE_URL` with a
+  stored, validated order id (never a URL taken from webhook content). A
+  verified match delegates to the existing, unmodified
+  `applyVerifiedPaymentEvidence` transaction -- this module never calls
+  Replicate, R2, or any worker.
+- PKR is enabled (`standard-pattern-fallback` evidence); USD is fail-closed
+  (rejected) pending confirming documentation or a bounded sandbox capability
+  test -- see `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md`.
+- No live sandbox smoke test was run in this packet: no `MERCHANT_ID` /
+  `API_PASSWORD` / `OPERATOR_ID` (or `BANK_ALFALAH_MPGS_*` equivalents) were
+  present as environment variables in this session. All verification used
+  mocked gateway fetch responses and a real disposable PostgreSQL instance
+  for idempotency/race proof.
+- **Protected Scope** (unchanged, restated): P4A/P4B pipeline queuing logic,
+  the P3A/P3B worker, and RunPod/Local were not touched by this packet. No
+  production activation, no real card/funds movement, no credential value in
+  repo/logs/reports.
