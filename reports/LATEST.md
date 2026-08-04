@@ -565,3 +565,50 @@ touched, no live provider call made. A P4B-readiness PR was opened
   secret scan was not remediated (out of this packet's scope).
 - `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains the standing
   external blocker for P4D checkout-route wiring, untouched by this packet.
+
+---
+
+## R9.2-P5B — Deterministic Sharp digital variants
+
+Branch: `feat/r9.2-p5b-sharp-variants`, from updated `origin/main` after PR
+#126. Added `SharpVariantService` plus focused unit and disposable PostgreSQL
+race/idempotency tests. Documentation is recorded in the release manifest
+section 14 and `docs/restoration/P5B_SHARP_VARIANT_PROTOCOL.md`.
+
+Behavior is limited to a validated master and server-owned `original`, `2hd`,
+and `4hd` specifications. Original reuses the validated master; 2HD and 4HD
+are Sharp JPEG derivatives capped at 2048 and 4096 pixels with
+`withoutEnlargement`, not literal 2x/4x promises. Existing unique identity
+`(restorationMasterId, variantSpecId, sourceMasterSha256)` provides reuse and
+concurrent convergence. Decode, dimensions, format, byte count, and SHA-256
+validation complete before storage upload and `AVAILABLE` persistence.
+
+### Verification
+
+- P5B unit: **3/3**; P5B PostgreSQL race: **3/3**.
+- P3A unit/DB: **24/24**, **10/10**.
+- P4A DB: **14/14**; P4B unit/DB: **13/13**, **11/11**.
+- P5A ownership boundary: **2/2**; P3B dry-run: **21/21**.
+- Lint, typecheck, build, Prisma validate/generate, and diff checks passed.
+- Disposable PostgreSQL 17.7 was loopback-only; `pg_ctl stop` succeeded, PID
+  disappeared, port 55432 was free, and temporary data was removed.
+- Provider/storage ports were mocked and fetch was a throwing spy; zero live
+  external calls occurred.
+
+No schema, migration, payment, MPGS, Replicate, RunPod/Local, deployment,
+secret, workflow, customer route, or print fulfilment change was made.
+
+---
+
+## R9.2-RESOLVE-P127-MERGE-AND-RETIRE-DUPLICATE-DOCS — PR #127 conflict resolution
+
+Date: 2026-08-05
+
+`origin/main` (containing PR #126) was merged into PR #127's branch
+(`feat/r9.2-p5b-sharp-variants`) in an isolated resolver worktree. The only
+conflict in this file was two task reports both appended at the tail
+(this file's own "combine two histories at once" shape); resolved by keeping
+both reports in full, in branch order — the PR #126 report first, this P5B
+report second — with no prose from either altered. This file is retained
+temporarily in PR #127 per this task's explicit instruction; its eventual
+retirement is a separate, later task.

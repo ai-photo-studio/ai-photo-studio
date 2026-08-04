@@ -1122,8 +1122,6 @@ owner action required per `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`
 which will now also surface `Content-Type`/`WWW-Authenticate`/correlation-id
 evidence thanks to §12.2.
 
----
-
 ## 13. R9.2-PR125-MERGE-AND-P4B-READINESS — PR #125 merge and P4B Northflank deployment preparation (2026-08-05)
 
 Branch: `chore/r9.2-p4b-northflank-readiness`, built from `origin/main`
@@ -1349,3 +1347,101 @@ unchanged and untouched by this packet. Next owner action: review the new
 P4B-readiness PR, and when ready to actually deploy, follow
 `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` directly in the
 Northflank console (create the service, attach the secret group, deploy).
+
+---
+
+## 14. R9.2-P5B — Deterministic Sharp digital variants
+
+Branch: `feat/r9.2-p5b-sharp-variants`, built from updated `origin/main` after
+PR #126 (`chore/r9.2-p4b-northflank-readiness`, merged as section 13 above).
+This packet adds only the deterministic Sharp foundation described in
+`docs/restoration/P5B_SHARP_VARIANT_PROTOCOL.md`. This section is a dated
+amendment, appended per the Protected Scope Protocol; nothing in sections
+1–13 was changed.
+
+### 14.1 Scope and behavior
+
+Only a `VALIDATED` `RestorationMaster` with complete immutable metadata is
+accepted. `original` reuses the validated master. `2hd` and `4hd` are Sharp
+JPEG derivatives with server-owned maximum widths of 2048 and 4096 pixels,
+using `withoutEnlargement`; literal 2x/4x scaling is not promised. The existing
+`ImageVariant` unique key provides deterministic cache identity and concurrent
+duplicate convergence. No schema or migration change was required.
+
+Validation precedes storage and database mutation: decode, dimensions, format,
+non-empty byte count, and SHA-256 are checked before upload; `AVAILABLE` is
+persisted only after upload succeeds. No client options, provider call, payment
+write, print fulfilment, MPGS, RunPod, or Local path is introduced.
+
+### 14.2 Test evidence
+
+- P5B unit: **3/3**.
+- P5B disposable PostgreSQL race/idempotency: **3/3**.
+- P3A unit: **24/24**; P3A PostgreSQL race: **10/10**.
+- P4A PostgreSQL race: **14/14**; P4B unit: **13/13**; P4B PostgreSQL race: **11/11**.
+- P5A customer ownership boundary: **2/2**.
+- P3B dry-run: **21/21**.
+- Lint: exit 0, 89 existing warnings and no errors.
+- Typecheck, build, Prisma validate/generate, `git diff --check`, and
+  `git diff --cached --check`: pass.
+
+The disposable PostgreSQL 17.7 cluster was loopback-only on port 55432,
+migrated from the tracked schema, and shut down with `pg_ctl`; its PID was
+gone, the port was free, and the temporary data directory was removed. Every
+DB-backed suite used mocked provider/storage ports and a throwing fetch spy;
+zero live external calls occurred.
+
+### 14.3 Protected scope result
+
+No production deployment, secret, payment integration, Replicate execution,
+RunPod/Local activation, schema, migration, or workflow was changed. P5B is a
+foundation only and does not activate customer routes or print fulfilment.
+
+## 15. R9.2-RESOLVE-P127-MERGE-AND-RETIRE-DUPLICATE-DOCS — PR #127 conflict resolution (2026-08-05)
+
+Branch: `feat/r9.2-p5b-sharp-variants` (PR #127), merged with `origin/main`
+(which by then contained PR #126, section 13 above) in an isolated resolver
+worktree (`D:\Temp\r92-p5b-sharp-variants`). This section is a dated
+amendment, appended per the Protected Scope Protocol; nothing in sections
+1–14 was changed.
+
+### 15.1 Conflict and resolution
+
+`git merge origin/main --no-edit` produced exactly two conflicts, both purely
+documentation drift from parallel section-numbering: this file (section 13
+"PR125-merge-and-P4B-readiness", already on `origin/main` via PR #126, vs.
+section 13 "P5B", only on this branch) and `reports/LATEST.md`. Resolved by
+renumbering the P5B section to 14 (chronologically after PR #126's section
+13) and appending this section as 15. No prose in either section's original
+text was altered; both are preserved verbatim under their new numbers. All
+P5B source and tests were retained unmodified. `reports/LATEST.md` was
+combined additively (see its own history) and retained temporarily in this
+PR, per this task's explicit instruction.
+
+### 15.2 Test evidence (post-merge, this resolver worktree)
+
+Disposable local PostgreSQL 17 (loopback-only, random port, random password,
+`DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only as environment
+variables, never written to `.env`; no Neon/Northflank/remote database
+touched):
+
+- P5B unit: **3/3** pass.
+- P5B PostgreSQL race/idempotency: **3/3** pass.
+- `npm run lint`, `npm run typecheck`, `npm run build`: exit 0.
+- `npx prisma validate` / `npx prisma generate`: exit 0.
+- `git diff --check` / `git diff --cached --check`: clean.
+
+### 15.3 Disposable PostgreSQL cleanup proof
+
+`pg_ctl -m fast -w stop` reported `server stopped`; a subsequent
+`Test-NetConnection` on the same port reported `TcpTestSucceeded: False`;
+the temporary data directory was deleted and confirmed absent
+(`Test-Path` → `False`). No real/system PostgreSQL installation was touched.
+
+### 15.4 Result
+
+Merge resolution pushed normally (no rebase, no force-push) to
+`feat/r9.2-p5b-sharp-variants`. PR #127 became `mergeStateStatus: CLEAN`,
+`mergeable: MERGEABLE`, and was merged normally. Merge commit and full
+command/evidence log: `AI_code_audit_report_RI.md` (ignored, unstaged, local
+audit history only).
