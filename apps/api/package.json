@@ -16,7 +16,8 @@
     "test:runpod-budget": "tsx src/runpod/current-main-budget.test.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "worker:p4b": "tsx src/scripts/p4b-worker-runner-main.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.882.0",

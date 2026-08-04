@@ -436,3 +436,149 @@ worker it feeds (`replicate-execution.worker.ts`) is likewise still not
 exported from any controller, route, or queue processor (unchanged, per
 section 4). No RunPod, Replicate, R2, or Bank Alfalah network call is
 possible from this code path (section 6.4, zero-network-call proof).
+
+## 7. R9.2-P4B — Merge P4A + internal one-call worker runner (2026-08-04)
+
+Branch: `feat/r9.2-p4b-worker-runner`, built from `origin/main` immediately
+after PR #116 was merged. This section is a dated amendment, appended per the
+Protected Scope Protocol above. Nothing in sections 1–6 was changed.
+
+### 7.1 PR #116 merge result
+
+PR #116 (`feat/r9.2-p4a-payment-queue`, head
+`e62387520ee2d080112fec4c53b585ea4adb4dde`) was verified against its expected
+five-file P4A scope (`p4a-payment-verified-execution-queue.service.ts`,
+`p4a-payment-verified-execution-queue.service.pg-race.test.ts`,
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`, `reports/LATEST.md`,
+`rules.md`), `mergeStateStatus: CLEAN`, `mergeable: MERGEABLE`, and no
+required failing checks (no CI checks were configured on the branch at all).
+No PR defect was found; it was merged normally (`gh pr merge 116 --merge`,
+merge commit `822f21e98e25e1658435163daf43bf1e031426bd`) without deleting the
+source branch, without a force-push, and without squashing, matching this
+repository's established merge-commit convention (`git log --merges`).
+
+### 7.2 What this packet builds
+
+`apps/api/src/services/p4b-internal-worker-runner.service.ts` exports
+`InternalWorkerRunner` (a single-concurrency, bounded poll/backoff loop with
+cooperative graceful shutdown) and `PrismaQueuedExecutionCandidateRepository`
+(a read-only "peek" for the oldest `ReplicateExecution` row with
+`status = 'QUEUED'`, excluding ids the current process already proved
+`INELIGIBLE` so a stuck/anomalous row cannot starve newer legitimate work).
+`apps/api/src/scripts/p4b-worker-runner-main.ts` is the standalone process
+entry point (`npm run worker:p4b`): it loads configuration via the same
+`loadConfig()` the HTTP process uses (fail-closed on any missing required
+variable), refuses to start unless `RESTORATION_PROVIDER === "replicate"`,
+constructs the real, UNCHANGED P3A adapters
+(`PrismaReplicateExecutionRepository`, `R2MasterPersistence`,
+`PipelineOrchestratorProviderExecutor`), and wires `SIGTERM`/`SIGINT` to a
+cooperative shutdown that always lets an in-flight `processReplicateExecution`
+call finish before stopping. Root cause addressed: after P4A, QUEUED
+`ReplicateExecution` rows existed with no process that would ever call the
+P3A worker on them — this packet is exactly that process, and nothing else.
+
+The runner never claims a row itself (the P3A worker's own atomic
+`UPDATE ... WHERE status = 'QUEUED'` remains the only claim), never calls
+`applyVerifiedPaymentEvidence` or mutates any payment/order row, never
+creates a second `ReplicateExecution`, and never resubmits a terminal
+(`SUCCEEDED`/`FAILED`) row (the P3A worker's own
+`computeExecutionIneligibilityReasons` rejects it). Concurrency is fixed at 1
+by construction: `InternalWorkerRunner.run` is one sequential `while` loop
+with no `Promise.all`, no worker pool, and no concurrency configuration
+knob. No new Express router, controller, or Prisma migration was added.
+
+### 7.3 No HTTP surface (static proof)
+
+`p4b-internal-worker-runner.service.pg-race.test.ts` test `(pg1)` walks every
+file under `apps/api/src/routes/` and `apps/api/src/controllers/` and asserts
+none references `p4b-internal-worker-runner.service` or
+`p4b-worker-runner-main` — zero hits. `p4b-worker-runner-main.ts` is not
+imported by `apps/api/src/index.ts` or by any file reachable from it; it is a
+separate process entry point only reachable by direct execution
+(`npm run worker:p4b` / `node dist/scripts/p4b-worker-runner-main.js`).
+
+### 7.4 Test evidence
+
+Runner: `npx tsx --test`, from `apps/api`, against a disposable local
+PostgreSQL 17 cluster (`initdb`/`pg_ctl`/`createdb` on `127.0.0.1`, random
+port, `DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only as environment
+variables, never written to `.env`).
+
+| Command | Exit |
+|---|---|
+| `npx prisma migrate deploy` (from empty) | 0 — all migrations applied |
+
+| Suite | Exit | Result |
+|---|---|---|
+| `src/services/p4b-internal-worker-runner.service.test.ts` (new, fake ports, no DB) | 0 | **13/13** |
+| `src/services/p4b-internal-worker-runner.service.pg-race.test.ts` (new, real disposable PG 17) | 0 | **10/10** |
+| `src/services/p4a-payment-verified-execution-queue.service.pg-race.test.ts` (regression) | 0 | **14/14** (unmodified) |
+| `src/services/p3a-replicate-execution-worker.test.ts` (regression) | 0 | **24/24** (unmodified) |
+| `src/services/p3a-replicate-execution-worker.pg-race.test.ts` (regression, real disposable PG 17) | 0 | **10/10** (unmodified) |
+| `src/scripts/p3b-replicate-r2-canary.test.ts` (regression) | 0 | **21/21** (unmodified) |
+| `src/scripts/p3b-replicate-r2-canary.ts --dry-run` (regression) | 0 | `RESULT: dry-run PASSED` (unmodified) |
+| `npx tsc -p tsconfig.json --noEmit` (api) | 0 | clean |
+| `npm run build` (api) | 0 | clean |
+| `npx eslint` on the 4 new P4B files | 0 errors | 2 pre-existing-pattern `no-explicit-any` warnings on the required `globalThis.fetch` spy, identical to every other P3A/P4A test file |
+
+The 13 fake-port unit tests prove: sequential concurrency-1 processing in
+order; no overlapping in-flight calls (real timer-based overlap check);
+empty-queue exponential backoff capped at `maxBackoffMs`; a per-process
+exclude-list so an `INELIGIBLE` row cannot starve newer work; terminal
+outcomes are recorded without resubmission; `requestStop()` halts the loop
+promptly; an in-flight execution always finishes before shutdown takes
+effect; candidate-lookup and worker-throw errors are logged without crashing
+the loop; constructor fail-closed validation of `pollIntervalMs`/
+`maxBackoffMs`; `maxIterations` bounding; and the `onResult` observability
+hook fires once per processed execution with the true outcome.
+
+The 10 real-Postgres tests prove: the migrated chain tables are reachable;
+the static no-HTTP-route scan; an ineligible (unpaid) QUEUED row is picked up
+and correctly left QUEUED, never claimed, by the real P3A worker; two
+independent `InternalWorkerRunner` instances racing on one real QUEUED row
+produce exactly one provider call and one `SUCCEEDED` outcome (with at most
+one `CLAIM_LOST`, matching the same atomic-claim proof already established
+for two concurrent P3A workers); restart/replay safety (a fresh runner
+instance performs zero further provider/storage work once nothing new is
+legitimately claimable); graceful shutdown end-to-end against the real DB (the
+in-flight execution completes, then the loop stops); fail-closed startup
+configuration (`startP4BWorkerRunnerProcess` refuses a non-`"replicate"`
+`RESTORATION_PROVIDER` before constructing any port, and separately refuses
+to start at all when a required env var is missing entirely, both via the
+same `loadConfig()` gate the HTTP process uses); zero external network calls;
+and full teardown.
+
+### 7.5 Disposable PostgreSQL cleanup evidence
+
+`pg_ctl -D <tempdata> -m fast -w stop` reported `server stopped`. A
+subsequent `Test-NetConnection 127.0.0.1:<port>` reported
+`TcpTestSucceeded: False`, confirming the port was released. The temporary
+data directory was then deleted (`Remove-Item -Recurse -Force`) and confirmed
+absent (`Test-Path` → `False`). No real/system PostgreSQL installation or
+data directory was touched at any point.
+
+### 7.6 Deployment expectation
+
+`p4b-worker-runner-main.ts` is intended to run as its own Northflank
+service/deployment, separate from the `api` HTTP service documented in
+`reports/LATEST.md` — e.g. `npm run worker:p4b --workspace apps/api` in
+development, or the built `dist/scripts/p4b-worker-runner-main.js` after
+`npm run build` in production. Actually creating that Northflank service and
+pointing it at live Replicate/R2 production credentials is explicitly out of
+scope for this packet and remains a separate, later, owner-authorized action.
+
+### 7.7 Deferred Bank Alfalah adapter note (unchanged)
+
+Identical to section 6.6: this packet adds zero Bank Alfalah protocol
+knowledge. `applyVerifiedPaymentEvidence` still has no caller anywhere in
+this repository.
+
+### 7.8 Confirmation this does not activate live processing
+
+Opening the PR for this packet does not activate live customer payment
+verification or live restoration processing. `applyVerifiedPaymentEvidence`
+still has no caller (unchanged from section 6.7). The P4B runner exists as
+code and is proven correct against a disposable database, but no Northflank
+service was created or deployed, and no live Replicate/R2/Bank Alfalah
+credential was read, constructed into a client, or called (section 7.4,
+zero-network-call proof).

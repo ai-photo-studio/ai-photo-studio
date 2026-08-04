@@ -129,3 +129,70 @@ manual-proof state, protected scope).
   the root cause, every repair attempted before stopping, and the smallest
   possible owner action that would unblock it. "It's blocked" alone is
   never an acceptable stop report.
+
+### P4A Merge + Internal Worker Runner Boundary (2026-08-04)
+
+Added by the R9.2-P4B packet. This section is additive; every rule above it
+remains in force verbatim (RunPod freeze, Gate 2/3/4 restrictions, payment
+manual-proof state, Recovery Protocol).
+
+- PR #116 (`feat/r9.2-p4a-payment-queue`, head
+  `e62387520ee2d080112fec4c53b585ea4adb4dde`) was reviewed clean/mergeable
+  with no required failing checks and the expected five-file P4A scope, and
+  was merged normally into `main` (merge commit
+  `822f21e98e25e1658435163daf43bf1e031426bd`) without deleting the source
+  branch, without force-push, and without squashing, matching this
+  repository's established merge-commit convention. `applyVerifiedPaymentEvidence`
+  (`apps/api/src/services/p4a-payment-verified-execution-queue.service.ts`)
+  is now on `main`.
+- R9.2-P4B (`feat/r9.2-p4b-worker-runner`) added
+  `apps/api/src/services/p4b-internal-worker-runner.service.ts`
+  (`InternalWorkerRunner` + `PrismaQueuedExecutionCandidateRepository`) and
+  its standalone process entry point
+  `apps/api/src/scripts/p4b-worker-runner-main.ts` (`npm run worker:p4b`).
+  This makes the QUEUED `ReplicateExecution` rows the P4A transaction creates
+  reachable by a bounded poll loop that drives the EXISTING, UNCHANGED P3A
+  worker (`replicate-execution.worker.ts`) -- it adds no new HTTP route
+  (public or admin) and no new database write path.
+- **Internal worker-runner boundary**: the P4B runner is a read-only "peek"
+  (`SELECT ... WHERE status = 'QUEUED' ORDER BY createdAt ASC`, with a
+  per-process exclude-list for ids already proved `INELIGIBLE` so a stuck row
+  cannot starve newer legitimate work) followed by a call into the P3A
+  worker's own `processReplicateExecution`, which performs the actual atomic
+  claim (`UPDATE ... WHERE status = 'QUEUED'`) and all eligibility
+  enforcement. The runner itself never claims, never mutates a
+  `PaymentAttempt`/`FixedOrder`/`PaymentEvent` row, never calls
+  `applyVerifiedPaymentEvidence`, never creates a second
+  `ReplicateExecution`, and never resubmits a terminal (`SUCCEEDED`/`FAILED`)
+  row. Concurrency is fixed at 1 (one sequential `while` loop; no worker
+  pool, no parallel dispatch) -- two independently started runner processes
+  are safe only because the underlying Postgres claim is atomic, exactly as
+  already proven for two concurrent P3A workers.
+- **Deployment command/service expectation**: `p4b-worker-runner-main.ts` is
+  a STANDALONE process, not imported by `apps/api/src/index.ts`. It is meant
+  to run as its own Northflank service/deployment, separate from the `api`
+  HTTP service (`npm run worker:p4b --workspace apps/api` in development, or
+  the built `dist/scripts/p4b-worker-runner-main.js` after `npm run build` in
+  production). It reads configuration through the exact same `loadConfig()`
+  gate as the HTTP process and refuses to start (fail-closed, before
+  constructing any Replicate/R2 adapter) if `RESTORATION_PROVIDER` is not
+  exactly `"replicate"` or if any required env var is missing. Actually
+  deploying this as a live Northflank service, and wiring real Replicate/R2
+  production credentials to it, remains a separate, later, owner-authorized
+  action -- this packet only makes the code path exist and prove itself
+  against a disposable database.
+- **Bank Alfalah remains `ready:false`.** No Bank Alfalah callback handler,
+  signature verification, or protocol knowledge was added anywhere in P4B.
+  `applyVerifiedPaymentEvidence` still has zero callers.
+- **Protected Scope** (unchanged, restated): no production deployment or
+  database access, no live Replicate/R2/payment calls, no Bank Alfalah
+  protocol invention, no RunPod/Local activation, no destructive Git
+  operation. All P4B verification ran exclusively against a disposable local
+  PostgreSQL instance (started, migrated, used, stopped, and its temp data
+  directory deleted within the same session -- port confirmed unreachable
+  afterward) with mocked Replicate/R2 ports and a throwing `globalThis.fetch`
+  spy in every test file that exercises the P3A/P4A/P4B code paths.
+- **Recovery protocol addendum**: the same "recoverable vs. true stop"
+  distinction from the P4A section above applies unchanged to P4B and to any
+  future packet that builds on it (e.g. the eventual Bank Alfalah adapter or
+  live activation of this runner).
