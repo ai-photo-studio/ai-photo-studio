@@ -173,6 +173,28 @@ export interface RetrieveOrderResult {
 
 type FetchLike = typeof globalThis.fetch;
 
+/**
+ * R9.2-P4D evidence-capture gap fix (diagnostic-capture only -- no endpoint
+ * URL, HTTP method, auth header construction, or request body changed). Prior
+ * P4C2 evidence (docs/payments/bank-alfalah-mastercard/
+ * P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md §3.2) recorded that a failed
+ * response's headers/body were discarded, leaving no content-type,
+ * WWW-Authenticate, or gateway correlation-id in the thrown error. This
+ * helper captures those non-secret structural facts (never the auth header
+ * itself, never any request/response body content) so the next real sandbox
+ * dispatch produces disambiguating evidence.
+ */
+function describeFailedMpgsResponse(response: Response): string {
+  const contentType = response.headers.get("content-type") ?? "none";
+  const wwwAuthenticate = response.headers.get("www-authenticate") ?? "none";
+  const correlationId =
+    response.headers.get("x-correlation-id") ??
+    response.headers.get("x-request-id") ??
+    response.headers.get("x-mastercardapi-request-id") ??
+    "none";
+  return `content-type=${contentType} www-authenticate=${wwwAuthenticate} correlation-id=${correlationId}`;
+}
+
 function toMinorUnits(amount: number, currency: FixedOrderCurrency): bigint {
   // MPGS reports amount as a decimal major-unit number (e.g. 1500.00); both
   // PKR and USD are 2-decimal currencies for this gateway.
@@ -244,7 +266,9 @@ export class BankAlfalahMpgsGateway {
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(`Bank Alfalah MPGS initiateHostedCheckout failed with status ${response.status}`);
+      throw new Error(
+        `Bank Alfalah MPGS initiateHostedCheckout failed with status ${response.status} (${describeFailedMpgsResponse(response)})`
+      );
     }
     const sessionId = (body as { session?: { id?: string } })?.session?.id;
     const successIndicator = (body as { successIndicator?: string })?.successIndicator;
@@ -281,7 +305,9 @@ export class BankAlfalahMpgsGateway {
       transaction?: Array<{ transaction?: { id?: string } }>;
     };
     if (!response.ok) {
-      throw new Error(`Bank Alfalah MPGS retrieveOrder failed with status ${response.status}`);
+      throw new Error(
+        `Bank Alfalah MPGS retrieveOrder failed with status ${response.status} (${describeFailedMpgsResponse(response)})`
+      );
     }
 
     const currency = body.currency === "USD" || body.currency === "PKR" ? body.currency : "UNKNOWN";

@@ -259,6 +259,61 @@ remains in force verbatim.
 - No card data, no payment capture, and no Replicate/R2/worker call occurred
   anywhere in this packet.
 
+### R9.2-P4D Bank Alfalah MPGS — bounded verify+repair pass, blocker still open (2026-08-05)
+
+Added by the R9.2-P4D packet. This section is additive; every rule above it
+remains in force verbatim.
+
+- **Blocker-resolution check (first action, before any code change):**
+  confirmed no new/updated Bank Alfalah merchant document exists anywhere in
+  the repository beyond the three already present under
+  `docs/payments/bank-alfalah-mastercard/` (`MPGS_INTEGRATION_EVIDENCE.md`,
+  `P4C_SANDBOX_SMOKE_EVIDENCE.md`, `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`)
+  — `git ls-tree -r origin/main` shows the same three files as at the end of
+  P4C2. Also confirmed via `gh run list --workflow=bank-alfalah-mpgs-sandbox-smoke.yml`
+  that no `workflow_dispatch` run exists after the two failing P4C runs
+  (`30910482924`, `30910714515`, both 2026-08-04); no
+  `bank-alfalah-mpgs-provisioning-config-diagnostic.yml` run has ever been
+  dispatched. **`P4C_MPGS_AUTH_VERIFIED` was NOT achieved.** Per rules.md and
+  the task's own gate, full checkout-route/customer-flow wiring was correctly
+  NOT attempted this session; no Express route/controller registration was
+  added.
+- This session's scope was therefore bounded to: verify the existing
+  `p4c-bank-alfalah-mpgs-gateway.service.ts` against the same three existing
+  evidence documents, and repair only a confirmed code-level defect already
+  named by P4C2's own doc.
+- **One confirmed defect repaired:** P4C2 (§3.2 of
+  `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`) recorded that
+  `initiateHostedCheckout`/`retrieveOrder` discarded response headers/body on
+  a non-OK status, so a real failed sandbox dispatch could not surface
+  `Content-Type`, `WWW-Authenticate`, or any gateway correlation-id header —
+  and explicitly named this as an owner-approved follow-up not yet performed.
+  This session implemented exactly that fix (`describeFailedMpgsResponse`)
+  and nothing else: on a failed response, the thrown error now also includes
+  `content-type=`, `www-authenticate=`, and `correlation-id=` (falling back to
+  `none` when absent, checking `x-correlation-id`, `x-request-id`, then
+  `x-mastercardapi-request-id`). No endpoint URL, HTTP method, auth header
+  construction, or request body was changed. Two new unit tests were added
+  confirming the capture and confirming the raw Basic Auth credential token is
+  never present in the resulting error message.
+- No other code defect was found on review of `buildMpgsAuthHeader`, the REST
+  path shape, the currency-gating table, or `matchRetrievedOrderToAttempt`
+  against the existing evidence docs and `env.ts` schema.
+- **PKR remains `enabled: true` / not `SANDBOX_VERIFIED`. USD remains
+  `FAIL_CLOSED`.** Neither currency gate was touched.
+- No RunPod/Local provider file was modified. No P3A/P4A/P4B/P5A logic was
+  modified; their existing test suites were re-run unchanged and still pass.
+- No live/billable network call, no new sandbox `workflow_dispatch`, and no
+  database write occurred in this session (no local Postgres was available in
+  this environment, so the pg-race DB-backed MPGS test was not run in this
+  session — it was not touched by this packet's change, which is a
+  response-header-capture change only, not DB logic).
+- Per rules.md, **P4D checkout-route/customer-flow wiring still must not
+  begin** until a future session actually achieves `P4C_MPGS_AUTH_VERIFIED`
+  (owner action required: resolve Bank Alfalah merchant-profile enablement per
+  `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md` §6-§7, then re-dispatch
+  `bank-alfalah-mpgs-sandbox-smoke.yml`).
+
 ### R9.2-P4C: Bank Alfalah Mastercard Gateway (MPGS) supersedes legacy APG (2026-08-04)
 
 Added by the R9.2-P4C packet. This section is additive; every rule above it
