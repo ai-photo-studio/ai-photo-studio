@@ -73,6 +73,39 @@ Current production stack (2026-07-28):
 Date: 2026-08-04
 
 ### Task
+R9.2-P4C-INDEPENDENT-REVIEW-SANDBOX-SMOKE-MERGE: independently review PR #118
+(Bank Alfalah MPGS integration), merge it, add a manual sandbox smoke
+workflow, and run one bounded sandbox call.
+
+### PR #118 review and merge
+Independently re-verified all 11 required criteria (disabled-by-default,
+correct REST Basic Auth shape, operator id never used for auth, browser
+return cannot mark PAID, Retrieve Order always precedes
+`applyVerifiedPaymentEvidence`, exact field matching, USD fail-closed,
+pinned gateway origin, secret redaction, idempotency, zero
+Replicate/R2/worker calls). No critical/high issue found. Merged without
+amendment: merge commit `38f768d3b2bc1d52de31d79f457f8049aace3b89`.
+
+### Sandbox smoke workflow and result
+Added `.github/workflows/bank-alfalah-mpgs-sandbox-smoke.yml` (PR #119,
+`7c2adefb60892a905c3cf530465aedaba9e4d376`) and a Prisma-generate fix (PR
+#120, `a5c5f2eb9e2ddf39a430939ed2a98a72b514ed77`). Dispatched from `main`
+(run `30910714515`): `MERCHANT_ID`/`API_PASSWORD` secrets present, Hosted
+Checkout initialization rejected with structural HTTP 404 before Retrieve
+Order was reached. **PKR remains NOT `SANDBOX_VERIFIED`; USD remains
+`FAIL_CLOSED`.** Full sanitized evidence:
+`docs/payments/bank-alfalah-mastercard/P4C_SANDBOX_SMOKE_EVIDENCE.md` and
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 9.
+
+### Result
+`P4C_SANDBOX_AUTH_FAILED` — a true stop per the Recovery Protocol (external
+Bank Alfalah MPGS protocol/provisioning uncertainty this repository cannot
+resolve alone). No card data, no payment capture, no Replicate/R2/worker
+call was made.
+
+---
+
+### Task
 R9.2-P4C-MPGS-SUPERSEDE-LEGACY-APG: retire the (never-implemented) legacy
 "Alfa APG v1.1" Bank Alfalah protocol and implement the smallest secure Bank
 Alfalah Mastercard Gateway (MPGS) sandbox Hosted Checkout flow, on branch
