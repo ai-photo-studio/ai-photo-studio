@@ -484,3 +484,35 @@ future session achieves `P4C_MPGS_AUTH_VERIFIED`.
   enablement per `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md` §6-§7) will now
   surface `Content-Type`/`WWW-Authenticate`/correlation-id evidence that the
   P4C/P4C2 dispatches could not.
+
+---
+
+## R9.2-P5B — Deterministic Sharp digital variants
+
+Branch: `feat/r9.2-p5b-sharp-variants`, from updated `origin/main` after PR
+#126. Added `SharpVariantService` plus focused unit and disposable PostgreSQL
+race/idempotency tests. Documentation is recorded in the release manifest
+section 13 and `docs/restoration/P5B_SHARP_VARIANT_PROTOCOL.md`.
+
+Behavior is limited to a validated master and server-owned `original`, `2hd`,
+and `4hd` specifications. Original reuses the validated master; 2HD and 4HD
+are Sharp JPEG derivatives capped at 2048 and 4096 pixels with
+`withoutEnlargement`, not literal 2x/4x promises. Existing unique identity
+`(restorationMasterId, variantSpecId, sourceMasterSha256)` provides reuse and
+concurrent convergence. Decode, dimensions, format, byte count, and SHA-256
+validation complete before storage upload and `AVAILABLE` persistence.
+
+### Verification
+
+- P5B unit: **3/3**; P5B PostgreSQL race: **3/3**.
+- P3A unit/DB: **24/24**, **10/10**.
+- P4A DB: **14/14**; P4B unit/DB: **13/13**, **11/11**.
+- P5A ownership boundary: **2/2**; P3B dry-run: **21/21**.
+- Lint, typecheck, build, Prisma validate/generate, and diff checks passed.
+- Disposable PostgreSQL 17.7 was loopback-only; `pg_ctl stop` succeeded, PID
+  disappeared, port 55432 was free, and temporary data was removed.
+- Provider/storage ports were mocked and fetch was a throwing spy; zero live
+  external calls occurred.
+
+No schema, migration, payment, MPGS, Replicate, RunPod/Local, deployment,
+secret, workflow, customer route, or print fulfilment change was made.

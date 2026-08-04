@@ -1121,3 +1121,47 @@ owner action required per `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`
 §6-§7, followed by a fresh `bank-alfalah-mpgs-sandbox-smoke.yml` dispatch,
 which will now also surface `Content-Type`/`WWW-Authenticate`/correlation-id
 evidence thanks to §12.2.
+
+## 13. R9.2-P5B — Deterministic Sharp digital variants
+
+Branch: `feat/r9.2-p5b-sharp-variants`, built from updated `origin/main` after
+PR #126. This packet adds only the deterministic Sharp foundation described in
+`docs/restoration/P5B_SHARP_VARIANT_PROTOCOL.md`.
+
+### 13.1 Scope and behavior
+
+Only a `VALIDATED` `RestorationMaster` with complete immutable metadata is
+accepted. `original` reuses the validated master. `2hd` and `4hd` are Sharp
+JPEG derivatives with server-owned maximum widths of 2048 and 4096 pixels,
+using `withoutEnlargement`; literal 2x/4x scaling is not promised. The existing
+`ImageVariant` unique key provides deterministic cache identity and concurrent
+duplicate convergence. No schema or migration change was required.
+
+Validation precedes storage and database mutation: decode, dimensions, format,
+non-empty byte count, and SHA-256 are checked before upload; `AVAILABLE` is
+persisted only after upload succeeds. No client options, provider call, payment
+write, print fulfilment, MPGS, RunPod, or Local path is introduced.
+
+### 13.2 Test evidence
+
+- P5B unit: **3/3**.
+- P5B disposable PostgreSQL race/idempotency: **3/3**.
+- P3A unit: **24/24**; P3A PostgreSQL race: **10/10**.
+- P4A PostgreSQL race: **14/14**; P4B unit: **13/13**; P4B PostgreSQL race: **11/11**.
+- P5A customer ownership boundary: **2/2**.
+- P3B dry-run: **21/21**.
+- Lint: exit 0, 89 existing warnings and no errors.
+- Typecheck, build, Prisma validate/generate, `git diff --check`, and
+  `git diff --cached --check`: pass.
+
+The disposable PostgreSQL 17.7 cluster was loopback-only on port 55432,
+migrated from the tracked schema, and shut down with `pg_ctl`; its PID was
+gone, the port was free, and the temporary data directory was removed. Every
+DB-backed suite used mocked provider/storage ports and a throwing fetch spy;
+zero live external calls occurred.
+
+### 13.3 Protected scope result
+
+No production deployment, secret, payment integration, Replicate execution,
+RunPod/Local activation, schema, migration, or workflow was changed. P5B is a
+foundation only and does not activate customer routes or print fulfilment.
