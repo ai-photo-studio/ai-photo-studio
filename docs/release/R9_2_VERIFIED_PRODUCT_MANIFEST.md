@@ -288,3 +288,151 @@ This manifest is release evidence. It is **append-only**.
 5. An open pull request is not a merge and not a deployment. This document
    records verification only; it does not authorize activation, live canary
    runs, or production release.
+
+---
+
+## 6. R9.2-P4A — Verified-payment-to-execution-queue transaction boundary (2026-08-04)
+
+Branch: `feat/r9.2-p4a-payment-queue`. This section is a dated amendment,
+appended per the Protected Scope Protocol above. Nothing in sections 1–5 was
+changed.
+
+### 6.1 What this packet builds
+
+`apps/api/src/services/p4a-payment-verified-execution-queue.service.ts`
+exports one function, `applyVerifiedPaymentEvidence`, which accepts
+NORMALIZED, ALREADY-VERIFIED payment evidence (order id, attempt id,
+provider, provider event id, provider reference, amount, currency, a
+content-derived dedupe hash) from a function-call interface representing a
+future, separately authorized trusted gateway adapter. In one
+`prisma.$transaction` it: loads and matches the `FixedOrder`/`PaymentAttempt`
+pair; rejects on amount/currency/provider/provider-reference mismatch or a
+disallowed attempt state; appends a deduplicated `PaymentEvent`; marks the
+`PaymentAttempt` `PAID`; locks the `FixedOrder` (`status: LOCKED`,
+`lockedAt`); and creates-or-reuses exactly one `RestorationEntitlement`,
+`RestorationMaster`, and `ReplicateExecution` (status `QUEUED`, deterministic
+`idempotencyKey` via the existing
+`computeReplicateExecutionIdempotencyKey` from `fixedOrderGuards.ts`). It
+never calls Replicate, R2, or any network endpoint, and it never modifies the
+P3A worker's claiming logic (`replicate-execution.worker.ts` is untouched).
+
+No new Prisma migration was required or added: every field and unique
+constraint this packet relies on (`PaymentAttempt.amountMinor/currency/
+providerRef`, `PaymentEvent.dedupeHash` unique, `RestorationEntitlement.
+fixedOrderId` unique, `RestorationMaster.restorationEntitlementId` unique,
+`ReplicateExecution.restorationMasterId`/`idempotencyKey` unique) already
+existed in the R9.2 schema block recorded in section 2.
+
+### 6.2 Blocker ledger (repo-wide grep for BLOCKED / REAL_PRODUCT_DEFECT / OWNER_ACTION_REQUIRED / ENVIRONMENT_ONLY / DEFERRED)
+
+25 files matched, case-sensitive substring only (not whole-word), excluding
+`node_modules`. Every P4A-scope-relevant hit classified below; all others are
+either unrelated identifier names (`ORDER_BLOCKED_STATUSES`,
+`ATTEMPT_BLOCKED_STATUSES` in `paymentReadiness.ts` — plain constant names,
+not blocker markers), RunPod-gate documentation already covered by sections
+1–5 and the RunPod freeze, or third-party browser-extension bundled files
+under `.codex/chrome-ops105/**` (not part of this repository's source; not
+inspected further; **FALSE_BLOCK / not-applicable**):
+
+| File | Classification |
+|---|---|
+| `apps/api/src/services/p3a-replicate-execution-worker.pg-race.test.ts` | test file names its own `BLOCKED_PATTERNS` array (managed-DB host denylist) — **FALSE_BLOCK**, not a defect marker |
+| `apps/api/src/domain/payment/paymentReadiness.ts` | `ORDER_BLOCKED_STATUSES` / `ATTEMPT_BLOCKED_STATUSES` are domain constant names, already-shipped and reused unchanged by this packet — **FALSE_BLOCK** |
+| `scripts/safe-*` (6 files) | shell-script safety guard identifiers (`safe-git-push`, `safe-deploy`, `safe-r2-check`) — **FALSE_BLOCK**, out of P4A scope |
+| `docs/restoration/RUNPOD_*`, `.github/workflows/verify-basicsr-*` | RunPod Gate 2/3 approval and freeze documentation — **EXTERNAL_DEPENDENCY / already governed by the RunPod freeze in section 39-44 of `rules.md`**; out of P4A scope |
+| `.codex/chrome-ops105/**` bundled extension JS | third-party vendor code, not part of this application — **not applicable** |
+
+No `ACTIVE_PRODUCT_DEFECT` was found anywhere in the payment-verification ->
+execution-queue path. Nothing was previously mislabeled as blocked in this
+area — the P4A transaction boundary was genuinely **not yet implemented**,
+not blocked: `paymentReadiness.ts` and `fixedOrderGuards.ts` already existed
+as reusable pure domain logic (see section 6.1), but no service called them
+to actually write the `PaymentEvent`/entitlement/master/execution chain.
+
+### 6.3 Trust boundary
+
+`applyVerifiedPaymentEvidence` is not registered on any Express router and is
+not imported by any controller. Confirmed by a static source scan
+(`p4a-payment-verified-execution-queue.service.pg-race.test.ts` test `(q10)`)
+of every file under `apps/api/src/controllers/` and `apps/api/src/routes/`
+for a reference to the module or function name — zero hits. The legacy
+`apps/api/src/controllers/payment.controller.ts` / `routes/payment.routes.ts`
+were checked and confirmed to operate on the older `Order`/`PaymentStatus`
+models only; they contain no reference to `FixedOrder`, `PaymentAttempt`, or
+this new module. Mismatched/attacker-shaped evidence (wrong amount, wrong
+currency, wrong provider reference, wrong provider, disallowed attempt state,
+malformed shape) is also rejected at the data-consistency layer even if this
+function were ever mis-wired to an entry point later — tests `(q4)`–`(q9)`.
+
+### 6.4 Test evidence
+
+Runner: `npx tsx --test`, from `apps/api`, against a disposable local
+PostgreSQL 17.7 cluster (`initdb`/`pg_ctl`/`createdb` on `127.0.0.1`, random
+port, `DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only as environment
+variables, never written to `.env`).
+
+| Command | Exit |
+|---|---|
+| `npx prisma validate` | 0 |
+| `npx prisma generate` | 0 (Prisma Client v5.22.0) |
+| `npx prisma migrate deploy` (from empty) | 0 — 21 migrations applied |
+| `npx prisma migrate deploy` (second run) | 0 — "No pending migrations to apply." |
+| `npx prisma migrate status` | 0 — "Database schema is up to date!" |
+
+| Suite | Exit | Result |
+|---|---|---|
+| `src/services/p4a-payment-verified-execution-queue.service.pg-race.test.ts` (new, real disposable PG 17.7) | 0 | **14/14** |
+| `src/services/p3a-replicate-execution-worker.test.ts` (regression) | 0 | **24/24** (unmodified) |
+| `src/services/p3a-replicate-execution-worker.pg-race.test.ts` (regression, real disposable PG 17.7) | 0 | **10/10** (unmodified) |
+| `src/scripts/p3b-replicate-r2-canary.test.ts` (regression) | 0 | **21/21** (unmodified) |
+| `src/scripts/p3b-replicate-r2-canary.ts --dry-run` (regression) | 0 | `RESULT: dry-run PASSED` (unmodified) |
+| `npm run lint` (repo root) | 0 | one real `no-unused-vars` error was found and fixed in the new P4A test file during this packet; zero errors remain attributable to P4A files. Pre-existing `apps/web` lint errors (unrelated `.tsx` files already modified before this packet started) are out of scope and unchanged by this packet; the script's own exit-code policy is unchanged from section 2.1 |
+| `npm run typecheck` (api + web) | 0 |
+| `npm run build` (api + web) | 0 |
+
+The 14 new P4A tests: `(q1)` happy path (attempt PAID, order LOCKED,
+entitlement/master/execution created, execution QUEUED with the deterministic
+key); `(q2)` exact-replay idempotency (zero duplicate rows); `(q3)` two REAL
+concurrent `applyVerifiedPaymentEvidence` calls over the shared Postgres
+connection pool converge on exactly one PaymentEvent/entitlement/master/
+execution row via the DB's own unique constraints (no application-level
+lock); `(q4)`–`(q8)` amount/currency/provider-reference mismatch, order/
+attempt not found, and disallowed-terminal-attempt-state rejections, each
+proven to write nothing; `(q9)` malformed/manual-input-shaped evidence is
+rejected before any business-state read; `(q10)` the trust-boundary
+controller/route scan; `(q11)` out-of-scope tables (`ImageVariant`,
+`DigitalEntitlement`, `PrintEntitlement`, `AddOnOrderLink`, `FulfilmentOrder`,
+`Shipment`) are never touched; `(q12)` zero external network calls (throwing
+`globalThis.fetch` spy, `externalCallAttempts === 0`); `(q13)` full teardown.
+
+### 6.5 Disposable PostgreSQL cleanup evidence
+
+`pg_ctl -D <tempdata> -m fast -w stop` reported `server stopped`. A
+subsequent `Test-NetConnection 127.0.0.1:<port>` reported
+`TcpTestSucceeded: False`, confirming the port was released. The temporary
+data directory was then deleted (`Remove-Item -Recurse -Force`) and confirmed
+absent. No real/system PostgreSQL installation or data directory was touched
+at any point — only a throwaway `initdb` cluster created and destroyed inside
+this session's scratch directory.
+
+### 6.6 Deferred Bank Alfalah adapter note
+
+This packet deliberately contains **zero** Bank Alfalah protocol knowledge:
+no signature verification, no callback field names, no endpoint URLs, no
+credentials. The `VerifiedPaymentEvidence` input type is a plain, provider-
+neutral normalized shape. Building the actual trusted gateway adapter that
+verifies a real Bank Alfalah callback/return and calls
+`applyVerifiedPaymentEvidence` with the result is explicitly out of scope and
+is a separate, later, owner-authorized packet — consistent with the payment
+manual-proof-mode state recorded in `rules.md`.
+
+### 6.7 Confirmation this does not activate live processing
+
+Opening the PR for this packet does not activate live customer payment
+verification or live restoration processing: `applyVerifiedPaymentEvidence`
+has no caller anywhere in this repository (proved by test `(q10)` and by the
+absence of any import of the module outside its own test file), and the P3A
+worker it feeds (`replicate-execution.worker.ts`) is likewise still not
+exported from any controller, route, or queue processor (unchanged, per
+section 4). No RunPod, Replicate, R2, or Bank Alfalah network call is
+possible from this code path (section 6.4, zero-network-call proof).

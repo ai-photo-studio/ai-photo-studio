@@ -81,3 +81,51 @@ POST /api/restorations/:id/items/:itemId/process
                  v
     Download URL generated via signed R2 URL
 ```
+
+### Recovery Protocol (2026-08-04)
+
+Added by the R9.2-P4A packet. This section is additive; every rule above it
+remains in force verbatim (RunPod freeze, Gate 2/3/4 restrictions, payment
+manual-proof state, protected scope).
+
+- Routine test/build/path/shell/dependency/environment failures are
+  **recoverable**, not blockers: diagnose the exact command and error,
+  apply the smallest repair, rerun the exact same command, and continue.
+  Examples: a stale Prisma client after a schema change (`prisma generate`),
+  a dirty/contaminated worktree (switch to a clean worktree), a missing
+  disposable database (start one per the pattern below), a lint/type error
+  in a file you touched (fix it), a locked/leftover process on a port
+  (find a free port and retry).
+- Database-dependent work MUST use a disposable local PostgreSQL instance
+  (see `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 2.1 and the
+  P4A section below for the exact `initdb`/`pg_ctl`/`createdb` sequence):
+  loopback host only (`127.0.0.1`/`localhost`/`::1`), a random or explicitly
+  chosen free high port, `DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only
+  as a process environment variable — never written to any `.env` file — and
+  the cluster stopped and its temp data directory deleted at the end of the
+  session. Never point any tool at Neon, Northflank, or any other
+  managed/production database host.
+- Regenerate the Prisma client (`npx prisma generate`) any time `schema.prisma`
+  or the installed `@prisma/client`/`prisma` version drifts from what the
+  TypeScript compiler expects — this is a mechanical repair, not a defect
+  report.
+- Never return a generic `REAL_PRODUCT_DEFECT`, `BLOCKED`, or similar label
+  without exact command, exact error text, exact file, and root cause. A
+  vague blocker label is itself treated as a defect in the report.
+- A **true stop** (not a recoverable failure) requires one of:
+  - an unavailable secret or credential that cannot be created locally
+    (e.g. a real Bank Alfalah merchant credential, a production Replicate
+    token beyond what is already configured for approved use),
+  - an action that would make a live/billable external call (Replicate,
+    R2 writes beyond an already-authorized canary, Bank Alfalah, RunPod),
+  - a destructive operation (force-push, `reset --hard` against work not
+    yet safely stashed/committed, dropping a non-disposable database),
+  - a genuinely external protocol/spec this repository does not define
+    (e.g. exact Bank Alfalah callback signature/field format), or
+  - an owner business decision (pricing approval, activating live customer
+    processing, unfreezing RunPod).
+- Every true stop reported to the user/operator must state: the exact
+  command that was run, the exact error/output, the exact file(s) involved,
+  the root cause, every repair attempted before stopping, and the smallest
+  possible owner action that would unblock it. "It's blocked" alone is
+  never an acceptable stop report.
