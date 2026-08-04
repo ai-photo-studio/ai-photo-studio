@@ -45,7 +45,6 @@ export class RestorationEngineService {
 
     const quality = analysis.qualityMetrics;
 
-    const isBlackAndWhite = analysis.colorMode === "black_and_white";
     const hasFaces = analysis.faceCount > 0;
 
     const pipeline = await this.pipelineBuilder.buildPipeline({

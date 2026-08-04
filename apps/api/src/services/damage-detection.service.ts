@@ -29,10 +29,6 @@ function toGray(r: number, g: number, b: number): number {
   return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
 }
 
-function isSkinTone(r: number, g: number, b: number): boolean {
-  return r > 95 && g > 40 && b > 20 && r > g && r > b && Math.abs(r - g) > 15;
-}
-
 export class DamageDetectionService {
   private readonly storage: StorageService;
   private readonly maskService: DamageMaskService;
@@ -85,13 +81,6 @@ export class DamageDetectionService {
     const edgeDensity = scanLineEdges / grays.length;
 
     const darkPixels = pixels.filter(p => p.gray < 30).length / pixels.length;
-    const veryDark = pixels.filter(p => p.gray < 15).length / pixels.length;
-
-    let colorDeviation = 0;
-    for (const p of pixels) {
-      colorDeviation += Math.abs(p.r - p.g) + Math.abs(p.g - p.b) + Math.abs(p.b - p.r);
-    }
-    const avgColorDev = colorDeviation / pixels.length;
 
     const scratchCoverage = clamp(Math.round(edgeDensity * 100));
     const dustLevel = clamp(Math.round(darkPixels * 100));

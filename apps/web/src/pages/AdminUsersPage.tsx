@@ -12,7 +12,7 @@ type ResponseData = {
 
 export function AdminUsersPage() {
   const [data, setData] = useState<ResponseData | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, _setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

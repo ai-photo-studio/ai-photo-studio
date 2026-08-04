@@ -1,5 +1,4 @@
 import type { AppConfig } from "../config/env";
-import type { RestorationResult } from "../restoration-providers/interfaces/IRestorationProvider";
 import { logger } from "../utils/logger";
 
 export type PrintSize = "4x6" | "5x7" | "8x10" | "A4" | "A3";
@@ -178,7 +177,7 @@ export class PrintPreparationService {
     const imageSize = imageBuffer.length;
     const estimatedQuality = this.estimateQualityFromSize(imageSize, sourceW, sourceH);
 
-    let qualityScore = estimatedQuality;
+    const qualityScore = estimatedQuality;
 
     if (qualityScore < this.minQualityScore) {
       issues.push(`Print quality score (${Math.round(qualityScore)}) below minimum (${this.minQualityScore})`);
@@ -343,7 +342,7 @@ export class PrintPreparationService {
     return 40;
   }
 
-  private upscaleImage(buffer: Buffer, targetWidth: number, targetHeight: number): Buffer {
+  private upscaleImage(buffer: Buffer, _targetWidth: number, _targetHeight: number): Buffer {
     return Buffer.from(buffer);
   }
 

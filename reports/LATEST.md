@@ -303,6 +303,77 @@ Modified:
   Replicate/R2 production credential was wired to it. This PR does not
   activate live customer payment verification or live restoration
   processing.
+
+---
+
+Date: 2026-08-05
+
+### Task
+R9.2-P5A-MINIMAL-HARNESS-AND-PR: build a minimal, truthful root lint
+harness and a minimal Chromium Playwright browser-test harness, then prove
+the (already-present-on-branch) restoration status/download flow's
+security boundaries with it. See
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 11 for full
+detail; summary here.
+
+### What was found
+No committed, complete `eslint.config.mjs` or Playwright browser harness
+existed anywhere in the repo (confirmed by direct search, not by trusting
+the KNOWN RESULT alone). `apps/web/tests/browser/fixtures/` existed but was
+empty. `package.json`'s `lint` script always exited 0
+(`... || exit 0`), silently masking every lint failure.
+
+### What was built
+- `eslint.config.mjs` (root, ESLint 9 flat config, only packages actually
+  installed) + `lint` script fixed to propagate real exit codes.
+  Truthfulness proven: temporary unused-variable fixture → lint exit 1;
+  fixture removed → lint exit 0, 0 errors (89 pre-existing `no-explicit-any`
+  warnings kept as warnings, matching existing convention).
+- `apps/web/playwright.config.ts`, `apps/web/tests/browser/fixtures/index.ts`,
+  `apps/web/tests/browser/p5a-restoration-status.spec.ts` — Chromium-only,
+  local Vite dev server, no real API server, every response mocked, all
+  non-local requests aborted. **13/13 tests pass.**
+- ~40 genuine pre-existing lint errors repaired with the smallest
+  behavior-neutral change per file (unused imports/vars/args, two
+  `declare global` Express-augmentation namespaces silenced with a targeted
+  comment rather than restructured, one pre-existing `@ts-nocheck` likewise,
+  one `require()` converted to `import` in a `.test.ts`, and one genuine
+  `no-unsafe-finally` bug in `RestorationStatusPage.tsx` fixed).
+
+### Restoration status/download flow (verified, not newly built)
+`RestorationCustomerController` + `RestorationService.getCustomerStatus` /
+`getCustomerDownload` + `assertOwnership` already implemented: uniform
+404 for wrong-owner/not-found, authenticated identity never falls back to
+a guest token, download requires `COMPLETED` item **and**
+`RestorationMaster.status === "VALIDATED"`, narrow customer DTOs carry no
+`storageKey`, refresh is GET-only, no retry endpoint exists on this
+surface (so "retry creates no execution" holds trivially), no payment
+table touched.
+
+### Full regression re-run (disposable PostgreSQL 17, `127.0.0.1:55432`)
+- `p3a-replicate-execution-worker.test.ts` — **24/24** pass (unmodified)
+- `p3a-replicate-execution-worker.pg-race.test.ts` — **10/10** pass (unmodified)
+- `p4a-payment-verified-execution-queue.service.pg-race.test.ts` — **14/14** pass (unmodified)
+- `p4b-internal-worker-runner.service.test.ts` + `.pg-race.test.ts` — **10/10** pass (unmodified)
+- `p3b-replicate-r2-canary.test.ts` — **21/21** pass (unmodified); `--dry-run` — `RESULT: dry-run PASSED`
+- New: `restoration-view.test.ts`, `guest-ownership.test.ts`,
+  `restoration-customer.service.test.ts` — all pass
+- `npm run lint` / `npm run typecheck` / `npm run build` / `git diff --check`
+  / `git diff --cached --check` — all exit 0
+- Disposable Postgres stopped (`pg_ctl stop` → "server stopped"); port
+  55432 confirmed unreachable; temp data directory removed and confirmed
+  absent.
+
+### Files changed (this task)
+See `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 11.6 for the
+full list. No P4A/P4B/P4C/P4C2 payment file, migration, or provider
+adapter request/response logic was touched.
+
+### Not done / deferred
+- No P4C/P4C2 Bank Alfalah blocker was touched or resolved (out of scope;
+  independent of this packet).
+- The P4B runner is still not deployed as a Northflank service (unchanged
+  from prior packets; this packet does not touch it).
 - `applyVerifiedPaymentEvidence`, the P3A worker, and the new P4B runner all
   remain unreachable from any HTTP route, controller, or queue processor.
 

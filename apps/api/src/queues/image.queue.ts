@@ -54,7 +54,7 @@ export class ImageQueueService {
 
     const queueJobId = `order-${orderId}-${Date.now()}`;
 
-    const processingJob = await prisma.processingJob.create({
+    const _processingJob = await prisma.processingJob.create({
       data: {
         orderId: order.id,
         queueName: "image-processing",
@@ -112,7 +112,7 @@ export class ImageQueueService {
 
     const queueJobId = `img-${imageId}-${Date.now()}`;
 
-    const processingJob = await prisma.processingJob.create({
+    const _processingJob = await prisma.processingJob.create({
       data: {
         orderId: order.id,
         orderItemId: null,
@@ -178,7 +178,7 @@ export class ImageQueueService {
 
     const queueJobId = `wa-${imageId}-${Date.now()}`;
 
-    const processingJob = await prisma.processingJob.create({
+    const _processingJob = await prisma.processingJob.create({
       data: {
         orderId: order.id,
         orderItemId: null,

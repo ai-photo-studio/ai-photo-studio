@@ -22,6 +22,8 @@ generated/
 reports/
 screenshots/
 *.tmp
+apps/web/playwright-report/
+apps/web/test-results/
 BACKGROUND_REMOVAL_QUALITY_REPORT.md
 BACKGROUND_REMOVAL*.md
 *_SCREENSHOT*.png

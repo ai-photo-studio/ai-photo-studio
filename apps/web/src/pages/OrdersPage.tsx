@@ -1,5 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../lib/auth";
 import { formatDateTime, formatMoney, formatNumber } from "../lib/format";
@@ -25,18 +25,18 @@ const readFileAsBase64 = (file: File) =>
 export function OrdersPage() {
   const { token, status } = useAuth();
   const navigate = useNavigate();
-  const { packages, loading: packagesLoading, error: packagesError } = usePackages();
+  const { packages, loading: packagesLoading, error: _packagesError } = usePackages();
   const [wallet, setWallet] = useState<CustomerWalletResponse | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [selectedPackage, setSelectedPackage] = useState("");
   const [serviceType, setServiceType] = useState("web-upload");
-  const [workflowType, setWorkflowType] = useState<"PRODUCT" | "VEHICLE">("PRODUCT");
+  const [workflowType, _setWorkflowType] = useState<"PRODUCT" | "VEHICLE">("PRODUCT");
   const [workflowMode, setWorkflowMode] = useState<(typeof PRODUCT_MODES)[number] | (typeof VEHICLE_MODES)[number]>(
     "PRODUCT_STUDIO"
   );
-  const [file, setFile] = useState<File | null>(null);
+  const [file, _setFile] = useState<File | null>(null);
   const [currentOrderNo, setCurrentOrderNo] = useState("");
   const [order, setOrder] = useState<CustomerOrderResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,11 +85,6 @@ export function OrdersPage() {
       setWorkflowMode("PRODUCT_STUDIO");
     }
   }, [workflowMode, workflowType]);
-
-  const modeOptions = useMemo(
-    () => (workflowType === "VEHICLE" ? VEHICLE_MODES : PRODUCT_MODES),
-    [workflowType]
-  );
 
   const loadOrder = async (orderNo: string) => {
     if (!token || !orderNo) return;
@@ -160,7 +155,7 @@ export function OrdersPage() {
     }
   };
 
-  const uploadImage = async (event: FormEvent<HTMLFormElement>) => {
+  const _uploadImage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || !currentOrderNo || !file) return;
     if (file.size > FILE_LIMIT_BYTES) {

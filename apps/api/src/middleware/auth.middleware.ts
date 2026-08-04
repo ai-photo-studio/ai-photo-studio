@@ -25,6 +25,7 @@ export const verifyToken = (config: AppConfig, token: string): JwtPayload => {
 };
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- required ambient module-augmentation pattern for Express's global Request type.
   namespace Express {
     interface Request {
       user?: JwtPayload;

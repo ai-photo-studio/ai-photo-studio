@@ -1,5 +1,4 @@
 import { prisma } from "../db/prisma";
-import type { ProviderCostType } from "@prisma/client";
 
 export type CostMetrics = {
   totalEstimatedCost: number;
@@ -34,7 +33,7 @@ export class CostMetricsService {
       .reduce((sum, log) => sum + (Number(log.actualCost) || 0), 0);
     const creditConsumption = providerCostLogs
       .filter((log) => log.costType === "FLAT_LAY" || log.costType === "LIFESTYLE_SCENE" || log.costType === "VIRTUAL_MODEL" || log.costType === "VIDEO_GENERATION")
-      .reduce((sum, log) => sum + 1, 0);
+      .reduce((sum, _log) => sum + 1, 0);
 
     const costByProvider: Record<string, number> = {};
     for (const row of providerBreakdown) {

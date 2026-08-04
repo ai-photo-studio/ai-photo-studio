@@ -62,7 +62,7 @@ const bootstrap = async () => {
     await applyPendingMigrations();
   }
   const adminAuth = new AdminAuthService(config);
-  const restorationEngine = new RestorationEngineService(config);
+  const _restorationEngine = new RestorationEngineService(config);
   await adminAuth
     .bootstrapFirstAdmin({
       email: process.env.ADMIN_BOOTSTRAP_EMAIL || "",

@@ -6,6 +6,7 @@ import { AppError } from "../utils/errors";
 import { AdminAuthService, normalizeAdminRole, type AdminJwtPayload, type AdminRole } from "../services/admin-auth.service";
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- required ambient module-augmentation pattern for Express's global Request type.
   namespace Express {
     interface Request {
       admin?: AdminJwtPayload;

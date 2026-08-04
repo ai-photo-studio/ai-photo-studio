@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- pre-existing; removing @ts-nocheck is a behavior change out of scope for this harness pass.
 // @ts-nocheck
 import { createHash } from "node:crypto";
 import { prisma } from "../../db/prisma";

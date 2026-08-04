@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
-import { formatDateTime, formatMoney, formatNumber } from "../lib/format";
+import { formatDateTime, formatMoney } from "../lib/format";
 import type { AdminWalletRecord } from "../lib/portal-types";
 import { adminApi } from "../services/adminApi";
 

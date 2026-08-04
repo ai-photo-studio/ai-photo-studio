@@ -285,7 +285,7 @@ export abstract class BaseReplicateProvider implements IRestorationProvider {
         errorRate: 0,
         lastChecked: new Date().toISOString(),
       };
-    } catch (err) {
+    } catch (_err) {
       const latency = Date.now() - startTime;
       return {
         status: "down",

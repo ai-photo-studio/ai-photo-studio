@@ -75,11 +75,6 @@ const envSchema = z
     const isManualPayment = normalizedPaymentProvider === "manual" || normalizedPaymentProvider === "demo";
     const isMockStorage = cfg.STORAGE_PROVIDER === "mock";
     const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
-    const providerKey = selectedAiProvider === "photoroom"
-      ? cfg.PHOTOROOM_API_KEY || cfg.AI_PROVIDER_API_KEY
-      : selectedAiProvider === "fal"
-        ? cfg.FAL_API_KEY || cfg.AI_PROVIDER_API_KEY
-        : "";
 
     if (!["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "local-lama", "local-gfpgan", "local-codeformer", "local-ddcolor", "photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"].includes(selectedAiProvider)) {
       ctx.addIssue({

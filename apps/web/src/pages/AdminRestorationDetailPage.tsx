@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { adminApi } from "../services/adminApi";
-import type { RestorationItemRecord } from "../lib/portal-types";
+import type { AdminRestorationDetailResponse } from "../lib/portal-types";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatDateTime } from "../lib/format";
 
 export function AdminRestorationDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<{ id: string; orderNo: string; title: string | null; status: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] } | null>(null);
+  const [order, setOrder] = useState<AdminRestorationDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);

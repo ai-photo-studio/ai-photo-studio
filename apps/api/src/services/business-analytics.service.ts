@@ -69,7 +69,7 @@ export class BusinessAnalyticsService {
       totalCustomers,
       restoreItemStats,
       repeatCustomerOrders,
-      printOrders,
+      _printOrders,
       dailyPrintOrders,
       dailyRestoreItems,
       replicateCostTypeLogs

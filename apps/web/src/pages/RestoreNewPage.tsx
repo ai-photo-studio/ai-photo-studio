@@ -5,7 +5,6 @@ import { setGuestOwnershipToken } from "../lib/guest";
 import { customerApi } from "../services/customerApi";
 import { usePackages } from "../lib/packages";
 import type { PackageSummary } from "../lib/api";
-import type { RestorationItemRecord } from "../lib/portal-types";
 
 type FileMeta = {
   fileName: string;
@@ -214,7 +213,7 @@ export function RestoreNewPage() {
       if (IS_DEMO_MODE) {
         try {
           // Approve all items so processItem passes the payment guard
-          for (const meta of fileMetas) {
+          for (const _meta of fileMetas) {
             // The item IDs are stored in uploadItemIds but we don't have them here.
             // The processItem endpoint will handle this when called from RestoreOrderPage.
             // For now, just navigate - the payment guard check will need order.status === APPROVED

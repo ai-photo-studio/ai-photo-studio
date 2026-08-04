@@ -1,7 +1,6 @@
 import { StorageService } from "./storage.service";
 import type { AppConfig } from "../config/env";
 import { RetinaFaceService } from "./retina-face.service";
-import { logger } from "../utils/logger";
 
 export interface ImageAnalysisRequest {
   storageKey: string;

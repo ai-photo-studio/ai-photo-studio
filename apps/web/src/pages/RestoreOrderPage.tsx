@@ -4,7 +4,7 @@ import { useAuth } from "../lib/auth";
 import { ApiError } from "../lib/api";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi } from "../services/customerApi";
-import type { RestorationItemRecord } from "../lib/portal-types";
+import type { LegacyRestorationItemRecord, LegacyRestorationOrderResponse } from "../lib/portal-types";
 import { formatDateTime } from "../lib/format";
 
 const DOWNLOAD_TIERS = [
@@ -41,27 +41,22 @@ const mapRestoreErrorMessage = (error: unknown): string => {
 export function RestoreOrderPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { token } = useAuth();
-  const [order, setOrder] = useState<{
-    id: string; status: string; title: string | null; orderNo: string;
-    createdAt: string; updatedAt: string;
-    totalItems: number; completedItems: number; failedItems: number;
-    entitlement: string; items: RestorationItemRecord[];
-  } | null>(null);
+  const [order, setOrder] = useState<LegacyRestorationOrderResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<RestorationItemRecord | null>(null);
+  const [selectedItem, setSelectedItem] = useState<LegacyRestorationItemRecord | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewModal, setPreviewModal] = useState(false);
   const [comparisonPosition, setComparisonPosition] = useState(50);
-  const [bothReady, setBothReady] = useState(false);
+  const [_bothReady, setBothReady] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [downloadAllState, setDownloadAllState] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
-  const [polling, setPolling] = useState(false);
+  const [_polling, setPolling] = useState(false);
   const processingRef = useRef(false);
   const terminalRef = useRef(false);
 
@@ -74,7 +69,7 @@ export function RestoreOrderPage() {
     const guestToken = getGuestOwnershipToken(orderId);
     if (!fromPoll) setLoading(true);
     try {
-      const data = await customerApi.getRestorationOrder(token || undefined, orderId, controller.signal, guestToken || undefined);
+      const data = await customerApi.getLegacyRestorationOrder(token || undefined, orderId, controller.signal, guestToken || undefined);
       if (!mountedRef.current || controller.signal.aborted) return;
       setOrder(data);
       if (data.items.length > 0 && !selectedItem) {
@@ -157,7 +152,7 @@ export function RestoreOrderPage() {
     };
   }, [loadOrder]);
 
-  const handlePreview = async (item: RestorationItemRecord) => {
+  const handlePreview = async (item: LegacyRestorationItemRecord) => {
     if (!orderId) return;
     const guestToken = getGuestOwnershipToken(orderId);
     setPreviewLoading(true);
@@ -175,14 +170,14 @@ export function RestoreOrderPage() {
     }
   };
 
-  const handleDownload = async (item: RestorationItemRecord, tier: string) => {
+  const handleDownload = async (item: LegacyRestorationItemRecord, tier: string) => {
     if (!orderId) return;
     const guestToken = getGuestOwnershipToken(orderId);
     setDownloadBusy(tier);
     setError(null);
     try {
-      const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, tier, guestToken || undefined);
-      saveBlob(result.blob, `restoration-${order.orderNo}-${tier}.jpg`);
+      const blob = await customerApi.getLegacyRestorationDownload(token || undefined, orderId, item.id, tier, guestToken || undefined);
+      saveBlob(blob, `restoration-${order.orderNo}-${tier}.jpg`);
       setError("Download started");
     } catch (err) {
       setError(mapRestoreErrorMessage(err));
@@ -200,8 +195,8 @@ export function RestoreOrderPage() {
     for (const item of completed) {
       try {
         setDownloadAllState(`Downloading ${started + 1} of ${completed.length}`);
-        const result = await customerApi.getRestorationDownload(token || undefined, orderId, item.id, unlockedTiers[0].key, getGuestOwnershipToken(orderId) || undefined);
-        saveBlob(result.blob, `restoration-${order.orderNo}-${started + 1}-${unlockedTiers[0].key}.jpg`);
+        const blob = await customerApi.getLegacyRestorationDownload(token || undefined, orderId, item.id, unlockedTiers[0].key, getGuestOwnershipToken(orderId) || undefined);
+        saveBlob(blob, `restoration-${order.orderNo}-${started + 1}-${unlockedTiers[0].key}.jpg`);
         started += 1;
         await new Promise((resolve) => setTimeout(resolve, 400));
       } catch {
@@ -212,7 +207,7 @@ export function RestoreOrderPage() {
     setDownloadAllState(`${started} image${started === 1 ? "" : "s"} download started`);
   };
 
-  const getItemStatus = (item: RestorationItemRecord): string => {
+  const getItemStatus = (item: LegacyRestorationItemRecord): string => {
     if (item.status === "COMPLETED") return "Completed";
     if (item.status === "FAILED") return "Failed";
     if (item.status === "PROCESSING") return "Processing";
