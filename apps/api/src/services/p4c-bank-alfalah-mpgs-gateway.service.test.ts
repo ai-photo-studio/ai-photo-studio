@@ -30,12 +30,13 @@ const baseConfig: MpgsGatewayConfig = {
   checkoutMode: "hosted_checkout"
 };
 
-function fakeFetchJson(status: number, body: unknown): typeof globalThis.fetch {
+function fakeFetchJson(status: number, body: unknown, headers?: Record<string, string>): typeof globalThis.fetch {
   return (async () =>
     ({
       ok: status >= 200 && status < 300,
       status,
-      json: async () => body
+      json: async () => body,
+      headers: new Headers(headers ?? {})
     }) as Response) as typeof globalThis.fetch;
 }
 
@@ -116,6 +117,50 @@ test("retrieveOrder sends Authorization header and parses a PAID order", async (
 test("retrieveOrder surfaces an HTTP failure as a rejected promise (auth failure case)", async () => {
   const gw = new BankAlfalahMpgsGateway(baseConfig, fakeFetchJson(401, { error: "unauthorized" }));
   await assert.rejects(() => gw.retrieveOrder("order-1"), /status 401/);
+});
+
+// ---------------------------------------------------------------------------
+// R9.2-P4D evidence-capture gap fix: a failed response's content-type,
+// WWW-Authenticate, and correlation-id headers (never the auth header) are
+// captured in the thrown error so the next real sandbox dispatch produces
+// disambiguating evidence (see P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md §3.2).
+// ---------------------------------------------------------------------------
+
+test("retrieveOrder failure captures content-type/www-authenticate/correlation-id headers, never the auth header", async () => {
+  const gw = new BankAlfalahMpgsGateway(
+    baseConfig,
+    fakeFetchJson(404, { error: "not found" }, {
+      "content-type": "application/json",
+      "www-authenticate": "Basic realm=test",
+      "x-correlation-id": "corr-abc-123"
+    })
+  );
+  await assert.rejects(() => gw.retrieveOrder("order-1"), (err: unknown) => {
+    assert.ok(err instanceof Error);
+    assert.match(err.message, /status 404/);
+    assert.match(err.message, /content-type=application\/json/);
+    assert.match(err.message, /www-authenticate=Basic realm=test/);
+    assert.match(err.message, /correlation-id=corr-abc-123/);
+    // The captured www-authenticate header text is allowed through verbatim (it is
+    // never secret bank data), but the base64 Basic Auth *credential* token itself
+    // (username:password) must never appear in the error message.
+    assert.doesNotMatch(err.message, /Basic [A-Za-z0-9+/]{16,}={0,2}(?!\w)/);
+    return true;
+  });
+});
+
+test("initiateHostedCheckout failure captures headers with a graceful fallback when none are present", async () => {
+  const gw = new BankAlfalahMpgsGateway(baseConfig, fakeFetchJson(404, { error: "not found" }));
+  await assert.rejects(
+    () =>
+      gw.initiateHostedCheckout({
+        orderId: "order-1",
+        amountMinor: 150000n,
+        currency: "PKR",
+        returnUrl: "https://thannow.com/pay/return"
+      }),
+    /status 404 \(content-type=none www-authenticate=none correlation-id=none\)/
+  );
 });
 
 // ---------------------------------------------------------------------------

@@ -1020,3 +1020,104 @@ surface documented here was already present on this branch; this packet
 adds the harness that proves its DTO/ownership/gating boundaries and fixes
 the one lint defect (`no-unsafe-finally`) it had. No production
 deployment, credential, or activation flag changed.
+
+## 12. R9.2-P4D — Bounded MPGS verify+repair pass, blocker still open (2026-08-05)
+
+### 12.1 Blocker-resolution check (mandatory first step)
+Before any code change, this packet checked whether the P4C/P4C2
+`P4C_MPGS_AUTH_VERIFIED` gate had been met:
+
+- `git ls-tree -r origin/main -- docs/payments/bank-alfalah-mastercard/` —
+  still exactly the three files present at the end of P4C2
+  (`MPGS_INTEGRATION_EVIDENCE.md`, `P4C_SANDBOX_SMOKE_EVIDENCE.md`,
+  `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`). No new/updated Bank Alfalah
+  merchant document exists.
+- `gh run list --workflow=bank-alfalah-mpgs-sandbox-smoke.yml` — only the two
+  P4C runs exist, both `failure` (`30910482924`, `30910714515`,
+  2026-08-04). No run after those two.
+- `gh run list --workflow=bank-alfalah-mpgs-provisioning-config-diagnostic.yml`
+  — zero runs; the diagnostic added by P4C2 has never been dispatched
+  against real secrets.
+
+**Conclusion: `P4C_MPGS_AUTH_VERIFIED` was NOT achieved.** Per rules.md and
+this task's own explicit gate, full checkout-route/customer-flow wiring
+(Express routes for browser-return/webhook, any HTTP surface) was correctly
+**not** attempted. This packet's scope narrowed to: verify the existing
+gateway service against the existing evidence docs, and repair only a
+confirmed code-level defect.
+
+### 12.2 Repair made
+`apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts` —
+`initiateHostedCheckout` and `retrieveOrder` previously discarded response
+headers on a failed (`!response.ok`) call, so the thrown error carried only
+the HTTP status code. `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md` §3.2
+explicitly named this as a genuine evidence-capture gap and an
+owner-approved follow-up not yet performed. This packet adds
+`describeFailedMpgsResponse(response)`, which reads (never logs the auth
+header) `content-type`, `www-authenticate`, and the first present of
+`x-correlation-id` / `x-request-id` / `x-mastercardapi-request-id`, and
+appends them to both methods' thrown error messages. No endpoint URL, HTTP
+method, auth header construction, or request body changed — verified by
+diff review and by the unchanged assertions in the pre-existing
+"buildMpgsAuthHeader uses merchant.<id> username" and status-mapping tests.
+
+No other defect was found: `buildMpgsAuthHeader`, `restBaseUrl`, the
+currency-gating table (`MPGS_CURRENCY_SUPPORT`), and
+`matchRetrievedOrderToAttempt` were reviewed against
+`MPGS_INTEGRATION_EVIDENCE.md` and `apps/api/src/config/env.ts` and found
+unchanged from the reviewed-clean PR #118 state.
+
+### 12.3 Test evidence
+- `p4c-bank-alfalah-mpgs-gateway.service.test.ts` — **25/25** pass (23
+  pre-existing + 2 new: header-capture-on-failure, graceful `none` fallback
+  when no headers present; both assert the raw Basic Auth credential token
+  never appears in the thrown message).
+- `p4c-bank-alfalah-mpgs-env.test.ts` — **8/8** pass, unmodified.
+- `p4c-bank-alfalah-legacy-apg-retired.test.ts` — pass, unmodified.
+- `p4c2-mpgs-provisioning-config-diagnostic.test.ts` (vitest) — **14/14**
+  pass, unmodified.
+- Full non-DB `node:test` sweep of every other `*.test.ts` under
+  `apps/api/src` (P3A worker, P4B runner, restoration domain/customer/view,
+  fixedOrder/payment/pricing domain, admin-auth middleware, RunPod isolation/
+  budget/dev-config, image-binary, guest-ownership) — **104/104** pass,
+  unmodified.
+- `npm run lint` — 0 errors, 89 pre-existing `no-explicit-any` warnings
+  (unchanged count).
+- `npm run typecheck` — exit 0 (after `prisma generate` regenerated the
+  client against a disposable-loopback `DATABASE_URL`; this is a local
+  typegen prerequisite, not a schema/migration change).
+- `npm run build` — exit 0.
+- `prisma validate` / `prisma generate` — both pass; no migration added or
+  changed.
+- `git diff --check` — clean.
+- `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` (DB-backed) was
+  **not** run this session: no local Postgres/docker was available in this
+  execution environment. This packet's change is response-header capture
+  only (no DB read/write path touched), so this is an environment
+  limitation, not a result being withheld.
+
+### 12.4 Currency gating (unchanged)
+PKR: `enabled: true`, evidence `standard-pattern-fallback`, **not**
+`SANDBOX_VERIFIED`. USD: `enabled: false` (`FAIL_CLOSED`). Neither gate was
+touched by this packet.
+
+### 12.5 Scope discipline
+- No RunPod or Local provider file was read for modification or modified.
+- No P3A/P4A/P4B/P5A service logic was modified; only their existing test
+  suites were re-run (unmodified) as regression evidence.
+- No Express route/controller registration was added anywhere.
+- No new live/billable network call was made; no new
+  `bank-alfalah-mpgs-sandbox-smoke.yml` or
+  `bank-alfalah-mpgs-provisioning-config-diagnostic.yml` dispatch was
+  triggered this session (read-only `gh run list`/`gh run view` only).
+- No production credential, activation flag, or database write occurred.
+
+### 12.6 Result
+`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains the standing
+external blocker, unchanged from P4C2 (no new resolving evidence found or
+introduced this session). `P4D` checkout-route/customer-flow wiring remains
+blocked until a future session actually achieves `P4C_MPGS_AUTH_VERIFIED` —
+owner action required per `P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`
+§6-§7, followed by a fresh `bank-alfalah-mpgs-sandbox-smoke.yml` dispatch,
+which will now also surface `Content-Type`/`WWW-Authenticate`/correlation-id
+evidence thanks to §12.2.
