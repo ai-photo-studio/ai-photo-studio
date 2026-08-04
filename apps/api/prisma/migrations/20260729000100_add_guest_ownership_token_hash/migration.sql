@@ -1,7 +1,7 @@
-ALTER TABLE "Order" ADD COLUMN "guestOwnershipTokenHash" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "guestOwnershipTokenHash" TEXT;
 
-ALTER TABLE "RestorationOrder" ADD COLUMN "guestOwnershipTokenHash" TEXT;
+ALTER TABLE "RestorationOrder" ADD COLUMN IF NOT EXISTS "guestOwnershipTokenHash" TEXT;
 
-CREATE INDEX "Order_guestOwnershipTokenHash_idx" ON "Order"("guestOwnershipTokenHash");
+CREATE INDEX IF NOT EXISTS "Order_guestOwnershipTokenHash_idx" ON "Order"("guestOwnershipTokenHash");
 
-CREATE INDEX "RestorationOrder_guestOwnershipTokenHash_idx" ON "RestorationOrder"("guestOwnershipTokenHash");
+CREATE INDEX IF NOT EXISTS "RestorationOrder_guestOwnershipTokenHash_idx" ON "RestorationOrder"("guestOwnershipTokenHash");
