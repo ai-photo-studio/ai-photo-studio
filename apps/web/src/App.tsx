@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
 import { PublicLayout } from "./components/PublicLayout";
 import { RequireAdminPortal } from "./components/RequireAdminPortal";
+import { RequireAuth } from "./components/RequireAuth";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminJobsPage } from "./pages/AdminJobsPage";
 import { AdminLogsPage } from "./pages/AdminLogsPage";
@@ -51,11 +52,13 @@ export function App() {
         <Route path="history/restorations" element={<RestorationHistoryPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>
-      <Route element={<CustomerLayout />}>
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="wallet" element={<WalletPage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="subscription" element={<SubscriptionPage />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<CustomerLayout />}>
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="wallet" element={<WalletPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
+        </Route>
       </Route>
       <Route path="admin/login" element={<AdminLoginPage />} />
       <Route
