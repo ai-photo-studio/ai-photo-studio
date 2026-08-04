@@ -37,7 +37,18 @@ Current production stack (2026-07-28):
 
 ### Payments
 - Legacy `Order`/`PaymentStatus` path: manual proof mode (demo/free during development).
-- R9.2 `FixedOrder`/`PaymentAttempt` path: payment-readiness domain, the P4A verified-evidence-to-execution-queue transaction, and the P4B internal worker runner now exist (see below) but have **no live caller and no deployed service** — no Bank Alfalah adapter is wired to any path, and the P4B runner has not been deployed as a Northflank service. Bank Alfalah remains `ready:false`.
+- R9.2 `FixedOrder`/`PaymentAttempt` path: payment-readiness domain, the P4A verified-evidence-to-execution-queue transaction, and the P4B internal worker runner exist (see below).
+- **R9.2-P4C (2026-08-04):** the legacy "Alfa APG v1.1" Bank Alfalah protocol
+  (never actually implemented in this repository) is retired. The Bank
+  Alfalah **Mastercard Gateway (MPGS)** sandbox
+  (`test-bankalfalah.gateway.mastercard.com`) is now the only Bank Alfalah
+  integration this repository carries:
+  `apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts` (Hosted
+  Checkout initiation, always-verified Retrieve Order v74, verify-then-apply
+  orchestrator delegating to `applyVerifiedPaymentEvidence`). PKR is enabled;
+  USD is fail-closed pending confirming documentation or a sandbox test. Not
+  wired to any HTTP route yet; sandbox-only; no production activation. See
+  `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md`.
 
 ### Internal restoration worker runner (R9.2-P4B, not yet deployed)
 - `apps/api/src/scripts/p4b-worker-runner-main.ts` (`npm run worker:p4b`) is a
@@ -47,9 +58,79 @@ Current production stack (2026-07-28):
   created as a Northflank service and has no live Replicate/R2 credential
   wired to it in this packet.
 
+### Bank Alfalah Mastercard Gateway adapter (R9.2-P4C, sandbox-only, not deployed)
+- `apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts` implements
+  the MPGS sandbox client (auth, Hosted Checkout, Retrieve Order v74) and a
+  verify-then-apply orchestrator. Not registered on any Express route.
+  `BANK_ALFALAH_MPGS_ENABLED` defaults to `false`. PKR enabled, USD
+  fail-closed. See
+  `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md`.
+
 ---
 
 ## Latest Task Report
+
+Date: 2026-08-04
+
+### Task
+R9.2-P4C-MPGS-SUPERSEDE-LEGACY-APG: retire the (never-implemented) legacy
+"Alfa APG v1.1" Bank Alfalah protocol and implement the smallest secure Bank
+Alfalah Mastercard Gateway (MPGS) sandbox Hosted Checkout flow, on branch
+`feat/r9.2-p4c-bank-alfalah-mpgs` (built from `origin/main` immediately after
+the P4B merge, PR #117).
+
+### Legacy APG scan
+Repo-wide grep before any change found zero references to
+`sandbox.bankalfalah.com`, `payments.bankalfalah.com`, `/HS/`, Store ID,
+Key1, Key2, or `HS_`-prefixed fields anywhere in the repository — confirming
+`.kilo/plans/commerceflownew.md`'s existing record that Bank Alfalah was
+never implemented. Nothing needed to be removed; the retirement is enforced
+going forward by a new scan test
+(`p4c-bank-alfalah-legacy-apg-retired.test.ts`).
+
+### What was built
+- `apps/api/src/config/env.ts` — `BANK_ALFALAH_MPGS_*` zod config (disabled
+  by default; merchant id/API password required only when enabled; checkout
+  mode restricted to `hosted_checkout`); `getConfigPreview` extended to
+  redact nested config objects.
+- `apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts` —
+  `BankAlfalahMpgsGateway` (REST Basic Auth `merchant.<Merchant ID>`/API
+  Password, Hosted Checkout initiation, Retrieve Order v74), independently
+  gated PKR/USD currency support (PKR enabled, USD fail-closed pending
+  confirmation), and `verifyMpgsPaymentByRetrieveOrder` /
+  `handleMpgsBrowserReturn` / `handleMpgsWebhookTrigger`, which always
+  re-verify via Retrieve Order before delegating to the unmodified P4A
+  `applyVerifiedPaymentEvidence` transaction. Not wired to any route.
+- `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md` — new
+  tracked evidence doc (field names, flow, evidence source per field,
+  currency gating, rollback plan). No credential value.
+- Four new test files (37 tests total, all passing) — see manifest section 8
+  for the full breakdown.
+
+### Test results
+New: 23+6+1+7 = **37/37** pass. Regression (unmodified):
+P4A pg-race **14/14**, P4B pg-race **10/10**, P3A **24/24**, P3A pg-race
+**10/10**, P3B **21/21**, P3B `--dry-run` exit 0 PASSED. `tsc --noEmit` exit
+0, `npm run build` exit 0, `prisma validate` OK (no migration needed),
+ESLint 0 errors/warnings on new files.
+
+### Live sandbox smoke test
+Skipped — `MERCHANT_ID`/`API_PASSWORD`/`OPERATOR_ID` and the
+`BANK_ALFALAH_MPGS_*` equivalents were confirmed absent as environment
+variables in this session (presence-only check). See manifest section 8.7
+for the exact command to run one later.
+
+### Not done / deferred
+- USD is fail-closed pending confirming documentation or a bounded sandbox
+  test.
+- No Express route/controller wires the browser-return or webhook handler
+  yet (deliberate, matching the P4A/P4B precedent).
+- Webhook signature/authenticity verification is not implemented; the
+  payload is used only as a trigger to re-check via Retrieve Order.
+
+---
+
+## Previous Task Report (R9.2-P4B)
 
 Date: 2026-08-04
 

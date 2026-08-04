@@ -56,7 +56,19 @@ const envSchema = z
      ALLOW_UNPAID_DOWNLOADS: z.string().optional().default("false")
      ,GFPGAN_SCALE: z.coerce.number().int().min(1).max(2).default(1),
      RESTORATION_REPLAY_MODE: z.string().optional().default("false"),
-     RESTORATION_REPLAY_FIXTURE: z.string().optional().default("")
+     RESTORATION_REPLAY_FIXTURE: z.string().optional().default(""),
+     // R9.2-P4C: Bank Alfalah Mastercard Gateway (MPGS) sandbox. Legacy
+     // "Alfa APG v1.1" (sandbox.bankalfalah.com / payments.bankalfalah.com,
+     // /HS/ endpoints, Store ID/Key1/Key2) is retired and must never be
+     // reintroduced here -- see docs/payments/bank-alfalah-mastercard/.
+     BANK_ALFALAH_MPGS_ENABLED: z.string().optional().default("false"),
+     BANK_ALFALAH_MPGS_BASE_URL: z.string().optional().default("https://test-bankalfalah.gateway.mastercard.com"),
+     BANK_ALFALAH_MPGS_API_VERSION: z.string().optional().default("74"),
+     BANK_ALFALAH_MPGS_MERCHANT_ID: z.string().optional().default(""),
+     BANK_ALFALAH_MPGS_API_PASSWORD: z.string().optional().default(""),
+     // Portal-login metadata ONLY -- never used for REST Basic Auth.
+     BANK_ALFALAH_MPGS_OPERATOR_ID: z.string().optional().default(""),
+     BANK_ALFALAH_MPGS_CHECKOUT_MODE: z.string().optional().default("hosted_checkout")
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
@@ -142,6 +154,40 @@ const envSchema = z
             message: "R2_PUBLIC_BASE_URL must be a valid URL"
           });
         }
+      }
+    }
+
+    const mpgsEnabled = cfg.BANK_ALFALAH_MPGS_ENABLED.trim().toLowerCase() === "true";
+    if (mpgsEnabled) {
+      if (!cfg.BANK_ALFALAH_MPGS_MERCHANT_ID) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BANK_ALFALAH_MPGS_MERCHANT_ID"],
+          message: "BANK_ALFALAH_MPGS_MERCHANT_ID is required when BANK_ALFALAH_MPGS_ENABLED=true"
+        });
+      }
+      if (!cfg.BANK_ALFALAH_MPGS_API_PASSWORD) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BANK_ALFALAH_MPGS_API_PASSWORD"],
+          message: "BANK_ALFALAH_MPGS_API_PASSWORD is required when BANK_ALFALAH_MPGS_ENABLED=true"
+        });
+      }
+      try {
+        new URL(cfg.BANK_ALFALAH_MPGS_BASE_URL);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BANK_ALFALAH_MPGS_BASE_URL"],
+          message: "BANK_ALFALAH_MPGS_BASE_URL must be a valid URL"
+        });
+      }
+      if (cfg.BANK_ALFALAH_MPGS_CHECKOUT_MODE !== "hosted_checkout") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BANK_ALFALAH_MPGS_CHECKOUT_MODE"],
+          message: "BANK_ALFALAH_MPGS_CHECKOUT_MODE must be hosted_checkout (only supported mode in this packet)"
+        });
       }
     }
 
@@ -232,6 +278,15 @@ export type AppConfig = z.infer<typeof envSchema> & {
   gfpganScale: number;
   restorationReplayMode: boolean;
   restorationReplayFixture: string;
+  bankAlfalahMpgs: {
+    enabled: boolean;
+    baseUrl: string;
+    apiVersion: string;
+    merchantId: string;
+    apiPassword: string;
+    operatorId: string;
+    checkoutMode: string;
+  };
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -295,6 +350,15 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
   deliveryMode: "LOG_ONLY",
   providerMode: "automatic",
   restorationPipeline: (process.env.RESTORATION_PIPELINE as "replicate" | "hybrid" | "local") || "replicate",
+  bankAlfalahMpgs: {
+    enabled: false,
+    baseUrl: "https://test-bankalfalah.gateway.mastercard.com",
+    apiVersion: "74",
+    merchantId: "",
+    apiPassword: "",
+    operatorId: "",
+    checkoutMode: "hosted_checkout"
+  },
   ...(overrides || {}),
 }) as AppConfig;
 
@@ -342,12 +406,30 @@ export const loadConfig = (): AppConfig => {
     ,gfpganScale: cfg.GFPGAN_SCALE
     ,restorationReplayMode: cfg.RESTORATION_REPLAY_MODE.trim().toLowerCase() === "true"
     ,restorationReplayFixture: cfg.RESTORATION_REPLAY_FIXTURE.trim()
+    ,bankAlfalahMpgs: {
+      enabled: cfg.BANK_ALFALAH_MPGS_ENABLED.trim().toLowerCase() === "true",
+      baseUrl: cfg.BANK_ALFALAH_MPGS_BASE_URL.trim(),
+      apiVersion: cfg.BANK_ALFALAH_MPGS_API_VERSION.trim(),
+      merchantId: cfg.BANK_ALFALAH_MPGS_MERCHANT_ID.trim(),
+      apiPassword: cfg.BANK_ALFALAH_MPGS_API_PASSWORD,
+      operatorId: cfg.BANK_ALFALAH_MPGS_OPERATOR_ID.trim(),
+      checkoutMode: cfg.BANK_ALFALAH_MPGS_CHECKOUT_MODE.trim()
+    }
   };
 };
 
 export const getConfigPreview = (config: AppConfig): Record<string, string> => {
   return Object.entries(config).reduce<Record<string, string>>((acc, [key, value]) => {
-    acc[key] = toSafePreview(key, value);
+    if (value !== null && typeof value === "object") {
+      acc[key] = JSON.stringify(
+        Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((inner, [innerKey, innerValue]) => {
+          inner[innerKey] = toSafePreview(innerKey, innerValue as string | number | boolean);
+          return inner;
+        }, {})
+      );
+    } else {
+      acc[key] = toSafePreview(key, value as string | number | boolean);
+    }
     return acc;
   }, {});
 };
