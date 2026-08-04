@@ -1,20 +1,17 @@
 ---
 description: Continue project verification and next-task execution
 ---
-Read `AGENTS.md` and `docs/NEXT_TASK.md`.
+Read `rules.md` and `.kilo/plans/commerceflownew.md`.
 
 Complete the current task fully.
 
 Requirements:
 1. Inspect the repository before editing.
-2. Follow `docs/PROTECTED_SCOPE.md`.
+2. Follow the Protected Scope Protocol in `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`.
 3. Make only task-related changes.
 4. Run dependency installation or Prisma generation only when required.
 5. Run typecheck, tests, and build where available.
-6. Update `docs/PROJECT_STATE.md`.
-7. Update `docs/COMPLETION_STATUS.md`.
-8. Replace `docs/NEXT_TASK.md` with the next recommended task.
-9. Update `reports/LATEST.md`.
-10. Commit only task-related files after successful verification.
-11. Do not push, merge, deploy, modify cloud resources, or expose secrets.
-12. If verification fails, do not commit. Record the failure in `reports/LATEST.md`.
+6. Record the task in `AI_code_audit_report_RI.md` (ignored, local audit history only) after every task.
+7. Commit only task-related files after successful verification.
+8. Do not push, merge, deploy, modify cloud resources, or expose secrets.
+9. If verification fails, do not commit. Record the failure in `AI_code_audit_report_RI.md`.

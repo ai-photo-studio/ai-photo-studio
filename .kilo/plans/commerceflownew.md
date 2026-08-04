@@ -163,3 +163,42 @@ separate, explicitly authorized future task for the owner to perform
 directly in the Northflank console using that runbook. See
 `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 13 and `rules.md`
 for full evidence.
+
+## 15. R9.2-P5B — Deterministic Sharp Digital Variants (2026-08-05)
+
+`SharpVariantService` (`apps/api/src/services/sharp-variant.service.ts`)
+generates server-owned `original`/`2hd`/`4hd` digital variants from a
+validated `RestorationMaster`. P5B unit 3/3, P5B PostgreSQL race 3/3, full
+P3A/P4A/P4B/P5A regression all passing. No schema/migration/payment/
+Replicate/RunPod/deployment change. See
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 14 and
+`docs/restoration/P5B_SHARP_VARIANT_PROTOCOL.md`.
+
+## 16. R9.2-RESOLVE-P127-MERGE-AND-RETIRE-DUPLICATE-DOCS — PR #127 merged; documentation authority consolidated (2026-08-05)
+
+- **PR #127 merged**: `feat/r9.2-p5b-sharp-variants` merged into `main`,
+  merge commit `738fe3c3779c5462bad61a5ea2437704aa0216fe`, after resolving
+  pure documentation-numbering drift against `origin/main` (PR #126) in an
+  isolated resolver worktree. Full record:
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 15.
+- **Retired-file list (deleted, must not be recreated)**: `AGENTS.md`,
+  `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`, `docs/PROTECTED_SCOPE.md`,
+  `docs/COMPLETION_STATUS.md`, `docs/DECISIONS.md`, `reports/LATEST.md`.
+- **Final documentation authority**: `rules.md`, this plan
+  (`.kilo/plans/commerceflownew.md`), `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`
+  (canonical, append-only release evidence), feature-specific protocol
+  documents already tracked under `docs/`, and `AI_code_audit_report_RI.md`
+  as ignored local audit history (required after every task; never staged
+  or committed).
+- **Protected Scope Protocol**: canonical source, workflows, packets,
+  validators, migrations, tests, and development documentation remain
+  tracked; no `.gitignore` broadening beyond the existing
+  `AI_code_audit_report_RI.md` entry; no `git add -f`; no replacement
+  status/automation file of the retired shape may be created; historical
+  references to a retired file inside an existing append-only evidence
+  document are left intact as historical record.
+- **Completion percentage (this documentation-consolidation scope)**:
+  100% — PR #127 merged, all 7 target files deleted, zero active tracked
+  references remain, lint/typecheck/build/Prisma validate all pass, P5B
+  focused unit tests pass, `git diff` checks clean, zero live external
+  calls made.
