@@ -146,3 +146,20 @@ were built from currently installed packages only. See
 2. Demo payment mode implementation
 3. `api.thannow.com` linked to Northflank port 8080
 4. Cloudflare Pages `/api/*` proxy to Northflank
+
+## 14. P4B Internal Worker — Northflank Deployment Readiness (2026-08-05, R9.2-PR125-MERGE-AND-P4B-READINESS)
+
+PR #125 (R9.2-P4D MPGS verify+repair) merged: `5cf50447429aa2844e7b812446505f0c1c427999`.
+The internal restoration worker runner (`apps/api/src/scripts/p4b-worker-runner-main.ts`,
+`npm run worker:p4b`) is code-complete and fully tested (P4B/P4A/P3A
+pg-race + non-DB suites all passing against a disposable local PostgreSQL
+17) but **still not deployed as a Northflank service**. This packet added a
+deployment runbook — `docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md` —
+covering the sole start command, required environment-variable names,
+single-instance limits, health expectations, graceful shutdown, rollback,
+and post-deployment checks. No runner code was changed and no Northflank
+service, project, or secret group was created. Deploying it remains a
+separate, explicitly authorized future task for the owner to perform
+directly in the Northflank console using that runbook. See
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 13 and `rules.md`
+for full evidence.
