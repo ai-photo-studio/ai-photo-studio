@@ -113,6 +113,18 @@ is fail-closed pending confirming documentation or a sandbox capability test.
 Sandbox-only; not wired to any HTTP route yet and not activated in
 production. See `docs/payments/bank-alfalah-mastercard/MPGS_INTEGRATION_EVIDENCE.md`.
 
+**Restoration status/download flow + lint/browser harness (2026-08-05,
+R9.2-P5A):** `GET /api/customer/restorations/:id` and
+`GET /api/customer/restorations/:id/download/:itemId` (customer-scoped,
+uniform 404 on wrong-owner/not-found, no guest-token fallback for
+authenticated users, download requires `COMPLETED` item + `VALIDATED`
+master, no `storageKey` in the customer DTO). No committed lint or browser
+harness existed before this packet; a minimal ESLint 9 flat config
+(`eslint.config.mjs`) and a minimal Chromium-only Playwright harness
+(`apps/web/playwright.config.ts`, `apps/web/tests/browser/`, 13/13 passing)
+were built from currently installed packages only. See
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 11.
+
 ## 12. Code Mapping
 
 | Business Rule | Code Status |

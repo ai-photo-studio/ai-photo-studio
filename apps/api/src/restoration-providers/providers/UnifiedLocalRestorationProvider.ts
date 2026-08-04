@@ -122,7 +122,7 @@ export class UnifiedLocalRestorationProvider implements IRestorationProvider {
     };
   }
 
-  private async analyzeDamage(image: Buffer, contentType: string): Promise<DamageAnalysis> {
+  private async analyzeDamage(image: Buffer, _contentType: string): Promise<DamageAnalysis> {
     try {
       const img = image.toString("base64");
       const pixelCount = img.length;

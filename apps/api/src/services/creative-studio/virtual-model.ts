@@ -90,7 +90,7 @@ export class VirtualModelService {
     }
   }
 
-  private async generateModel(body: Buffer, contentType: string | undefined, template: VirtualModelTemplate): Promise<Buffer> {
+  private async generateModel(body: Buffer, _contentType: string | undefined, _template: VirtualModelTemplate): Promise<Buffer> {
     return body;
   }
 

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { AppError, toErrorMessage } from "../utils/errors";

@@ -30,7 +30,7 @@ export interface PipelineBuildResponse {
 export class PipelineBuilderService {
   constructor(private readonly config: AppConfig) {}
 
-  async buildPipeline(request: PipelineBuildRequest): Promise<PipelineBuildResponse> {
+  async buildPipeline(_request: PipelineBuildRequest): Promise<PipelineBuildResponse> {
     return {
       steps: [{
         model: "replicate-pipeline",

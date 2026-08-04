@@ -90,7 +90,7 @@ export class VideoPrepService {
     }
   }
 
-  private async prepareVideo(body: Buffer, contentType: string | undefined, template: VideoTemplate): Promise<Buffer> {
+  private async prepareVideo(body: Buffer, _contentType: string | undefined, _template: VideoTemplate): Promise<Buffer> {
     return body;
   }
 

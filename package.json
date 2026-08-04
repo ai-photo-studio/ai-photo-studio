@@ -15,7 +15,7 @@
     "test:restoration:replay": "node scripts/restoration-replay.mjs",
     "test:api-auth": "npm run test:auth -w apps/api",
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
-    "lint": "eslint apps/api apps/web --max-warnings 0 || exit 0",
+    "lint": "eslint apps/api apps/web",
     "scope:check": "node scripts/verify-project-scope.mjs",
     "push:safe": "node scripts/safe-git-push.mjs",
     "r2:check": "node scripts/safe-r2-check.mjs",
@@ -34,6 +34,11 @@
     "rollback:exec": "node scripts/rollback.js --execute"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.9.0",
+    "typescript-eslint": "^8.65.0",
     "wrangler": "^4.96.0"
   }
 }

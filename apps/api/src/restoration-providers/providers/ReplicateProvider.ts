@@ -242,7 +242,7 @@ export class ReplicateProvider implements IRestorationProvider {
         errorRate: 0,
         lastChecked: new Date().toISOString(),
       };
-    } catch (err) {
+    } catch (_err) {
       const latency = Date.now() - startTime;
       return {
         status: "down",
@@ -253,7 +253,7 @@ export class ReplicateProvider implements IRestorationProvider {
     }
   }
 
-  estimateCost(request: RestorationRequest): number {
+  estimateCost(_request: RestorationRequest): number {
     return 0.0034;
   }
 

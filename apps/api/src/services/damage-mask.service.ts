@@ -1,6 +1,5 @@
 import { StorageService } from "./storage.service";
 import type { AppConfig } from "../config/env";
-import { logger } from "../utils/logger";
 
 export interface DamageMaskRequest {
   storageKey: string;
@@ -43,10 +42,6 @@ export class DamageMaskService {
 
     const rows = Math.min(height, pixelCount / width);
 
-    let scratchPixels = 0;
-    let dustPixels = 0;
-    let tearPixels = 0;
-
     const pixelStep = Math.max(1, Math.floor(body.length / 3 / pixelCount));
 
     for (let y = 0; y < rows; y++) {
@@ -70,15 +65,12 @@ export class DamageMaskService {
 
         if (isScratch) {
           scratchMask[maskIdx] = 255;
-          scratchPixels++;
         }
         if (isDust) {
           dustMask[maskIdx] = 255;
-          dustPixels++;
         }
         if (isTear) {
           tearMask[maskIdx] = 255;
-          tearPixels++;
         }
 
         maskData[maskIdx] = isScratch ? 255 : isDust ? 180 : isTear ? 100 : 0;
@@ -86,7 +78,6 @@ export class DamageMaskService {
     }
 
     const minRegionPixels = Math.round(pixelCount * 0.001);
-    let regionId = 0;
     const visited = new Uint8Array(pixelCount);
     for (let i = 0; i < pixelCount; i++) {
       if (maskData[i] > 0 && !visited[i]) {
@@ -99,7 +90,6 @@ export class DamageMaskService {
             height: region.maxY - region.minY + 1,
             type
           });
-          regionId++;
         }
       }
     }
@@ -154,7 +144,7 @@ export class DamageMaskService {
 
   private floodFill(
     mask: Buffer, visited: Uint8Array,
-    startIdx: number, width: number, height: number
+    startIdx: number, width: number, _height: number
   ): { size: number; minX: number; minY: number; maxX: number; maxY: number } {
     const stack = [startIdx];
     let size = 0;

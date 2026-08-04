@@ -821,3 +821,202 @@ provisioning, not a repository defect; `BANK_ALFALAH_WRONG_GATEWAY_REGION` is
 the closest unresolved alternative). **PKR remains NOT `SANDBOX_VERIFIED`;
 USD remains `FAIL_CLOSED`.** No card data, no payment capture, no
 Replicate/R2/RunPod/worker call, no production activation.
+
+## 11. R9.2-P5A — Minimal truthful lint/browser harness + restoration status/download flow (2026-08-05)
+
+This packet is independent of, and does not modify, the P4A/P4B/P4C/P4C2
+payment path above. No committed, complete root ESLint 9 flat config or
+Playwright browser-test harness existed prior to this packet — the KNOWN
+RESULT for this task stated so explicitly, and a repo-wide search confirmed
+`eslint.config.mjs`, `apps/web/playwright.config.ts`, and
+`apps/web/tests/browser/*.spec.ts` were all absent (an empty
+`apps/web/tests/browser/fixtures/` directory existed with no files). Both
+were built fresh and minimal from currently installed packages, per
+instruction not to search git history for, or restore, any prior browser
+script.
+
+### 11.1 Lint harness
+- `eslint.config.mjs` (root): ESLint 9 flat config built only from packages
+  actually installed (`typescript-eslint`, `@eslint/js`,
+  `eslint-plugin-react-hooks`, `globals`). `apps/api/runpod-worker-dev/**`
+  gets Node globals (a standalone dev harness script, not part of the built
+  API); `node_modules`, `dist`, `build`, `.wrangler`, coverage,
+  `playwright-report`, `test-results`, and generated Prisma output are
+  ignored. No product source directory is ignored.
+- `package.json` `lint` script changed from
+  `eslint apps/api apps/web --max-warnings 0 || exit 0` (always exited 0,
+  masking every failure) to plain `eslint apps/api apps/web`.
+- Rule set: `@typescript-eslint/no-unused-vars` is an **error** with a
+  `^_` allow-prefix for args/vars/caught errors (per instruction);
+  `@typescript-eslint/no-explicit-any` stays a **warning**, matching the
+  pre-existing convention of ~89 `any` usages across the codebase that this
+  packet does not attempt to eliminate.
+- Truthfulness proof: a disposable fixture file with a genuinely unused
+  local variable was added outside tracked product code
+  (`apps/api/src/__p5a_lint_fixture.ts`) — `npm run lint` exited 1. The
+  fixture was deleted — `npm run lint` exited 0 with **0 errors, 89
+  warnings** (all pre-existing `no-explicit-any`).
+- ~40 genuine pre-existing lint errors (unused imports/vars/args, two
+  `declare global { namespace Express }` ambient-augmentation patterns, one
+  pre-existing `@ts-nocheck`, one `require()`-in-`.test.ts`, one
+  `no-unsafe-finally` in the new `RestorationStatusPage.tsx`) were repaired
+  with the smallest behavior-neutral change per file — see the file list
+  below. The two Express namespace augmentations and the one `@ts-nocheck`
+  kept their existing behavior via a targeted, commented
+  `eslint-disable-next-line` rather than a structural rewrite.
+
+### 11.2 Playwright browser harness
+- `apps/web/playwright.config.ts`: Chromium-only project, local Vite dev
+  server on `127.0.0.1:4173` (explicit `--host 127.0.0.1`; Vite's default
+  bind is IPv6-only on this host, which produced `ERR_CONNECTION_REFUSED`
+  until fixed), `workers: 1` (bounded for low-memory Windows), no real API
+  server, `retry-on-failure` tracing, temporary `playwright-report`/
+  `test-results` output only.
+- `apps/web/tests/browser/fixtures/index.ts`: `blockExternalNetwork` aborts
+  every non-`127.0.0.1`/`localhost` request; `mockRestorationStatus` /
+  `mockRestorationDownload` fulfill the exact customer DTO contracts used by
+  `RestorationCustomerController` (status stays wrapped in `{success,data}`
+  via `apiRequest`; download is **not** wrapped, matching
+  `customerApi.getRestorationDownload`'s raw `fetch(...).then(r=>r.json())`
+  call — this mismatch was caught and fixed during harness development).
+- `apps/web/tests/browser/p5a-restoration-status.spec.ts`: **13/13 passing**
+  — QUEUED, PROCESSING, FAILED, SUCCEEDED-with-VALIDATED-master; download
+  hidden before request and visible only after a mocked, VALIDATED-master
+  response; forged query parameters (`?status=SUCCEEDED&downloadUrl=...`)
+  cannot fabricate success; refresh issues a GET-only request (asserted via
+  `route.request().method()`); wrong-owner/not-found renders a uniform
+  not-found state; no `storageKey` substring anywhere in the mocked
+  response bodies or the rendered page text; keyboard-only operation
+  (`focus` + `Enter`) for both Refresh and Download; 360/390/430px widths
+  with zero horizontal overflow; and a dedicated zero-external-network-call
+  test that distinguishes *completed* external requests (asserted empty)
+  from *attempted-then-blocked* ones (the app's own Facebook Pixel beacon
+  script tag, aborted by `blockExternalNetwork`, confirming the block is
+  real rather than the assertion being vacuous).
+- `apps/web/package.json`: added `@playwright/test` (already resolved in
+  `node_modules` at `1.62.1` but never declared in any workspace
+  `package.json`) and two scripts, `test:browser:p5a` (this spec only) and
+  `test:browser` (`tests/browser`, i.e. this spec — no other browser specs
+  exist on this branch, so nothing historical is referenced).
+
+### 11.3 Restoration status/download flow (pre-existing on this branch, verified)
+This branch already carried a working, security-reviewed implementation
+before this packet started; the packet's job was to build the harness that
+proves it, repair the one lint defect it had (`no-unsafe-finally`), and
+document it:
+- `apps/api/src/utils/ownership.ts` — `assertOwnership` throws one uniform
+  404 for both "does not exist" and "exists but not yours"; if
+  `actor.userId` is set it is authoritative and **never** falls back to a
+  guest token (an authenticated user cannot use another owner's guest
+  token).
+- `apps/api/src/controllers/restoration-customer.controller.ts` +
+  `RestorationService.getCustomerStatus` / `getCustomerDownload` —
+  `GET /api/customer/restorations/:id` (read-only; the `RestorationStatusPage`
+  refresh path issues no other request) and
+  `GET /api/customer/restorations/:id/download/:itemId`, which requires the
+  item to be `COMPLETED` **and** the linked `RestorationMaster.status ===
+  "VALIDATED"` before ever calling `storage.getSignedUrl` — there is no code
+  path that returns a download for any other combination.
+- Narrow customer DTOs (`RestorationCustomerStatusResponse`,
+  `RestorationCustomerDownloadResponse` in `apps/web/src/lib/portal-types.ts`)
+  never include a `storageKey` field; `toCustomerStatusView` in
+  `restoration.service.ts` builds the status DTO by hand from an explicit
+  field allowlist (id/orderNo/status/title/timestamps/items), never spreads
+  the raw Prisma row. The legacy (`LegacyRestorationOrderResponse`) and admin
+  (`AdminRestorationDetailResponse`) DTOs remain separate types with
+  separate controllers/routes and are untouched by this packet.
+- There is no retry endpoint on this customer surface at all, so "retry
+  creates no execution" holds trivially; no payment table is read or
+  written by either customer route.
+
+### 11.4 Test evidence (this packet)
+- `npm run lint` — exit 0, 0 errors, 89 warnings (see 11.1 truthfulness
+  proof).
+- `npm run typecheck` (api + web) — exit 0 (after `npx prisma generate`,
+  which a workspace-reinstall mid-packet had cleared).
+- `npm run typecheck:tests -w apps/web` (`tsconfig.tests.json`) — exit 0.
+- `npm run build` — exit 0.
+- `npx prisma validate` (api), `DATABASE_URL` pointed at a process-only
+  loopback value, never written to any `.env` file — schema valid.
+- `npx prisma generate` — exit 0.
+- Disposable PostgreSQL 17 (`initdb`/`pg_ctl`/`createdb` on
+  `127.0.0.1:55432`, env-var-only `DATABASE_URL`/`DISPOSABLE_DATABASE_URL`,
+  never in `.env`), `prisma migrate deploy` from empty — exit 0, all
+  migrations applied:
+  - `restoration-view.test.ts`, `guest-ownership.test.ts`,
+    `restoration-customer.service.test.ts` — all pass (focused P5A/ownership
+    suites).
+  - `p3a-replicate-execution-worker.test.ts` — **24/24** pass (unmodified).
+  - `p3a-replicate-execution-worker.pg-race.test.ts` — **10/10** pass
+    (unmodified).
+  - `p4a-payment-verified-execution-queue.service.pg-race.test.ts` —
+    **14/14** pass (unmodified).
+  - `p4b-internal-worker-runner.service.test.ts` and
+    `.pg-race.test.ts` — **10/10** pass (unmodified).
+  - `p3b-replicate-r2-canary.test.ts` — **21/21** pass (unmodified);
+    `p3b-replicate-r2-canary.ts --dry-run` — `RESULT: dry-run PASSED`
+    (unmodified).
+- `npx playwright test tests/browser/p5a-restoration-status.spec.ts` —
+  **13/13** pass (Chromium only).
+- `git diff --check` and `git diff --cached --check` — both exit 0 (no
+  whitespace errors).
+- Disposable PostgreSQL cleanup: `pg_ctl stop` → "server stopped";
+  `Test-NetConnection 127.0.0.1:55432` → `TcpTestSucceeded: False`; temp
+  data directory `D:\Temp\p5a-pg-data` removed and confirmed absent
+  (`Test-Path` → `False`).
+
+### 11.5 Zero-live-call proof
+- Every browser test blocks all non-`127.0.0.1`/`localhost` requests and
+  mocks both customer endpoints; the dedicated zero-external-network test
+  confirms zero *completed* external requests over the full status +
+  download flow.
+- The P3A/P3B/P4A/P4B regression suites re-run above are unmodified and
+  carry their own throwing `globalThis.fetch` spies /
+  zero-external-call assertions, all of which passed.
+- No MPGS, Replicate, R2 upload, RunPod, or Local provider call was made by
+  anything in this packet. No `.env` file was read or written.
+
+### 11.6 Files changed (this task)
+Added (harness):
+- `eslint.config.mjs`
+- `apps/web/playwright.config.ts`
+- `apps/web/tests/browser/fixtures/index.ts`
+- `apps/web/tests/browser/p5a-restoration-status.spec.ts`
+
+Modified (lint repairs, smallest behavior-neutral change per file):
+- `package.json` (removed `|| exit 0`, added eslint/typescript-eslint/
+  eslint-plugin-react-hooks/globals devDependencies)
+- `apps/web/package.json` (added `@playwright/test`, `test:browser`,
+  `test:browser:p5a`, `typecheck:tests` scripts)
+- `apps/api/src/config/env.ts`, `controllers/admin-auth.controller.ts`,
+  `controllers/auth.controller.ts`, `controllers/restoration.controller.ts`,
+  `controllers/whatsapp.controller.ts`, `index.ts`,
+  `middleware/admin-auth.middleware.ts`, `middleware/auth.middleware.ts`,
+  `queues/image.queue.ts`, `restoration-providers/providers/
+  BaseReplicateProvider.ts`, `ReplicatePipelineProvider.ts`,
+  `ReplicateProvider.ts`, `UnifiedLocalRestorationProvider.ts`,
+  `scripts/gen-ops109-xlsx.ts`, `services/business-analytics.service.ts`,
+  `services/cost-metrics.service.ts`, `services/creative-studio/
+  flat-lay.ts`, `lifestyle-scene.ts`, `video-prep.ts`, `virtual-model.ts`,
+  `services/damage-detection.service.ts`, `services/damage-mask.service.ts`,
+  `services/health-dashboard.service.ts`, `services/image-analysis.service.ts`,
+  `services/pipeline-builder.service.ts`, `services/print-preparation.service.ts`,
+  `services/print-readiness.service.ts`, `services/processing-metrics.service.ts`,
+  `services/restoration-engine.service.ts`, `services/restoration-view.test.ts`
+- `apps/web/src/main.tsx`, `pages/AdminUsersPage.tsx`, `pages/AdminWalletsPage.tsx`,
+  `pages/OrdersPage.tsx`, `pages/RestorationStatusPage.tsx`,
+  `pages/RestoreNewPage.tsx`, `pages/RestoreOrderPage.tsx`,
+  `services/customerApi.ts`
+- `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (this section)
+- `reports/LATEST.md`
+
+Not modified: any P4A/P4B/P4C/P4C2 payment file, any migration, any
+provider adapter's request/response logic.
+
+### 11.7 Confirmation this does not activate live processing
+No route, controller, or service touched by this packet issues an MPGS,
+Replicate, R2, RunPod, or Local call. The restoration status/download
+surface documented here was already present on this branch; this packet
+adds the harness that proves its DTO/ownership/gating boundaries and fixes
+the one lint defect (`no-unsafe-finally`) it had. No production
+deployment, credential, or activation flag changed.

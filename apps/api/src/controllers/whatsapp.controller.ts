@@ -64,7 +64,7 @@ export class WhatsAppController {
               msg.from,
               `Order created: ${order.orderNo}\nPackage: ${order.package.name}\nAmount: ${order.amount} ${order.currency}\nPlease upload your images.`
             );
-          } catch (error) {
+          } catch (_error) {
             logger.warn("Package selected but order creation failed", { from: msg.from, selectedPackage });
           }
         }

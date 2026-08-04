@@ -23,7 +23,7 @@ export type LifestyleSceneOutput = {
 };
 
 export class LifestyleSceneService {
-  constructor(config: AppConfig) {
+  constructor(_config: AppConfig) {
   }
 
   async generate(input: LifestyleSceneInput): Promise<LifestyleSceneOutput> {

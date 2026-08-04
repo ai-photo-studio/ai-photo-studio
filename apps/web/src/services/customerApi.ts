@@ -3,9 +3,11 @@ import type {
   CustomerOrderResponse,
   CustomerPaymentsResponse,
   CustomerSubscriptionResponse,
+  LegacyRestorationOrderResponse,
   CustomerWalletResponse,
   RestorationOrderSummary,
-  RestorationItemRecord,
+  RestorationCustomerStatusResponse,
+  RestorationCustomerDownloadResponse,
   RestoreUploadResult
 } from "../lib/portal-types";
 
@@ -147,9 +149,14 @@ export const customerApi = {
       guestToken
     ),
 
-  getRestorationOrder: (token: string | undefined, id: string, signal?: AbortSignal, guestToken?: string) =>
-    apiRequest<{ id: string; orderNo: string; title: string | null; status: string; entitlement: string; totalItems: number; completedItems: number; failedItems: number; createdAt: string; updatedAt: string; items: RestorationItemRecord[] }>(
+  getLegacyRestorationOrder: (token: string | undefined, id: string, signal?: AbortSignal, guestToken?: string) =>
+    apiRequest<LegacyRestorationOrderResponse>(
       `/api/restorations/${id}`, { signal }, token, guestToken
+    ),
+
+  getRestorationOrder: (token: string | undefined, id: string, signal?: AbortSignal, guestToken?: string) =>
+    apiRequest<RestorationCustomerStatusResponse>(
+      `/api/customer/restorations/${id}`, { signal }, token, guestToken
     ),
 
   listRestorationOrders: (token: string) =>
@@ -189,30 +196,33 @@ export const customerApi = {
       token
     ),
 
-  getRestorationDownload: (token: string | undefined, orderId: string, itemId: string, tier = "master", guestToken?: string) =>
-    fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "https://api.thannow.com" : "http://localhost:4000")}/api/restorations/${orderId}/items/${itemId}/download`, {
-      method: "POST",
+  getLegacyRestorationDownload: async (token: string | undefined, orderId: string, itemId: string, tier = "master", guestToken?: string) => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "https://api.thannow.com" : "http://localhost:4000")}/api/restorations/${orderId}/items/${itemId}/download?tier=${encodeURIComponent(tier)}`, {
       headers: {
-        "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(guestToken ? { "x-guest-ownership-token": guestToken } : {})
-      },
-      body: JSON.stringify({ tier })
-    }).then(async (response) => {
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        throw new Error(payload?.message || `Download failed (${response.status})`);
       }
-      const contentType = response.headers.get("Content-Type")?.split(";")[0].toLowerCase() || "";
-      if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) throw new Error(`Download returned unsupported content type: ${contentType || "missing"}`);
-      const blob = await response.blob();
-      const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
-      const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-      const isPng = bytes.length >= 8 && [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a].every((value, index) => bytes[index] === value);
-      const isWebp = new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
-      if (!blob.size || !isJpeg && !isPng && !isWebp) throw new Error("Download returned invalid image bytes");
-      return { blob, fileName: response.headers.get("Content-Disposition") || `restoration-${tier}.${contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg"}` };
-    }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || `Download failed (${response.status})`);
+    }
+    return response.blob();
+  },
+
+  getRestorationDownload: async (token: string | undefined, orderId: string, itemId: string, _tier = "master", guestToken?: string) => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "https://api.thannow.com" : "http://localhost:4000")}/api/customer/restorations/${orderId}/download/${itemId}`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(guestToken ? { "x-guest-ownership-token": guestToken } : {})
+      }
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || `Download failed (${response.status})`);
+    }
+    return response.json() as Promise<RestorationCustomerDownloadResponse>;
+  },
 
   runQualityAnalysis: (token: string, orderId: string, itemId: string) =>
     apiRequest<{ quality: Record<string, number>; damage: Record<string, unknown> }>(

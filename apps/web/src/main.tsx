@@ -85,7 +85,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 if (typeof window !== "undefined") {
   window.dataLayer = window.dataLayer || [];
-  function gtag(){(window.dataLayer as unknown[]).push(arguments);}
   if (window.gtag) {
     window.gtag('js', new Date());
     window.gtag('config', 'GA_MEASUREMENT_ID');

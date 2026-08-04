@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
-import { AdminAuthService, type AdminJwtPayload } from "../services/admin-auth.service";
+import { AdminAuthService } from "../services/admin-auth.service";
 import { AppError, toErrorMessage } from "../utils/errors";
 
 export class AdminAuthController {

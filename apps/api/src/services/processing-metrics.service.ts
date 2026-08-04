@@ -1,5 +1,4 @@
 import { prisma } from "../db/prisma";
-import { logger } from "../utils/logger";
 
 export type ProcessingMetrics = {
   totalJobs: number;

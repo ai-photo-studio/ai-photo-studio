@@ -1,6 +1,6 @@
 import type { AppConfig } from "../config/env";
 import { PrintPreparationService } from "./print-preparation.service";
-import type { PrintSize, PrintPreparationRequest, PrintPreparationResult, PrintReadinessCheck } from "./print-preparation.service";
+import type { PrintSize, PrintPreparationRequest, PrintPreparationResult } from "./print-preparation.service";
 
 export interface PrintReadinessRequest {
   storageKey: string;

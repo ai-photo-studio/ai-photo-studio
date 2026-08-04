@@ -26,7 +26,7 @@ export type FlatLayOutput = {
 };
 
 export class FlatLayService {
-  constructor(config: AppConfig) {
+  constructor(_config: AppConfig) {
   }
 
   async generate(input: FlatLayInput): Promise<FlatLayOutput> {

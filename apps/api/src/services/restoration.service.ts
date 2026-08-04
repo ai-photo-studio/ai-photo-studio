@@ -11,6 +11,7 @@ import { SubscriptionService } from "./subscription.service";
 import { NotificationService } from "./notification.service";
 import { PipelineOrchestrator } from "../restoration-providers/pipeline/PipelineOrchestrator";
 import { createGuestOwnershipToken, hashGuestOwnershipToken } from "../utils/guest-ownership";
+import { assertOwnership } from "../utils/ownership";
 
 const RESTORATION_CREDIT_COST = 1;
 
@@ -119,6 +120,89 @@ export class RestorationService {
     return order;
   }
 
+  async getOwnedOrderById(id: string, actor: { userId?: string | null; guestToken?: string | null }) {
+    const order = await prisma.restorationOrder.findUnique({
+      where: { id },
+      include: {
+        items: {
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+    const owned = assertOwnership(order, { userId: actor.userId ?? undefined, guestToken: actor.guestToken ?? undefined });
+    return this.toCustomerStatusView(owned);
+  }
+
+  async getOwnedOrderDownload(id: string, itemId: string, actor: { userId?: string | null; guestToken?: string | null }) {
+    const order = await prisma.restorationOrder.findUnique({
+      where: { id },
+      include: {
+        items: {
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+    const owned = assertOwnership(order, { userId: actor.userId ?? undefined, guestToken: actor.guestToken ?? undefined });
+    const item = owned.items.find((entry) => entry.id === itemId);
+    if (!item) throw new AppError("Restoration item not found", 404, "RESTORATION_ITEM_NOT_FOUND");
+    if (item.status !== "COMPLETED") {
+      throw new AppError("Restoration not yet completed", 400, "RESTORATION_NOT_COMPLETED");
+    }
+    const fixedOrder = await prisma.fixedOrder.findFirst({
+      where: {
+        OR: [
+          { ownerUserId: owned.userId },
+          { ownerCustomerId: owned.customerId },
+          { guestOwnershipTokenHash: owned.guestOwnershipTokenHash }
+        ],
+        legacyRestorationOrderId: owned.id,
+        status: { in: ["PAYMENT_VERIFIED", "LOCKED"] }
+      },
+      include: {
+        restorationEntitlement: {
+          include: {
+            restorationMaster: true
+          }
+        }
+      }
+    });
+    const master = fixedOrder?.restorationEntitlement?.restorationMaster;
+    if (!master || master.status !== "VALIDATED" || !master.storageKey) {
+      throw new AppError("Validated restoration master is unavailable", 400, "RESTORATION_MASTER_NOT_READY");
+    }
+    const downloadUrl = await this.storage.getSignedUrl(master.storageKey);
+    return {
+      orderId: owned.id,
+      orderNo: owned.orderNo,
+      itemId: item.id,
+      itemStatus: item.status,
+      masterStatus: master.status,
+      downloadUrl,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      contentType: master.contentType || "image/jpeg"
+    };
+  }
+
+  private toCustomerStatusView(order: { id: string; orderNo: string; status: string; title: string | null; createdAt: Date; updatedAt: Date; items: Array<{ id: string; status: string; processingStage: string | null; errorMessage: string | null; createdAt: Date; updatedAt: Date; }> }) {
+    return {
+      id: order.id,
+      orderNo: order.orderNo,
+      status: order.status,
+      title: order.title,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      items: order.items.map((item) => ({
+        id: item.id,
+        status: item.status,
+        processingStage: item.processingStage,
+        errorMessage: item.errorMessage,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt
+      })),
+      hasDownload: order.items.some((item) => item.status === "COMPLETED")
+    };
+  }
+
   async listOrders(userId: string) {
     const orders = await prisma.restorationOrder.findMany({
       where: { userId },
@@ -148,6 +232,14 @@ export class RestorationService {
       };
     }));
     return { ...order, entitlement, items };
+  }
+
+  async getCustomerStatus(id: string, actor: { userId?: string | null; guestToken?: string | null }) {
+    return this.getOwnedOrderById(id, actor);
+  }
+
+  async getCustomerDownload(id: string, itemId: string, actor: { userId?: string | null; guestToken?: string | null }) {
+    return this.getOwnedOrderDownload(id, itemId, actor);
   }
 
   async addItem(input: { restorationOrderId: string; originalStorageKey: string; mimeType?: string; width?: number; height?: number; fileSizeBytes?: number }) {

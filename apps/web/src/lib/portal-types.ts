@@ -402,42 +402,65 @@ export type RestorationOrderSummary = {
 
 export type RestorationItemRecord = {
   id: string;
-  restorationOrderId: string;
-  originalStorageKey: string;
-  previewStorageKey: string | null;
-  finalStorageKey: string | null;
-  originalUrl?: string | null;
-  finalUrl?: string | null;
-  availableTiers?: string[];
   status: string;
-  damageSeverity: string;
-  imageCategory: string;
-  damageScore: number | null;
-  qualityScore: number | null;
-  beforeQualityScore: number | null;
-  afterQualityScore: number | null;
-  beforeBlurScore: number | null;
-  afterBlurScore: number | null;
-  beforeNoiseScore: number | null;
-  afterNoiseScore: number | null;
-  beforeSharpnessScore: number | null;
-  afterSharpnessScore: number | null;
-  beforeBrightnessScore: number | null;
-  afterBrightnessScore: number | null;
-  beforeContrastScore: number | null;
-  afterContrastScore: number | null;
-  beforeColorCastScore: number | null;
-  afterColorCastScore: number | null;
-  faceCount: number | null;
-  faceConfidence: number | null;
-  qualityRegressionStage: string | null;
-  qualityRegressionDetail: string | null;
   processingStage: string | null;
-  providerUsed: string | null;
-  totalDurationMs: number | null;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type LegacyRestorationItemRecord = RestorationItemRecord & {
+  imageCategory: string | null;
+  totalDurationMs: number | null;
+  beforeQualityScore: number | null;
+  afterQualityScore: number | null;
+  damageSeverity: string | null;
+  damageScore: number | null;
+  originalStorageKey: string | null;
+  finalStorageKey: string | null;
+  originalUrl: string | null;
+  finalUrl: string | null;
+  availableTiers: string[];
+};
+
+export type LegacyRestorationOrderResponse = RestorationOrderSummary & {
+  entitlement: string;
+  items: LegacyRestorationItemRecord[];
+};
+
+export type AdminRestorationItemResponse = RestorationItemRecord & {
+  imageCategory: string | null;
+  totalDurationMs: number | null;
+  beforeQualityScore: number | null;
+  afterQualityScore: number | null;
+  damageSeverity: string | null;
+  damageScore: number | null;
+};
+
+export type AdminRestorationDetailResponse = RestorationOrderSummary & {
+  items: AdminRestorationItemResponse[];
+};
+
+export type RestorationCustomerStatusResponse = {
+  id: string;
+  orderNo: string;
+  status: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: RestorationItemRecord[];
+  hasDownload: boolean;
+};
+
+export type RestorationCustomerDownloadResponse = {
+  orderId: string;
+  orderNo: string;
+  itemId: string;
+  itemStatus: string;
+  masterStatus: string;
+  downloadUrl: string;
+  expiresAt: string;
+  contentType: string;
 };
 
 export type RestoreUploadResult = {

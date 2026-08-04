@@ -99,7 +99,7 @@ export class HealthDashboardService {
           certified: health.status === "active",
           lastChecked: health.lastChecked,
         });
-      } catch (err) {
+      } catch (_err) {
         summaries.push({
           providerName: name,
           status: "down",
@@ -157,7 +157,6 @@ export class HealthDashboardService {
     };
 
     try {
-      const testKey = `health-check/${Date.now()}-test.txt`;
       const uploadResult = await this.storage.uploadFile({
         keyPrefix: "artifacts",
         fileName: "health-check-test.txt",
@@ -196,7 +195,7 @@ export class HealthDashboardService {
       });
 
       await queue.add("ping", { timestamp: Date.now() });
-      const counts = await queue.getJobCounts();
+      await queue.getJobCounts();
       await queue.close().catch(() => undefined);
 
       return {

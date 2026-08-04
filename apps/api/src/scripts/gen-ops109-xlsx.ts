@@ -1,6 +1,6 @@
-const XLSX = require("xlsx");
-const fs = require("fs");
-const path = require("path");
+import XLSX from "xlsx";
+import fs from "fs";
+import path from "path";
 
 const RESULTS_DIR = path.join(__dirname, "..", "..", "..", "..", "benchmark", "results", "ops109");
 
@@ -26,9 +26,6 @@ function generateXlsx() {
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(resultsAoa);
   XLSX.utils.book_append_sheet(wb, ws1, "Results");
-
-  const pipeA = [resultsAoa[1], resultsAoa[4], resultsAoa[7]]; // 3 successful
-  const pipeB = [resultsAoa[8], resultsAoa[9], resultsAoa[10], resultsAoa[11], resultsAoa[12]]; // 5 successful
 
   const summaryAoa = [
     ["Metric", "Pipeline A (FLUX Restore)", "Pipeline B (Microsoft)"],

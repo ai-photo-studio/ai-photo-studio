@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { AppError, toErrorMessage } from "../utils/errors";
-import { AuthService, verifyPassword } from "../services/auth.service";
+import { AuthService } from "../services/auth.service";
 import { signToken, signRefreshToken, verifyToken } from "../middleware/auth.middleware";
 
 export class AuthController {
