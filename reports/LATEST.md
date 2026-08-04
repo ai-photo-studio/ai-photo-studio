@@ -106,6 +106,30 @@ call was made.
 ---
 
 ### Task
+R9.2-P4C2-MPGS-CREDENTIAL-PROVISIONING-RESOLUTION: PR #121 was already merged
+(merge commit `e75484650ef28f2f9a6b11845685e58fcb59653c`) before this packet
+began. Re-read the raw log of run `30910714515` directly (not a paraphrase):
+confirmed the actual gateway response is a structural HTTP 404, not a 401/403
+Basic-Auth rejection. No gateway error code, `Content-Type`,
+correlation/request ID, or `WWW-Authenticate` was ever captured — a genuine
+evidence-capture gap. Added a permanent, network-free structural credential
+diagnostic (`apps/api/src/scripts/p4c2-mpgs-provisioning-config-diagnostic.ts`,
+14/14 tests passing) and a dedicated diagnostic-only workflow
+(`.github/workflows/bank-alfalah-mpgs-provisioning-config-diagnostic.yml`). Full
+findings and the Bank Alfalah support packet:
+`docs/payments/bank-alfalah-mastercard/P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`.
+
+### Result
+`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` — external/provisioning,
+not a repository code defect (`BANK_ALFALAH_WRONG_GATEWAY_REGION` is the
+closest unresolved alternative given the evidence). No MPGS request logic
+changed. **PKR remains NOT `SANDBOX_VERIFIED`; USD remains `FAIL_CLOSED`.**
+No card data, no payment capture, no Replicate/R2/RunPod/worker call, no
+production activation. P4D remains blocked until `P4C_MPGS_AUTH_VERIFIED`.
+
+---
+
+### Task
 R9.2-P4C-MPGS-SUPERSEDE-LEGACY-APG: retire the (never-implemented) legacy
 "Alfa APG v1.1" Bank Alfalah protocol and implement the smallest secure Bank
 Alfalah Mastercard Gateway (MPGS) sandbox Hosted Checkout flow, on branch

@@ -1,0 +1,47 @@
+name: Bank Alfalah MPGS Credential Diagnostic
+
+# R9.2-P4C2-MPGS-CREDENTIAL-PROVISIONING-RESOLUTION
+#
+# Manually-triggered, network-free structural diagnostic for the Bank
+# Alfalah Mastercard Gateway (MPGS) REST credentials. Makes ZERO network
+# calls, ZERO database connections, and prints ONLY structural metadata
+# (presence, length, whitespace/newline booleans, character-class validity,
+# placeholder-pattern match, Basic Auth username shape, Base64 round-trip
+# validity) -- never a secret value, substring, or hash. This workflow must
+# never be triggered by push, pull_request, or schedule.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: bank-alfalah-mpgs-credential-diagnostic
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  credential-diagnostic:
+    name: MPGS credential-provisioning structural diagnostic (no network call)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install API workspace dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Run MPGS credential-provisioning diagnostic (structural metadata only)
+        working-directory: apps/api
+        env:
+          BANK_ALFALAH_MPGS_MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          BANK_ALFALAH_MPGS_API_PASSWORD: ${{ secrets.API_PASSWORD }}
+          BANK_ALFALAH_MPGS_OPERATOR_ID: ${{ secrets.OPERATOR_ID }}
+        run: npx tsx src/scripts/p4c2-mpgs-provisioning-config-diagnostic.ts

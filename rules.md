@@ -227,6 +227,35 @@ remains in force verbatim.
   sandbox profile, or that the configured `MERCHANT_ID`/`API_PASSWORD`
   secrets correspond to an actually-provisioned sandbox account, before a
   future session retries the smoke test.
+
+### P4C2 Bank Alfalah MPGS — credential-provisioning diagnostic (2026-08-04)
+
+Added by the R9.2-P4C2 packet. This section is additive; every rule above it
+remains in force verbatim.
+
+- PR #121 (`docs/r9.2-p4c-sandbox-smoke-evidence`) was already merged before
+  this packet began (merge commit
+  `e75484650ef28f2f9a6b11845685e58fcb59653c`).
+- Re-reading the raw log of the failed sandbox-smoke run (`30910714515`)
+  directly (not from a prior session's paraphrase) confirmed the actual
+  gateway response is a structural **HTTP 404**, not a 401/403 Basic-Auth
+  rejection. Neither a gateway error code, a `Content-Type` header, a
+  correlation/request ID, nor a `WWW-Authenticate` header was ever captured
+  by the smoke script/gateway service as they existed at that time — this is
+  a genuine evidence-capture gap, not a redaction. See
+  `docs/payments/bank-alfalah-mastercard/P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`.
+- A new, permanent, network-free structural credential diagnostic
+  (`apps/api/src/scripts/p4c2-mpgs-provisioning-config-diagnostic.ts`,
+  14/14 unit tests passing) and a dedicated `workflow_dispatch`-only workflow
+  (`.github/workflows/bank-alfalah-mpgs-provisioning-config-diagnostic.yml`) were
+  added. Neither was run against real GitHub secrets this session (no local
+  access to them); the diagnostic is exercised only via unit-test fixtures.
+- No MPGS request logic, endpoint shape, or auth header construction was
+  changed. Result classified `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+  (with `BANK_ALFALAH_WRONG_GATEWAY_REGION` as the closest unresolved
+  alternative) — external/provisioning, not a repository defect. PKR remains
+  **not** `SANDBOX_VERIFIED`; USD remains `FAIL_CLOSED`. P4D must not begin
+  until a future session actually achieves `P4C_MPGS_AUTH_VERIFIED`.
 - No card data, no payment capture, and no Replicate/R2/worker call occurred
   anywhere in this packet.
 

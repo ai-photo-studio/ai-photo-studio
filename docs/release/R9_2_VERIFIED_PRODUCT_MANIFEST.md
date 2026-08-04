@@ -796,3 +796,28 @@ reference request. No further live-sandbox guess-and-retry was attempted.
 `FAIL_CLOSED`** (no merchant capability evidence exists). No card data, no
 payment capture, and no Replicate/R2/worker call occurred at any point in
 this packet.
+
+## 10. R9.2-P4C2 — MPGS credential-provisioning diagnostic (2026-08-04)
+
+PR #121 was already merged before this packet began (merge commit
+`e75484650ef28f2f9a6b11845685e58fcb59653c`). Re-reading run `30910714515`'s
+raw log directly confirmed the actual gateway response is a structural
+**HTTP 404** (not a 401/403 Basic-Auth rejection as a prior session's summary
+had implied). Gateway error code, `Content-Type`, correlation/request ID, and
+`WWW-Authenticate` were never captured by the smoke script as it existed —
+a genuine evidence gap, not a redaction.
+
+Added a permanent, network-free structural credential diagnostic
+(`apps/api/src/scripts/p4c2-mpgs-provisioning-config-diagnostic.ts`,
+14/14 tests passing) and a dedicated diagnostic-only workflow
+(`.github/workflows/bank-alfalah-mpgs-provisioning-config-diagnostic.yml`). Full
+findings, the Bank Alfalah support-escalation packet, and exact owner
+remediation steps:
+`docs/payments/bank-alfalah-mastercard/P4C2_CREDENTIAL_PROVISIONING_RESOLUTION.md`.
+
+No MPGS request logic, endpoint shape, or auth header construction changed.
+Result: `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` (external/
+provisioning, not a repository defect; `BANK_ALFALAH_WRONG_GATEWAY_REGION` is
+the closest unresolved alternative). **PKR remains NOT `SANDBOX_VERIFIED`;
+USD remains `FAIL_CLOSED`.** No card data, no payment capture, no
+Replicate/R2/RunPod/worker call, no production activation.
