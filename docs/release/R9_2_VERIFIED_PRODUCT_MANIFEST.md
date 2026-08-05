@@ -2355,3 +2355,73 @@ separate, external provisioning question this packet does not address). No
 production deployment, no RunPod/Replicate/R2/webhook/capture/P4A change, no
 destructive Git operation, no Bank Alfalah support ticket or email drafted
 or sent (explicitly out of scope for this packet).
+
+## 23. R9.2-MPGS-CI-LIVE-PROOF — PR #139 merged; exactly one live sandbox request, client integration fully verified, HTTP 401 (bank-side) (2026-08-05)
+
+PR #139 (`feat/r9.2-mpgs-ci-live-proof`, two-mode CI workflow) independently
+re-verified via its own `pull_request`-triggered `dry-run` job -- 3 real CI
+runs, 2 defects found and repaired directly in the actual GitHub Actions
+Ubuntu environment (a merchant-id/name value mismatch against the test's
+hardcoded contract-proof assertions; hardcoded Windows-only screenshot
+paths that silently failed to resolve on the Linux runner, fixed via a
+portable `SCREENSHOT_DIR` env var) -- final run green with real,
+visually-verified screenshots. Merged normally: merge commit
+`288e981dd837a4b000331ffdb44de145050a490f`.
+
+**Live dispatch, owner-triggered only.** Per this packet's explicit
+instruction, the assistant never called `gh workflow run`, `gh run rerun`,
+or any other dispatch mechanism -- all `workflow_dispatch` runs on `main`
+were triggered by the repository owner. Four attempts were needed before
+the `live` job actually executed, all safely (zero live requests in the
+first three):
+- `31040799793` (+2 reruns of the same run) -- `mode` left on its default
+  `dry-run`; `live` job skipped each time.
+- `31041927467` -- same, `dry-run` again.
+- `31042021781` -- `mode=live` correctly selected this time (confirmed
+  because `dry-run` correctly skipped), but `confirm_live` did not exactly
+  match the required string, so the `live` job's own fail-closed `if:`
+  gate withheld it too. Zero live requests.
+- `31042211650` -- both inputs correct. **`live` job ran, exactly once**,
+  including its own "assert exactly one real gateway call" step passing.
+
+**Result: `HTTP 401`.** Sanitized log (the only capture point -- the
+gateway adapter's observability logging never records a response body,
+only status/headers):
+```
+{"level":"info","message":"Bank Alfalah MPGS: initiateHostedCheckout request","meta":{"method":"POST","path":"/session","apiVersion":"100","currency":"PKR","orderIdLength":20}}
+{"level":"warn","message":"Bank Alfalah MPGS: initiateHostedCheckout failed","meta":{"status":401,"detail":"content-type=application/json;charset=ISO-8859-1 www-authenticate=none correlation-id=none"}}
+```
+Confirmed exactly one request two independent ways: the workflow's own grep-count
+assertion, and a manual re-grep of the full downloaded `api-server.log` artifact.
+
+**Client integration classified fully verified.** Every field of the
+outgoing request was compared against the bank's explicit written
+instructions (quoted in this session) and their own live v100 REST-JSON
+documentation (independently fetched in the prior R9.2-MPGS-ACTUAL-APP-E2E
+packet): method, path, `apiOperation`, `interaction.operation=PURCHASE`,
+`interaction.merchant.name`, Basic Auth username shape, currency, order-id
+length/format, and return-URL handling all match exactly. Zero remaining
+client-side discrepancy. The `401` is therefore classified as bank-side
+(credential/profile/authentication state on Bank Alfalah's sandbox
+profile), consistent with -- and now independently reproduced by an
+automated, production-quality CI pipeline, not an ad-hoc script -- section
+21's prior `401` finding at the same endpoint. `P4C_MPGS_AUTH_VERIFIED`
+remains **not achieved**.
+
+Three screenshots (`baf-live-before-click.png`, `baf-live-after-click.png`,
+`baf-live-gateway-sanitized.png`) plus a Playwright trace were downloaded
+from the workflow's `bank-alfalah-mpgs-live-evidence` artifact and visually
+inspected: real order/amount/tier, truthful error surfaced (no fabricated
+paid/success state), no password/Authorization value visible in any of
+them. Full record:
+`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_CI_LIVE_PROOF_2026-08-05.md`.
+
+No support email was drafted or sent (explicitly out of scope for this
+packet). No code changes were made in response to the live result (none
+were needed -- zero client-side defect found). `BANK_ALFALAH_MPGS_ENABLED`
+remains `false` outside the gated CI job.
+`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains open,
+unchanged -- a bank-side question this repository cannot resolve further
+without owner/bank action. No production deployment, no
+RunPod/Replicate/R2/webhook/capture/P4A change, no card data, no capture,
+no second live request, no destructive Git operation.

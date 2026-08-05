@@ -359,3 +359,28 @@ decision. `BANK_ALFALAH_MPGS_ENABLED` remains `false`. Launch blocker
 unchanged: a live 2xx response with `session.id` is still required, and the
 exposed API password from section 20 should be confirmed rotated before
 that attempt.
+
+## 22. R9.2-MPGS-CI-LIVE-PROOF (2026-08-05)
+
+Built and merged a two-mode GitHub Actions workflow (PR #139, merge
+`288e981`): a `pull_request`-triggered `dry-run` job (stub gateway, zero
+live calls) and a `workflow_dispatch`-only `live` job requiring an exact
+confirmation-string input. The owner manually dispatched `live` four times
+(per this packet's "assistant never dispatches" rule); the first three
+made zero live requests (the workflow's own fail-closed input gating
+correctly withheld the job each time -- `mode` left on default, then a
+`confirm_live` mismatch); the fourth ran, exactly once.
+
+**Result: `HTTP 401`.** Client integration compared field-by-field against
+every bank instruction and the bank's own live documentation -- zero
+remaining discrepancy. Classified fully verified; the `401` is bank-side
+(credential/profile/authentication state on Bank Alfalah's sandbox),
+matching section 20's prior `401` at the same endpoint, now independently
+reproduced by an automated CI pipeline. `P4C_MPGS_AUTH_VERIFIED` still not
+achieved. No code changes were needed. No support email sent. Full record:
+`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_CI_LIVE_PROOF_2026-08-05.md`
+and manifest section 23.
+
+Launch blocker unchanged: bank-side confirmation/resolution of the
+sandbox credential/profile rejection is required before this integration
+can reach `session.id`.
