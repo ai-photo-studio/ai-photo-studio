@@ -1,0 +1,367 @@
+name: Bank Alfalah MPGS Actual-App E2E
+
+# R9.2-MPGS-CI-LIVE-PROOF
+#
+# Two independent jobs, gated completely differently:
+#
+#   dry-run  -- runs automatically on every pull_request touching the paths
+#               below, and on a manual workflow_dispatch with mode=dry-run
+#               (the default). Real disposable Postgres + real API + real
+#               web app + real Playwright browser, but BANK_ALFALAH_MPGS_BASE_URL
+#               points at a local stub gateway started in this job -- ZERO
+#               requests ever leave the runner toward the real bank host.
+#
+#   live     -- ONLY runs on a manual workflow_dispatch with mode=live AND
+#               the confirm_live input matching an exact fixed string. Uses
+#               the real bank sandbox host and the existing MERCHANT_ID/
+#               API_PASSWORD/OPERATOR_ID GitHub secrets. Makes exactly one
+#               real Hosted Checkout request via exactly one real browser
+#               click. Never card data, never USD, never a retry, never a
+#               second click.
+#
+# Neither job ever prints an Authorization header, a merchant credential, or
+# any secret value -- only sanitized structural facts (method, path, status,
+# non-secret headers, presence/length of session identifiers).
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/bank-alfalah-mpgs-actual-app-e2e.yml'
+      - 'apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts'
+      - 'apps/api/src/controllers/customer-checkout.controller.ts'
+      - 'apps/api/src/services/customer-checkout.service.ts'
+      - 'apps/api/src/routes/restoration.routes.ts'
+      - 'apps/api/src/config/env.ts'
+      - 'apps/api/src/scripts/mpgs-local-stub-server.ts'
+      - 'apps/web/tests/browser-actual-app-dryrun/**'
+      - 'apps/web/playwright.actual-app-dryrun.config.ts'
+      - 'apps/web/src/pages/FixedOrderReviewPage.tsx'
+      - 'apps/web/src/services/customerApi.ts'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry-run (default, safe, no live network call) or live (real bank sandbox, exactly one request)'
+        required: true
+        default: 'dry-run'
+        type: choice
+        options:
+          - dry-run
+          - live
+      confirm_live:
+        description: 'Only required for mode=live. Must be exactly: I_UNDERSTAND_THIS_CONTACTS_THE_REAL_BANK_SANDBOX'
+        required: false
+        default: ''
+
+concurrency:
+  group: bank-alfalah-mpgs-actual-app-e2e
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'dry-run')
+    name: Dry run (stub gateway, zero live network calls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mpgs_ci_dryrun
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mpgs_ci_dryrun
+      REDIS_URL: redis://127.0.0.1:6399
+      WHATSAPP_VERIFY_TOKEN: ci-test
+      PAYMENT_GATEWAY_NAME: manual
+      ADMIN_JWT_SECRET: ci-dryrun-admin-jwt-secret
+      JWT_SECRET: ci-dryrun-jwt-secret
+      STORAGE_PROVIDER: mock
+      AI_PROVIDER: mock
+      PORT: "4000"
+      SKIP_MIGRATIONS: "true"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      BANK_ALFALAH_MPGS_ENABLED: "true"
+      BANK_ALFALAH_MPGS_BASE_URL: http://127.0.0.1:4600
+      BANK_ALFALAH_MPGS_API_VERSION: "74"
+      BANK_ALFALAH_MPGS_MERCHANT_ID: CIDRYRUNMERCHANT
+      BANK_ALFALAH_MPGS_API_PASSWORD: ci-dryrun-not-a-real-secret
+      BANK_ALFALAH_MPGS_MERCHANT_NAME: "CI Dry Run Test Merchant"
+      BANK_ALFALAH_MPGS_RETURN_URL: http://127.0.0.1:5173/checkout/return
+      STUB_PORT: "4600"
+      STUB_MODE: success
+      STUB_LOG_FILE: /tmp/mpgs-stub-log.jsonl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+
+      - name: Apply migrations to the disposable Postgres service
+        working-directory: apps/api
+        run: npx prisma migrate deploy
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local stub MPGS gateway
+        working-directory: apps/api
+        run: |
+          npx tsx src/scripts/mpgs-local-stub-server.ts > /tmp/stub-server.log 2>&1 &
+          echo $! > /tmp/stub.pid
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4600/__control/set-mode -X POST -H 'Content-Type: application/json' -d '{"mode":"success"}' && break
+            sleep 1
+          done
+
+      - name: Start real API server
+        working-directory: .
+        run: |
+          npx tsx apps/api/src/index.ts > /tmp/api-server.log 2>&1 &
+          echo $! > /tmp/api.pid
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4000/api/health && break
+            sleep 1
+          done
+
+      - name: Start real web app
+        working-directory: apps/web
+        run: |
+          npx vite --port 5173 --strictPort --host 127.0.0.1 > /tmp/web-server.log 2>&1 &
+          echo $! > /tmp/web.pid
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:5173/ && break
+            sleep 1
+          done
+
+      - name: Run actual-app dry-run Playwright suite
+        working-directory: apps/web
+        run: npx playwright test --config=playwright.actual-app-dryrun.config.ts
+
+      - name: Assert zero requests reached the real bank host
+        if: always()
+        run: |
+          if grep -q "test-bankalfalah.gateway.mastercard.com" /tmp/api-server.log; then
+            echo "::error::API server log mentions the real bank host during a dry run"
+            exit 1
+          fi
+          echo "confirmed: no real bank host reference in API server log"
+
+      - name: Sanitize evidence (defense-in-depth secret scrub before upload)
+        if: always()
+        run: |
+          for f in /tmp/api-server.log /tmp/stub-server.log /tmp/mpgs-stub-log.jsonl; do
+            if [ -f "$f" ]; then
+              sed -i "s/${BANK_ALFALAH_MPGS_API_PASSWORD}/[REDACTED]/g" "$f" || true
+            fi
+          done
+
+      - name: Stop background processes
+        if: always()
+        run: |
+          for f in /tmp/stub.pid /tmp/api.pid /tmp/web.pid; do
+            if [ -f "$f" ]; then kill "$(cat "$f")" 2>/dev/null || true; fi
+          done
+
+      - name: Upload dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bank-alfalah-mpgs-dryrun-evidence
+          path: |
+            apps/web/test-results-dryrun/**
+            apps/web/playwright-report/**
+            /tmp/api-server.log
+            /tmp/stub-server.log
+            /tmp/mpgs-stub-log.jsonl
+          retention-days: 14
+          if-no-files-found: warn
+
+  live:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'live' && github.event.inputs.confirm_live == 'I_UNDERSTAND_THIS_CONTACTS_THE_REAL_BANK_SANDBOX'
+    name: Live sandbox (manual, exactly one real request)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: bank-alfalah-mpgs-sandbox
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mpgs_ci_live
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mpgs_ci_live
+      REDIS_URL: redis://127.0.0.1:6399
+      WHATSAPP_VERIFY_TOKEN: ci-test
+      PAYMENT_GATEWAY_NAME: manual
+      ADMIN_JWT_SECRET: ci-live-admin-jwt-secret
+      JWT_SECRET: ci-live-jwt-secret
+      STORAGE_PROVIDER: mock
+      AI_PROVIDER: mock
+      PORT: "4000"
+      SKIP_MIGRATIONS: "true"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      BANK_ALFALAH_MPGS_ENABLED: "true"
+      BANK_ALFALAH_MPGS_BASE_URL: https://test-bankalfalah.gateway.mastercard.com
+      BANK_ALFALAH_MPGS_API_VERSION: "100"
+      # Non-secret, per docs/payments/bank-alfalah-mastercard evidence.
+      BANK_ALFALAH_MPGS_MERCHANT_NAME: "Global Industrial Suppliers"
+      # A local, safe, non-production route -- never marks payment successful
+      # by itself (the app only ever trusts a server-side Retrieve Order
+      # match, never a browser return).
+      BANK_ALFALAH_MPGS_RETURN_URL: http://127.0.0.1:5173/checkout/return
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required secrets are present (names only, no values)
+        run: |
+          missing=0
+          for name in MERCHANT_ID API_PASSWORD; do
+            value="${!name}"
+            if [ -z "$value" ]; then
+              echo "MISSING required secret: $name"
+              missing=1
+            else
+              echo "present: $name"
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::One or more required GitHub secrets are absent. Failing closed before any network call."
+            exit 1
+          fi
+        env:
+          MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          API_PASSWORD: ${{ secrets.API_PASSWORD }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+
+      - name: Apply migrations to the disposable Postgres service
+        working-directory: apps/api
+        run: npx prisma migrate deploy
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Start real API server (real bank sandbox host, real secrets)
+        working-directory: .
+        env:
+          BANK_ALFALAH_MPGS_MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          BANK_ALFALAH_MPGS_API_PASSWORD: ${{ secrets.API_PASSWORD }}
+          BANK_ALFALAH_MPGS_OPERATOR_ID: ${{ secrets.OPERATOR_ID }}
+        run: |
+          npx tsx apps/api/src/index.ts > /tmp/api-server.log 2>&1 &
+          echo $! > /tmp/api.pid
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4000/api/health && break
+            sleep 1
+          done
+
+      - name: Start real web app
+        working-directory: apps/web
+        run: |
+          npx vite --port 5173 --strictPort --host 127.0.0.1 > /tmp/web-server.log 2>&1 &
+          echo $! > /tmp/web.pid
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:5173/ && break
+            sleep 1
+          done
+
+      - name: Run the one live-sandbox Playwright test (exactly one real click)
+        working-directory: apps/web
+        run: npx playwright test --config=playwright.live-app.config.ts
+
+      - name: Extract sanitized request/result summary from API server log
+        if: always()
+        run: |
+          echo "=== Bank Alfalah MPGS: sanitized request/result summary ===" > /tmp/baf-live-summary.txt
+          grep "Bank Alfalah MPGS:" /tmp/api-server.log >> /tmp/baf-live-summary.txt || echo "(no MPGS log lines found)" >> /tmp/baf-live-summary.txt
+          echo "" >> /tmp/baf-live-summary.txt
+          call_count=$(grep -c "Bank Alfalah MPGS: initiateHostedCheckout request" /tmp/api-server.log || true)
+          echo "initiateHostedCheckout call count: ${call_count}" >> /tmp/baf-live-summary.txt
+          cat /tmp/baf-live-summary.txt
+
+      - name: Assert exactly one real gateway call was made
+        if: always()
+        run: |
+          call_count=$(grep -c "Bank Alfalah MPGS: initiateHostedCheckout request" /tmp/api-server.log || true)
+          if [ "$call_count" != "1" ]; then
+            echo "::error::Expected exactly 1 initiateHostedCheckout call, found ${call_count}"
+            exit 1
+          fi
+          echo "confirmed: exactly 1 real gateway call"
+
+      - name: Sanitize evidence (defense-in-depth secret scrub before upload)
+        if: always()
+        run: |
+          for f in /tmp/api-server.log /tmp/baf-live-summary.txt; do
+            if [ -f "$f" ]; then
+              sed -i "s/${BANK_ALFALAH_MPGS_API_PASSWORD}/[REDACTED]/g" "$f" 2>/dev/null || true
+            fi
+          done
+        env:
+          BANK_ALFALAH_MPGS_API_PASSWORD: ${{ secrets.API_PASSWORD }}
+
+      - name: Render sanitized summary as a screenshot
+        if: always()
+        working-directory: apps/web
+        run: node scripts/render-text-as-png.mjs /tmp/baf-live-summary.txt /tmp/baf-live-gateway-sanitized.png
+
+      - name: Stop background processes
+        if: always()
+        run: |
+          for f in /tmp/api.pid /tmp/web.pid; do
+            if [ -f "$f" ]; then kill "$(cat "$f")" 2>/dev/null || true; fi
+          done
+
+      - name: Upload live-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bank-alfalah-mpgs-live-evidence
+          path: |
+            apps/web/test-results-live/**
+            apps/web/playwright-report-live/**
+            /tmp/api-server.log
+            /tmp/baf-live-summary.txt
+            /tmp/baf-live-before-click.png
+            /tmp/baf-live-after-click.png
+            /tmp/baf-live-gateway-sanitized.png
+          retention-days: 30
+          if-no-files-found: warn
