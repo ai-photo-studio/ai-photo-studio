@@ -412,3 +412,26 @@ reissued credential is provisioned for REST API access (distinct from
 portal login), and confirm `/session` vs `/order/{id}/transaction` as the
 intended entry point. Once done, the existing CI `live` job performs the
 retest end to end with no new infrastructure.
+
+## 24. R9.2-MERGE-P141-AND-FINAL-BANK-ALFALAH-SUPPORT-PACKET (2026-08-05)
+
+PR #141 merged (`f6c0a0a`). Confirmed exactly one live actual-app request
+has ever been made across every MPGS workflow (run `31042211650`); none
+since. Assembled a sanitized support package outside the repository
+(`D:\Temp\claude\evidence\baf-final-support\`: 3 visually-verified
+secret-free screenshots, the contract comparison, request/response
+summaries, and a draft-only email requesting password reissue + REST
+permission confirmation + endpoint confirmation -- not production
+credentials, not sent). Added
+`R9.2_MPGS_SANDBOX_TO_PRODUCTION_PROCEDURE.md`: the exact 8-step sequence
+for after the bank resolves sandbox access (one CI live run requiring real
+2xx+session.id; one sandbox test-card transaction; mandatory server-side
+Retrieve Order verification including 3DS; re-proven duplicate-event
+idempotency against real payload shapes; inform bank of UAT pass; request
+production go-live checklist; one bank-approved low-value production
+transaction before public launch).
+
+No code changed. `P4C_MPGS_AUTH_VERIFIED` still not achieved;
+`BANK_ALFALAH_MPGS_ENABLED` remains `false`. Launch blocker unchanged and
+now fully packaged for the owner to hand to Bank Alfalah at their
+discretion.
