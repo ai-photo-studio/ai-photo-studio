@@ -25,6 +25,8 @@ screenshots/
 apps/web/playwright-report/
 apps/web/test-results/
 apps/web/test-results-dryrun/
+apps/web/playwright-report-live/
+apps/web/test-results-live/
 BACKGROUND_REMOVAL_QUALITY_REPORT.md
 BACKGROUND_REMOVAL*.md
 *_SCREENSHOT*.png

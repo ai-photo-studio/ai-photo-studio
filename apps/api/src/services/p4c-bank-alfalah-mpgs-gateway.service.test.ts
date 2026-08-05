@@ -196,6 +196,32 @@ test("initiateHostedCheckout returns session id and successIndicator on success"
 // outgoing request now matches that contract exactly.
 // ---------------------------------------------------------------------------
 
+test("initiateHostedCheckout's new observability log lines (success and failure) never contain the API password or the Authorization header value", async () => {
+  const capturedLogs: string[] = [];
+  const originalLog = console.log;
+  const originalError = console.error;
+  console.log = (...args: unknown[]) => capturedLogs.push(args.map(String).join(" "));
+  console.error = (...args: unknown[]) => capturedLogs.push(args.map(String).join(" "));
+  try {
+    const gwOk = new BankAlfalahMpgsGateway(baseConfig, fakeFetchJson(200, { session: { id: "s1" }, successIndicator: "ind1" }));
+    await gwOk.initiateHostedCheckout({ orderId: "order-log-1", amountMinor: 150000n, currency: "PKR", returnUrl: "http://127.0.0.1/return" });
+
+    const gwFail = new BankAlfalahMpgsGateway(baseConfig, fakeFetchJson(401, { error: "bad" }));
+    await assert.rejects(() =>
+      gwFail.initiateHostedCheckout({ orderId: "order-log-2", amountMinor: 150000n, currency: "PKR", returnUrl: "http://127.0.0.1/return" })
+    );
+  } finally {
+    console.log = originalLog;
+    console.error = originalError;
+  }
+
+  const allLogText = capturedLogs.join("\n");
+  assert.ok(allLogText.includes("initiateHostedCheckout"), "expected log lines were not captured");
+  assert.doesNotMatch(allLogText, new RegExp(baseConfig.apiPassword));
+  const expectedAuthHeader = buildMpgsAuthHeader(baseConfig);
+  assert.doesNotMatch(allLogText, new RegExp(expectedAuthHeader.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
 test("initiateHostedCheckout sends POST to /merchant/{id}/session with interaction.merchant.name (bank v100 contract)", async () => {
   let capturedUrl = "";
   let capturedMethod = "";

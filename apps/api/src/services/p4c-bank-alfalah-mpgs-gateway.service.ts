@@ -42,6 +42,7 @@ import {
   type VerifiedPaymentEvidence
 } from "./p4a-payment-verified-execution-queue.service";
 import type { FixedOrderCurrency } from "../domain/fixedOrder/fixedOrderGuards";
+import { logger } from "../utils/logger";
 
 // ---------------------------------------------------------------------------
 // Currency gating -- PKR and USD are independently gated. A currency is only
@@ -258,6 +259,18 @@ export class BankAlfalahMpgsGateway {
     const url = `${restBaseUrl(this.config)}/session`;
     const majorAmount = (Number(params.amountMinor) / 100).toFixed(2);
 
+    // Observability only -- method/path/currency/order-id-length, never a
+    // header or body value. Lets CI (and production) count real gateway
+    // calls and produce a sanitized audit trail without ever risking a
+    // secret in a log line.
+    logger.info("Bank Alfalah MPGS: initiateHostedCheckout request", {
+      method: "POST",
+      path: `/session`,
+      apiVersion: this.config.apiVersion,
+      currency: params.currency,
+      orderIdLength: params.orderId.length
+    });
+
     const response = await this.fetchImpl(url, {
       method: "POST",
       headers: {
@@ -284,6 +297,10 @@ export class BankAlfalahMpgsGateway {
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
+      logger.warn("Bank Alfalah MPGS: initiateHostedCheckout failed", {
+        status: response.status,
+        detail: describeFailedMpgsResponse(response)
+      });
       throw new Error(
         `Bank Alfalah MPGS initiateHostedCheckout failed with status ${response.status} (${describeFailedMpgsResponse(response)})`
       );
@@ -291,8 +308,16 @@ export class BankAlfalahMpgsGateway {
     const sessionId = (body as { session?: { id?: string } })?.session?.id;
     const successIndicator = (body as { successIndicator?: string })?.successIndicator;
     if (!sessionId || !successIndicator) {
+      logger.warn("Bank Alfalah MPGS: initiateHostedCheckout response missing session id or successIndicator", {
+        status: response.status
+      });
       throw new Error("Bank Alfalah MPGS initiateHostedCheckout response missing session id or successIndicator");
     }
+    logger.info("Bank Alfalah MPGS: initiateHostedCheckout succeeded", {
+      status: response.status,
+      sessionIdPresent: true,
+      sessionIdLength: sessionId.length
+    });
     return { sessionId, successIndicator, raw: body };
   }
 
