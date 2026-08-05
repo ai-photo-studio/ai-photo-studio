@@ -1669,3 +1669,210 @@ customer routes hardened with the existing `RequireAuth` mechanism. One
 genuine page-load-triggered auto-dispatch defect found and repaired. 36/36
 browser tests, 5/5 focused backend suites, lint/typecheck/build/Prisma all
 clean. No RunPod/MPGS/deployment/product-scope-expansion change.
+
+## 18. R9.2-MERGE-P129-AND-P6B-APPROVED-OFFER-WIRING (2026-08-05)
+
+Branch: `feat/r9.2-p6b-approved-offer-wiring`, from a clean worktree
+(`D:\Temp\r92-p6b-approved-offer-wiring`) built off updated `origin/main`
+(after the PR #129 merge below). This section is a dated amendment,
+appended per the Protected Scope Protocol; nothing in sections 1–17 was
+changed.
+
+### 18.1 PR #129 merge
+
+PR #129 (`feat/r9.2-p6a-customer-route-hardening`, head
+`62531cc33b4c3b9f1e54cd53a5e6d45db88456fe`) was re-verified: `state: OPEN`,
+`mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, no configured checks;
+files matched the expected P6A set exactly. The existing focused P6A
+browser suite (36/36) and backend suite (11/11) were re-run and passed
+before merge. Merged normally (`gh pr merge 129 --merge
+--delete-branch=false`). **Merge commit: `f76a3c4f8c2c1b9f94b1def65767ab27d4775212`.**
+
+### 18.2 Flow inspected before wiring
+
+Read the schema, domain guards, ownership utilities, and pricing modules
+directly rather than trusting the ignored audit file's prose. Found: the
+`FixedOrder`/`FixedOrderItem`/`RestorationDraft` Prisma models, the pure
+domain guards (`fixedOrderGuards.ts`), the ownership helpers
+(`assertOwnership`/`actorFromRequest`), and the pricing stack
+(`priceBook.ts`, `offerProvider.ts`, `approvedOfferProvider.ts`,
+`priceBookValidator.ts`) all already existed and were already tested in
+isolation -- but **no controller, route, or service anywhere in this
+repository had ever called any of them together**. `FixedOrder`'s own
+schema comment already named the intended path,
+`POST /api/fixed-orders/restoration-digital`, but it did not exist.
+Building the smallest service+controller+route that actually calls this
+existing, already-tested domain logic is therefore new code, not a
+duplicate of anything -- there was nothing to reuse at the HTTP layer, only
+domain logic to wire.
+
+### 18.3 What was built (smallest change)
+
+- `apps/api/src/services/fixed-order.service.ts` (new) --
+  `FixedOrderService.createRestorationDigitalOrder(input, actor)`. Reads
+  only `draftId`/`tier` from its input. Resolves market/currency from the
+  caller's own, already-owned `RestorationDraft` (never from the request).
+  Defaults to `ApprovedOfferProvider`; a provider override exists only so a
+  test can inject `FixtureOfferProvider` and prove it is rejected/never
+  approved -- no production code path overrides it. Persists exactly one
+  `FixedOrder` + one `FixedOrderItem` in a `prisma.$transaction`, with the
+  exact PriceBook snapshot (`priceBookVersion`, `priceBookApprovalReference`,
+  `priceBookEffectiveAt`) and `pricingApproved`/`pricingSource` set from the
+  resolved offer's own `source` field -- never hardcoded `true`. Idempotent
+  via the pre-existing `FixedOrder.sourceDraftId` unique index: a repeat
+  call (including a real concurrent race) re-reads and returns the winning
+  order rather than erroring, following the exact
+  try/catch-P2002/converge-after-conflict shape already established in
+  `p4a-payment-verified-execution-queue.service.ts`.
+- `apps/api/src/controllers/fixed-order.controller.ts` (new) -- reads only
+  `req.body.draftId`/`req.body.tier`; any other field a caller attaches is
+  never read. Always constructs `FixedOrderService` with its default
+  provider.
+- `apps/api/src/routes/restoration.routes.ts` (modified, additive) -- one
+  new route, `router.post("/fixed-orders/restoration-digital", ...)`,
+  added to the **existing** restoration router (no new router file, no new
+  `app.use` mount). Rate-limited identically to the other write routes in
+  this file.
+
+No Prisma schema or migration change was needed -- every field this packet
+writes to already existed from R9.2-P0A/P1A/P1B/P1C-B.
+
+### 18.4 Guarantees (by construction + test)
+
+- Production order creation uses `ApprovedOfferProvider` exclusively;
+  `FixtureOfferProvider` cannot be selected by any production request path
+  (no request field selects a provider at all).
+- Supports approved PKR and USD ORIGINAL/2HD/4HD prices from
+  `PB-2026-08-03-v1`; `automaticFxAllowed` is never read or acted on by this
+  service (no FX conversion of any kind occurs).
+- The client can select a tier; it cannot supply amount, currency, PriceBook
+  version, pricing source, or approval state -- none of these fields exist
+  on the service's input type, so a forged value attached to the request
+  object is structurally unreadable, not merely validated-away.
+- The server persists the exact PriceBook snapshot (version, approval
+  reference, effective-at) at creation time, never recomputed later.
+- Every approved order item is stored with `pricingApproved: true` and
+  `pricingSource: "approved_pricebook"`; a `local_fixture`-priced item is
+  always stored with `pricingApproved: false` -- proven by test, not just
+  asserted in a comment.
+- Fails closed (`422`, before any database write) on an invalid tier or an
+  invalid/missing market-currency pairing on the draft.
+- Immutability and idempotency are enforced by the pre-existing
+  `FixedOrder.sourceDraftId` unique index, unchanged.
+- Ownership reuses the existing `assertOwnership`/`actorFromRequest`
+  helpers verbatim: a wrong-owner request and a nonexistent-draft request
+  produce an identical 404, enumeration-safe.
+- Order creation stops before checkout/payment: zero `PaymentAttempt`,
+  `PaymentEvent`, `RestorationEntitlement`, `RestorationMaster`, or
+  `ReplicateExecution` row is ever created by this code path.
+- No MPGS checkout route was created;
+  `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains open,
+  untouched. RunPod was not read for modification and was not touched.
+
+### 18.5 Test evidence
+
+New, against a disposable local PostgreSQL 17 (loopback-only, random port,
+`pg_hba.conf` set to `trust` for this throwaway cluster only,
+`DATABASE_URL`/`DISPOSABLE_DATABASE_URL` passed only as process environment
+variables, never written to `.env`):
+
+| Suite | Result |
+|---|---|
+| `fixed-order.service.test.ts` (unit, no DB) | **3/3 pass** |
+| `fixed-order.service.pg-race.test.ts` (real disposable PG 17) | **14/14 pass** |
+
+The 14 pg-race tests prove: Pakistan ORIGINAL creates the correct PKR
+approved order (`25000`, `pricingApproved: true`, `PB-2026-08-03-v1`
+snapshot persisted); International 2HD creates the correct USD approved
+order (`250`); 4HD uses the exact server price for both markets (`50000` /
+`350`); forged `amountMinor`/`currency`/`priceBookVersion`/`pricingSource`/
+`pricingApproved` fields attached to the request are ignored -- the
+server-resolved PKR/`25000`/`PB-2026-08-03-v1`/`approved_pricebook` values
+win every time; an explicitly test-injected `FixtureOfferProvider` order is
+always persisted with `pricingApproved: false` and no PriceBook snapshot;
+an invalid market/currency and an invalid tier each fail closed with zero
+`FixedOrder` rows written; a sequential repeat submission (a page
+refresh) reuses the same immutable order even when a different tier is
+requested the second time; two REAL concurrent submissions for the same
+draft converge on exactly one `FixedOrder` row; a wrong-owner request and a
+nonexistent-draft request produce byte-identical 404 evidence; zero
+`PaymentAttempt`/`PaymentEvent`/`RestorationEntitlement`/
+`RestorationMaster`/`ReplicateExecution` rows are ever created; zero
+external network calls; full teardown.
+
+Regression (each run in its own isolated `npx tsx --test` invocation --
+running all pg-race files in one glob invocation causes cross-file state
+interference on the shared disposable database and is not this suite's
+supported invocation shape, confirmed by re-running each file alone
+afterward with the same disposable instance and seeing every test pass):
+
+| Suite | Result |
+|---|---|
+| `p3a-replicate-execution-worker.pg-race.test.ts` | **10/10 pass** (unmodified) |
+| `p4a-payment-verified-execution-queue.service.pg-race.test.ts` | **14/14 pass** (unmodified) |
+| `p4b-internal-worker-runner.service.pg-race.test.ts` | **10/10 pass** (unmodified) |
+| `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` | **6/6 pass** (unmodified) |
+| `sharp-variant.service.pg-race.test.ts` (P5B) | **3/3 pass** (unmodified) |
+| All other `*.test.ts` (non-DB, run together): domain/pricing (PriceBook,
+  offerProvider, fixedOrderGuards, paymentReadiness), P3A unit, P4C/P4C2
+  MPGS unit, restoration domain/customer/view/entitlement, guest-ownership,
+  admin-auth middleware, image-binary, RunPod isolation/budget/dev-config,
+  utils | **143/143 pass** (unmodified) |
+| `p4c2-mpgs-provisioning-config-diagnostic.test.ts` (vitest, not `node:test`) | **14/14 pass** (unmodified) |
+| `npx playwright test tests/browser` (P5A + P6A) | **36/36 pass** (unmodified) |
+
+Full workspace:
+
+| Command | Exit |
+|---|---|
+| `npm run lint` | 0 — 0 errors, 89 pre-existing warnings (unchanged count) |
+| `npm run typecheck` (api + web) | 0 |
+| `npm run build` (api + web) | 0 |
+| `npx prisma validate` | 0 |
+| `npx prisma generate` | 0 |
+| `git diff --check` | 0 (clean) |
+| `git diff --cached --check` | 0 (clean) |
+
+**Repair note**: the full-workspace non-DB test run also passed through
+this repository's pre-existing RunPod test suite, which writes disposable
+scratch fixture files (`apps/api/runpod-worker-dev/worker-request.json`,
+`worker-corrupt.json`) as a side effect of running. These were unstaged and
+deleted before commit -- RunPod source and behavior were not read for
+modification, not touched, and remain unauthorized for any change, exactly
+as this task required.
+
+### 18.6 Disposable PostgreSQL cleanup proof
+
+`pg_ctl -m fast -w stop` → `"server stopped"`. The exact `postmaster.pid`
+first line was captured before stop; `Get-Process` on that PID afterward
+returned nothing -- process confirmed gone. `Test-NetConnection` on the
+chosen port afterward reported `TcpTestSucceeded: False` -- port confirmed
+free. The random initial `pwfile.txt` password was deleted immediately
+after `initdb`, before the cluster was even started (the cluster then ran
+with a throwaway, this-session-only `trust` rule for loopback connections
+only). The entire temporary data directory was deleted afterward;
+`Test-Path` on it returned `False` -- confirmed absent. No real/system
+PostgreSQL installation was touched at any point.
+
+### 18.7 Scope boundary (explicitly not built)
+
+No customer-facing "review" UI exists anywhere in this repository to wire
+server minor-unit pricing display into -- the upload/draft-creation flow
+itself has no route or page either (a pre-existing gap, not introduced or
+closed by this packet). Building one was out of this task's "smallest
+change" scope. The new endpoint's response already carries the exact
+server minor-unit price (`totalAmountMinor` as a string, plus
+`pricingApproved`/`pricingSource`/PriceBook snapshot fields) for whenever
+such a UI is built; this is recorded as a remaining gap, not fabricated
+around.
+
+### 18.8 Result
+
+PR #129 merged (`f76a3c4f8c2c1b9f94b1def65767ab27d4775212`). Approved
+PriceBook pricing is now reachable end-to-end via
+`POST /api/fixed-orders/restoration-digital`, server-owned, fail-closed,
+idempotent, enumeration-safe, and stops before any payment/execution row.
+14/14 new pg-race tests, 3/3 new unit tests, 5 unmodified pg-race
+regressions, 143/143 non-DB regressions, 14/14 vitest regression, 36/36
+browser regressions all pass. Lint/typecheck/build/Prisma/git-diff all
+clean. No RunPod, MPGS checkout, deployment, or production-database change.

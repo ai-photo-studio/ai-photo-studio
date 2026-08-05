@@ -541,3 +541,44 @@ section is additive; every rule above it remains in force verbatim.
   Replicate/R2/RunPod/MPGS network call, or destructive Git operation
   occurred. Full test/command evidence:
   `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (R9.2-P6A section).
+
+### R9.2-MERGE-P129-AND-P6B-APPROVED-OFFER-WIRING: PR #129 merged; approved pricing wired into FixedOrder (2026-08-05)
+
+Added by the R9.2-MERGE-P129-AND-P6B-APPROVED-OFFER-WIRING packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #129 (`feat/r9.2-p6a-customer-route-hardening`, head
+  `62531cc33b4c3b9f1e54cd53a5e6d45db88456fe`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, expected P6A files only, no secret/deployment/
+  MPGS/RunPod/unrelated change, no required failing check; existing focused
+  P6A tests re-run and passed) and merged normally. Merge commit:
+  `f76a3c4f8c2c1b9f94b1def65767ab27d4775212`.
+- **Permanent rule — approved-offer wiring boundary**:
+  `POST /api/fixed-orders/restoration-digital`
+  (`apps/api/src/services/fixed-order.service.ts` +
+  `apps/api/src/controllers/fixed-order.controller.ts`, mounted on the
+  existing `restoration.routes.ts` router) is the only route permitted to
+  create a `FixedOrder`/`FixedOrderItem` from a customer's draft. It must
+  always default to `ApprovedOfferProvider`; `FixtureOfferProvider` may
+  only ever be reached by a test explicitly injecting it, never by any
+  production request path (no request field selects a provider). Every
+  `pricingApproved: true` item must carry `pricingSource: "approved_pricebook"`
+  and the exact `PB-2026-08-03-v1` (or successor) PriceBook snapshot; a
+  `local_fixture`-priced item must never be marked `pricingApproved: true`.
+  The client may supply only `draftId` and `tier` -- amount, currency,
+  PriceBook version, pricing source, and approval state must never be
+  accepted from a request.
+- **Permanent rule — order creation stops before payment**: this endpoint,
+  and any successor route that creates a `FixedOrder`, must never create a
+  `PaymentAttempt`, `PaymentEvent`, `RestorationEntitlement`,
+  `RestorationMaster`, or `ReplicateExecution` row. Those remain owned
+  exclusively by the existing P4A verified-payment transaction boundary
+  (`p4a-payment-verified-execution-queue.service.ts`) and the P4B worker
+  runner.
+- No MPGS checkout route was created; `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+  remains open, unchanged. RunPod was not read for modification and remains
+  untouched (a RunPod test suite incidentally wrote disposable scratch
+  fixture files during the full regression sweep; these were unstaged and
+  deleted before commit, not committed). Full test/command evidence:
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (R9.2-P6B section) and
+  `docs/restoration/P6B_APPROVED_OFFER_WIRING_PROTOCOL.md`.
