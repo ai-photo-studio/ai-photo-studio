@@ -125,6 +125,7 @@ const bootstrap = async () => {
           { name: "orders-read", path: "/api/orders/:orderNo" },
           { name: "orders-images", path: "/api/orders/:orderNo/images" },
           { name: "orders-checkout", path: "/api/orders/:orderNo/checkout" },
+          { name: "orders-payment-status", path: "/api/orders/:orderNo/payment-status" },
           { name: "orders-web-upload", path: "/api/orders/:orderNo/web-upload" },
           { name: "monitoring-health", path: "/api/monitoring/health" },
           { name: "monitoring-queue", path: "/api/monitoring/queue" },

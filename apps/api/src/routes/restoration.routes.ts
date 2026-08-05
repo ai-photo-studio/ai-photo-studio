@@ -5,12 +5,14 @@ import { RestorationCustomerController } from "../controllers/restoration-custom
 import { FixedOrderController } from "../controllers/fixed-order.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { rateLimit } from "../middleware/rate-limit.middleware";
+import { CustomerCheckoutController } from "../controllers/customer-checkout.controller";
 
 export const createRestorationRouter = (config: AppConfig): Router => {
   const router = Router();
   const controller = new RestorationController(config);
   const customerController = new RestorationCustomerController(config);
   const fixedOrderController = new FixedOrderController();
+  const checkoutController = new CustomerCheckoutController(config);
 
   router.post("/restorations", rateLimit(60_000, 10), controller.createOrder);
   router.get("/restorations", requireAuth(config), controller.listOrders);
@@ -30,6 +32,8 @@ export const createRestorationRouter = (config: AppConfig): Router => {
     fixedOrderController.createRestorationDigitalOrder
   );
   router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
+  router.post("/orders/:orderNo/checkout", rateLimit(60_000, 20), checkoutController.create);
+  router.get("/orders/:orderNo/payment-status", rateLimit(60_000, 60), checkoutController.status);
 
   return router;
 };

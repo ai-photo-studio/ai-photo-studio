@@ -2223,3 +2223,11 @@ PID stopped, port freed, data directory deleted, confirmed after each use),
 1/1 legacy-APG-retired scan test. API and web `typecheck` clean, API build
 clean, `prisma validate`/`generate` clean. No RunPod, no production
 credential, no card data, no capture, at any point in this session.
+
+## R9.2-P4D Checkout Foundation (2026-08-05)
+
+- Added only the explicit-button customer checkout boundary on POST /api/orders/:orderNo/checkout and read-only GET /api/orders/:orderNo/payment-status.
+- The request body contract is orderNo only. The server reloads and ownership-checks the immutable FixedOrder, amount, currency, and approved PriceBook snapshot.
+- Provider readiness is fail-closed: disabled MPGS returns PAYMENT_PROVIDER_UNAVAILABLE before PaymentAttempt creation or any external request.
+- Existing FixedOrder, PaymentAttempt, P4C gateway, and P4A verification boundaries are reused. No webhook/browser-return state mutation, card handling, capture, production activation, RunPod, schema, or migration change was made.
+- Verification: API/web typecheck and builds, lint, Prisma validate, payment-readiness/domain/P1B focused tests passed. Disposable PostgreSQL race, full browser suite, and live-provider checks were not run without approved disposable database/browser infrastructure and remain blockers.
