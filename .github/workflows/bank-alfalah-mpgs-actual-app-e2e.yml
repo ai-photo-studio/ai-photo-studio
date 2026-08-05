@@ -104,6 +104,7 @@ jobs:
       STUB_PORT: "4600"
       STUB_MODE: success
       STUB_LOG_FILE: /tmp/mpgs-stub-log.jsonl
+      SCREENSHOT_DIR: /tmp/dryrun-screenshots
     steps:
       - uses: actions/checkout@v4
 
@@ -125,6 +126,9 @@ jobs:
       - name: Install Playwright Chromium
         working-directory: apps/web
         run: npx playwright install --with-deps chromium
+
+      - name: Create screenshot output directory
+        run: mkdir -p /tmp/dryrun-screenshots
 
       - name: Start local stub MPGS gateway
         working-directory: apps/api
@@ -192,10 +196,10 @@ jobs:
           name: bank-alfalah-mpgs-dryrun-evidence
           path: |
             apps/web/test-results-dryrun/**
-            apps/web/playwright-report/**
             /tmp/api-server.log
             /tmp/stub-server.log
             /tmp/mpgs-stub-log.jsonl
+            /tmp/dryrun-screenshots/**
           retention-days: 14
           if-no-files-found: warn
 

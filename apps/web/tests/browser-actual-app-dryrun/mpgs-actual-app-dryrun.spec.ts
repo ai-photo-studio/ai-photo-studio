@@ -13,9 +13,17 @@
 import { test, expect, blockExternalNetwork } from "../browser/fixtures/index";
 import { tinyPngPath } from "../browser/fixtures/mvp";
 import * as fs from "node:fs";
+import * as path from "node:path";
 
 const STUB_CONTROL_URL = "http://127.0.0.1:4600/__control/set-mode";
 const STUB_LOG_FILE = process.env.STUB_LOG_FILE || "D:\\Temp\\claude\\evidence\\stub-gateway-log.jsonl";
+// Platform-portable: local Windows dev keeps the existing scratchpad
+// convention by default; CI sets SCREENSHOT_DIR to a real path on the
+// runner (see bank-alfalah-mpgs-actual-app-e2e.yml) so these land inside
+// the uploaded artifact instead of silently failing to resolve a
+// Windows-style path on a Linux runner.
+const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || "D:\\Temp\\claude\\evidence";
+const screenshotPath = (name: string) => path.join(SCREENSHOT_DIR, name);
 
 async function setStubMode(mode: string): Promise<void> {
   const res = await fetch(STUB_CONTROL_URL, {
@@ -73,7 +81,7 @@ test.describe("R9.2-MPGS-ACTUAL-APP-E2E dry run: real app, real API, real dispos
     await expect(page.getByText("Original", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Pay securely" })).toBeVisible();
 
-    await page.screenshot({ path: "D:\\Temp\\claude\\evidence\\baf-app-dryrun-before.png", fullPage: true });
+    await page.screenshot({ path: screenshotPath("baf-app-dryrun-before.png"), fullPage: true });
 
     // Screenshot-timing aid ONLY (does not touch the checkout logic, the
     // gateway call, or any response content): the real local checkout POST
@@ -92,7 +100,7 @@ test.describe("R9.2-MPGS-ACTUAL-APP-E2E dry run: real app, real API, real dispos
 
     await page.getByRole("button", { name: "Pay securely" }).click();
     await expect(page.getByRole("button", { name: "Starting checkout..." })).toBeVisible({ timeout: 5_000 });
-    await page.screenshot({ path: "D:\\Temp\\claude\\evidence\\baf-app-dryrun-success.png", fullPage: true });
+    await page.screenshot({ path: screenshotPath("baf-app-dryrun-success.png"), fullPage: true });
 
     await expect
       .poll(() => readStubLog().filter((e) => e.method === "POST" && e.url.endsWith("/session")).length, { timeout: 10_000 })
@@ -182,7 +190,7 @@ test.describe("R9.2-MPGS-ACTUAL-APP-E2E dry run: real app, real API, real dispos
       await expect(page.getByRole("button", { name: "Pay securely" })).toBeVisible({ timeout: 10_000 });
 
       if (scenario.mode === "400") {
-        await page.screenshot({ path: "D:\\Temp\\claude\\evidence\\baf-app-dryrun-error.png", fullPage: true });
+        await page.screenshot({ path: screenshotPath("baf-app-dryrun-error.png"), fullPage: true });
       }
 
       const entries = readStubLog();
