@@ -34,6 +34,16 @@ export class FixedOrderController {
     }
   };
 
+  /** GET /api/fixed-orders/:orderNo -- read-only. */
+  getByOrderNo = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.fixedOrders.getByOrderNo(req.params.orderNo, actorFromRequest(req));
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   private handleError(res: Response, error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ success: false, code: error.code, message: error.message });

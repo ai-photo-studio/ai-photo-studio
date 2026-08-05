@@ -229,5 +229,83 @@ export const customerApi = {
       `/api/restorations/${orderId}/items/${itemId}/quality-analysis`,
       { method: "POST", body: "{}" },
       token
-    )
+    ),
+
+  // R9.2-P6C-CUSTOMER-MVP-FLOW: market selection -> upload -> RestorationDraft
+  // -> signed preview -> server offers -> FixedOrder -> review. Every call
+  // below is explicit-button-triggered from the calling page; none run on
+  // mount/refresh by themselves.
+  createRestorationDraft: (
+    token: string | undefined,
+    input: { fileName: string; contentType: string; bodyBase64: string; country: string; confirmed: true }
+  ) =>
+    apiRequest<RestorationDraftSummary & { guestOwnershipToken?: string }>(
+      "/api/restoration-drafts",
+      { method: "POST", body: JSON.stringify(input) },
+      token
+    ),
+
+  getRestorationDraft: (token: string | undefined, draftId: string, guestToken?: string) =>
+    apiRequest<RestorationDraftSummary & { previewUrl: string }>(
+      `/api/restoration-drafts/${draftId}`,
+      {},
+      token,
+      guestToken
+    ),
+
+  getRestorationDraftOffers: (token: string | undefined, draftId: string, guestToken?: string) =>
+    apiRequest<DigitalOfferSummary[] | { available: false; reason: string }>(
+      `/api/restoration-drafts/${draftId}/offers`,
+      {},
+      token,
+      guestToken
+    ),
+
+  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string }, guestToken?: string) =>
+    apiRequest<FixedOrderSummary>(
+      "/api/fixed-orders/restoration-digital",
+      { method: "POST", body: JSON.stringify(input) },
+      token,
+      guestToken
+    ),
+
+  getFixedOrder: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<FixedOrderSummary>(`/api/fixed-orders/${orderNo}`, {}, token, guestToken)
+};
+
+export type RestorationDraftSummary = {
+  id: string;
+  status: string;
+  market: "PAKISTAN" | "INTERNATIONAL" | null;
+  currency: "PKR" | "USD" | null;
+  country: string | null;
+  originalMimeType: string | null;
+  originalWidth: number | null;
+  originalHeight: number | null;
+  createdAt: string;
+};
+
+export type DigitalOfferSummary = {
+  tier: "ORIGINAL" | "HD_2X" | "HD_4X";
+  label: string;
+  amountMinor: number;
+  currency: "PKR" | "USD";
+  description: string;
+  source: "local_fixture" | "approved_pricebook";
+};
+
+export type FixedOrderSummary = {
+  id: string;
+  orderNo: string;
+  status: string;
+  market: "PAKISTAN" | "INTERNATIONAL";
+  currency: "PKR" | "USD";
+  tier: "ORIGINAL" | "HD_2X" | "HD_4X";
+  totalAmountMinor: string;
+  pricingSource: string;
+  pricingApproved: boolean;
+  priceBookVersion: string | null;
+  priceBookApprovalReference: string | null;
+  priceBookEffectiveAt: string | null;
+  createdAt: string;
 };

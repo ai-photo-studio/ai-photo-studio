@@ -271,3 +271,43 @@ not introduced or closed by this packet; the API response already carries
 exact server minor-unit pricing for whenever such a UI is built. Full
 record: `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 18 and
 `docs/restoration/P6B_APPROVED_OFFER_WIRING_PROTOCOL.md`.
+
+## 19. R9.2-P6C — Customer MVP flow (2026-08-05)
+
+**Historical-code audit (before writing anything new)**: `git log --all` for
+`restoration-draft.controller.ts`/`.service.ts`/`.routes.ts` and
+`FixedOrderReviewPage.tsx` found them added in exactly one commit,
+`f47b6cf` ("chore: add repository project automation files"), on the local
+branch `setup/project-automation` — a branch that diverged from `main` at
+the old PR #118 merge point (before P4B/P4C-independent-review/P4D/P5A/
+P5B/P6A/P6B ever happened) and was never merged. Its own `fixed-order.service.ts`
+(355 lines) predates and directly conflicts with the already-merged, tested
+P6B `fixed-order.service.ts` on `main`. `OriginalPreviewPage.tsx`/
+`DigitalTierSelectPage.tsx` never existed anywhere in history under those
+names. **Conclusion: this historical code is superseded, not missing by
+accident** — it was an abandoned, stale, pre-P4B alternate implementation
+that was correctly left uncherry-picked. The MVP below was built fresh
+against current `main`, reusing only the still-current, already-tested
+domain utilities (`imageValidation.ts`, `market.ts`, `ownership.ts`,
+`guest-ownership.ts`, `priceBook.ts`/`offerProvider.ts`/
+`approvedOfferProvider.ts`, and P6B's `fixed-order.service.ts` itself).
+
+**What was built**: `RestorationDraftService` (+ controller + router) wires
+`POST /api/restoration-drafts`, `GET /api/restoration-drafts/:id`, and
+`GET /api/restoration-drafts/:id/offers` — market selection (country +
+explicit confirmation, server-derived market/currency, never client-sent),
+real decode/byte validation before any storage write, signed preview URL
+(private storage key never returned), and approved-offer pricing via the
+existing `ApprovedOfferProvider`. `FixedOrderService` (P6B) gained
+`getByOrderNo` for the read-only review step
+(`GET /api/fixed-orders/:orderNo`). Four new web pages
+(`RestorationUploadPage`, `OriginalPreviewPage`, `DigitalTierSelectPage`,
+`FixedOrderReviewPage`) implement the explicit-button flow: upload only on
+button click; preview/tiers/review are GET-only on mount and refresh; order
+creation only on button click; review shows server market/currency/tier/
+amount/PriceBook version and a truthful "payment not yet available" state
+(no MPGS checkout route was added). No PaymentAttempt, execution,
+Replicate, or Sharp call occurs anywhere in this flow.
+
+Full record: `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 19
+and `docs/restoration/P6C_CUSTOMER_MVP_FLOW_PROTOCOL.md`.

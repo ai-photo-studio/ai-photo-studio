@@ -341,6 +341,47 @@ test("(q11) out-of-scope tables are never touched: no PaymentAttempt/PaymentEven
   assert.deepEqual(after, baselineOutOfScope, "order creation must never touch payment/entitlement/execution tables");
 });
 
+test("(q11a) R9.2-P6C: getByOrderNo returns the server review view (amount, market, tier, PriceBook version)", async () => {
+  const { FixedOrderService } = await loadServiceModule();
+  const service = new FixedOrderService();
+  const { draft, guestToken } = await seedDraft("review-view");
+
+  const created = await service.createRestorationDigitalOrder({ draftId: draft.id, tier: "HD_2X" }, { guestToken });
+  createdOrderIds.push(created.id);
+
+  const reviewed = await service.getByOrderNo(created.orderNo, { guestToken });
+  assert.equal(reviewed.id, created.id);
+  assert.equal(reviewed.market, "PAKISTAN");
+  assert.equal(reviewed.currency, "PKR");
+  assert.equal(reviewed.tier, "HD_2X");
+  assert.equal(reviewed.totalAmountMinor, "35000");
+  assert.equal(reviewed.priceBookVersion, "PB-2026-08-03-v1");
+});
+
+test("(q11b) R9.2-P6C: getByOrderNo wrong-owner and nonexistent orderNo produce an identical enumeration-safe 404", async () => {
+  const { FixedOrderService } = await loadServiceModule();
+  const service = new FixedOrderService();
+  const { draft, guestToken } = await seedDraft("review-view-owner");
+  const created = await service.createRestorationDigitalOrder({ draftId: draft.id, tier: "ORIGINAL" }, { guestToken });
+  createdOrderIds.push(created.id);
+
+  const capture = async (fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+      return null;
+    } catch (err) {
+      return { status: (err as { statusCode?: number }).statusCode, code: (err as { code?: string }).code };
+    }
+  };
+
+  const wrongOwner = await capture(() => service.getByOrderNo(created.orderNo, { guestToken: "different-token" }));
+  const nonexistent = await capture(() => service.getByOrderNo("NOT-A-REAL-ORDER-NO", { guestToken: "any-token" }));
+  assert.ok(wrongOwner);
+  assert.ok(nonexistent);
+  assert.deepEqual(wrongOwner, nonexistent);
+  assert.equal(wrongOwner?.status, 404);
+});
+
 test("(q12) zero external network calls across every test in this file", () => {
   assert.equal(externalCallAttempts, 0);
 });
