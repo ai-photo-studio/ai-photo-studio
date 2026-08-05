@@ -57,7 +57,6 @@ export function RestoreOrderPage() {
   const mountedRef = useRef(true);
 
   const [_polling, setPolling] = useState(false);
-  const processingRef = useRef(false);
   const terminalRef = useRef(false);
 
   const loadOrder = useCallback(async (fromPoll = false) => {
@@ -77,20 +76,9 @@ export function RestoreOrderPage() {
       }
       const completedItem = data.items.find((item) => item.status === "COMPLETED");
       if (completedItem && !previewUrl && !previewLoading) void handlePreview(completedItem);
-      // Trigger processing for all items that are still PENDING (once only via ref)
-      if (!processingRef.current) {
-        const pendingItems = data.items.filter(i => i.status === "PENDING" || i.status === "QUEUED");
-        if (pendingItems.length > 0) {
-          processingRef.current = true;
-          for (const item of pendingItems) {
-            customerApi.processRestorationItem(token || undefined, orderId, item.id, guestToken || undefined)
-              .then(() => console.log("Process trigger success for", item.id))
-              .catch(err => {
-                console.warn("Failed to trigger processing for item", item.id, err);
-              });
-          }
-        }
-      }
+      // Read-only: page load and refresh/poll must never dispatch processing.
+      // Only the verified-payment-created internal execution and the P4B
+      // worker runner may start new restoration processing.
       // Stop polling when all items are done OR if there was an error
       const hasError = data.items.some(i => i.status === "FAILED");
       if (hasError || data.items.every(i => i.status === "COMPLETED")) {

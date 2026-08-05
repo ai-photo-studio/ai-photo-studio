@@ -24,6 +24,18 @@
 //     surface this truthfully as "pricing unavailable", never a fabricated
 //     price. Real USD pricing is an **owner-approval blocker**, recorded in
 //     AI_code_audit_report_RI.md's R9.2-P1A section.
+//
+// UPDATE (2026-08-03, R9.2-P1C-B): the above was the correct state at the
+// time this file (and its FixtureOfferProvider) was written -- it is
+// preserved verbatim as a dated historical record and must not be edited.
+// It is no longer the current state: the owner subsequently approved a real
+// PriceBook (`PB-2026-08-03-v1`, see `priceBook.ts`) covering BOTH PKR and
+// USD. `ApprovedOfferProvider` (`approvedOfferProvider.ts`) is the correct,
+// current server-owned offer provider for both markets and returns real USD
+// offers from that approved PriceBook. `FixtureOfferProvider` below is
+// retained only for tests that must exercise unapproved/local-fixture
+// pricing on purpose (e.g. proving fixture data never satisfies
+// `pricingApproved`); it must not be used as a live/production provider.
 import type { FixedOrderCurrency, Market } from "../fixedOrder/fixedOrderGuards";
 
 export type DigitalTier = "ORIGINAL" | "HD_2X" | "HD_4X";

@@ -202,3 +202,40 @@ Replicate/RunPod/deployment change. See
   references remain, lint/typecheck/build/Prisma validate all pass, P5B
   focused unit tests pass, `git diff` checks clean, zero live external
   calls made.
+
+## 17. R9.2-P6A — PriceBook reconciliation (2026-08-05)
+
+- **Verified, not changed**: the owner-approved PriceBook `PB-2026-08-03-v1`
+  in `apps/api/src/domain/pricing/priceBook.ts` matches the approved amounts
+  exactly — PKR ORIGINAL/2HD/4HD `25000`/`35000`/`50000` minor units, USD
+  ORIGINAL/2HD/4HD `150`/`250`/`350` minor units — confirmed both by direct
+  source read and by the passing `priceBook.test.ts` ("real APPROVED_PRICE_BOOKS
+  shape (1 version, 6 entries, automaticFxAllowed:false)"). The migration
+  `20260803020000_r92_p1c_b_fixed_order_pricebook_snapshot` exists and is
+  applied. No price or PriceBook behavior was changed by this packet.
+- **Stale current documentation corrected**: the `FixtureOfferProvider`
+  header comment in `apps/api/src/domain/pricing/offerProvider.ts` stated,
+  in the present tense, that "NO [USD] fixture exists" and that USD pricing
+  was an unresolved owner-approval blocker. That was accurate when P1A was
+  written but is stale now that `PB-2026-08-03-v1` (P1C-B) approved real USD
+  pricing. The original P1A text was preserved verbatim (it is a correct
+  dated historical record); a dated update note was appended directly below
+  it pointing to `ApprovedOfferProvider`/`priceBook.ts` as the current,
+  correct provider for both markets. No other file changed a substantive
+  pricing claim.
+- **Note on this plan's own frozen text**: section 5 above ("USD is derived
+  from PKR base pricing... No separate USD-only packages exist") is part of
+  this document's frozen (2026-07-28, "do not edit without board approval")
+  original business specification and was left untouched, per this
+  document's own freeze notice and this task's "preserve dated historical
+  statements unchanged" instruction. For the record: the actual owner-
+  approved PriceBook USD entries are independently set, fixed minor-unit
+  values (`automaticFxAllowed: false` at the type level) — **not**
+  FX-derived from the PKR base — which supersedes that frozen line as a
+  statement of current pricing mechanism, without editing it.
+- **Wiring note (unchanged by this packet)**: neither `FixtureOfferProvider`
+  nor `ApprovedOfferProvider` is imported by any live service, controller,
+  or route in this repository today — the digital-tier pricing/offer layer
+  remains domain-logic-only, not yet wired into a customer-facing order
+  flow. This packet did not wire it in and did not create any checkout
+  route (`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains open).

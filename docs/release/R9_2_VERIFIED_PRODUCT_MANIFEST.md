@@ -1524,3 +1524,148 @@ fast-forward. Seven duplicate documentation files retired and deleted.
 Zero active tracked references remain. Completion (this
 documentation-consolidation scope): **100%**. No RunPod, MPGS, deployment,
 or product-scope-expansion change was made.
+
+## 17. R9.2-MERGE-P128-AND-P6A-CUSTOMER-ROUTE-HARDENING (2026-08-05)
+
+Branch: `feat/r9.2-p6a-customer-route-hardening`, from a clean worktree
+(`D:\Temp\r92-p6a-customer-route-hardening`) built off updated `origin/main`
+(after the PR #128 merge below). This section is a dated amendment,
+appended per the Protected Scope Protocol; nothing in sections 1–16 was
+changed.
+
+### 17.1 PR #128 merge
+
+PR #128 (`chore/r9.2-retire-automation-docs`, head
+`8faca0851f50e23bb748b647c995d8e542ce9c01`) was re-verified: `state: OPEN`,
+`mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, no configured checks;
+`gh pr view --json files` confirmed documentation/retirement scope only
+(exactly the seven previously-retired files deleted, plus doc/rules/plan
+updates — no product, secret, deployment, MPGS, or RunPod file touched).
+Merged normally (`gh pr merge 128 --merge --delete-branch=false`). **Merge
+commit: `53d667d7fe275a03d84d9656faedd6dc0e23ffeb`.**
+
+### 17.2 PriceBook reconciliation (PB-2026-08-03-v1)
+
+Verified against `apps/api/src/domain/pricing/priceBook.ts`,
+`priceBook.test.ts`, and migration
+`20260803020000_r92_p1c_b_fixed_order_pricebook_snapshot` (applied): the
+approved PriceBook matches exactly — PKR ORIGINAL/2HD/4HD
+`25000`/`35000`/`50000` minor units, USD ORIGINAL/2HD/4HD
+`150`/`250`/`350` minor units, `automaticFxAllowed: false`. Confirmed both
+by direct source read and by `priceBook.test.ts`'s passing "real
+APPROVED_PRICE_BOOKS shape" assertion. **No price or PriceBook behavior was
+changed.**
+
+Stale documentation corrected: `apps/api/src/domain/pricing/offerProvider.ts`'s
+`FixtureOfferProvider` header comment stated, present-tense, that no USD
+fixture/pricing existed and that it was an unresolved owner-approval
+blocker — accurate when P1A was written, stale now that P1C-B approved real
+USD pricing. The original P1A text was preserved verbatim (a correct dated
+historical record); a dated update note was appended directly below it
+pointing to `ApprovedOfferProvider`/`priceBook.ts` as the current, correct
+provider for both markets. This repository's frozen business-spec plan
+document (`.kilo/plans/commerceflownew.md`, section 5, "do not edit without
+board approval") was left untouched per its own freeze notice; a new
+appended section (17) there records the reconciliation instead. Wiring
+note: neither offer-provider class is imported by any live service/route
+today — this packet did not wire pricing into a customer flow and did not
+create a checkout route.
+
+### 17.3 Customer route hardening
+
+`apps/web/src/App.tsx`: `/orders`, `/wallet`, `/payments`, `/subscription`
+(previously unauthenticated under `CustomerLayout`) are now wrapped by the
+existing `RequireAuth` component (`apps/web/src/components/RequireAuth.tsx`,
+previously built but never wired into any route). Anonymous access
+redirects to `/login` with `state: { from: location.pathname }`;
+`LoginPage.tsx` already read `location.state.from` (default `/orders`) and
+navigates there after a successful login — no new auth mechanism was
+created, only the existing one wired in. Admin routes (`RequireAdminPortal`)
+were not touched. Guest restoration routes (`/restore`, `/restore/new`,
+`/restore/:orderId`, `/restore/:orderId/status`, `/restore/:orderId/print`)
+remain on `PublicLayout`, unauthenticated by design.
+
+### 17.4 Automatic-dispatch audit and repair
+
+Audited every customer restoration page for a page-load/refresh-triggered
+processing POST. Found one: `apps/web/src/pages/RestoreOrderPage.tsx`
+fired `customerApi.processRestorationItem` (a `POST
+/api/restorations/:id/items/:itemId/process`) for every `PENDING`/`QUEUED`
+item on first successful `loadOrder()` call — guarded only by an in-memory
+`processingRef`, re-armed on every fresh page load or hard refresh. Removed
+the auto-dispatch block and the now-unused `processingRef` entirely; the
+page is now read-only on mount and on every poll/refresh (GET only),
+matching the convention `RestorationStatusPage.tsx` established in R9.2-P5A.
+No other customer restoration page (`RestorationStatusPage.tsx`,
+`RestorationHistoryPage.tsx`, `RestorePrintPage.tsx`) contained this
+pattern; `RestoreNewPage.tsx`'s upload/processing remains an explicit,
+user-button-triggered action and was left unchanged. Full record:
+`docs/restoration/P6A_CUSTOMER_ROUTE_HARDENING_PROTOCOL.md`.
+
+### 17.5 Test evidence
+
+Browser (`npx playwright test tests/browser`, Chromium-only, local Vite dev
+server, no real API server, every response mocked or naturally connection-
+refused, `blockExternalNetwork` aborting all non-local traffic):
+
+| Suite | Result |
+|---|---|
+| `p5a-restoration-status.spec.ts` (pre-existing, unmodified) | **13/13 pass** |
+| `p6a-customer-route-hardening.spec.ts` (new) | **23/23 pass** |
+
+The 23 new P6A browser tests prove: each of `/orders`/`/wallet`/`/payments`/
+`/subscription` redirects an anonymous visitor to `/login` (including with
+forged `?status=success&paid=true` query parameters, which cannot bypass
+the gate); the intended destination is preserved and actually restored
+end-to-end (anonymous `/wallet` visit → redirect → mocked login → lands
+back on `/wallet`); authenticated deep-link/refresh access succeeds without
+redirecting to `/login` for all four routes with no redirect loop; guest
+restoration routes and the admin route (its own separate gate,
+`/admin/login`, unchanged) remain reachable; the legacy restoration order
+page issues GET requests only on load and reload with zero
+`.../items/*/process` POSTs; zero external network calls occur on an
+authenticated `/orders` visit; and 360/390/430px layouts remain usable with
+no horizontal overflow on both an authenticated protected page and the
+login redirect target.
+
+Backend (`npx tsx --test`, from `apps/api`, no DB required for these focused
+suites):
+
+| Suite | Result |
+|---|---|
+| `domain/pricing/priceBook.test.ts` | pass (unmodified) |
+| `domain/pricing/offerProvider.test.ts` | pass (unmodified) |
+| `services/sharp-variant.service.test.ts` (P5B) | **3/3 pass** (unmodified) |
+| `utils/guest-ownership.test.ts` | pass (unmodified) |
+| `services/restoration-customer.service.test.ts` | pass (unmodified) |
+
+Full workspace:
+
+| Command | Exit |
+|---|---|
+| `npm run lint` | 0 — 0 errors, 89 pre-existing warnings |
+| `npm run typecheck` (api + web) | 0 |
+| `npm run build` (api + web) | 0 |
+| `npx prisma validate` (repair: `DATABASE_URL` env required — set, re-ran) | 0 |
+| `npx prisma generate` | 0 |
+| `git diff --check` | 0 (clean) |
+| `git diff --cached --check` | 0 (clean) |
+
+### 17.6 Zero-live-call proof
+
+No production database, deployment, live Replicate/R2/RunPod/MPGS network
+call occurred. Every browser test either blocks non-local traffic and mocks
+the exact endpoint it exercises, or (for the three non-`/orders` deep-link
+tests) allows the page's own data GET to fail via natural connection-refused
+(no real API server in this harness) while asserting only the auth gate,
+never touching a real backend. No checkout route was created;
+`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains open, unchanged.
+
+### 17.7 Result
+
+PR #128 merged (`53d667d7fe275a03d84d9656faedd6dc0e23ffeb`). PriceBook
+reconciled (no change to prices/behavior; stale docs corrected). Four
+customer routes hardened with the existing `RequireAuth` mechanism. One
+genuine page-load-triggered auto-dispatch defect found and repaired. 36/36
+browser tests, 5/5 focused backend suites, lint/typecheck/build/Prisma all
+clean. No RunPod/MPGS/deployment/product-scope-expansion change.

@@ -498,3 +498,46 @@ section is additive; every rule above it remains in force verbatim.
   this repository's existing append-only manifest protocol.
 - No RunPod, MPGS, deployment, or product-scope-expansion change was made
   by this packet.
+
+### R9.2-MERGE-P128-AND-P6A-CUSTOMER-ROUTE-HARDENING: PR #128 merged; customer routes hardened (2026-08-05)
+
+Added by the R9.2-MERGE-P128-AND-P6A-CUSTOMER-ROUTE-HARDENING packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #128 (`chore/r9.2-retire-automation-docs`, head
+  `8faca0851f50e23bb748b647c995d8e542ce9c01`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, documentation/retirement scope only, exactly the
+  seven requested files deleted, no product/secret/deployment/MPGS/RunPod
+  change, no required failing check) and merged normally. Merge commit:
+  `53d667d7fe275a03d84d9656faedd6dc0e23ffeb`.
+- **PriceBook reconciliation (verified, not changed)**: `PB-2026-08-03-v1`
+  in `apps/api/src/domain/pricing/priceBook.ts` matches the approved amounts
+  exactly (PKR 25000/35000/50000; USD 150/250/350 minor units). The stale
+  `FixtureOfferProvider` header comment in `offerProvider.ts`, which stated
+  in the present tense that no USD fixture/pricing existed, was corrected
+  with a dated update note pointing to `ApprovedOfferProvider`/`priceBook.ts`
+  as the current source of truth; the original P1A text was preserved
+  verbatim as a historical record. No price or PriceBook behavior changed.
+- **Permanent rule — customer route authority**: `/orders`, `/wallet`,
+  `/payments`, and `/subscription` must always be wrapped by the existing
+  `RequireAuth` mechanism (`apps/web/src/components/RequireAuth.tsx`) in
+  `App.tsx`. Anonymous access must redirect to `/login` with the intended
+  destination preserved via router location state (already consumed by
+  `LoginPage.tsx`'s `from`); no new/duplicate auth mechanism may be
+  introduced for these routes. Admin routes keep their own separate
+  `RequireAdminPortal` gate, unchanged. Guest restoration upload/status
+  routes remain intentionally unauthenticated.
+- **Permanent rule — no page-load/refresh processing dispatch**: no
+  customer-facing restoration page may issue a processing-triggering POST
+  as a side effect of mounting, polling, or refreshing. Only the
+  verified-payment-created internal execution (P4A) and the P4B internal
+  worker runner may start new restoration processing. A confirmed violation
+  of this rule was found and repaired in `RestoreOrderPage.tsx` (an
+  automatic `processRestorationItem` POST fired on every fresh page load);
+  see `docs/restoration/P6A_CUSTOMER_ROUTE_HARDENING_PROTOCOL.md` for the
+  full record.
+- No checkout route was created; `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+  remains open, unchanged. No production deployment, secret, live
+  Replicate/R2/RunPod/MPGS network call, or destructive Git operation
+  occurred. Full test/command evidence:
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (R9.2-P6A section).
