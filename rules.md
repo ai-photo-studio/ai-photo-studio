@@ -677,3 +677,23 @@ rule above it remains in force verbatim.
   production deployment, no RunPod/Replicate/R2/webhook/capture/P4A change,
   no destructive Git operation, no Bank Alfalah support ticket or email
   drafted or sent (explicitly out of scope for this packet).
+- **Permanent rule — `PaymentAttempt.providerRef` must never be written at
+  checkout/session creation; it is exclusively the verified transaction
+  reference, set exactly once by `applyVerifiedPaymentEvidence` (P4A) after
+  a real server-side match.** `CustomerCheckoutService.createCheckout`
+  previously wrote `providerRef: checkout.sessionId` (the Hosted Checkout
+  session id) when initiating payment. P4A's own mismatch guard in
+  `p4a-payment-verified-execution-queue.service.ts` (`runOnce`:
+  `if (attempt.providerRef && attempt.providerRef !== evidence.providerRef)`)
+  then rejected every genuine first-time verification with
+  `PROVIDER_REFERENCE_MISMATCH`, because a session id is a structurally
+  different MPGS identifier from a transaction reference and `providerRef`
+  was therefore never `null` when real evidence arrived. This would have
+  silently broken payment confirmation for every real transaction. Found
+  and fixed while building `CustomerCheckoutService.getStatus` in
+  R9.2-PAYMENT-VERIFICATION-BRIDGE; regression-guarded by
+  `customer-checkout.service.pg-race.test.ts`. Any future code that touches
+  `PaymentAttempt` at session-initiation time must not populate
+  `providerRef`; gate "has a session been created" checks on `status`, not
+  on `providerRef`. Full record:
+  `docs/payments/bank-alfalah-mastercard/R9.2_PAYMENT_VERIFICATION_BRIDGE_2026-08-06.md`.
