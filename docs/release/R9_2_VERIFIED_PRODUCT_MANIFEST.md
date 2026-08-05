@@ -2231,3 +2231,11 @@ credential, no card data, no capture, at any point in this session.
 - Provider readiness is fail-closed: disabled MPGS returns PAYMENT_PROVIDER_UNAVAILABLE before PaymentAttempt creation or any external request.
 - Existing FixedOrder, PaymentAttempt, P4C gateway, and P4A verification boundaries are reused. No webhook/browser-return state mutation, card handling, capture, production activation, RunPod, schema, or migration change was made.
 - Verification: API/web typecheck and builds, lint, Prisma validate, payment-readiness/domain/P1B focused tests passed. Disposable PostgreSQL race, full browser suite, and live-provider checks were not run without approved disposable database/browser infrastructure and remain blockers.
+
+## R9.2-P4E Customer Checkout UI (2026-08-05)
+
+- FixedOrder review now shows server-owned amount, currency, and tier and provides an explicit Pay securely action only.
+- POST /api/orders/:orderNo/checkout sends only orderNo; GET /api/orders/:orderNo/payment-status is used for read-only status.
+- PAYMENT_PROVIDER_UNAVAILABLE is shown truthfully. Query parameters never fabricate success, refresh/reload do not post, duplicate clicks are disabled, and guest/auth ownership headers are preserved.
+- Focused P4E browser tests: 6/6. Full Playwright suite: 58/58. No external network calls were permitted by the browser harness.
+- No webhook, card, capture, live MPGS, production, RunPod, schema, migration, or P4A application change.

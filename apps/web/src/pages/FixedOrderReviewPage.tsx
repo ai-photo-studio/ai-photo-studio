@@ -18,6 +18,9 @@ export function FixedOrderReviewPage() {
   const [order, setOrder] = useState<FixedOrderSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -36,6 +39,38 @@ export function FixedOrderReviewPage() {
       if (mounted.current) setLoading(false);
     }
   }, [orderNo, token]);
+
+  const refreshPaymentStatus = useCallback(async () => {
+    if (!orderNo) return;
+    const guestToken = getGuestOwnershipToken(orderNo);
+    try {
+      const status = await customerApi.getCustomerPaymentStatus(token || undefined, orderNo, guestToken || undefined);
+      if (mounted.current) setPaymentStatus(status.status);
+    } catch (err) {
+      if (mounted.current) setCheckoutError(err instanceof Error ? err.message : "Unable to load payment status");
+    }
+  }, [orderNo, token]);
+
+  const startCheckout = async () => {
+    if (!orderNo || checkoutBusy) return;
+    setCheckoutBusy(true);
+    setCheckoutError(null);
+    try {
+      const guestToken = getGuestOwnershipToken(orderNo);
+      const result = await customerApi.createCustomerCheckout(token || undefined, orderNo, guestToken || undefined);
+      setPaymentStatus(result.status);
+      if (result.sessionId) {
+        window.location.assign(`https://test-bankalfalah.gateway.mastercard.com/checkout/pay/${encodeURIComponent(result.sessionId)}`);
+      }
+    } catch (err) {
+      if (mounted.current) {
+        const apiError = err as { code?: string; message?: string };
+        setCheckoutError(apiError.code === "PAYMENT_PROVIDER_UNAVAILABLE" ? "Payment provider unavailable. Checkout is not enabled yet." : apiError.message || "Unable to start checkout");
+      }
+    } finally {
+      if (mounted.current) setCheckoutBusy(false);
+    }
+  };
 
   useEffect(() => {
     mounted.current = true;
@@ -65,17 +100,20 @@ export function FixedOrderReviewPage() {
         <article className="metric-card"><span>PriceBook</span><strong>{order.priceBookVersion || "-"}</strong></article>
       </div>
 
-      <div className="state-panel" style={{ marginTop: "1rem" }}>
-        <p>
-          Payment is not yet available for this order. Bank Alfalah Mastercard Gateway
-          checkout is pending merchant-profile enablement; no payment can be started here.
-        </p>
-      </div>
+       <div className="state-panel" style={{ marginTop: "1rem" }}>
+         <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : "Payment is not yet available until you press Pay. Refresh reads status only.")}</p>
+       </div>
 
-      <div className="button-row" style={{ marginTop: "1rem" }}>
-        <button type="button" className="button button-secondary" onClick={() => void load()}>
-          Refresh
-        </button>
+       <div className="button-row" style={{ marginTop: "1rem" }}>
+         <button type="button" className="button" onClick={() => void startCheckout()} disabled={checkoutBusy}>
+           {checkoutBusy ? "Starting checkout..." : "Pay securely"}
+         </button>
+         <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>
+           Check payment status
+         </button>
+         <button type="button" aria-label="Refresh order" className="button button-secondary" onClick={() => void load()}>
+           Refresh
+         </button>
       </div>
     </section>
   );

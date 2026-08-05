@@ -270,7 +270,32 @@ export const customerApi = {
     ),
 
   getFixedOrder: (token: string | undefined, orderNo: string, guestToken?: string) =>
-    apiRequest<FixedOrderSummary>(`/api/fixed-orders/${orderNo}`, {}, token, guestToken)
+    apiRequest<FixedOrderSummary>(`/api/fixed-orders/${orderNo}`, {}, token, guestToken),
+
+  createCustomerCheckout: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{
+      paymentAttemptId: string;
+      status: string;
+      amountMinor: string;
+      currency: "PKR" | "USD";
+      sessionId: string | null;
+      successIndicator: string | null;
+    }>(
+      `/api/orders/${encodeURIComponent(orderNo)}/checkout`,
+      { method: "POST", body: JSON.stringify({ orderNo }) },
+      token,
+      guestToken
+    ),
+
+  getCustomerPaymentStatus: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{
+      paymentAttemptId: string;
+      status: string;
+      amountMinor: string;
+      currency: "PKR" | "USD";
+      sessionId: string | null;
+      successIndicator: string | null;
+    }>(`/api/orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken)
 };
 
 export type RestorationDraftSummary = {
