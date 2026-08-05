@@ -72,6 +72,10 @@ const envSchema = z
      BANK_ALFALAH_MPGS_API_PASSWORD: z.string().optional().default(""),
      // Portal-login metadata ONLY -- never used for REST Basic Auth.
      BANK_ALFALAH_MPGS_OPERATOR_ID: z.string().optional().default(""),
+     // The server supplies this to MPGS; it must never be accepted from a
+     // browser checkout request. A local loopback URL is used for disposable
+     // sandbox runs and production must configure its own approved URL.
+     BANK_ALFALAH_MPGS_RETURN_URL: z.string().optional().default(""),
      BANK_ALFALAH_MPGS_CHECKOUT_MODE: z.string().optional().default("hosted_checkout")
   })
   .superRefine((cfg, ctx) => {
@@ -170,6 +174,15 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ["BANK_ALFALAH_MPGS_API_PASSWORD"],
           message: "BANK_ALFALAH_MPGS_API_PASSWORD is required when BANK_ALFALAH_MPGS_ENABLED=true"
+        });
+      }
+      try {
+        new URL(cfg.BANK_ALFALAH_MPGS_RETURN_URL);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BANK_ALFALAH_MPGS_RETURN_URL"],
+          message: "BANK_ALFALAH_MPGS_RETURN_URL must be a valid URL when BANK_ALFALAH_MPGS_ENABLED=true"
         });
       }
       try {
@@ -284,6 +297,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
     merchantId: string;
     apiPassword: string;
     operatorId: string;
+    returnUrl: string;
     checkoutMode: string;
   };
 };
@@ -356,6 +370,7 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
     merchantId: "",
     apiPassword: "",
     operatorId: "",
+    returnUrl: "",
     checkoutMode: "hosted_checkout"
   },
   ...(overrides || {}),
@@ -412,6 +427,7 @@ export const loadConfig = (): AppConfig => {
       merchantId: cfg.BANK_ALFALAH_MPGS_MERCHANT_ID.trim(),
       apiPassword: cfg.BANK_ALFALAH_MPGS_API_PASSWORD,
       operatorId: cfg.BANK_ALFALAH_MPGS_OPERATOR_ID.trim(),
+      returnUrl: cfg.BANK_ALFALAH_MPGS_RETURN_URL.trim(),
       checkoutMode: cfg.BANK_ALFALAH_MPGS_CHECKOUT_MODE.trim()
     }
   };
