@@ -2494,3 +2494,46 @@ entry point) -- recorded here, not sent, since this packet forbids bank
 contact. No live bank request, card data, capture, production enablement,
 RunPod/Replicate/R2/webhook/P4A/deployment change, or destructive Git
 operation occurred.
+
+## 25. R9.2-MERGE-P141-AND-FINAL-BANK-ALFALAH-SUPPORT-PACKET — PR #141 merged; final support package prepared, not sent (2026-08-05)
+
+PR #141 re-verified (OPEN, CLEAN, MERGEABLE, docs/evidence-only, contract
+table cross-checked against current adapter source and the live CI
+workflow's actual env values -- `apiVersion=100`,
+`merchantName="Global Industrial Suppliers"` confirmed exact matches) and
+merged normally. Merge commit `f6c0a0abb51a5fe5a28fec70245dfde6c322371a`.
+
+**Confirmed: exactly one live actual-app request has ever been made**,
+across every MPGS-related GitHub Actions workflow (`bank-alfalah-mpgs-actual-app-e2e.yml`,
+`bank-alfalah-mpgs-sandbox-smoke.yml`,
+`bank-alfalah-mpgs-provisioning-config-diagnostic.yml`) -- run `31042211650`.
+No additional live request was made by this packet or has occurred since.
+
+A sanitized support package was assembled outside the repository at
+`D:\Temp\claude\evidence\baf-final-support\` (before-click screenshot,
+result screenshot, sanitized gateway-result screenshot, the full contract
+comparison document, a raw and a concise request/response summary, and a
+draft-only email). All three screenshots were re-opened and visually
+confirmed to contain no password, `Authorization` header, or other secret
+value. The draft email requests password reissue, REST API permission
+confirmation, and endpoint confirmation only -- explicitly does not request
+production credentials, and is marked not sent, pending owner review.
+
+A new procedure document,
+`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_SANDBOX_TO_PRODUCTION_PROCEDURE.md`,
+records the exact 8-step sequence for after the bank resolves the sandbox
+blocker: one CI live run requiring real `2xx`+`session.id`; one sandbox
+test-card transaction; mandatory server-side Retrieve Order verification
+(order id/amount/currency/status, plus 3DS result once its response field
+is confirmed); re-proving duplicate-return/webhook idempotency against the
+real gateway's actual payload shapes; informing the bank of UAT pass; only
+then requesting the production go-live checklist; and exactly one
+bank-approved low-value production transaction before public launch. No
+step in it authorizes skipping, combining, or mocking any step.
+
+No code was changed by this packet. `BANK_ALFALAH_MPGS_ENABLED` remains
+`false`. `P4C_MPGS_AUTH_VERIFIED` remains NOT achieved.
+`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` retained. No bank
+contact was made (the draft email was not sent). No production credential
+was requested. No RunPod/Replicate/R2/webhook mutation/capture/deployment
+change, no destructive Git operation.
