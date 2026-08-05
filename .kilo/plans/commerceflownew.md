@@ -311,3 +311,24 @@ Replicate, or Sharp call occurs anywhere in this flow.
 
 Full record: `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 19
 and `docs/restoration/P6C_CUSTOMER_MVP_FLOW_PROTOCOL.md`.
+
+## 20. R9.2-BAF-FINAL-CORRECTED-SESSION-PROOF (2026-08-05)
+
+Current status: one final Bank Alfalah MPGS sandbox `POST /session` test used
+the required API V100 PURCHASE payload and a corrected 19-character
+alphanumeric diagnostic order ID. The result was HTTP `401` with
+`{"error":{"cause":"INVALID_REQUEST","explanation":"Invalid credentials."},"result":"ERROR"}`;
+no `session.id` or `successIndicator` was returned. This corrects the prior
+42-character order-ID validation error but does not verify sandbox
+authentication or session initiation. No retry, USD test, card data, capture,
+production activation, checkout/product-code change, RunPod, Replicate, R2,
+webhook, or deployment occurred. `BANK_ALFALAH_MPGS_ENABLED` remains `false`.
+
+Exact launch blocker: Bank Alfalah must state whether the remaining remediation
+is credential reset, profile permission, or a different endpoint; the exposed
+API password must be rotated/reissued before any future request. The final
+session-proof packet is 100% complete with 0% remaining; the MPGS launch gate
+is 0% complete with 100% remaining until a 2xx response returns a valid
+`session.id`. Sanitized, visually checked evidence PNGs are outside the
+repository at `D:\Temp\claude\evidence\baf-final-request-response.png` and
+`D:\Temp\claude\evidence\baf-final-conclusion.png`.
