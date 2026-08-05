@@ -69,6 +69,33 @@ async function createRealPkrOrderAndReachReview(page: import("@playwright/test")
   return match[1];
 }
 
+/** R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC: identical real flow to
+ * createRealPkrOrderAndReachReview above, except it selects country "US" on
+ * the upload page (INTERNATIONAL market, USD currency) before confirming.
+ * MPGS_CURRENCY_SUPPORT.USD is already `enabled: true` in
+ * p4c-bank-alfalah-mpgs-gateway.service.ts (bank-confirmed, see
+ * P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md), so no gateway/stub
+ * code change was needed to prove this -- only this test is new. */
+async function createRealUsdOrderAndReachReview(page: import("@playwright/test").Page): Promise<string> {
+  await page.goto("/restore-mvp/new");
+  await page.getByRole("combobox").selectOption("US");
+  await page.setInputFiles('input[type="file"]', tinyPngPath());
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Upload photo" }).click();
+
+  await expect(page).toHaveURL(/\/restore-mvp\/[^/]+\/preview$/, { timeout: 15_000 });
+  await page.getByRole("button", { name: "Choose resolution" }).click();
+
+  await expect(page).toHaveURL(/\/restore-mvp\/[^/]+\/tiers$/, { timeout: 15_000 });
+  await page.getByText("Original", { exact: true }).click();
+  await page.getByRole("button", { name: "Create order" }).click();
+
+  await expect(page).toHaveURL(/\/orders\/[^/]+\/review$/, { timeout: 15_000 });
+  const match = page.url().match(/\/orders\/([^/]+)\/review$/);
+  if (!match) throw new Error("could not extract real orderNo from URL");
+  return match[1];
+}
+
 test.describe("R9.2-MPGS-ACTUAL-APP-E2E dry run: real app, real API, real disposable DB, stub gateway", () => {
   test("success: real click reaches the real checkout route/controller/service/adapter, stub returns session.id, no fabricated paid state", async ({ page }) => {
     await blockExternalNetwork(page);
@@ -170,6 +197,62 @@ test.describe("R9.2-MPGS-ACTUAL-APP-E2E dry run: real app, real API, real dispos
 
     const entries = readStubLog();
     expect(entries).toHaveLength(0);
+  });
+
+  test("USD: real click reaches the real checkout route/controller/service/adapter with server-owned currency USD, stub returns session.id, no fabricated paid state", async ({ page }) => {
+    await blockExternalNetwork(page);
+    await setStubMode("success");
+    clearStubLog();
+
+    const orderNo = await createRealUsdOrderAndReachReview(page);
+    await expect(page.getByText(orderNo)).toBeVisible();
+    // Real, unmodified PriceBook INTERNATIONAL/USD ORIGINAL price (150 minor
+    // units = USD 1.50) -- see priceBook.ts. Reusing the real order-creation
+    // flow (per this task's "reuse the existing actual-app workflow, do not
+    // build a duplicate integration" instruction) means the amount is
+    // server-priced, not a synthetic literal.
+    await expect(page.getByText(/USD 1\.50/)).toBeVisible();
+    await expect(page.getByText("Original", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pay securely" })).toBeVisible();
+
+    await page.screenshot({ path: screenshotPath("baf-usd-dryrun-before.png"), fullPage: true });
+
+    await page.route("**/api/fixed-orders/*/checkout", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      await route.continue();
+    });
+
+    await page.getByRole("button", { name: "Pay securely" }).click();
+    await expect(page.getByRole("button", { name: "Starting checkout..." })).toBeVisible({ timeout: 5_000 });
+    await page.screenshot({ path: screenshotPath("baf-usd-dryrun-success.png"), fullPage: true });
+
+    await expect
+      .poll(() => readStubLog().filter((e) => e.method === "POST" && e.url.endsWith("/session")).length, { timeout: 10_000 })
+      .toBe(1);
+
+    // Exactly one gateway call for this one click.
+    const entries = readStubLog();
+    const sessionCalls = entries.filter((e) => e.method === "POST" && e.url.endsWith("/session"));
+    expect(sessionCalls).toHaveLength(1);
+    const call = sessionCalls[0];
+
+    // Bank v100 contract proof, USD leg (dry-run-only synthetic credentials,
+    // never real): same endpoint/method/auth/apiOperation/interaction shape
+    // as the PKR test above, only order.currency differs.
+    expect(call.authUsernamePrefix).toBe("merchant.DRYRUNMERCHANT");
+    const body = call.body as {
+      apiOperation: string;
+      interaction: { operation: string; returnUrl: string; merchant: { name: string } };
+      order: { id: string; amount: string; currency: string };
+    };
+    expect(body.apiOperation).toBe("INITIATE_CHECKOUT");
+    expect(body.interaction.operation).toBe("PURCHASE");
+    expect(body.interaction.merchant.name).toBe("Dry Run Test Merchant");
+    expect(body.interaction.returnUrl).toBe("http://127.0.0.1:5173/checkout/return");
+    expect(body.order.currency).toBe("USD");
+    expect(body.order.id).toBe(orderNo);
+    expect(body.order.id.length).toBeLessThan(30);
+    expect(body.order.id.length).toBeLessThan(41);
   });
 
   for (const scenario of [
