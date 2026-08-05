@@ -21,11 +21,11 @@ async function setup(page: Parameters<typeof test>[0]["page"], checkoutStatus = 
   await page.route("**/api/fixed-orders/FO-P4E-0001", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: order }) })
   );
-  await page.route("**/api/orders/FO-P4E-0001/payment-status", (route) => {
+  await page.route("**/api/fixed-orders/FO-P4E-0001/payment-status", (route) => {
     calls.push("GET status");
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { paymentAttemptId: "p4e-attempt", status: "CREATED", amountMinor: "250000", currency: "PKR", sessionId: null, successIndicator: null } }) });
   });
-  await page.route("**/api/orders/FO-P4E-0001/checkout", (route) => {
+  await page.route("**/api/fixed-orders/FO-P4E-0001/checkout", (route) => {
     calls.push(route.request().method() + " checkout");
     return route.fulfill({ status: checkoutStatus, contentType: "application/json", body: JSON.stringify(checkoutStatus === 503 ? { success: false, code: "PAYMENT_PROVIDER_UNAVAILABLE", message: "Payment provider is unavailable" } : { success: true, data: { paymentAttemptId: "p4e-attempt", status: "REDIRECT_READY", amountMinor: "250000", currency: "PKR", sessionId: "mock-session", successIndicator: "mock-success" } }) });
   });

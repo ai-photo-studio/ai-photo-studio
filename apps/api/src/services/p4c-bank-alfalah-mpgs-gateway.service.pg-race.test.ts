@@ -148,7 +148,7 @@ test("verifyMpgsPaymentByRetrieveOrder applies a matched PAID order exactly once
   const seeded = await seedUnpaidOrder("single");
   const stub = mpgsFetchStub(seeded.tag, 150000n);
   const gw = new BankAlfalahMpgsGateway(
-    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", checkoutMode: "hosted_checkout" },
+    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", merchantName: "REDACTED Test Merchant", checkoutMode: "hosted_checkout" },
     stub
   );
 
@@ -176,7 +176,7 @@ test("duplicate sequential webhook-trigger verification converges to exactly one
   const seeded = await seedUnpaidOrder("dup-seq");
   const stub = mpgsFetchStub(seeded.tag, 150000n);
   const gw = new BankAlfalahMpgsGateway(
-    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", checkoutMode: "hosted_checkout" },
+    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", merchantName: "REDACTED Test Merchant", checkoutMode: "hosted_checkout" },
     stub
   );
 
@@ -214,11 +214,11 @@ test("concurrent browser-return + webhook-trigger verification racing on one ord
   const seeded = await seedUnpaidOrder("dup-concurrent");
   const stub = mpgsFetchStub(seeded.tag, 150000n);
   const gwA = new BankAlfalahMpgsGateway(
-    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", checkoutMode: "hosted_checkout" },
+    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", merchantName: "REDACTED Test Merchant", checkoutMode: "hosted_checkout" },
     stub
   );
   const gwB = new BankAlfalahMpgsGateway(
-    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", checkoutMode: "hosted_checkout" },
+    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", merchantName: "REDACTED Test Merchant", checkoutMode: "hosted_checkout" },
     stub
   );
 
@@ -266,7 +266,7 @@ test("a forged browser return with a PENDING gateway order is never applied and 
     }) as Response) as typeof globalThis.fetch;
 
   const gw = new BankAlfalahMpgsGateway(
-    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", checkoutMode: "hosted_checkout" },
+    { enabled: true, baseUrl: "https://test-bankalfalah.gateway.mastercard.com", apiVersion: "74", merchantId: MERCHANT_ID, apiPassword: "REDACTED", merchantName: "REDACTED Test Merchant", checkoutMode: "hosted_checkout" },
     pendingStub
   );
 

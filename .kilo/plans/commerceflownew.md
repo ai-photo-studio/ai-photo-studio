@@ -332,3 +332,30 @@ is 0% complete with 100% remaining until a 2xx response returns a valid
 `session.id`. Sanitized, visually checked evidence PNGs are outside the
 repository at `D:\Temp\claude\evidence\baf-final-request-response.png` and
 `D:\Temp\claude\evidence\baf-final-conclusion.png`.
+
+## 21. R9.2-MPGS-ACTUAL-APP-E2E (2026-08-05)
+
+Confirmed (via the bank's own live v100 REST-JSON documentation) and
+repaired the adapter's endpoint: Hosted Checkout initiation is
+`POST .../merchant/{merchantId}/session` with a required
+`interaction.merchant.name` field, not `PUT .../order/{orderId}/checkout`
+(the shape the adapter had always used). This reconciles section 20's `401`
+(correct endpoint, credential/profile blocker) with the earlier `404`
+(wrong endpoint) into one consistent picture. New config:
+`BANK_ALFALAH_MPGS_MERCHANT_NAME`.
+
+Also found and repaired, only visible via a new actual-app dry-run harness
+(real Postgres + real API + real web + real browser + a local stub
+gateway, zero live network calls): the MPGS checkout routes were shadowed
+by an earlier-mounted legacy route (moved to `/fixed-orders/:orderNo/
+checkout`), and the rate-limit middleware shared one counter across every
+route in the app (each call site now gets its own). Full record:
+`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_ACTUAL_APP_E2E_CONTRACT_CORRECTION_2026-08-05.md`
+and manifest section 22.
+
+No live sandbox request was made this session -- deliberately deferred to a
+follow-up session after this packet's own dry-run-first risk-sequencing
+decision. `BANK_ALFALAH_MPGS_ENABLED` remains `false`. Launch blocker
+unchanged: a live 2xx response with `session.id` is still required, and the
+exposed API password from section 20 should be confirmed rotated before
+that attempt.

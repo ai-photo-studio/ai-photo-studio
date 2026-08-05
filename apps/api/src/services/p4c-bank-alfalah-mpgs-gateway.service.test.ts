@@ -26,6 +26,7 @@ const baseConfig: MpgsGatewayConfig = {
   apiVersion: "74",
   merchantId: "REDACTEDMERCHANT",
   apiPassword: "REDACTEDPASSWORD",
+  merchantName: "REDACTED Test Merchant",
   checkoutMode: "hosted_checkout"
 };
 
@@ -63,6 +64,14 @@ test("gateway fails closed when API password missing", async () => {
   const gw = new BankAlfalahMpgsGateway({ ...baseConfig, apiPassword: "" }, fakeFetchJson(200, {}));
   await assert.rejects(
     () => gw.retrieveOrder("order-1"),
+    (err: unknown) => err instanceof MpgsNotConfiguredError
+  );
+});
+
+test("gateway fails closed when merchant name missing (bank v100 doc requires interaction.merchant.name)", async () => {
+  const gw = new BankAlfalahMpgsGateway({ ...baseConfig, merchantName: "" }, fakeFetchJson(200, {}));
+  await assert.rejects(
+    () => gw.initiateHostedCheckout({ orderId: "order-1", amountMinor: 150000n, currency: "PKR", returnUrl: "http://127.0.0.1/return" }),
     (err: unknown) => err instanceof MpgsNotConfiguredError
   );
 });
@@ -177,6 +186,48 @@ test("initiateHostedCheckout returns session id and successIndicator on success"
   });
   assert.equal(result.sessionId, "SESSION0001");
   assert.equal(result.successIndicator, "abc123");
+});
+
+// ---------------------------------------------------------------------------
+// R9.2-MPGS-ACTUAL-APP-E2E: confirmed contract repair. The bank's own live
+// v100 REST-JSON "Hosted Checkout: Initiate Checkout" operation doc requires
+// POST .../merchant/{merchantId}/session (not PUT .../order/{id}/checkout)
+// and a REQUIRED interaction.merchant.name field. This test proves the
+// outgoing request now matches that contract exactly.
+// ---------------------------------------------------------------------------
+
+test("initiateHostedCheckout sends POST to /merchant/{id}/session with interaction.merchant.name (bank v100 contract)", async () => {
+  let capturedUrl = "";
+  let capturedMethod = "";
+  let capturedBody: Record<string, unknown> = {};
+  const fetchImpl: typeof globalThis.fetch = (async (url: unknown, init: RequestInit) => {
+    capturedUrl = String(url);
+    capturedMethod = String(init.method);
+    capturedBody = JSON.parse(String(init.body));
+    return { ok: true, status: 200, json: async () => ({ session: { id: "s1" }, successIndicator: "ind1" }) } as Response;
+  }) as typeof globalThis.fetch;
+
+  const gw = new BankAlfalahMpgsGateway(baseConfig, fetchImpl);
+  await gw.initiateHostedCheckout({
+    orderId: "order-99",
+    amountMinor: 150000n,
+    currency: "PKR",
+    returnUrl: "http://127.0.0.1:5173/checkout/return"
+  });
+
+  assert.equal(
+    capturedUrl,
+    `https://test-bankalfalah.gateway.mastercard.com/api/rest/version/74/merchant/${baseConfig.merchantId}/session`
+  );
+  assert.equal(capturedMethod, "POST");
+  assert.equal(capturedBody.apiOperation, "INITIATE_CHECKOUT");
+  assert.equal((capturedBody.interaction as Record<string, unknown>).operation, "PURCHASE");
+  assert.equal(
+    ((capturedBody.interaction as Record<string, unknown>).merchant as Record<string, unknown>).name,
+    baseConfig.merchantName
+  );
+  assert.equal((capturedBody.order as Record<string, unknown>).id, "order-99");
+  assert.equal((capturedBody.order as Record<string, unknown>).currency, "PKR");
 });
 
 test("initiateHostedCheckout accepts USD (R9.2-P4D: bank-confirmed same credentials for PKR and USD sandbox testing)", async () => {

@@ -34,6 +34,14 @@ jobs:
       # 74 (standard-pattern-fallback, unconfirmed) and received a
       # structural 404.
       BANK_ALFALAH_MPGS_API_VERSION: "100"
+      # Not a secret -- the bank's own v100 doc field interaction.merchant.name
+      # (display name only, 1-40 chars, required on every INITIATE_CHECKOUT
+      # request per R9.2-MPGS-ACTUAL-APP-E2E's live-doc contract audit).
+      # Owner-confirmed value for this merchant profile, already on record in
+      # docs/payments/bank-alfalah-mastercard/P4D_PURCHASE_FINAL_TEST_2026-08-05.md.
+      # Hardcoded here for the same reason BASE_URL/API_VERSION above are: a
+      # fixed, non-secret sandbox constant, never taken from input.
+      BANK_ALFALAH_MPGS_MERCHANT_NAME: "Global Industrial Suppliers"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

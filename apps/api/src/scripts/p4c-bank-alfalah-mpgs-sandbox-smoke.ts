@@ -6,9 +6,10 @@
  * performs exactly two network calls each against the configured sandbox
  * origin:
  *
- *   1. Hosted Checkout initialization (PUT .../order/{orderId}/checkout) for
- *      a synthetic, unique, non-customer test order -- NO card data is ever
- *      entered or submitted, so this can never capture a payment.
+ *   1. Hosted Checkout initialization (POST .../merchant/{merchantId}/session,
+ *      R9.2-MPGS-ACTUAL-APP-E2E-corrected shape per the bank's own v100 doc)
+ *      for a synthetic, unique, non-customer test order -- NO card data is
+ *      ever entered or submitted, so this can never capture a payment.
  *   2. Retrieve Order v74/V100 (GET .../order/{orderId}) on the same order
  *      id, to prove the authenticated status-inquiry call works end to end.
  *
@@ -37,6 +38,7 @@
  *   BANK_ALFALAH_MPGS_API_VERSION=100 \
  *   BANK_ALFALAH_MPGS_MERCHANT_ID=<merchant id> \
  *   BANK_ALFALAH_MPGS_API_PASSWORD=<api password> \
+ *   BANK_ALFALAH_MPGS_MERCHANT_NAME=<merchant display name, 1-40 chars> \
  *   npx tsx src/scripts/p4c-bank-alfalah-mpgs-sandbox-smoke.ts
  */
 import { randomUUID } from "node:crypto";
@@ -123,16 +125,24 @@ async function main(): Promise<number> {
   const merchantId = process.env.BANK_ALFALAH_MPGS_MERCHANT_ID;
   const apiPassword = process.env.BANK_ALFALAH_MPGS_API_PASSWORD;
   const operatorId = process.env.BANK_ALFALAH_MPGS_OPERATOR_ID;
+  // Not a secret (a display name, per the bank's own v100 doc field
+  // interaction.merchant.name), but treated with the same presence-only
+  // logging discipline as the rest of this script for consistency.
+  const merchantName = process.env.BANK_ALFALAH_MPGS_MERCHANT_NAME;
 
   const hasMerchantId = redactedPresence("BANK_ALFALAH_MPGS_MERCHANT_ID", merchantId);
   const hasApiPassword = redactedPresence("BANK_ALFALAH_MPGS_API_PASSWORD", apiPassword);
+  const hasMerchantName = redactedPresence(
+    "BANK_ALFALAH_MPGS_MERCHANT_NAME (required by bank v100 doc: interaction.merchant.name)",
+    merchantName
+  );
   redactedPresence("BANK_ALFALAH_MPGS_OPERATOR_ID (portal metadata only, not used for auth)", operatorId);
   if (hasMerchantId) {
     console.log(`  BANK_ALFALAH_MPGS_MERCHANT_ID length=${(merchantId as string).trim().length} (value never printed)`);
   }
 
-  if (!hasMerchantId || !hasApiPassword) {
-    console.error("FAIL-CLOSED: required secret(s) missing. No network call attempted.");
+  if (!hasMerchantId || !hasApiPassword || !hasMerchantName) {
+    console.error("FAIL-CLOSED: required secret/config value(s) missing. No network call attempted.");
     return 1;
   }
 
@@ -155,6 +165,7 @@ async function main(): Promise<number> {
     apiVersion,
     merchantId: exactMerchantId,
     apiPassword: apiPassword as string,
+    merchantName: (merchantName as string).trim(),
     checkoutMode: "hosted_checkout"
   };
 

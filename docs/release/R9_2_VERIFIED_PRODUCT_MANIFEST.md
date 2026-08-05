@@ -2291,3 +2291,67 @@ warnings, 0 errors); `npm run typecheck` exit 0. The first gateway-test run
 failed only because `npm ci` had not generated Prisma Client; `npx prisma
 generate` was the smallest environment repair and the complete 25-test suite
 then passed. Final diff checks are recorded with the commit evidence.
+
+## 22. R9.2-MPGS-ACTUAL-APP-E2E — PR #137 merged; contract mismatch, route collision, and rate-limit defects found and repaired via a new actual-app dry-run harness (2026-08-05)
+
+PR #137 (`ops/r9.2-mpgs-actual-app-test`, head `3c2e2f0`) independently
+re-verified (OPEN/CLEAN/MERGEABLE, 3 intended files, 10/10 env + 26/26
+gateway/checkout + 68/68 pg-race + 58/58 Playwright, lint/typecheck/build
+clean) and merged normally. Merge commit `1aa0040e72a962427cc2e2018722bb9f2e1d41a8`.
+
+**Contract mismatch confirmed and repaired.** Section 21 above already
+recorded an ad-hoc `POST /session` request reaching a structurally different
+`401 Invalid credentials` (not a `404`) -- this session independently
+confirmed, by live-fetching the bank's own v100 REST-JSON operation
+documentation directly, that `POST .../merchant/{merchantId}/session` (not
+`PUT .../order/{orderId}/checkout`, which the shipped adapter had always
+used) plus a required `interaction.merchant.name` field is the correct
+Hosted Checkout contract. This fully reconciles both prior results: the
+original P4C `404` (calling an endpoint that never existed) and section 21's
+`401` (calling the *correct* endpoint, but hitting the already-flagged
+exposed-password/profile-enablement blocker). The adapter is repaired to
+match; see
+`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_ACTUAL_APP_E2E_CONTRACT_CORRECTION_2026-08-05.md`
+for the full record.
+
+**Two additional, independent product defects found and repaired**, neither
+related to MPGS specifically:
+1. The MPGS checkout routes collided byte-for-byte with an earlier-mounted
+   legacy `OrderController.createOrderCheckout` route, making the checkout
+   endpoint unreachable via real HTTP traffic since it was first wired up.
+   Moved to `/fixed-orders/:orderNo/checkout` and
+   `/fixed-orders/:orderNo/payment-status`.
+2. `rate-limit.middleware.ts` shared one global counter across every
+   `rateLimit()` call site in the app (including the global per-request
+   middleware), so unrelated traffic could exhaust an unrelated route's
+   budget. Each call site now gets an isolated counter.
+
+Both were found only because a new actual-app dry-run harness
+(`apps/web/tests/browser-actual-app-dryrun/`,
+`apps/web/playwright.actual-app-dryrun.config.ts`,
+`apps/api/src/scripts/mpgs-local-stub-server.ts`) drives the REAL Express
+router stack and REAL browser against a REAL disposable PostgreSQL instance
+and REAL API server (MPGS base URL pointed at a local stub gateway, zero
+live network calls) -- neither defect is visible to mocked
+Playwright/unit-level testing, which is why nothing caught them earlier.
+6/6 dry-run tests pass: success (full contract proof from the stub's
+request log), duplicate-click protection, refresh-is-GET-only, and
+400/401/404 error handling (never a fabricated paid/success state).
+
+Full regression after all three repairs, run separately: 10/10 env tests,
+26/26 gateway/checkout tests (plus 5 new: merchant-name fail-closed/valid,
+route-collision guard x2, rate-limit isolation x2), 68/68 pg-race tests
+(7 suites), 58/58 existing mocked Playwright tests, 6/6 new dry-run tests --
+all against a fresh disposable PostgreSQL 17 instance, cleaned up after.
+`eslint`/`tsc --noEmit`/`npm run build` clean for both workspaces; `prisma
+generate`/`validate` clean.
+
+No live sandbox request was made this session -- deliberately deferred
+(this packet's own risk-sequencing decision: dry-run harness first, exactly
+one live attempt only after it is fully green, in a dedicated follow-up
+session). `BANK_ALFALAH_MPGS_ENABLED` remains `false` outside manual/CI
+runs. `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` unchanged (a
+separate, external provisioning question this packet does not address). No
+production deployment, no RunPod/Replicate/R2/webhook/capture/P4A change, no
+destructive Git operation, no Bank Alfalah support ticket or email drafted
+or sent (explicitly out of scope for this packet).
