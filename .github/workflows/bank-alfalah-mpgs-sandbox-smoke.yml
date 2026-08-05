@@ -28,7 +28,12 @@ jobs:
       # Hardcoded test gateway origin -- never taken from a secret or input,
       # so this workflow can never be pointed at a production host.
       BANK_ALFALAH_MPGS_BASE_URL: https://test-bankalfalah.gateway.mastercard.com
-      BANK_ALFALAH_MPGS_API_VERSION: "74"
+      # R9.2-P4D: bank-confirmed API V100 for this merchant profile (see
+      # docs/payments/bank-alfalah-mastercard/
+      # P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md). Prior runs used
+      # 74 (standard-pattern-fallback, unconfirmed) and received a
+      # structural 404.
+      BANK_ALFALAH_MPGS_API_VERSION: "100"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

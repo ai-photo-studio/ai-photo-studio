@@ -11,7 +11,6 @@ import assert from "node:assert/strict";
 import {
   BankAlfalahMpgsGateway,
   MPGS_CURRENCY_SUPPORT,
-  MpgsCurrencyNotSupportedError,
   MpgsNotConfiguredError,
   assertMpgsCurrencySupported,
   buildMpgsAuthHeader,
@@ -180,18 +179,16 @@ test("initiateHostedCheckout returns session id and successIndicator on success"
   assert.equal(result.successIndicator, "abc123");
 });
 
-test("initiateHostedCheckout rejects USD (fail-closed, not yet confirmed)", async () => {
+test("initiateHostedCheckout accepts USD (R9.2-P4D: bank-confirmed same credentials for PKR and USD sandbox testing)", async () => {
   const gw = new BankAlfalahMpgsGateway(baseConfig, fakeFetchJson(200, { session: { id: "x" }, successIndicator: "y" }));
-  await assert.rejects(
-    () =>
-      gw.initiateHostedCheckout({
-        orderId: "order-1",
-        amountMinor: 15000n,
-        currency: "USD",
-        returnUrl: "https://thannow.com/pay/return"
-      }),
-    (err: unknown) => err instanceof MpgsCurrencyNotSupportedError
-  );
+  const result = await gw.initiateHostedCheckout({
+    orderId: "order-1",
+    amountMinor: 15000n,
+    currency: "USD",
+    returnUrl: "https://thannow.com/pay/return"
+  });
+  assert.equal(result.sessionId, "x");
+  assert.equal(result.successIndicator, "y");
 });
 
 test("initiateHostedCheckout throws on malformed gateway response", async () => {
@@ -302,7 +299,7 @@ test("exact match produces normalized VerifiedPaymentEvidence", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9/10. PKR enabled, USD fail-closed
+// 9/10. PKR and USD both enabled for sandbox testing (R9.2-P4D bank confirmation)
 // ---------------------------------------------------------------------------
 
 test("PKR is enabled", () => {
@@ -310,9 +307,9 @@ test("PKR is enabled", () => {
   assert.doesNotThrow(() => assertMpgsCurrencySupported("PKR"));
 });
 
-test("USD is fail-closed (rejected) pending confirmation", () => {
-  assert.equal(MPGS_CURRENCY_SUPPORT.USD.enabled, false);
-  assert.throws(() => assertMpgsCurrencySupported("USD"), MpgsCurrencyNotSupportedError);
+test("USD is enabled for sandbox testing (bank-confirmed same credentials as PKR)", () => {
+  assert.equal(MPGS_CURRENCY_SUPPORT.USD.enabled, true);
+  assert.doesNotThrow(() => assertMpgsCurrencySupported("USD"));
 });
 
 // ---------------------------------------------------------------------------

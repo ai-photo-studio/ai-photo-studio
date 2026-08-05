@@ -63,7 +63,11 @@ const envSchema = z
      // reintroduced here -- see docs/payments/bank-alfalah-mastercard/.
      BANK_ALFALAH_MPGS_ENABLED: z.string().optional().default("false"),
      BANK_ALFALAH_MPGS_BASE_URL: z.string().optional().default("https://test-bankalfalah.gateway.mastercard.com"),
-     BANK_ALFALAH_MPGS_API_VERSION: z.string().optional().default("74"),
+     // R9.2-P4D: bank-confirmed as API V100 for this merchant profile
+     // (docs/payments/bank-alfalah-mastercard/
+     // P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md) -- prior packets
+     // used 74 as standard-pattern-fallback, unconfirmed by the bank.
+     BANK_ALFALAH_MPGS_API_VERSION: z.string().optional().default("100"),
      BANK_ALFALAH_MPGS_MERCHANT_ID: z.string().optional().default(""),
      BANK_ALFALAH_MPGS_API_PASSWORD: z.string().optional().default(""),
      // Portal-login metadata ONLY -- never used for REST Basic Auth.
