@@ -88,7 +88,7 @@ export class CustomerCheckoutService {
       orderId: owned.orderNo,
       amountMinor: attempt.amountMinor,
       currency: attempt.currency,
-      returnUrl: "https://thannow.com/checkout/return"
+      returnUrl: this.config.bankAlfalahMpgs.returnUrl
     });
 
     const updated = await prisma.paymentAttempt.update({

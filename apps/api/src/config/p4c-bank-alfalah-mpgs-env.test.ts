@@ -75,10 +75,42 @@ test("BANK_ALFALAH_MPGS_ENABLED=true with merchant id and password succeeds", as
   const cfg = await loadConfigWith({
     BANK_ALFALAH_MPGS_ENABLED: "true",
     BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
-    BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS"
+    BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return"
   });
   assert.equal(cfg.bankAlfalahMpgs.enabled, true);
   assert.equal(cfg.bankAlfalahMpgs.merchantId, "REDACTEDMID");
+});
+
+test("BANK_ALFALAH_MPGS_ENABLED=true without a return URL throws (fails closed)", async () => {
+  await assert.rejects(() =>
+    loadConfigWith({
+      BANK_ALFALAH_MPGS_ENABLED: "true",
+      BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
+      BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS"
+    })
+  );
+});
+
+test("BANK_ALFALAH_MPGS_ENABLED=true with an invalid (non-URL) return URL throws (fails closed)", async () => {
+  await assert.rejects(() =>
+    loadConfigWith({
+      BANK_ALFALAH_MPGS_ENABLED: "true",
+      BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
+      BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+      BANK_ALFALAH_MPGS_RETURN_URL: "not-a-url"
+    })
+  );
+});
+
+test("BANK_ALFALAH_MPGS_ENABLED=true with a localhost return URL is accepted (sandbox testing)", async () => {
+  const cfg = await loadConfigWith({
+    BANK_ALFALAH_MPGS_ENABLED: "true",
+    BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
+    BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://localhost:5173/checkout/return"
+  });
+  assert.equal(cfg.bankAlfalahMpgs.returnUrl, "http://localhost:5173/checkout/return");
 });
 
 test("BANK_ALFALAH_MPGS_ENABLED=true with an invalid checkout mode throws", async () => {
@@ -87,6 +119,7 @@ test("BANK_ALFALAH_MPGS_ENABLED=true with an invalid checkout mode throws", asyn
       BANK_ALFALAH_MPGS_ENABLED: "true",
       BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
       BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+      BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return",
       BANK_ALFALAH_MPGS_CHECKOUT_MODE: "not_hosted_checkout"
     })
   );
@@ -96,7 +129,8 @@ test("getConfigPreview never surfaces the API password value", async () => {
   const cfg = await loadConfigWith({
     BANK_ALFALAH_MPGS_ENABLED: "true",
     BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
-    BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS"
+    BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return"
   });
   const modulePath = require.resolve("./env");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
