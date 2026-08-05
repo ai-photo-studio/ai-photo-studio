@@ -32,8 +32,21 @@ export const createRestorationRouter = (config: AppConfig): Router => {
     fixedOrderController.createRestorationDigitalOrder
   );
   router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
-  router.post("/orders/:orderNo/checkout", rateLimit(60_000, 20), checkoutController.create);
-  router.get("/orders/:orderNo/payment-status", rateLimit(60_000, 60), checkoutController.status);
+  // R9.2-MPGS-ACTUAL-APP-E2E: these were previously mounted at
+  // /orders/:orderNo/checkout and /orders/:orderNo/payment-status, which
+  // collided byte-for-byte with the pre-existing legacy
+  // OrderController.createOrderCheckout route (order.routes.ts, mounted
+  // earlier in index.ts). Express matches the first-registered handler for
+  // an identical path, so the legacy (different order model, different
+  // PaymentService) handler always won -- this MPGS checkout controller was
+  // unreachable via HTTP in the real running app. Confirmed via the actual-
+  // app dry-run harness (real click on FixedOrderReviewPage's "Pay
+  // securely" always returned "Order not found" from the legacy handler).
+  // Moved under the same /fixed-orders/ prefix already used by the read
+  // route directly above, eliminating the collision without touching the
+  // legacy Order/PaymentService system at all.
+  router.post("/fixed-orders/:orderNo/checkout", rateLimit(60_000, 20), checkoutController.create);
+  router.get("/fixed-orders/:orderNo/payment-status", rateLimit(60_000, 60), checkoutController.status);
 
   return router;
 };

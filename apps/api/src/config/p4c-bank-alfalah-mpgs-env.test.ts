@@ -76,7 +76,8 @@ test("BANK_ALFALAH_MPGS_ENABLED=true with merchant id and password succeeds", as
     BANK_ALFALAH_MPGS_ENABLED: "true",
     BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
     BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
-    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return"
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return",
+    BANK_ALFALAH_MPGS_MERCHANT_NAME: "REDACTED Test Merchant"
   });
   assert.equal(cfg.bankAlfalahMpgs.enabled, true);
   assert.equal(cfg.bankAlfalahMpgs.merchantId, "REDACTEDMID");
@@ -108,7 +109,8 @@ test("BANK_ALFALAH_MPGS_ENABLED=true with a localhost return URL is accepted (sa
     BANK_ALFALAH_MPGS_ENABLED: "true",
     BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
     BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
-    BANK_ALFALAH_MPGS_RETURN_URL: "http://localhost:5173/checkout/return"
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://localhost:5173/checkout/return",
+    BANK_ALFALAH_MPGS_MERCHANT_NAME: "REDACTED Test Merchant"
   });
   assert.equal(cfg.bankAlfalahMpgs.returnUrl, "http://localhost:5173/checkout/return");
 });
@@ -120,9 +122,44 @@ test("BANK_ALFALAH_MPGS_ENABLED=true with an invalid checkout mode throws", asyn
       BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
       BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
       BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return",
+      BANK_ALFALAH_MPGS_MERCHANT_NAME: "REDACTED Test Merchant",
       BANK_ALFALAH_MPGS_CHECKOUT_MODE: "not_hosted_checkout"
     })
   );
+});
+
+test("BANK_ALFALAH_MPGS_ENABLED=true without a merchant name throws (fails closed; bank v100 doc requires interaction.merchant.name)", async () => {
+  await assert.rejects(() =>
+    loadConfigWith({
+      BANK_ALFALAH_MPGS_ENABLED: "true",
+      BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
+      BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+      BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return"
+    })
+  );
+});
+
+test("BANK_ALFALAH_MPGS_ENABLED=true with a merchant name over 40 characters throws (fails closed)", async () => {
+  await assert.rejects(() =>
+    loadConfigWith({
+      BANK_ALFALAH_MPGS_ENABLED: "true",
+      BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
+      BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+      BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return",
+      BANK_ALFALAH_MPGS_MERCHANT_NAME: "x".repeat(41)
+    })
+  );
+});
+
+test("BANK_ALFALAH_MPGS_ENABLED=true with a 1-40 char merchant name is accepted", async () => {
+  const cfg = await loadConfigWith({
+    BANK_ALFALAH_MPGS_ENABLED: "true",
+    BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
+    BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return",
+    BANK_ALFALAH_MPGS_MERCHANT_NAME: "x".repeat(40)
+  });
+  assert.equal(cfg.bankAlfalahMpgs.merchantName, "x".repeat(40));
 });
 
 test("getConfigPreview never surfaces the API password value", async () => {
@@ -130,7 +167,8 @@ test("getConfigPreview never surfaces the API password value", async () => {
     BANK_ALFALAH_MPGS_ENABLED: "true",
     BANK_ALFALAH_MPGS_MERCHANT_ID: "REDACTEDMID",
     BANK_ALFALAH_MPGS_API_PASSWORD: "REDACTEDPASS",
-    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return"
+    BANK_ALFALAH_MPGS_RETURN_URL: "http://127.0.0.1:5173/checkout/return",
+    BANK_ALFALAH_MPGS_MERCHANT_NAME: "REDACTED Test Merchant"
   });
   const modulePath = require.resolve("./env");
   // eslint-disable-next-line @typescript-eslint/no-require-imports

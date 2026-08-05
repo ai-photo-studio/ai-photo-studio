@@ -617,3 +617,63 @@ is additive; every rule above it remains in force verbatim.
   scratch-file side effect was found and discarded, not committed). Full
   test/command evidence: `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`
   (R9.2-P6C section) and `docs/restoration/P6C_CUSTOMER_MVP_FLOW_PROTOCOL.md`.
+
+### R9.2-MPGS-ACTUAL-APP-E2E: PR #137 merged (return-URL repair); actual-app dry-run harness found and repaired three independent defects (2026-08-05)
+
+Added by the R9.2-MPGS-ACTUAL-APP-E2E packet. This section is additive; every
+rule above it remains in force verbatim.
+
+- PR #137 (`ops/r9.2-mpgs-actual-app-test`, head `3c2e2f0`) was
+  independently re-verified (OPEN, CLEAN, MERGEABLE, exactly the 3 intended
+  return-URL-repair files, 10/10 env + 26/26 gateway/checkout unit tests,
+  68/68 disposable-PostgreSQL pg-race tests run separately, 58/58 existing
+  Playwright tests, lint/typecheck/build clean) and merged normally. Merge
+  commit: `1aa0040e72a962427cc2e2018722bb9f2e1d41a8`.
+- **Permanent rule — the bank's live v100 REST-JSON API documentation is the
+  sandbox contract authority, re-verify it directly before trusting any
+  prior session's endpoint assumption.** A confirmed contract mismatch was
+  found and repaired: Hosted Checkout initiation is
+  `POST .../merchant/{merchantId}/session` (not
+  `PUT .../order/{orderId}/checkout`), and `interaction.merchant.name`
+  (1-40 chars) is a REQUIRED field the adapter never sent. This is
+  consistent with, and very likely fully explains, the original P4C
+  structural `HTTP 404`. New required-when-enabled config:
+  `BANK_ALFALAH_MPGS_MERCHANT_NAME`. `retrieveOrder`
+  (`GET .../order/{orderId}`), Basic Auth construction, and the
+  verification orchestrator are unchanged. Full record:
+  `docs/payments/bank-alfalah-mastercard/R9.2_MPGS_ACTUAL_APP_E2E_CONTRACT_CORRECTION_2026-08-05.md`.
+- **Permanent rule — a route registered in an earlier-mounted router always
+  wins an identical-path collision; verify actual reachability, not just
+  unit/mocked-Playwright coverage.** The MPGS checkout controller's routes
+  (`/orders/:orderNo/checkout`, `/orders/:orderNo/payment-status`) were
+  byte-for-byte shadowed by the pre-existing legacy
+  `OrderController.createOrderCheckout` route (mounted earlier in
+  `index.ts`), making the MPGS checkout endpoint unreachable via real HTTP
+  traffic since it was first wired up -- no mocked test ever caught this.
+  Repaired by moving both routes under the existing `/fixed-orders/` prefix.
+  A structural regression test
+  (`r9.2-mpgs-checkout-route-collision-guard.test.ts`) now guards this.
+- **Permanent rule — every `rateLimit()` call site must have its own
+  isolated counter.** `rate-limit.middleware.ts` previously shared one
+  module-scope `Map` across every call site (including the global
+  `app.use(rateLimit(60_000, 120))`), so unrelated requests from the same
+  IP could exhaust a route's specific budget. Repaired; each call now gets
+  a private store. Regression test: `rate-limit.middleware.test.ts`.
+- A new actual-app dry-run harness (`apps/web/tests/browser-actual-app-dryrun/`,
+  `apps/web/playwright.actual-app-dryrun.config.ts`,
+  `apps/api/src/scripts/mpgs-local-stub-server.ts`) drives the real upload
+  -> preview -> tiers -> create-order -> review -> one real "Pay securely"
+  click flow against a real disposable PostgreSQL instance and a real API
+  server, with the MPGS base URL pointed at a local stub gateway (never the
+  real bank host). 6/6 tests pass (success, duplicate-click protection,
+  refresh-is-GET-only, and 400/401/404 error handling), all with zero live
+  network calls.
+- No live sandbox request was made this session (deliberately deferred --
+  building and validating the actual-app harness first was this packet's
+  own risk-sequencing decision). `BANK_ALFALAH_MPGS_ENABLED` remains
+  `false` outside manual/CI runs.
+  `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` status is unchanged
+  by this packet (a separate, external provisioning question). No
+  production deployment, no RunPod/Replicate/R2/webhook/capture/P4A change,
+  no destructive Git operation, no Bank Alfalah support ticket or email
+  drafted or sent (explicitly out of scope for this packet).

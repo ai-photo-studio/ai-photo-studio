@@ -104,6 +104,7 @@ export interface MpgsGatewayConfig {
   apiVersion: string;
   merchantId: string;
   apiPassword: string;
+  merchantName: string;
   checkoutMode: string;
 }
 
@@ -230,7 +231,13 @@ export class BankAlfalahMpgsGateway {
   }
 
   /**
-   * PUT .../order/{orderId}/checkout -- initiates Hosted Checkout. Amount,
+   * POST .../merchant/{merchantId}/session -- initiates Hosted Checkout via
+   * the "Hosted Checkout: Initiate Checkout" REST-JSON v100 operation.
+   * Confirmed against the bank's own live documentation (R9.2-MPGS-ACTUAL-
+   * APP-E2E contract audit): method is POST (not PUT), the path is
+   * merchant-scoped `/session` (not order-scoped `/order/{id}/checkout`),
+   * and `interaction.merchant.name` (1-40 chars) is a REQUIRED field absent
+   * from the prior implementation -- this is the corrected shape. Amount,
    * currency, and order id all come from server-owned params (the caller
    * must derive them from FixedOrder/PaymentAttempt, never from a request
    * body) and currency must already have passed `assertMpgsCurrencySupported`.
@@ -241,12 +248,18 @@ export class BankAlfalahMpgsGateway {
     if (this.config.checkoutMode !== "hosted_checkout") {
       throw new MpgsNotConfiguredError(`unsupported checkout mode: ${this.config.checkoutMode}`);
     }
+    if (!this.config.merchantName) {
+      // Bank v100 doc: interaction.merchant.name is REQUIRED on this
+      // operation only -- Retrieve Order (GET, no body) never needs it, so
+      // this check lives here, not in the shared assertConfigured().
+      throw new MpgsNotConfiguredError("Bank Alfalah MPGS merchant name is not configured");
+    }
 
-    const url = `${restBaseUrl(this.config)}/order/${encodeURIComponent(params.orderId)}/checkout`;
+    const url = `${restBaseUrl(this.config)}/session`;
     const majorAmount = (Number(params.amountMinor) / 100).toFixed(2);
 
     const response = await this.fetchImpl(url, {
-      method: "PUT",
+      method: "POST",
       headers: {
         Authorization: buildMpgsAuthHeader(this.config),
         "Content-Type": "application/json"
@@ -256,7 +269,10 @@ export class BankAlfalahMpgsGateway {
         checkoutMode: "WEBSITE",
         interaction: {
           operation: "PURCHASE",
-          returnUrl: params.returnUrl
+          returnUrl: params.returnUrl,
+          merchant: {
+            name: this.config.merchantName
+          }
         },
         order: {
           id: params.orderId,

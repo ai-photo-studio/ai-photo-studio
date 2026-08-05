@@ -281,7 +281,7 @@ export const customerApi = {
       sessionId: string | null;
       successIndicator: string | null;
     }>(
-      `/api/orders/${encodeURIComponent(orderNo)}/checkout`,
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/checkout`,
       { method: "POST", body: JSON.stringify({ orderNo }) },
       token,
       guestToken
@@ -295,7 +295,7 @@ export const customerApi = {
       currency: "PKR" | "USD";
       sessionId: string | null;
       successIndicator: string | null;
-    }>(`/api/orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken)
+    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken)
 };
 
 export type RestorationDraftSummary = {

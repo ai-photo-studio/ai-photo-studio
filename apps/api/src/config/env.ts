@@ -76,6 +76,14 @@ const envSchema = z
      // browser checkout request. A local loopback URL is used for disposable
      // sandbox runs and production must configure its own approved URL.
      BANK_ALFALAH_MPGS_RETURN_URL: z.string().optional().default(""),
+     // R9.2-MPGS-ACTUAL-APP-E2E: bank's own v100 REST-JSON "Hosted Checkout:
+     // Initiate Checkout" operation documentation requires
+     // interaction.merchant.name (1-40 chars) on every INITIATE_CHECKOUT
+     // request -- confirmed via live fetch of
+     // .../rest-json/version/100/operation/Hosted Checkout: Initiate
+     // Checkout.html. Not a secret (a display name), but still server-owned
+     // and validated the same way as the return URL.
+     BANK_ALFALAH_MPGS_MERCHANT_NAME: z.string().optional().default(""),
      BANK_ALFALAH_MPGS_CHECKOUT_MODE: z.string().optional().default("hosted_checkout")
   })
   .superRefine((cfg, ctx) => {
@@ -183,6 +191,14 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ["BANK_ALFALAH_MPGS_RETURN_URL"],
           message: "BANK_ALFALAH_MPGS_RETURN_URL must be a valid URL when BANK_ALFALAH_MPGS_ENABLED=true"
+        });
+      }
+      if (!cfg.BANK_ALFALAH_MPGS_MERCHANT_NAME || cfg.BANK_ALFALAH_MPGS_MERCHANT_NAME.length > 40) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BANK_ALFALAH_MPGS_MERCHANT_NAME"],
+          message:
+            "BANK_ALFALAH_MPGS_MERCHANT_NAME is required (1-40 chars, matches interaction.merchant.name) when BANK_ALFALAH_MPGS_ENABLED=true"
         });
       }
       try {
@@ -298,6 +314,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
     apiPassword: string;
     operatorId: string;
     returnUrl: string;
+    merchantName: string;
     checkoutMode: string;
   };
 };
@@ -371,6 +388,7 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
     apiPassword: "",
     operatorId: "",
     returnUrl: "",
+    merchantName: "",
     checkoutMode: "hosted_checkout"
   },
   ...(overrides || {}),
@@ -428,6 +446,7 @@ export const loadConfig = (): AppConfig => {
       apiPassword: cfg.BANK_ALFALAH_MPGS_API_PASSWORD,
       operatorId: cfg.BANK_ALFALAH_MPGS_OPERATOR_ID.trim(),
       returnUrl: cfg.BANK_ALFALAH_MPGS_RETURN_URL.trim(),
+      merchantName: cfg.BANK_ALFALAH_MPGS_MERCHANT_NAME.trim(),
       checkoutMode: cfg.BANK_ALFALAH_MPGS_CHECKOUT_MODE.trim()
     }
   };
