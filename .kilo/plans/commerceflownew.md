@@ -384,3 +384,31 @@ and manifest section 23.
 Launch blocker unchanged: bank-side confirmation/resolution of the
 sandbox credential/profile rejection is required before this integration
 can reach `session.id`.
+
+## 23. R9.2-FINAL-INDEPENDENT-MPGS-RAW-PROOF (2026-08-05)
+
+PR #140 merged (`3cccfca`). All ten BAF evidence documents, the bank's V100
+documentation, the adapter and all MPGS workflows were read completely and
+consolidated into one authoritative contract table
+(`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_FINAL_CONTRACT_TABLE_AND_DRIFT_PROTECTION.md`):
+**every dimension matches, zero client-side discrepancies**, with three
+genuine source contradictions recorded rather than silently reconciled.
+
+The independent raw re-test this packet specified was **not executed** --
+manifest §21 already records that byte-for-byte identical request (V100
+`/session`, `text/plain`, `PURCHASE`, merchant name, PKR 1.00, 19-char
+alphanumeric order id) with the definitive result `HTTP 401 Invalid
+credentials.` Re-running it would add nothing, spend another rationed live
+request, and contradict the standing instruction to rotate the exposed
+password first. Decisive supporting evidence: the correct password and a
+deliberately wrong control password return **byte-identical** 401s, so the
+gateway is not distinguishing the credential at all -- no client-side
+change can affect the outcome.
+
+Client integration is contract-complete. `P4C_MPGS_AUTH_VERIFIED` still not
+achieved; `BANK_ALFALAH_MPGS_ENABLED` remains `false`. Only remaining
+actions are bank-side: rotate/reissue the exposed API password, confirm the
+reissued credential is provisioned for REST API access (distinct from
+portal login), and confirm `/session` vs `/order/{id}/transaction` as the
+intended entry point. Once done, the existing CI `live` job performs the
+retest end to end with no new infrastructure.
