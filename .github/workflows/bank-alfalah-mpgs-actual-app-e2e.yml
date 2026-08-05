@@ -94,9 +94,12 @@ jobs:
       BANK_ALFALAH_MPGS_ENABLED: "true"
       BANK_ALFALAH_MPGS_BASE_URL: http://127.0.0.1:4600
       BANK_ALFALAH_MPGS_API_VERSION: "74"
-      BANK_ALFALAH_MPGS_MERCHANT_ID: CIDRYRUNMERCHANT
+      # Must match the literal value the dry-run Playwright spec asserts on
+      # (Basic Auth username prefix "merchant.DRYRUNMERCHANT").
+      BANK_ALFALAH_MPGS_MERCHANT_ID: DRYRUNMERCHANT
       BANK_ALFALAH_MPGS_API_PASSWORD: ci-dryrun-not-a-real-secret
-      BANK_ALFALAH_MPGS_MERCHANT_NAME: "CI Dry Run Test Merchant"
+      # Must match the literal value the dry-run Playwright spec asserts on.
+      BANK_ALFALAH_MPGS_MERCHANT_NAME: "Dry Run Test Merchant"
       BANK_ALFALAH_MPGS_RETURN_URL: http://127.0.0.1:5173/checkout/return
       STUB_PORT: "4600"
       STUB_MODE: success
