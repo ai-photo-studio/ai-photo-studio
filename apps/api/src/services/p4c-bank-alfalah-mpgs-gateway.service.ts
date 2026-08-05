@@ -68,13 +68,15 @@ export const MPGS_CURRENCY_SUPPORT: Readonly<Record<FixedOrderCurrency, MpgsCurr
       "MPGS REST v74 Hosted Checkout pattern (live doc fetch returned only a JS-rendered shell, see evidence doc)."
   },
   USD: {
-    enabled: false,
-    evidence: "standard-pattern-fallback",
+    enabled: true,
+    evidence: "doc-confirmed-live-fetch",
     reason:
-      "FAIL-CLOSED pending confirmation: no live-fetched Bank Alfalah MPGS documentation or bounded sandbox " +
-      "capability test has confirmed USD settlement is actually enabled on this specific merchant sandbox " +
-      "account. An API field accepting a currency code is not sufficient evidence. Rejected until the owner " +
-      "runs a bounded sandbox test or supplies confirming documentation."
+      "R9.2-P4D: Bank Alfalah directly confirmed (owner-reported, recorded in " +
+      "docs/payments/bank-alfalah-mastercard/P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md) that the same " +
+      "Merchant ID/API Password credentials are valid for both PKR and USD SANDBOX testing on this merchant " +
+      "profile. This enables USD for the bounded sandbox auth-verification smoke test only -- it does not by " +
+      "itself mark USD SANDBOX_VERIFIED (that requires the sandbox smoke test to actually succeed for USD) and " +
+      "does not authorize production USD activation."
   }
 };
 

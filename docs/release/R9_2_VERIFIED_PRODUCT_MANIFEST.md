@@ -2121,3 +2121,105 @@ tests, 2 extended `fixed-order` pg-race tests, and every regression suite
 (5 pg-race in isolation, 147 non-DB, 14 vitest, 36 pre-existing browser)
 all pass. Lint/typecheck/build/Prisma/git-diff all clean. No RunPod, MPGS
 checkout, deployment, or production-database change.
+
+## 20. R9.2-MERGE-P131-AND-P4D-MPGS-SANDBOX-AUTH (2026-08-05)
+
+### 20.1 PR #131 merge
+
+Verified PR #131 (`feat/r9.2-p6c-customer-mvp-flow`, head
+`4557aa02b433c81ae813cb5d76a8abcd4ca9816c`) OPEN/CLEAN/MERGEABLE, no
+required failing check (none configured on this branch), expected P6C file
+scope only (`fixed-order`/`restoration-draft` controller/service/routes,
+customer-facing pages, browser fixtures/spec, docs), no secret/deployment/
+RunPod change (`gh pr diff` scanned for `RUNPOD|RunPod|secret|Dockerfile|
+wrangler|deploy` — every hit was a doc sentence stating those things were
+*not* touched). Ran the focused suite in an isolated worktree
+(`D:\Temp\r92-p131-verify`) against a disposable PostgreSQL 17 instance:
+16/16 `fixed-order.service.pg-race.test.ts`, 9/9
+`restoration-draft.service.pg-race.test.ts`, 4/4
+`restoration-draft.service.test.ts`, 16/16 P6C Playwright browser tests,
+API and web `typecheck` both clean. Merged normally
+(`gh pr merge 131 --merge --delete-branch=false`). **Merge commit:
+`a3c4981a5c2d6a94914036762886961ea6aed4cf`.** Disposable Postgres stopped,
+data directory removed, worktree removed immediately after.
+
+### 20.2 New Bank Alfalah bank-confirmed facts recorded
+
+Owner-reported bank confirmation (not derived, not guessed) recorded in
+`docs/payments/bank-alfalah-mastercard/P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md`:
+a complete bank-issued **15-character** Merchant ID is active in sandbox;
+Hosted Checkout/API access is enabled; the confirmed integration is **API
+V100** with `apiOperation=INITIATE_CHECKOUT` (correcting every prior
+packet's `standard-pattern-fallback` assumption of `74`); the same
+credentials cover **both PKR and USD** sandbox testing; Operator ID is
+MPGS-portal-login-only (unchanged rule); a webhook endpoint must be
+supplied (not yet supplied); the bank supplied webhook source IP(s) that
+were not included in this session's task text (recorded as an explicit,
+unfilled owner TODO — never guessed); and the bank states allowlisting/3DS/
+return configuration is aligned. No Merchant ID, API Password, Operator ID,
+or other secret value is recorded anywhere in this document or any other
+tracked file.
+
+### 20.3 Code changes (env/config-driven only — no protocol shape changed)
+
+- `BANK_ALFALAH_MPGS_API_VERSION` default `74` -> `100` (`config/env.ts`),
+  matching the bank-confirmed value.
+- `MPGS_CURRENCY_SUPPORT.USD`: `enabled: false` -> `true`, evidence
+  `standard-pattern-fallback` -> `doc-confirmed-live-fetch`, citing the
+  bank's direct confirmation of shared PKR/USD sandbox credentials. This
+  authorizes the bounded sandbox *test* only — it does not itself mark USD
+  `SANDBOX_VERIFIED` and does not touch production.
+- `p4c-bank-alfalah-mpgs-sandbox-smoke.ts` rewritten: attempts PKR first;
+  USD only after PKR authentication succeeds; prints
+  `BANK_ALFALAH_MPGS_MERCHANT_ID` length only (never the value), the API
+  version, and `apiOperation=INITIATE_CHECKOUT`; stops (exit 3) with an
+  exact, printed Bank Alfalah follow-up question if PKR is rejected in a
+  shape consistent with a merchant-id length/recognition issue, rather than
+  guessing a truncated/derived id.
+- `bank-alfalah-mpgs-sandbox-smoke.yml`: `BANK_ALFALAH_MPGS_API_VERSION`
+  `74` -> `100`.
+- Two gateway unit tests updated (USD now accepted, not rejected) and one
+  env-default test updated (`apiVersion` `"74"` -> `"100"`) to match the
+  above; no other assertions changed.
+
+### 20.4 Real sandbox dispatch result (run `30987873211`)
+
+Dispatched `bank-alfalah-mpgs-sandbox-smoke.yml` against
+`feat/r9.2-p4d-mpgs-sandbox-auth` with the corrected API version and the
+exact, untruncated 15-character Merchant ID. Result: **HTTP 404** on
+Hosted Checkout initialization — the same structural failure shape as the
+prior P4C attempt (run `30910714515`, API version `74`). Sanitized fields:
+Merchant ID length `15`; API version `100`; `apiOperation=
+INITIATE_CHECKOUT`; Content-Type `application/json;charset=ISO-8859-1`;
+`WWW-Authenticate` `none`; correlation/request ID `none`. Retrieve Order
+was never reached (flow stops on first failure); USD was never attempted
+(gated behind PKR success, which did not occur). Full detail:
+`docs/payments/bank-alfalah-mastercard/P4D_SANDBOX_AUTH_VERIFICATION.md`.
+
+**`P4C_MPGS_AUTH_VERIFIED`: NOT achieved.** Per task rule 4 ("when the exact
+15-character ID is rejected because of identifier length or merchant
+recognition, stop"), this session stopped and produced the exact Bank
+Alfalah follow-up question (recorded in full in
+`P4D_SANDBOX_AUTH_VERIFICATION.md` §5) asking whether a separate, shorter
+(<=12 character) gateway Merchant ID must be used instead. No guessed
+12-character substring was tested against the live sandbox.
+`MERCHANT_PROFILE_ENABLEMENT_REQUIRED` is retained, not retired.
+
+### 20.5 Conditional checkout implementation: not started
+
+Per task rule 5 ("When authentication fails, make no checkout/customer-route
+changes"), since authenticated `INITIATE_CHECKOUT` did not succeed, **no**
+checkout-route or customer-facing payment code was added or modified this
+session. `p4c-bank-alfalah-mpgs-gateway.service.ts` remains unwired from
+any Express router/controller, exactly as before.
+
+### 20.6 Testing / cleanup
+
+25/25 `p4c-bank-alfalah-mpgs-gateway.service.test.ts` (up from 23, USD
+cases updated), 7/7 `p4c-bank-alfalah-mpgs-env.test.ts`, 14/14 P4C2
+diagnostic (`vitest`), 16/16 `fixed-order` DB tests, 9/9
+`restoration-draft` DB tests (all on a disposable PostgreSQL 17 instance —
+PID stopped, port freed, data directory deleted, confirmed after each use),
+1/1 legacy-APG-retired scan test. API and web `typecheck` clean, API build
+clean, `prisma validate`/`generate` clean. No RunPod, no production
+credential, no card data, no capture, at any point in this session.

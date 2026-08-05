@@ -53,7 +53,9 @@ test("BANK_ALFALAH_MPGS_ENABLED defaults to false (fail-closed) and required fie
   const cfg = await loadConfigWith({});
   assert.equal(cfg.bankAlfalahMpgs.enabled, false);
   assert.equal(cfg.bankAlfalahMpgs.baseUrl, "https://test-bankalfalah.gateway.mastercard.com");
-  assert.equal(cfg.bankAlfalahMpgs.apiVersion, "74");
+  // R9.2-P4D: bank-confirmed API V100 for this merchant profile (see
+  // docs/payments/bank-alfalah-mastercard/P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md).
+  assert.equal(cfg.bankAlfalahMpgs.apiVersion, "100");
   assert.equal(cfg.bankAlfalahMpgs.checkoutMode, "hosted_checkout");
 });
 
