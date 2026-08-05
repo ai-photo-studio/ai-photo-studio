@@ -119,6 +119,13 @@ export class FixedOrderService {
     this.offerProvider = offerProvider;
   }
 
+  /** GET /api/fixed-orders/:orderNo -- read-only. Uniform 404 for wrong-owner/nonexistent (enumeration-safe). */
+  async getByOrderNo(orderNo: string, actor: RequestActor): Promise<FixedOrderSafeView> {
+    const order = await prisma.fixedOrder.findUnique({ where: { orderNo }, include: ORDER_INCLUDE });
+    const owned = assertOwnership(order, actor);
+    return toSafeView(owned);
+  }
+
   async createRestorationDigitalOrder(
     input: CreateRestorationDigitalOrderInput,
     actor: RequestActor

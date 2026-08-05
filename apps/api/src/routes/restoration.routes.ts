@@ -29,6 +29,7 @@ export const createRestorationRouter = (config: AppConfig): Router => {
     rateLimit(60_000, 20),
     fixedOrderController.createRestorationDigitalOrder
   );
+  router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
 
   return router;
 };

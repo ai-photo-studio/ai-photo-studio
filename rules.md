@@ -582,3 +582,38 @@ section is additive; every rule above it remains in force verbatim.
   deleted before commit, not committed). Full test/command evidence:
   `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` (R9.2-P6B section) and
   `docs/restoration/P6B_APPROVED_OFFER_WIRING_PROTOCOL.md`.
+
+### R9.2-MERGE-P130-AND-P6C-CUSTOMER-MVP-FLOW: PR #130 merged; customer MVP flow completed (2026-08-05)
+
+Added by the R9.2-MERGE-P130-AND-P6C-CUSTOMER-MVP-FLOW packet. This section
+is additive; every rule above it remains in force verbatim.
+
+- PR #130 (`feat/r9.2-p6b-approved-offer-wiring`, head
+  `d01f8201c547d33bd36269bbc85cb0aeedce03ff`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, expected nine P6B files only, no secret/
+  deployment/MPGS/RunPod/unrelated change, no required failing check;
+  focused unit + a fresh disposable-PostgreSQL pg-race run both re-passed)
+  and merged normally. Merge commit: `1e325e9c8cb457812f222930c0fa21ce8bc1245e`.
+- **Permanent record — `setup/project-automation` is superseded, do not
+  cherry-pick**: that local branch (one commit, `f47b6cf`, based on a
+  pre-P4B point in `main`'s history, never merged) contains an alternate,
+  abandoned implementation of `restoration-draft.controller.ts`/
+  `.service.ts`/`.routes.ts` and `FixedOrderReviewPage.tsx` whose own
+  `fixed-order.service.ts` conflicts with the tested one already on `main`
+  (P6B). It must never be cherry-picked or merged as-is; if any part of it
+  is ever reused, it must be re-derived and re-verified against current
+  `main`, exactly as this packet did. Full audit:
+  `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 19.2.
+- The minimum customer MVP (market selection → upload → `RestorationDraft`
+  → signed preview → server offers → tier selection → immutable
+  `FixedOrder` → review) is now live: `POST /api/restoration-drafts`,
+  `GET /api/restoration-drafts/:id`, `GET /api/restoration-drafts/:id/offers`,
+  the existing `POST /api/fixed-orders/restoration-digital` (P6B), and the
+  new `GET /api/fixed-orders/:orderNo`. Every write in this flow is
+  explicit-button-only; every read is GET-only on mount/refresh, extending
+  the P6A rule to this new flow's pages.
+- No MPGS checkout route was created; `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+  remains open, unchanged. RunPod was not touched (an incidental test-
+  scratch-file side effect was found and discarded, not committed). Full
+  test/command evidence: `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`
+  (R9.2-P6C section) and `docs/restoration/P6C_CUSTOMER_MVP_FLOW_PROTOCOL.md`.

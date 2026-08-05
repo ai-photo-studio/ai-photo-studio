@@ -1876,3 +1876,248 @@ idempotent, enumeration-safe, and stops before any payment/execution row.
 regressions, 143/143 non-DB regressions, 14/14 vitest regression, 36/36
 browser regressions all pass. Lint/typecheck/build/Prisma/git-diff all
 clean. No RunPod, MPGS checkout, deployment, or production-database change.
+
+## 19. R9.2-MERGE-P130-AND-P6C-CUSTOMER-MVP-FLOW (2026-08-05)
+
+Branch: `feat/r9.2-p6c-customer-mvp-flow`, from a clean worktree
+(`D:\Temp\r92-p6c-customer-mvp-flow`) built off updated `origin/main` (after
+the PR #130 merge below). This section is a dated amendment, appended per
+the Protected Scope Protocol; nothing in sections 1–18 was changed.
+
+### 19.1 PR #130 merge
+
+PR #130 (`feat/r9.2-p6b-approved-offer-wiring`, head
+`d01f8201c547d33bd36269bbc85cb0aeedce03ff`) was re-verified: `state: OPEN`,
+`mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, no required failing
+checks, files matched the expected nine P6B files exactly. The focused P6B
+unit test (3/3) and a fresh disposable-PostgreSQL pg-race run (14/14) both
+passed before merge; the disposable instance was fully torn down
+(PID/port/temp-data confirmed) immediately after. Merged normally
+(`gh pr merge 130 --merge --delete-branch=false`). **Merge commit:
+`1e325e9c8cb457812f222930c0fa21ce8bc1245e`.**
+
+### 19.2 Source-of-truth audit (before writing anything new)
+
+Searched `git log --all --diff-filter=A --name-only` (not just `main`'s own
+history) for every historical file this task named:
+`restoration-draft.controller.ts`/`.service.ts`/`.routes.ts`,
+`FixedOrderReviewPage.tsx`, `OriginalPreviewPage.tsx`,
+`DigitalTierSelectPage.tsx`. Found:
+
+- `restoration-draft.controller.ts`, `restoration-draft.service.ts`,
+  `restoration-draft.routes.ts`, and `FixedOrderReviewPage.tsx` were all
+  added in exactly **one** commit, `f47b6cf` ("chore: add repository
+  project automation files"), on the local branch `setup/project-automation`.
+  That branch's parent (`38f768d`, the PR #118 merge) is far behind current
+  `main` — it predates P4B, the P4C independent review, P4D, P5A, P5B, P6A,
+  and P6B entirely. The branch was never merged into `main`
+  (`git log --oneline main..setup/project-automation` shows only that one
+  commit; `setup/project-automation..main` shows dozens of commits absent
+  from it). Its own `fixed-order.service.ts` (355 lines, a different,
+  older implementation) directly conflicts with the already-merged, tested,
+  currently-live `fixed-order.service.ts` from P6B.
+- `OriginalPreviewPage.tsx` and `DigitalTierSelectPage.tsx` never existed
+  anywhere in this repository's history under those names, on any branch.
+
+**Conclusion, not an assumption**: this historical code is real (it exists,
+it was written, it is not a fabrication) but is **superseded** — an
+abandoned, pre-P4B, never-merged alternate implementation, not a piece of
+`main` that was accidentally deleted. Cherry-picking it would reintroduce a
+`fixed-order.service.ts` that conflicts with the tested one already on
+`main` and would bypass every schema/security change since. It was
+correctly left uncherry-picked. The MVP below reuses, unchanged, every
+still-current and already-tested piece: `imageValidation.ts`, `market.ts`,
+`ownership.ts`/`guest-ownership.ts`, the full pricing stack, and P6B's
+`fixed-order.service.ts` itself (extended, not replaced).
+
+### 19.3 What was built (minimum customer MVP)
+
+**Backend** (all new; nothing duplicates an existing service — none of
+these routes existed on `main` before this packet):
+
+- `apps/api/src/services/restoration-draft.service.ts` —
+  `RestorationDraftService.createDraft/getDraft/getOffers`. Storage is
+  injected as a narrow port (same pattern as `sharp-variant.service.ts`'s
+  `SharpVariantStorage`), so this service never depends on `AppConfig`/env
+  directly. `createDraft`: `assertMarketConfirmed` + `deriveMarketFromCountry`
+  (existing `market.ts`, unchanged) resolve market/currency from a
+  client-sent country code + explicit confirmation flag — never a market/
+  currency value directly; `assertSafeUploadFileName` +
+  `decodeDraftImageBase64` + `validateRestorationDraftImage` (existing
+  `imageValidation.ts`, unchanged) perform real magic-byte + Sharp-decode
+  validation, size and pixel-budget checks **before** any storage write;
+  upload happens only after validation passes; the draft row is created
+  only after upload succeeds. `getDraft` returns a signed, time-limited
+  preview URL — the private storage key itself is never included in any
+  response. `getOffers` resolves the draft's own market through the
+  existing `ApprovedOfferProvider`.
+- `apps/api/src/controllers/restoration-draft.controller.ts` +
+  `apps/api/src/routes/restoration-draft.routes.ts` (new router, mounted in
+  `index.ts` alongside the existing restoration router — no route
+  duplicated): `POST /api/restoration-drafts`,
+  `GET /api/restoration-drafts/:id`, `GET /api/restoration-drafts/:id/offers`.
+- `apps/api/src/services/fixed-order.service.ts` (P6B, extended) —
+  `getByOrderNo`, read-only, reusing `assertOwnership` unchanged (uniform
+  404, enumeration-safe). Mounted as `GET /api/fixed-orders/:orderNo` on the
+  **existing** `restoration.routes.ts` router (no new router file).
+
+**Frontend** (four new pages, explicit-button flow, no page issues a write
+on mount or refresh):
+
+- `RestorationUploadPage.tsx` — country select + explicit confirmation
+  checkbox + file picker; uploads only on the "Upload photo" button click.
+- `OriginalPreviewPage.tsx` — GET-only on mount and on the "Refresh"
+  button; shows the signed preview; "Choose resolution" is an explicit
+  button to the next step.
+- `DigitalTierSelectPage.tsx` — GET-only offers load on mount/refresh;
+  tier selection is a click; order creation happens only on the explicit
+  "Create order" button click.
+- `FixedOrderReviewPage.tsx` — GET-only on mount and refresh; displays
+  server market, currency, tier, amount (minor units converted for
+  display only), and PriceBook version; always renders a truthful
+  "payment is not yet available" message (`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+  remains open) — reads no query parameter at all, so a forged
+  `?status=success` cannot fabricate anything.
+- `customerApi.ts` (extended, additive): `createRestorationDraft`,
+  `getRestorationDraft`, `getRestorationDraftOffers`, `createFixedOrder`,
+  `getFixedOrder`. Guest ownership uses the existing, unchanged
+  `lib/guest.ts` key-value store (already generic by id, reused verbatim
+  for draft ids and order numbers — no new guest-token mechanism).
+
+No Prisma schema/migration change was needed. No checkout/MPGS route was
+added. No production deployment occurred.
+
+### 19.4 Test evidence
+
+Backend, unit (no DB, `npx tsx --test`):
+
+| Suite | Result |
+|---|---|
+| `restoration-draft.service.test.ts` (new) | **4/4 pass** |
+
+Backend, disposable local PostgreSQL 17 (loopback-only, random port,
+`pg_hba.conf` `trust` for this throwaway cluster only, `DATABASE_URL`/
+`DISPOSABLE_DATABASE_URL` passed only as environment variables, never
+written to `.env`; **each pg-race file run in its own isolated `tsx --test`
+invocation**, per this suite's established, non-glob-safe convention):
+
+| Suite | Result |
+|---|---|
+| `restoration-draft.service.pg-race.test.ts` (new) | **9/9 pass** |
+| `fixed-order.service.pg-race.test.ts` (extended with `getByOrderNo` tests q11a/q11b) | **16/16 pass** |
+| `p3a-replicate-execution-worker.pg-race.test.ts` (regression, isolated) | **10/10 pass** |
+| `p4a-payment-verified-execution-queue.service.pg-race.test.ts` (regression, isolated) | **14/14 pass** |
+| `p4b-internal-worker-runner.service.pg-race.test.ts` (regression, isolated) | **10/10 pass** |
+| `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` (regression, isolated) | **6/6 pass** |
+| `sharp-variant.service.pg-race.test.ts` (P5B regression, isolated) | **3/3 pass** |
+| All remaining non-pg-race `*.test.ts` run together | **147/147 pass** |
+| `p4c2-mpgs-provisioning-config-diagnostic.test.ts` (vitest, correct runner) | **14/14 pass** |
+
+The 9 new `restoration-draft` pg-race tests prove: a Pakistan upload
+persists a `PAKISTAN`/`PKR` draft with a guest ownership token and the
+storage key is never present in any response; an International upload
+persists `INTERNATIONAL`/`USD`; a Pakistan draft's offers are exactly
+`25000`/`35000`/`50000` PKR; an International draft's offers are exactly
+`150`/`250`/`350` USD; wrong-owner and nonexistent-draft requests produce
+byte-identical 404 evidence; repeated `getDraft` reads never trigger a
+second upload or a second draft row; zero external network calls; full
+teardown. The extended `fixed-order` pg-race tests prove `getByOrderNo`
+returns the exact server review view (market/currency/tier/amount/
+PriceBook version) and the same enumeration-safe 404 behavior for
+wrong-owner/nonexistent order numbers.
+
+Browser (`npx playwright test tests/browser`, Chromium-only, local Vite dev
+server, no real API server, every response mocked, `blockExternalNetwork`
+aborting all non-local traffic):
+
+| Suite | Result |
+|---|---|
+| `p5a-restoration-status.spec.ts` (pre-existing, unmodified) | 13/13 pass |
+| `p6a-customer-route-hardening.spec.ts` (pre-existing, unmodified) | 23/23 pass |
+| `p6c-customer-mvp-flow.spec.ts` (new) | **16/16 pass** |
+
+The 16 new P6C browser tests prove: the upload page never fires the create
+call before the "Upload photo" button is clicked; the full Pakistan
+PKR flow (upload → preview → tiers → order → review) shows exactly `PKR
+250.00` for ORIGINAL and `PB-2026-08-03-v1`; the International flow shows
+exactly `USD 1.50`/`2.50`/`3.50` for ORIGINAL/2HD/4HD and the correct
+market/currency on review; a wrong guest token on review and a nonexistent
+draft on preview both render an identical not-found state; forged
+`?status=success&paid=true` query parameters on the review page change
+nothing (the page never reads them); refreshing the preview and review
+pages issues GET requests only — zero writes, zero processing/payment
+calls; 360/390/430px layouts remain usable with no horizontal overflow on
+both the review and tier-select pages; the complete upload→review flow
+makes zero external network calls. One test-authoring bug (not a product
+defect) was found and fixed during this run: a `getByText("PAKISTAN")`
+locator ambiguously matched a footer string too; corrected to `{ exact:
+true }`, rerun, passed.
+
+Full workspace:
+
+| Command | Exit |
+|---|---|
+| `npm run lint` | 0 — 0 errors, 89 pre-existing warnings (one incidental new `eslint-disable` directive was found unused and removed, restoring the exact baseline count) |
+| `npm run typecheck` (api + web) | 0 |
+| `npm run build` (api + web) | 0 |
+| `npx prisma validate` | 0 |
+| `npx prisma generate` | 0 |
+| `git diff --check` | 0 (clean) |
+| `git diff --cached --check` | 0 (clean) |
+
+**Incidental finding, corrected before commit (same class as the P6B
+packet)**: the full non-DB regression sweep again incidentally ran this
+repository's pre-existing RunPod test suite, which writes disposable
+scratch fixture files (`apps/api/runpod-worker-dev/worker-request.json`,
+`worker-corrupt.json`). These were unstaged and deleted before commit;
+RunPod source was not read for modification, not touched, and remains
+unauthorized for any change.
+
+### 19.5 Disposable PostgreSQL cleanup proof
+
+`pg_ctl -m fast -w stop` → `"server stopped"`. The exact `postmaster.pid`
+first line was captured before stop; `Get-Process` on that PID afterward
+returned nothing — process confirmed gone. `Test-NetConnection` on the
+chosen port afterward reported `TcpTestSucceeded: False` — port confirmed
+free. The random `pwfile.txt` password was deleted immediately after
+`initdb`, before the cluster was started (it then ran with a throwaway,
+this-session-only `trust` rule for loopback connections only, never a
+real credential). The entire temporary data directory was deleted
+afterward; `Test-Path` returned `False` — confirmed absent. No real/system
+PostgreSQL installation was touched.
+
+### 19.6 Requirement-by-requirement confirmation
+
+Guest and authenticated ownership both supported (proven by test); uniform
+404 for unauthorized access (proven by test, both draft and order); real
+byte/decode validation before storage/DB (proven by test — corrupt bytes
+never reach `uploadOriginal`); private storage key never returned (proven
+by test — the safe view type has no such field, and the raw key string
+never appears in a serialized response); approved `PB-2026-08-03-v1`
+pricing only, PKR and USD, no FX (unchanged from P6B, reused verbatim);
+client cannot supply price/currency/version/source/approval state (the
+request types for both draft creation and order creation have no such
+fields); upload/order creation only after an explicit button click (proven
+by browser test — zero calls before the click); refresh/deep-link performs
+GET only (proven by both backend and browser test); repeated order
+submission reuses one immutable order (P6B behavior, unchanged, reused);
+review displays server amount/market/tier/PriceBook version (proven by
+browser test); payment remains truthfully blocked while MPGS is
+unavailable (the review page has no payment-initiation code path at all,
+and reads no query parameter); zero `PaymentAttempt`, execution, Replicate,
+or Sharp call (proven by test — this flow's services import none of those
+modules). No MPGS checkout route was created. No deployment occurred.
+
+### 19.7 Result
+
+PR #130 merged (`1e325e9c8cb457812f222930c0fa21ce8bc1245e`). The historical
+P1A-named flow was found, audited, and correctly determined to be
+superseded (stale, pre-P4B, never-merged) rather than reused. The minimum
+customer MVP — market selection → upload → draft → signed preview → server
+offers → tier selection → immutable order → review — is now real, wired
+with the smallest new code needed, reusing every existing secure utility
+unchanged. 13/13 new backend tests (4 unit + 9 pg-race), 16/16 new browser
+tests, 2 extended `fixed-order` pg-race tests, and every regression suite
+(5 pg-race in isolation, 147 non-DB, 14 vitest, 36 pre-existing browser)
+all pass. Lint/typecheck/build/Prisma/git-diff all clean. No RunPod, MPGS
+checkout, deployment, or production-database change.
