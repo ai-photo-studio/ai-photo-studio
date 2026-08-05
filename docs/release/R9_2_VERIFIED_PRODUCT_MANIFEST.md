@@ -2425,3 +2425,72 @@ unchanged -- a bank-side question this repository cannot resolve further
 without owner/bank action. No production deployment, no
 RunPod/Replicate/R2/webhook/capture/P4A change, no card data, no capture,
 no second live request, no destructive Git operation.
+
+## 24. R9.2-FINAL-INDEPENDENT-MPGS-RAW-PROOF — PR #140 merged; consolidated contract table; requested raw re-test found already executed (2026-08-05)
+
+PR #140 (evidence/docs only, head `d9129fc`) verified and merged -- merge
+commit `3cccfca46a35a6e9ca59cb090dee05a1ab2e0f4f`; its statements were
+re-checked against live run `31042211650` and its downloaded artifacts and
+found accurate.
+
+All ten `docs/payments/bank-alfalah-mastercard/*.md` documents, the bank's
+own V100 documentation, the current adapter, and all three MPGS workflows
+were read completely and consolidated into a single authoritative contract
+table:
+`docs/payments/bank-alfalah-mastercard/R9.2_MPGS_FINAL_CONTRACT_TABLE_AND_DRIFT_PROTECTION.md`.
+Every dimension (method, path, version, auth, content type, `apiOperation`,
+`interaction.operation`, merchant name, order-ID limits, PKR/USD, return
+URL, session response, Retrieve Order) matches what the adapter sends --
+**zero client-side discrepancies**. Three genuine contradictions in the
+source material (merchant-ID length 15 vs generic ≤12;
+`/checkout` vs `/transaction` vs `/session`; `text/plain` vs
+`application/json`) are recorded explicitly rather than silently
+reconciled.
+
+**The independent `raw-final` live re-test specified by this packet was NOT
+executed, because it had already been executed byte-for-byte.** Manifest
+section 21 and `MPGS_INTEGRATION_EVIDENCE.md` §10 already record exactly
+that request -- `POST /api/rest/version/100/merchant/TESTGLOBALINDUS/session`,
+API V100, Basic `merchant.TESTGLOBALINDUS`, `Content-Type: text/plain`,
+`INITIATE_CHECKOUT`, `PURCHASE`,
+`interaction.merchant.name="Global Industrial Suppliers"`, PKR `1.00`,
+order id `BAF260805130116E632` (19 chars, alphanumeric, under 30) -- with
+the definitive result `HTTP 401
+{"error":{"cause":"INVALID_REQUEST","explanation":"Invalid credentials."},"result":"ERROR"}`.
+Re-running it would add no information, would consume another rationed live
+bank request, and would contradict that same document's standing
+instruction that the exposed API password must be rotated before any
+future attempt. This packet's own gate ("only when required") therefore
+did not open; no duplicate workflow mode was created and no live request
+was made.
+
+**Why no client-side variable remains:** four live probes across three
+endpoint shapes and both content types all return the same `401`
+(`P4D_MPGS_FINAL_LOCAL_INVESTIGATION` §3), and -- decisively -- the exact
+configured password and a deliberately wrong control password produced
+**byte-identical** `401` responses (`P4D_SESSION_ENDPOINT_AUTH_DIAGNOSTIC`
+§2). The gateway is not distinguishing this credential at all, so no
+request-construction change on this side can alter the outcome. Credential
+bytes were separately audited (15/32 chars, no whitespace/BOM/quote
+artifacts) ruling out transcription error.
+
+Six permanent automated drift protections are catalogued (outgoing-contract
+test, fail-closed config tests, route-collision guard, log-redaction test,
+legacy-protocol retirement scan, and the CI live-call gating that correctly
+withheld 3 of 4 dispatches). Verified on `main` at `3cccfca`: 48/48
+MPGS-related unit tests, `prisma generate`/`validate`, `eslint` (0 errors),
+`tsc --noEmit` and `npm run build` for both workspaces -- all clean. No
+code changed, so the DB-race (68/68) and Playwright (58/58) suites, last
+run green against this exact code state earlier the same session, were not
+redundantly re-run.
+
+Status unchanged and explicit: `P4C_MPGS_AUTH_VERIFIED` NOT achieved;
+neither PKR nor USD is `SANDBOX_VERIFIED`; `BANK_ALFALAH_MPGS_ENABLED`
+remains `false`; `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+retained. The only remaining actions are bank-side (rotate/reissue the
+exposed API password, confirm REST API provisioning for the reissued
+credential, confirm `/session` vs `/order/{id}/transaction` as the intended
+entry point) -- recorded here, not sent, since this packet forbids bank
+contact. No live bank request, card data, capture, production enablement,
+RunPod/Replicate/R2/webhook/P4A/deployment change, or destructive Git
+operation occurred.
