@@ -239,3 +239,35 @@ Replicate/RunPod/deployment change. See
   remains domain-logic-only, not yet wired into a customer-facing order
   flow. This packet did not wire it in and did not create any checkout
   route (`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remains open).
+
+## 18. R9.2-P6B — Approved-offer wiring into FixedOrder (2026-08-05)
+
+The gap section 17 flagged is closed: `POST /api/fixed-orders/restoration-digital`
+(the path already named in `FixedOrder`'s own schema comment, never
+implemented until now) is real. `FixedOrderService.createRestorationDigitalOrder`
+(new; reuses the existing `restoration.routes.ts` router — no new router/app
+mount) resolves market/currency from the caller's own `RestorationDraft`,
+prices the requested tier via `ApprovedOfferProvider` (production default;
+`FixtureOfferProvider` is only ever test-injected), and persists exactly one
+`FixedOrder` + `FixedOrderItem` with the exact PriceBook snapshot
+(`priceBookVersion`, `priceBookApprovalReference`, `priceBookEffectiveAt`)
+and `pricingApproved: true` / `pricingSource: "approved_pricebook"`. A
+`local_fixture`-priced item can never be `pricingApproved: true`. The
+client supplies only `draftId` + `tier`; amount/currency/version/source/
+approval state are always server-resolved and any forged values in the
+request are ignored (proven by test). Idempotent via the existing
+`FixedOrder.sourceDraftId` unique index — a repeat submission (including a
+page refresh) returns the same immutable order, proven under real
+concurrency. Ownership reuses the existing `assertOwnership`/
+`actorFromRequest` helpers unchanged (uniform 404, enumeration-safe).
+Order creation stops before checkout/payment: zero `PaymentAttempt`,
+`PaymentEvent`, `RestorationEntitlement`, `RestorationMaster`, or
+`ReplicateExecution` row is ever created by this path (proven by test). No
+checkout route was created; `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED`
+remains open, untouched. No customer-facing "review" UI exists in this
+repository to wire pricing display into (the upload/draft-creation flow
+itself is likewise still unwired to any route) — this is a pre-existing gap,
+not introduced or closed by this packet; the API response already carries
+exact server minor-unit pricing for whenever such a UI is built. Full
+record: `docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md` section 18 and
+`docs/restoration/P6B_APPROVED_OFFER_WIRING_PROTOCOL.md`.
