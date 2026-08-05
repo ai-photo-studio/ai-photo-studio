@@ -2537,3 +2537,60 @@ No code was changed by this packet. `BANK_ALFALAH_MPGS_ENABLED` remains
 contact was made (the draft email was not sent). No production credential
 was requested. No RunPod/Replicate/R2/webhook mutation/capture/deployment
 change, no destructive Git operation.
+
+## 26. R9.2-MERGE-P142-AND-PAYMENT-VERIFICATION-BRIDGE — PR #142 merged; MPGS verification chain wired live for the first time, providerRef defect found and fixed (2026-08-06)
+
+PR #142 (docs-only) verified OPEN/CLEAN/MERGEABLE against `origin/main`
+(diff confirmed docs-only, no code/secret/deployment/RunPod change) and
+merged normally. Merge SHA: `31d5dfe0932cf0af2caffe4ace1b3d00680d0891`.
+
+A new worktree (`feat/r9.2-payment-verification-bridge`) implemented the
+smallest fail-closed server verification path by wiring
+`CustomerCheckoutService.getStatus` to the already-built, already
+race-tested P4C/P4A verification chain (`handleMpgsBrowserReturn` →
+`matchRetrievedOrderToAttempt` → `applyVerifiedPaymentEvidence`), which had
+never previously been reachable from any route. No new verification logic,
+no new database transaction, no duplicate architecture was introduced.
+
+Full detail: `docs/payments/bank-alfalah-mastercard/R9.2_PAYMENT_VERIFICATION_BRIDGE_2026-08-06.md`.
+
+**Confirmed production defect found and fixed**: `createCheckout` was
+writing `PaymentAttempt.providerRef` to the Hosted Checkout session id at
+initiation. P4A's own `providerRef` mismatch guard then rejected every
+genuine first-time verification with `PROVIDER_REFERENCE_MISMATCH`,
+because a session id is a structurally different MPGS identifier from the
+verified transaction reference `providerRef` is meant to hold — this would
+have silently broken every real payment confirmation. Found and fixed in
+this packet, before any real transaction was ever attempted through the
+bridge. Regression-guarded; permanent protection recorded in `rules.md`.
+
+**Guarantees**: browser return/query parameters never mark PAID; only a
+fresh, server-initiated Retrieve Order call, matched field-by-field
+(merchant, order id, amount, currency, successful payment state) against
+the immutable `FixedOrder`, can move an attempt to `PAID`; duplicate and
+concurrent status checks converge to exactly one `PaymentEvent` /
+entitlement / queued execution; failed/pending/cancelled results never
+queue processing; forged amount/currency/order id and wrong-owner requests
+are rejected with zero mutation; no webhook path touched (auth format
+still undocumented); zero live Bank Alfalah request or production
+activation.
+
+**Tests**: 11 new disposable-PostgreSQL race tests
+(`customer-checkout.service.pg-race.test.ts`) covering success,
+pending/failure, forged amount, forged order id, wrong-owner, 3-way
+concurrent convergence, extraneous-field immunity, zero-external-calls
+pre/post-verification states, and static zero-network-call scan; teardown
+verified. Combined with pre-existing suites: 79/79 pg-race, 48/48 fast
+unit, 58/58 Playwright (UI/API contract unchanged by this packet, so
+existing coverage — including the GET-only refresh test — remains valid
+proof at that layer). Lint, typecheck, build (both workspaces), Prisma
+generate/validate all clean. Diff scope confirmed exactly:
+`customer-checkout.service.ts` (modified), `p4c-bank-alfalah-mpgs-gateway.service.ts`
+(comment-only), `customer-checkout.service.pg-race.test.ts` (new).
+Disposable PostgreSQL instance (port 55497) stopped, port confirmed free,
+scratch directory deleted; no stray Node processes remained.
+
+No live Bank Alfalah sandbox or production request was made by this
+packet. `BANK_ALFALAH_MPGS_ENABLED` remains as configured outside
+manual/CI runs. No RunPod/deployment/capture/production-credential change,
+no destructive Git operation. PR opened, not merged, not deployed.

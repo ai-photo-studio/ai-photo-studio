@@ -12,12 +12,21 @@
 // ---------------------------------------------------------------------------
 // TRUST BOUNDARY
 // ---------------------------------------------------------------------------
-// Like `p4a-payment-verified-execution-queue.service.ts`, this module is
-// deliberately NOT registered on any Express router and NOT imported by any
-// controller in this packet -- wiring a live HTTP return/webhook route is a
-// separate, later, owner-authorized action. What exists here is a
-// self-contained, fully testable gateway client plus a verification
-// orchestrator that:
+// R9.2-PAYMENT-VERIFICATION-BRIDGE: `handleMpgsBrowserReturn` is now called
+// by `customer-checkout.service.ts`'s `getStatus` (the existing "Check
+// payment status" path) -- this is the owner-authorized wiring this file's
+// trust boundary always anticipated. `handleMpgsWebhookTrigger` remains
+// intentionally NOT called by anything: webhook signature/authentication
+// format is still undocumented (see `MPGS_INTEGRATION_EVIDENCE.md` §9), and
+// wiring it before that is confirmed remains a separate, later,
+// owner-authorized action. `applyVerifiedPaymentEvidence` (P4A) itself is
+// still never imported directly by any controller or route file (proven by
+// `p4a-payment-verified-execution-queue.service.pg-race.test.ts`'s static
+// scan) -- the only path to it is through this module's own verification
+// functions, which always perform their own fresh Retrieve Order call and
+// never accept a caller-supplied "already verified" shortcut. What exists
+// here is a self-contained, fully testable gateway client plus a
+// verification orchestrator that:
 //   * initiates Hosted Checkout from immutable FixedOrder/PaymentAttempt
 //     values only (server owns orderId/amount/currency -- never client input),
 //   * NEVER marks a payment paid from a browser return or a webhook payload
@@ -436,11 +445,14 @@ export function matchRetrievedOrderToAttempt(
 }
 
 /**
- * Full verify-then-apply flow used by BOTH the (not-yet-routed) browser
- * return handler and the (not-yet-routed) webhook trigger handler. Neither
- * caller may skip the Retrieve Order call: this function always performs it
- * itself and never accepts a caller-supplied "it was already verified"
- * shortcut. On a match, delegates to the existing, unmodified P4A
+ * Full verify-then-apply flow used by BOTH the browser return handler
+ * (routed, since R9.2-PAYMENT-VERIFICATION-BRIDGE, via
+ * `customer-checkout.service.ts`'s `getStatus`) and the webhook trigger
+ * handler (still not routed anywhere -- webhook authentication format
+ * remains undocumented). Neither caller may skip the Retrieve Order call:
+ * this function always performs it itself and never accepts a
+ * caller-supplied "it was already verified" shortcut. On a match, delegates
+ * to the existing, unmodified P4A
  * transaction (`applyVerifiedPaymentEvidence`) -- this function never calls
  * Replicate, R2, or any worker.
  */

@@ -435,3 +435,40 @@ No code changed. `P4C_MPGS_AUTH_VERIFIED` still not achieved;
 `BANK_ALFALAH_MPGS_ENABLED` remains `false`. Launch blocker unchanged and
 now fully packaged for the owner to hand to Bank Alfalah at their
 discretion.
+
+## 25. R9.2-MERGE-P142-AND-PAYMENT-VERIFICATION-BRIDGE (2026-08-06)
+
+PR #142 merged (`31d5dfe0932cf0af2caffe4ace1b3d00680d0891`, docs-only,
+confirmed no code/secret/deployment/RunPod change). Wired
+`CustomerCheckoutService.getStatus` to the existing, already race-tested
+P4C/P4A verification chain (`handleMpgsBrowserReturn` →
+`matchRetrievedOrderToAttempt` → `applyVerifiedPaymentEvidence`), which had
+been built in earlier packets but was never reachable from any route. This
+is now the sole path that can move a `PaymentAttempt` to `PAID`: never
+trusts a browser return or query string; only a fresh, server-initiated
+MPGS Retrieve Order call, matched field-by-field against the immutable
+`FixedOrder`, can do it; duplicate/concurrent checks converge to exactly
+one entitlement/execution; failed/pending/cancelled results never queue
+processing; no webhook mutation (auth format still undocumented); no live
+Bank Alfalah request or production activation.
+
+Found and fixed a real, previously-latent defect: `createCheckout` wrote
+`PaymentAttempt.providerRef` to the Hosted Checkout session id, which
+would have made P4A's own mismatch guard reject every genuine first-time
+verification with `PROVIDER_REFERENCE_MISMATCH`. Fixed before any real
+transaction was attempted; permanent protection recorded in `rules.md`.
+
+11 new disposable-PostgreSQL race tests added
+(`customer-checkout.service.pg-race.test.ts`), covering success,
+pending/failure, forged amount/order id, ownership, concurrent-duplicate
+convergence, and zero-external-calls cases. Combined with existing suites:
+79/79 pg-race, 48/48 unit, 58/58 Playwright, lint/typecheck/build/Prisma
+all clean. Diff scope confirmed minimal (2 modified service files, 1 new
+test file). Disposable Postgres and all processes confirmed cleanly
+stopped. Full detail:
+`docs/payments/bank-alfalah-mastercard/R9.2_PAYMENT_VERIFICATION_BRIDGE_2026-08-06.md`.
+
+No live Bank Alfalah sandbox/production request made. `BANK_ALFALAH_MPGS_ENABLED`
+unchanged. PR opened, not merged, not deployed. Bank-side sandbox
+credential/profile blocker remains the only remaining launch blocker,
+unchanged by this packet.
