@@ -182,3 +182,46 @@ production activation remain separate, later, owner-authorized actions.
    future packet should add real signature verification once the exact
    header/algorithm is confirmed from documentation or the owner's merchant
    portal.
+
+## 10. Final corrected sandbox session proof (2026-08-05)
+
+One final, bounded MPGS sandbox request was sent after correcting the prior
+overlong diagnostic order ID. This is failure evidence, not activation
+authority.
+
+| Field | Recorded value |
+|---|---|
+| UTC / Pakistan time | `2026-08-05T13:01:16.489Z` / `2026-08-05T18:01:16.498` |
+| DNS and connected IP | `216.119.223.23` |
+| TLS subject / issuer | `CN=test-bankalfalah.gateway.mastercard.com`, MasterCard International Incorporated / DigiCert Global G2 TLS RSA SHA256 2020 CA1 |
+| Method and path | `POST /api/rest/version/100/merchant/TESTGLOBALINDUS/session` |
+| Request facts | API `100`, `INITIATE_CHECKOUT`, `PURCHASE`, PKR `1.00`, `text/plain` |
+| Diagnostic order | `BAF260805130116E632`, length `19`, alphanumeric only; valid under the required 10-30 and below-41 limits |
+| HTTP result | `401`, `application/json;charset=ISO-8859-1`, curl exit `0` |
+| Timing | connect `0.560152s`, TLS appconnect `0.921900s`, total `1.443799s` |
+| Session result | No `session.id` and no `successIndicator` returned |
+
+Complete sanitized response JSON:
+
+```json
+{"error":{"cause":"INVALID_REQUEST","explanation":"Invalid credentials."},"result":"ERROR"}
+```
+
+The prior `400` was solely an `order.id` length validation error on a
+42-character diagnostic ID. The corrected 19-character PURCHASE request
+removes that local defect. The remaining `401` means neither successful MPGS
+sandbox authentication nor successful `POST /session` initiation is verified.
+No retry was made. The only next Bank Alfalah action requested is confirmation
+of the exact remaining action: credential reset, profile permission, or the
+correct endpoint. The exposed API password must be rotated/reissued before any
+future attempt. `BANK_ALFALAH_MPGS_ENABLED` remains `false`; no product or
+gateway adapter change is authorized by this result.
+
+Sanitized, visually checked evidence PNGs are retained outside the repository:
+
+- `D:\Temp\claude\evidence\baf-final-request-response.png`
+- `D:\Temp\claude\evidence\baf-final-conclusion.png`
+
+No card data, capture, production action, Replicate, R2, RunPod, webhook, or
+additional gateway request occurred. Temporary request, response, header, and
+render-source files were deleted after the PNG evidence was created.

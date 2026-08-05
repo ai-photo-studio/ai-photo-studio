@@ -2254,3 +2254,40 @@ credential, no card data, no capture, at any point in this session.
 - A first script attempt failed locally before any evidenced network completion (empty response-header and 0-byte verbose capture) — disclosed in the evidence doc, not treated as a second live request.
 - Incidental exposure disclosed: this session's own diagnostics printed the full `Authorization` header once while inspecting a leftover temp file; the file was deleted immediately and the current API Password should be treated as exposed/rotated by the bank as a precaution, independent of the technical finding above.
 - A draft (unsent) Bank Alfalah reply is recorded in `docs/payments/bank-alfalah-mastercard/P4D_PURCHASE_FINAL_TEST_2026-08-05.md`, using only this session's new evidence. No product/gateway code was changed; `BANK_ALFALAH_MPGS_ENABLED` remains `false`.
+
+## 21. R9.2-BAF-FINAL-CORRECTED-SESSION-PROOF (2026-08-05)
+
+This dated amendment records one final sandbox `POST /session` request only;
+nothing in sections 1-20 was rewritten. The corrected diagnostic order ID was
+`BAF260805130116E632` (19 alphanumeric characters, below 41), with PKR `1.00`,
+API V100, `INITIATE_CHECKOUT`, `PURCHASE`, and `Content-Type: text/plain`.
+The endpoint returned HTTP `401`, response content type
+`application/json;charset=ISO-8859-1`, curl exit `0`, and exactly:
+
+```json
+{"error":{"cause":"INVALID_REQUEST","explanation":"Invalid credentials."},"result":"ERROR"}
+```
+
+No `session.id` or `successIndicator` was returned. The real TLS connection was
+to `216.119.223.23`; the certificate subject names
+`test-bankalfalah.gateway.mastercard.com` and its issuer is DigiCert Global G2
+TLS RSA SHA256 2020 CA1. The prior `400` order-ID-length defect is corrected;
+this `401` leaves MPGS sandbox authentication and successful `POST /session`
+unverified. No retry, USD test, card data, capture, product-code change,
+production action, RunPod, Replicate, R2, webhook, or deployment occurred.
+
+Two visually checked, redacted PNGs exist outside the repository at
+`D:\Temp\claude\evidence\baf-final-request-response.png` and
+`D:\Temp\claude\evidence\baf-final-conclusion.png`. Temporary request and
+response artifacts were deleted after rendering. Bank Alfalah must provide the
+one remaining action: credential reset, profile permission, or the correct
+endpoint. The exposed API password requires immediate rotation/reissue before
+any future request. `BANK_ALFALAH_MPGS_ENABLED` remains `false` and the adapter
+is unchanged.
+
+Validation: `p4c-bank-alfalah-mpgs-gateway.service.test.ts` 25/25;
+`p4c-bank-alfalah-mpgs-env.test.ts` 7/7; `npm run lint` exit 0 (89 pre-existing
+warnings, 0 errors); `npm run typecheck` exit 0. The first gateway-test run
+failed only because `npm ci` had not generated Prisma Client; `npx prisma
+generate` was the smallest environment repair and the complete 25-test suite
+then passed. Final diff checks are recorded with the commit evidence.
