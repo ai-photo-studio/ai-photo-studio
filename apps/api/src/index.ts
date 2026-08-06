@@ -17,6 +17,7 @@ import { createAdminAuthRouter } from "./routes/admin-auth.routes";
 import { createCreativeRouter } from "./routes/creative.routes";
 import { createRestorationRouter } from "./routes/restoration.routes";
 import { createRestorationDraftRouter } from "./routes/restoration-draft.routes";
+import { createBankAlfalahApgRouter } from "./routes/bank-alfalah-apg.routes";
 import { AuthController } from "./controllers/auth.controller";
 import { PackageController } from "./controllers/package.controller";
 import { MonitoringController } from "./controllers/monitoring.controller";
@@ -184,6 +185,7 @@ const bootstrap = async () => {
   app.use("/api", createCreativeRouter(config));
   app.use("/api", createRestorationRouter(config));
   app.use("/api", createRestorationDraftRouter(config));
+  app.use("/api", createBankAlfalahApgRouter(config));
 
   startImageProcessingWorker(config);
   startQueueWatchdog();

@@ -695,3 +695,49 @@ all exit 0 (`verify:staging-preflight` not run — its script exists only
 on the unmerged PR #148 branch). Disposable Postgres cleanly torn down;
 persistent system Postgres untouched. No RunPod/Replicate/R2/Bank Alfalah
 network call anywhere. No deployment, no merge.
+
+## 32. R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION (2026-08-06)
+
+PR #148 re-verified (head `c3f28ad...` exact) and merged after a first-
+pass-clean full run. **Merge SHA: `b0114aa3083a18eefd8075fbdb2e65a3582aa120`.**
+PR #149 (unchanged head `831ab77...`) updated onto the new `main`; merge
+conflicts in plan/manifest/package.json/rules.md resolved by keeping both
+packets' additive content in full, chronologically ordered, renumbered.
+One real defect found by the merge and repaired: a plan-file wording
+change during reordering caused the legacy-APG retirement-guard test to
+false-positive (fixed by adding the word "retired" next to the `/HS/`
+mention — text-only, no logic change). Full suite re-run clean on the
+merged branch (verify:payment-freeze 9/9, verify:staging-preflight 10/10,
+verify:launch-candidate, 79/79 pg-race, 58/58 Playwright). Merged
+normally. **Merge SHA: `c69afba7dab5d82ff4a5fb243f1c32231a69f695`.** Both
+packets' protections coexist and pass.
+
+Implemented the exact Bank Alfalah APG URL foundation — ingress plumbing
+only, no status inquiry/acknowledgement/authentication/payment mutation:
+`GET /api/payments/bank-alfalah/return`, `POST /api/payments/bank-alfalah/ipn`,
+frontend `/payment/return`. Two new env vars
+(`BANK_ALFALAH_APG_ENABLED` defaults false, `BANK_ALFALAH_APG_ALLOWED_
+CALLBACK_HOSTS` defaults empty — no hardcoded host). Return handler never
+marks PAID; IPN listener validates the documented `url` parameter against
+an exact environment-owned host allowlist using the WHATWG URL parser
+(immune to SSRF tricks, 9/9 unit tests including two explicit SSRF cases)
+and never fetches it under any configuration; frontend never reads a URL
+query parameter, shows "Online payment is temporarily unavailable." MPGS
+untouched, still frozen. No JazzCash/RAAST/COD/bank-transfer flow
+invented.
+
+Added `npm run verify:apg-url-contract` (12 checks, zero external calls,
+12/12 pass, every check proven against a temporary failing fixture then
+reverted). Updated `verify:payment-freeze`'s APG-file allowlist to
+recognize the new ingress files as plumbing, not an implementation — still
+9/9. Full regression clean: apg-url-contract, payment-freeze, launch-
+candidate, staging-preflight, 79/79 pg-race, 58/58 Playwright (one
+transient unrelated Playwright flake, resolved by rerun), lint (one real
+defect found and fixed: a `require()` in the new test file), typecheck,
+build, Prisma, diff all exit 0. Disposable Postgres cleanly torn down;
+persistent system Postgres untouched. Exact URLs recorded:
+`docs/payments/R9_2_APG_URL_INGRESS_PROTOCOL.md`. Requirements matrix
+promoted to its own tracked doc:
+`docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md`. No live Bank Alfalah
+request, APG activation, production deployment, or payment success
+simulation. No deployment, no merge of this packet's own PR.
