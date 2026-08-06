@@ -16,8 +16,10 @@ name: Bank Alfalah MPGS Actual-App E2E
 #               the real bank sandbox host and the existing MERCHANT_ID/
 #               API_PASSWORD/OPERATOR_ID GitHub secrets. Makes exactly one
 #               real Hosted Checkout request via exactly one real browser
-#               click. Never card data, never USD, never a retry, never a
-#               second click.
+#               click, in exactly one currency (the `currency` input, PKR by
+#               default; USD is owner-authorized per-dispatch, one currency
+#               per run, never both in the same run). Never card data, never
+#               a retry, never a second click, never a Retrieve Order call.
 #
 # Neither job ever prints an Authorization header, a merchant credential, or
 # any secret value -- only sanitized structural facts (method, path, status,
@@ -51,6 +53,14 @@ on:
         description: 'Only required for mode=live. Must be exactly: I_UNDERSTAND_THIS_CONTACTS_THE_REAL_BANK_SANDBOX'
         required: false
         default: ''
+      currency:
+        description: 'Only used for mode=live. Which currency the one real live FixedOrder/request uses.'
+        required: true
+        default: 'PKR'
+        type: choice
+        options:
+          - PKR
+          - USD
 
 concurrency:
   group: bank-alfalah-mpgs-actual-app-e2e
@@ -244,6 +254,12 @@ jobs:
       # by itself (the app only ever trusts a server-side Retrieve Order
       # match, never a browser return).
       BANK_ALFALAH_MPGS_RETURN_URL: http://127.0.0.1:5173/checkout/return
+      # R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC: read by
+      # mpgs-live-app.spec.ts to select PKR (default, unchanged path) or USD
+      # for the one real order/click this job makes. Does not affect
+      # currency gating in application code -- MPGS_CURRENCY_SUPPORT already
+      # has both enabled (bank-confirmed, see docs/payments/bank-alfalah-mastercard/).
+      LIVE_TEST_CURRENCY: ${{ github.event.inputs.currency }}
     steps:
       - uses: actions/checkout@v4
 
@@ -345,10 +361,19 @@ jobs:
         env:
           BANK_ALFALAH_MPGS_API_PASSWORD: ${{ secrets.API_PASSWORD }}
 
+      - name: Compute currency-derived evidence screenshot path
+        if: always()
+        run: |
+          if [ "${LIVE_TEST_CURRENCY}" = "USD" ]; then
+            echo "GATEWAY_SCREENSHOT_PATH=/tmp/baf-usd-gateway-sanitized.png" >> "$GITHUB_ENV"
+          else
+            echo "GATEWAY_SCREENSHOT_PATH=/tmp/baf-live-gateway-sanitized.png" >> "$GITHUB_ENV"
+          fi
+
       - name: Render sanitized summary as a screenshot
         if: always()
         working-directory: apps/web
-        run: node scripts/render-text-as-png.mjs /tmp/baf-live-summary.txt /tmp/baf-live-gateway-sanitized.png
+        run: node scripts/render-text-as-png.mjs /tmp/baf-live-summary.txt "${GATEWAY_SCREENSHOT_PATH}"
 
       - name: Stop background processes
         if: always()
@@ -370,5 +395,8 @@ jobs:
             /tmp/baf-live-before-click.png
             /tmp/baf-live-after-click.png
             /tmp/baf-live-gateway-sanitized.png
+            /tmp/baf-usd-before-click.png
+            /tmp/baf-usd-result.png
+            /tmp/baf-usd-gateway-sanitized.png
           retention-days: 30
           if-no-files-found: warn

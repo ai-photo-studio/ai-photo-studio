@@ -697,3 +697,48 @@ rule above it remains in force verbatim.
   `providerRef`; gate "has a session been created" checks on `status`, not
   on `providerRef`. Full record:
   `docs/payments/bank-alfalah-mastercard/R9.2_PAYMENT_VERIFICATION_BRIDGE_2026-08-06.md`.
+
+### R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC (2026-08-06)
+
+Added by the R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #143 (`feat/r9.2-payment-verification-bridge`, head
+  `7800e34523819fcb740c0dcdefaaa75b289aace9`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, exact payment-verification-bridge scope, 79/79
+  disposable-PostgreSQL pg-race tests, 162/163 fast unit tests -- the one
+  non-pass is a pre-existing, unrelated `vitest`-only diagnostic script this
+  repository's `node:test` harness cannot run, confirmed present and
+  identical on `origin/main` before this packet touched anything -- 58/58
+  Playwright, lint/typecheck/build/Prisma clean) and merged normally. Merge
+  commit: `e05d04a5b46edffb9fc68ebc09ea9803c9e05a98`.
+- **Permanent rule — example currency values in generic third-party
+  MPGS/Mastercard documentation must never be treated as merchant-profile
+  currency authority.** Only a bank-specific, merchant-profile-specific
+  confirmation (a direct email/portal statement, or a successful bounded
+  sandbox test) may enable or disable a currency in
+  `MPGS_CURRENCY_SUPPORT`. This packet's currency document audit found the
+  one currency-related contradiction in this repository's evidence set —
+  a **retired, different** protocol (Alfa APG) stating "Currency ... will
+  always be PKR" — and confirmed it does **not** apply to the current MPGS
+  V100 integration, whose only currency-authority source is the bank's own
+  direct, merchant-profile-specific confirmation that the same credentials
+  are valid for both PKR and USD sandbox testing. No generic MPGS/Mastercard
+  documentation's example currency was ever treated as authoritative for
+  this merchant profile, in either direction. Full record:
+  `docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`.
+- `MPGS_CURRENCY_SUPPORT.USD.enabled` was already `true`
+  (`doc-confirmed-live-fetch`) before this packet; no currency-gating code
+  change was needed. A USD leg was added to the existing actual-app dry-run
+  suite (`mpgs-actual-app-dryrun.spec.ts`, now 7/7 passing against the local
+  stub, zero code duplication) and the existing live-sandbox spec/workflow
+  were parameterized by a new `currency` (`PKR`/`USD`) `workflow_dispatch`
+  input so the owner can authorize exactly one real USD sandbox request
+  through the same job, screenshots, and evidence pipeline already proven
+  for PKR — no duplicate workflow, job, or spec file was created.
+- The owner-authorized live USD sandbox dispatch and its classified result
+  (if run before this session ends) are recorded in
+  `docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`
+  and the release manifest; if not yet run, `P4C_MPGS_AUTH_VERIFIED` and
+  `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remain exactly as this
+  packet found them (unchanged, unresolved, bank-side).

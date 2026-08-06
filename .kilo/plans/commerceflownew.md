@@ -472,3 +472,43 @@ No live Bank Alfalah sandbox/production request made. `BANK_ALFALAH_MPGS_ENABLED
 unchanged. PR opened, not merged, not deployed. Bank-side sandbox
 credential/profile blocker remains the only remaining launch blocker,
 unchanged by this packet.
+
+## 26. R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC (2026-08-06)
+
+PR #143 merged (`e05d04a5b46edffb9fc68ebc09ea9803c9e05a98`); full 79/79
+pg-race + 162/163 unit (1 pre-existing unrelated `vitest`-only gap) +
+58/58 Playwright + lint/typecheck/build/Prisma re-run clean before merge.
+
+Audited every Bank Alfalah/MPGS document in the repository for currency
+claims (evidence table:
+`docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`).
+Finding: MPGS is not USD-only; the bank directly confirmed the same
+credentials work for both PKR and USD sandbox testing on this merchant
+profile; the one PKR-only statement found in this repository belongs to a
+different, already-retired protocol (Alfa APG), not MPGS. Currency support
+is a merchant-profile-level property, not a per-currency one — evidenced by
+the PKR leg's own persistent `401`.
+
+Proved a real USD leg through the existing actual-app dry-run harness (no
+duplicate integration): real INTERNATIONAL/USD `FixedOrder`, real
+upload→preview→tiers→order→review flow, local stub gateway,
+`order.currency=USD`, real PriceBook amount USD 1.50, order id well under
+30/41-char limits, exactly one gateway call, zero live network calls. 7/7
+dry-run tests pass, exit 0.
+
+Parameterized (not duplicated) the existing live-sandbox spec/workflow with
+a `currency` dispatch input (`PKR` default/unchanged, `USD` owner-gated) so
+the owner can authorize exactly one real USD sandbox request through the
+same proven pipeline. Per this repository's standing rule, only the owner
+dispatches a live workflow run; this packet did not and does not do so
+itself. As of this packet, that dispatch had not yet occurred — see the
+currency evidence doc for the live outcome once it does.
+
+New permanent protection (`rules.md`): generic MPGS/Mastercard
+documentation's example currency values must never be treated as
+merchant-profile currency authority — only a bank-specific,
+merchant-profile-specific confirmation may enable/disable a currency.
+
+No card data, no capture, no Retrieve Order call, no second bank request,
+no RunPod/Replicate/R2/deployment/production-credential change. PR opened,
+not merged, not deployed.

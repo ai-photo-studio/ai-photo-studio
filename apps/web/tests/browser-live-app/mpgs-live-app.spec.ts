@@ -40,11 +40,30 @@ async function blockRealBankNavigation(page: import("@playwright/test").Page) {
   });
 }
 
+// R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC: this spec is reused
+// unchanged for both currencies -- only the currency selection, the
+// expected on-screen amount, and the evidence screenshot filenames branch
+// on LIVE_TEST_CURRENCY (set by the workflow's `currency` dispatch input,
+// default PKR). No duplicate spec/config/workflow job was created. USD
+// selects country "US" (INTERNATIONAL market) on the upload page;
+// everything else -- one upload, one tier pick, one order, one click, one
+// gateway call -- is byte-identical to the already-proven PKR path.
+const CURRENCY: "PKR" | "USD" = process.env.LIVE_TEST_CURRENCY === "USD" ? "USD" : "PKR";
+const isUsd = CURRENCY === "USD";
+// USD screenshot filenames match this task's exact required names; the PKR
+// filenames are left unchanged from the already-proven prior live run so
+// that evidence is never renamed retroactively.
+const SCREENSHOT_BEFORE = isUsd ? "/tmp/baf-usd-before-click.png" : "/tmp/baf-live-before-click.png";
+const SCREENSHOT_RESULT = isUsd ? "/tmp/baf-usd-result.png" : "/tmp/baf-live-after-click.png";
+
 test.describe("R9.2-MPGS-CI-LIVE-PROOF: one real click against the real Bank Alfalah MPGS sandbox", () => {
-  test("create one real PKR FixedOrder, screenshot before, click Pay securely exactly once, screenshot the result", async ({ page }) => {
+  test(`create one real ${CURRENCY} FixedOrder, screenshot before, click Pay securely exactly once, screenshot the result`, async ({ page }) => {
     await blockRealBankNavigation(page);
 
     await page.goto("/restore-mvp/new");
+    if (isUsd) {
+      await page.getByRole("combobox").selectOption("US");
+    }
     await page.setInputFiles('input[type="file"]', tinyPngPath());
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: "Upload photo" }).click();
@@ -62,14 +81,23 @@ test.describe("R9.2-MPGS-CI-LIVE-PROOF: one real click against the real Bank Alf
     const orderNo = match[1];
 
     await expect(page.getByText(orderNo)).toBeVisible();
-    await expect(page.getByText(/PKR 250\.00/)).toBeVisible();
+    // Real, unmodified PriceBook amount for each market/tier -- never a
+    // synthetic literal (see priceBook.ts): PKR PAKISTAN/ORIGINAL = 250.00,
+    // USD INTERNATIONAL/ORIGINAL = 1.50.
+    await expect(page.getByText(isUsd ? /USD 1\.50/ : /PKR 250\.00/)).toBeVisible();
     await expect(page.getByText("Original", { exact: true })).toBeVisible();
     const payButton = page.getByRole("button", { name: "Pay securely" });
     await expect(payButton).toBeVisible();
+    // Server-owned order id, well under the required-below-30/41-char
+    // limits proven separately in the dry-run suite for this same leg.
+    expect(orderNo.length).toBeLessThan(30);
 
-    await page.screenshot({ path: "/tmp/baf-live-before-click.png", fullPage: true });
+    await page.screenshot({ path: SCREENSHOT_BEFORE, fullPage: true });
 
-    // Exactly one click. No retry, no second click, no card data, no USD.
+    // Exactly one click. No retry, no second click, no card data. When
+    // CURRENCY is USD this is the one USD request this session is
+    // authorized to make; when PKR (the default, unchanged path) no USD
+    // request is made at all.
     await payButton.click();
 
     // Wait for the request to settle -- either a real gateway response
@@ -83,10 +111,11 @@ test.describe("R9.2-MPGS-CI-LIVE-PROOF: one real click against the real Bank Alf
 
     await expect(page.getByText(/payment successful|payment complete|paid in full/i)).toHaveCount(0);
 
-    await page.screenshot({ path: "/tmp/baf-live-after-click.png", fullPage: true });
+    await page.screenshot({ path: SCREENSHOT_RESULT, fullPage: true });
 
     // Never a second click in this test -- the assertion that only one real
     // gateway call occurred is made from the API server's own log by the
-    // workflow (grep count), not from here.
+    // workflow (grep count), not from here. No Retrieve Order call is ever
+    // made by this spec -- only initiateHostedCheckout (session creation).
   });
 });

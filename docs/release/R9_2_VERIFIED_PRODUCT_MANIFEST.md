@@ -2594,3 +2594,83 @@ No live Bank Alfalah sandbox or production request was made by this
 packet. `BANK_ALFALAH_MPGS_ENABLED` remains as configured outside
 manual/CI runs. No RunPod/deployment/capture/production-credential change,
 no destructive Git operation. PR opened, not merged, not deployed.
+
+## 27. R9.2-MERGE-P143-AND-ONE-USD-SANDBOX-DIAGNOSTIC — PR #143 merged; USD currency evidence audit; USD dry-run proven; live USD dispatch owner-gated (2026-08-06)
+
+PR #143 re-verified (OPEN/CLEAN/MERGEABLE, exact payment-verification-bridge
+scope) and merged normally. Merge SHA:
+`e05d04a5b46edffb9fc68ebc09ea9803c9e05a98`. Full regression re-run against
+this exact commit before merge: 79/79 pg-race, 162/163 fast unit (the one
+non-pass is `p4c2-mpgs-provisioning-config-diagnostic.test.ts`, a
+pre-existing `vitest`-only script this repository's `node:test` harness
+cannot execute — confirmed present and byte-identical on `origin/main`
+before this packet, not a regression), 58/58 Playwright,
+lint/typecheck/build/Prisma clean (the 4 pre-existing lint errors in
+`apps/web/scripts/render-text-as-png.mjs` were independently confirmed
+present and unchanged on `origin/main`, unrelated to and unaffected by
+PR #143's diff — a missing Node-globals entry for that one script path in
+`eslint.config.mjs`, out of scope for a payments packet).
+
+**Currency document audit**: every Bank Alfalah/MPGS document in this
+repository was read and cross-checked. Full evidence table:
+`docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`.
+Summary: MPGS is not USD-only; PKR and USD are both bank-confirmed
+sandbox-testable on this merchant profile with the same credentials; no
+document states an explicit ISO 4217 requirement in words (treated as an
+already-implemented, universal convention, not separately bank-confirmed);
+currency support is a merchant-profile-level property, not a per-currency
+one (the persistent `401` on the PKR leg is itself evidence of this); the
+one contradiction found (a **retired, different** protocol, Alfa APG,
+stating "Currency ... will always be PKR") does not apply to the current
+MPGS integration and was recorded, not silently reconciled. No document
+uses a generic USD example as false authority for this merchant profile's
+currency support in either direction.
+
+**USD dry-run**: `mpgs-actual-app-dryrun.spec.ts` gained one new test
+(real INTERNATIONAL/USD `FixedOrder`, real upload→preview→tiers→order→
+review flow, local stub gateway). Proven, real-app, zero live network
+calls: `POST /api/rest/version/74/merchant/DRYRUNMERCHANT/session`,
+`INITIATE_CHECKOUT`, `PURCHASE`, `interaction.merchant.name` present,
+server-owned `order.currency=USD`, real PriceBook amount USD 1.50
+(INTERNATIONAL/ORIGINAL — the closest real product amount to the task's
+reference USD 1.00; no synthetic amount was fabricated, since doing so
+would have meant building a duplicate integration path instead of reusing
+the real order-creation flow, which the task explicitly instructed against),
+order id 20 characters (below both the required 30 and the gateway's own
+41-char limit), exactly one gateway call, no secret exposure. Full
+dry-run suite: 7/7 passed, exit 0. Screenshots:
+`baf-usd-dryrun-before.png` (order review, Market INTERNATIONAL, Tier
+Original, Amount USD 1.50), `baf-usd-dryrun-success.png` (checkout in
+flight, stub returns `session.id`, no fabricated paid state).
+
+**Live USD sandbox request**: the existing live-sandbox spec/workflow
+(`mpgs-live-app.spec.ts`, `bank-alfalah-mpgs-actual-app-e2e.yml`) were
+parameterized by a new `currency` (`PKR`/`USD`) `workflow_dispatch` input
+— no duplicate workflow, job, spec, or config file was created, per this
+task's explicit "reuse the existing actual-app workflow... do not build a
+duplicate integration" instruction. PKR's existing evidence/screenshot
+filenames and prior proven results are left completely unchanged; USD gets
+its own filenames (`baf-usd-before-click.png`, `baf-usd-result.png`,
+`baf-usd-gateway-sanitized.png`) per this task's exact naming. Dispatching
+a live workflow run against the real bank sandbox is, per this repository's
+standing rule established earlier in this session, an action only the
+repository owner performs manually (`workflow_dispatch` with `mode=live`,
+the exact `confirm_live` string, and `currency=USD`) — this session does
+not and will not dispatch it itself, consistent with every prior live-run
+packet in this evidence set. **As of this packet's own work, that dispatch
+has not yet occurred** (see `R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`
+for the up-to-date status once it does). `P4C_MPGS_AUTH_VERIFIED` and
+`BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` are unchanged by this
+packet — neither PKR nor USD is `SANDBOX_VERIFIED`.
+
+**Permanent protection added**: `rules.md` — example currency values in
+generic third-party MPGS/Mastercard documentation must never be treated as
+merchant-profile currency authority; only a bank-specific,
+merchant-profile-specific confirmation may enable/disable a currency in
+`MPGS_CURRENCY_SUPPORT`.
+
+No card data, no capture, no test-card payment, no Retrieve Order call, no
+second bank request, no RunPod/Replicate/R2/deployment/production-credential
+change, no destructive Git operation. `.gitignore` not broadened, no
+retired file recreated, no `git add -f`. PR opened for this packet's
+tracked changes, not merged, not deployed.
