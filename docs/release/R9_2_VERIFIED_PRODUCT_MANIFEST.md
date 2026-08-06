@@ -3122,3 +3122,131 @@ Windows service was never targeted and remained `Running` throughout.
 No RunPod, Replicate, R2, or Bank Alfalah network call was made anywhere
 in this packet. RunPod remains blocked and unauthorized. Replicate remains
 the approved restoration path. No deployment, no merge.
+
+## 33. R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION (2026-08-06)
+
+**PR #148 merged**: independently re-verified (OPEN, CLEAN, MERGEABLE,
+head `c3f28ad8c8d31ffcf520895c39ad38ad2db64235` matched expected exactly,
+exact 7-file staging-preflight scope). Full re-run before merge:
+`verify:launch-candidate` exit 0, `verify:staging-preflight` exit 0
+(10/10), 79/79 pg-race, 58/58 Playwright, typecheck/build/`prisma
+validate`/`migrate status` all exit 0, `git diff --check` clean. No
+repair needed. **Merge SHA: `b0114aa3083a18eefd8075fbdb2e65a3582aa120`.**
+
+**PR #149 updated onto new main and merged**: head was
+`831ab77706bb48b6ba9faa057d57a8eaacd0c4a0` (unchanged from prior packet).
+Merging `origin/main` (now containing #148) into the PR #149 branch
+produced genuine conflicts in `.kilo/plans/commerceflownew.md`,
+`docs/release/R9_2_VERIFIED_PRODUCT_MANIFEST.md`, `package.json`, and
+`rules.md` — every conflict was two packets each additively appending a
+new section/script; resolved by keeping **both** in full (P147/staging-
+preflight content ordered before the MPGS-freeze content chronologically,
+section numbers renumbered sequentially, both `npm` scripts kept). One
+real defect surfaced by the merge and repaired: the plan file's
+legacy-Alfa-APG retirement-guard test flagged a false positive because
+reordering shifted a `/HS/`-mentioning sentence outside the test's 6-line
+"retirement marker" context window — fixed by adding the word "retired"
+directly adjacent to the mention (no logic changed, text-only). Re-ran
+the full suite on the merged branch (fresh disposable PostgreSQL 17,
+port 46332): `verify:payment-freeze` 9/9, `verify:staging-preflight`
+10/10, `verify:launch-candidate` exit 0 (after the repair above), 79/79
+pg-race, 58/58 Playwright (one transient OS-level Playwright crash and
+one stale-port collision along the way, both resolved by re-running after
+clearing the stale process — not a code defect), typecheck/build/`prisma
+validate`/`migrate status`/`git diff --check` all clean. Merged normally.
+**Merge SHA: `c69afba7dab5d82ff4a5fb243f1c32231a69f695`.** Both packets'
+protections coexist and pass simultaneously.
+
+**Worktree**: `D:\Temp\r92-apg-url-foundation`, branch
+`feat/r9.2-apg-url-foundation`, from `origin/main` @ `c69afba...`
+(confirmed via `git rev-parse`).
+
+**APG URL foundation implemented** (ingress plumbing only — no status
+inquiry, acknowledgement, authentication, or payment mutation):
+
+- `GET /api/payments/bank-alfalah/return` and
+  `POST /api/payments/bank-alfalah/ipn`
+  (`apps/api/src/routes/bank-alfalah-apg.routes.ts`,
+  `apps/api/src/controllers/bank-alfalah-apg.controller.ts`), mounted at
+  `/api` in `index.ts`. Frontend `/payment/return`
+  (`apps/web/src/pages/PaymentReturnPage.tsx`, registered in `App.tsx`).
+- Two new env vars: `BANK_ALFALAH_APG_ENABLED` (defaults `"false"`) and
+  `BANK_ALFALAH_APG_ALLOWED_CALLBACK_HOSTS` (defaults `""` — empty,
+  fail-closed, no hardcoded host).
+- Return handler never marks PAID (no `applyVerifiedPaymentEvidence`
+  reference, no literal `"PAID"` anywhere in the file); always reports
+  truthful `PAYMENT_UNAVAILABLE`.
+- IPN listener validates the documented `url` parameter via
+  `isAllowedApgCallbackUrl()`: rejects missing/malformed/non-HTTPS/
+  unapproved-host URLs using the WHATWG `URL` parser's own `hostname`
+  (immune to userinfo/path-embedded SSRF tricks — proven by 2 dedicated
+  unit tests) against an exact, environment-owned allowlist. **Never
+  fetches the URL under any configuration** — even an approved host only
+  produces a `202 ACKNOWLEDGED_NO_ACTION` response, no outbound call.
+  9/9 unit tests pass
+  (`apps/api/src/controllers/bank-alfalah-apg.controller.test.ts`),
+  including a static source-scan confirming no `fetch`/`http.request`/
+  `https.request`/`axios` call exists in the file.
+- Frontend never reads a URL query parameter; shows exactly "Online
+  payment is temporarily unavailable." both by default and on failure.
+- MPGS untouched (`BANK_ALFALAH_MPGS_ENABLED` still defaults `"false"`).
+  No JazzCash/RAAST/COD/bank-transfer flow invented.
+
+**`npm run verify:apg-url-contract`** (new,
+`scripts/verify-apg-url-contract.mjs`): 12 checks, repository-
+configuration-and-source-only, zero external calls — both exact routes
+present with correct HTTP methods and mounted; APG and MPGS both default
+disabled; APG allowlist defaults empty; return handler never calls
+`applyVerifiedPaymentEvidence`/writes `"PAID"`; listener enforces exact
+(not loose) host matching and rejects non-HTTPS; neither handler makes an
+outbound network call; frontend never reads URL query parameters and
+contains the exact required message; `/payment/return` route registered;
+no hardcoded localhost/secret in the new files. **12/12 pass on the real
+repository.** Every check proven against a temporary failing fixture,
+then reverted (`git status --porcelain` clean afterward each time):
+return-route removed, IPN-route method changed, APG enabled by default,
+MPGS enabled by default (regression check), return handler marks PAID,
+listener switched to loose prefix matching, listener adds an outbound
+`fetch` call, frontend reads `URLSearchParams`.
+
+`scripts/verify-payment-freeze.mjs` was updated (additive allowlist entry
+only) to recognize the three new APG-URL-foundation files as legitimate
+ingress plumbing, not a prohibited "APG implementation" — re-verified
+9/9 still pass on the merged branch.
+
+**Full regression** (fresh disposable local PostgreSQL 17, tenth
+disposable instance across this and the prior packets): `verify:apg-url-
+contract` exit 0 (12/12); `verify:payment-freeze` exit 0 (9/9);
+`verify:launch-candidate` exit 0; `verify:staging-preflight` exit 0
+(10/10); 79/79 pg-race across all 8 suites, individually; 58/58
+Playwright (one transient failure on an unrelated pre-existing spec,
+resolved by rerun — not caused by this packet's changes); `npm run lint`
+0 errors (one genuine defect found and repaired: a `require()` call in
+the new unit test file violated `@typescript-eslint/no-require-imports`
+— replaced with a static ES import + `__dirname`); `npm run typecheck`
+exit 0; `npm run build` exit 0; `npx prisma validate` — schema valid;
+`npx prisma migrate status`/`deploy` — up to date, 21 migrations applied;
+`git diff --check` / `git diff --cached --check` both clean.
+
+**Cleanup proof**: the disposable PostgreSQL instance created this packet
+(port 47241) was stopped via `pg_ctl -m fast stop` ("server stopped"),
+port confirmed free via `Test-NetConnection`, temp data directory deleted
+(`Test-Path` afterward `False`). A stale Playwright dev-server process
+occupying port 4173 from an earlier crashed run was identified and
+force-stopped before the successful rerun. The persistent
+`postgresql-x64-17` Windows service was never targeted and remained
+`Running` throughout.
+
+**Exact URLs recorded** (`docs/payments/R9_2_APG_URL_INGRESS_PROTOCOL.md`):
+Return `https://api.thannow.com/api/payments/bank-alfalah/return`;
+Listener `https://api.thannow.com/api/payments/bank-alfalah/ipn`;
+Frontend `https://thannow.com/payment/return`. Status inquiry,
+acknowledgement, authentication, and payment mutation remain
+`AWAITING_BANK_CONFIRMATION` (`docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md`,
+new standalone tracked document, carried forward from the freeze
+packet's matrix with URL-related rows now resolved).
+
+No live Bank Alfalah request, APG activation, production deployment, or
+payment success simulation was made anywhere in this packet. RunPod
+remains blocked and unauthorized. Replicate remains the approved
+restoration path. No deployment, no merge of this packet's own PR.

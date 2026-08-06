@@ -84,7 +84,22 @@ const envSchema = z
      // Checkout.html. Not a secret (a display name), but still server-owned
      // and validated the same way as the return URL.
      BANK_ALFALAH_MPGS_MERCHANT_NAME: z.string().optional().default(""),
-     BANK_ALFALAH_MPGS_CHECKOUT_MODE: z.string().optional().default("hosted_checkout")
+     BANK_ALFALAH_MPGS_CHECKOUT_MODE: z.string().optional().default("hosted_checkout"),
+     // R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION: Bank Alfalah local APG
+     // ingress foundation ONLY -- no session/checkout, status-inquiry,
+     // acknowledgement, or payment-mutation logic exists yet, pending
+     // official bank documents (see
+     // docs/payments/R9_2_APG_URL_INGRESS_PROTOCOL.md). Disabled by default;
+     // the IPN listener validates a documented `url` parameter against this
+     // allowlist but NEVER fetches it -- no network call is made from this
+     // listener under any configuration.
+     BANK_ALFALAH_APG_ENABLED: z.string().optional().default("false"),
+     // Comma-separated exact hostnames (e.g. "ipn.bankalfalah.com"), owned by
+     // the environment, never hardcoded here and never defaulting to any
+     // legacy or guessed host. Empty by default -- fail-closed (rejects
+     // every `url` parameter until the owner configures real, bank-confirmed
+     // hosts).
+     BANK_ALFALAH_APG_ALLOWED_CALLBACK_HOSTS: z.string().optional().default("")
   })
   .superRefine((cfg, ctx) => {
     const normalizedPaymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();

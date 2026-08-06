@@ -98,9 +98,18 @@ check("legacy Alfa APG v1.1 retirement guard test exists and is intact", () => {
 check("no local APG implementation is presented as complete without official bank evidence", () => {
   // A real APG adapter module would live under services/ with an "apg"
   // name (distinct from the retired legacy test/evidence files, which are
-  // explicitly allowed to exist).
+  // explicitly allowed to exist). The URL-foundation files added by
+  // R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION are also explicitly
+  // allowed: they own only the two public ingress URLs (return/IPN), never
+  // perform a status inquiry, acknowledgement, or payment mutation, and
+  // never use a credential -- this is ingress plumbing, not an
+  // implementation. See scripts/verify-apg-url-contract.mjs for the
+  // dedicated checks that keep it that way.
   const allowedApgFiles = new Set([
-    "apps/api/src/services/p4c-bank-alfalah-legacy-apg-retired.test.ts"
+    "apps/api/src/services/p4c-bank-alfalah-legacy-apg-retired.test.ts",
+    "apps/api/src/controllers/bank-alfalah-apg.controller.ts",
+    "apps/api/src/controllers/bank-alfalah-apg.controller.test.ts",
+    "apps/api/src/routes/bank-alfalah-apg.routes.ts"
   ]);
   function walk(dir, out = []) {
     for (const entry of readdirSync(dir)) {

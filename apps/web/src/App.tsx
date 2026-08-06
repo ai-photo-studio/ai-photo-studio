@@ -32,6 +32,7 @@ import { RestorationUploadPage } from "./pages/RestorationUploadPage";
 import { OriginalPreviewPage } from "./pages/OriginalPreviewPage";
 import { DigitalTierSelectPage } from "./pages/DigitalTierSelectPage";
 import { FixedOrderReviewPage } from "./pages/FixedOrderReviewPage";
+import { PaymentReturnPage } from "./pages/PaymentReturnPage";
 
 export function App() {
   return (
@@ -59,6 +60,7 @@ export function App() {
         <Route path="restore-mvp/:draftId/preview" element={<OriginalPreviewPage />} />
         <Route path="restore-mvp/:draftId/tiers" element={<DigitalTierSelectPage />} />
         <Route path="orders/:orderNo/review" element={<FixedOrderReviewPage />} />
+        <Route path="payment/return" element={<PaymentReturnPage />} />
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<CustomerLayout />}>

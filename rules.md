@@ -944,3 +944,45 @@ section is additive; every rule above it remains in force verbatim.
   explicit, separately authorized task.
 - No live Bank Alfalah request, deployment, or production change was made
   by this packet. No RunPod/Replicate/R2 network call.
+
+### R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION (2026-08-06)
+
+Added by the R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #148 (`feat/r9.2-staging-release-preflight`, head
+  `c3f28ad8c8d31ffcf520895c39ad38ad2db64235`) merged. **Merge SHA:
+  `b0114aa3083a18eefd8075fbdb2e65a3582aa120`.** PR #149
+  (`feat/r9.2-freeze-mpgs-and-reactivate-apg`, head `831ab77...` unchanged,
+  updated onto new `main` and merged after conflict resolution). **Merge
+  SHA: `c69afba7dab5d82ff4a5fb243f1c32231a69f695`.**
+- **Permanent rule — when resolving a merge conflict between two additive
+  documentation sections, keep both in full; never drop either packet's
+  content to resolve a conflict.** Renumber sections sequentially and
+  order them chronologically; re-run every affected packet's own
+  validator afterward (not just the newest one) to catch any content-
+  reordering side effect (this packet found and fixed exactly one: a
+  retirement-guard test's context-window check broke when reordering
+  shifted line offsets).
+- **Permanent rule — the Bank Alfalah APG URL foundation
+  (`GET /api/payments/bank-alfalah/return`,
+  `POST /api/payments/bank-alfalah/ipn`, frontend `/payment/return`) is
+  ingress plumbing, not an implementation, and must stay that way until
+  the requirements matrix
+  (`docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md`) is resolved by real
+  bank documents.** Neither handler may ever call
+  `applyVerifiedPaymentEvidence`, write a literal `"PAID"` status, or make
+  an outbound network call of any kind (proven structurally and by
+  `verify:apg-url-contract`). The IPN listener's `url`-parameter
+  allowlist (`BANK_ALFALAH_APG_ALLOWED_CALLBACK_HOSTS`) must remain an
+  **exact** hostname match via the WHATWG `URL` parser's own `.hostname`
+  — never a prefix/suffix/substring match, and never a hardcoded host.
+- **Permanent rule — `npm run verify:apg-url-contract` is the canonical
+  zero-network APG-URL gate; `npm run verify:payment-freeze`'s
+  APG-implementation-file allowlist may only be extended for genuine
+  ingress-plumbing files that themselves stay covered by
+  `verify:apg-url-contract`'s "no outbound network call" and "never
+  marks PAID" checks — never to admit a real implementation early.**
+- No live Bank Alfalah request, APG activation, production deployment, or
+  payment success simulation was made anywhere in this packet.
+  No RunPod/Replicate/R2 network call.
