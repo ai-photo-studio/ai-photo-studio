@@ -38,7 +38,7 @@ test("blocked provider is truthful and Pay is explicit", async ({ page }) => {
   const calls = await setup(page);
   expect(calls).toEqual([]);
   await page.getByRole("button", { name: "Pay securely" }).click();
-  await expect(page.getByText(/Payment provider unavailable/i)).toBeVisible();
+  await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   expect(calls).toEqual(["POST checkout"]);
   await expect(page.getByText(/PAID/i)).not.toBeVisible();
 });
