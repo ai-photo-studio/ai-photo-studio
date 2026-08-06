@@ -741,3 +741,44 @@ promoted to its own tracked doc:
 `docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md`. No live Bank Alfalah
 request, APG activation, production deployment, or payment success
 simulation. No deployment, no merge of this packet's own PR.
+
+## 33. R9.2-MERGE-P150-AND-PAYMENT-FREE-STAGING-RC (2026-08-06)
+
+PR #150 merged after a CI infra flake (unrelated "Service Unavailable"
+downloading GitHub Actions itself) — merge proceeded on complete,
+authoritative local verification (4 validators, 79/79 pg-race, 58/58
+Playwright, lint/typecheck/build/Prisma/diff all clean). **Merge SHA:
+`dd8924a78f54487ab9336806b3906b4c585a5860`.**
+
+Process-level staging smoke: real disposable-Postgres-backed API, web,
+and standalone worker processes, local/mock providers. Proved: health
+200; worker starts independently with zero bound ports; the full upload →
+preview → pricing → FixedOrder flow works via live local HTTP calls;
+checkout fails closed (503); the return URL never marks PAID; the IPN
+listener rejects missing/malformed/unapproved/non-HTTPS urls and, for one
+approved test host, validates but never fetches it (confirmed via log
+grep); `/payment/return` reachable; zero Replicate/R2/Bank Alfalah/RunPod
+references anywhere in the API log. All processes and the disposable
+Postgres cleanly stopped and deleted.
+
+Added `npm run verify:payment-free-staging-rc` — composes the four
+existing validators plus 3 new static checks (no tracked disposable-
+Postgres artifacts, worker imports no HTTP framework, no tracked
+.pid/.lock file). Exit 0; every new check proven against a temporary
+failing fixture then reverted.
+
+Added a 12-item APG adapter implementation gate to the requirements
+matrix (Merchant ID, hosts, auth/signature, handshake fields, Return URL
+contract, listener ack/retry, OrderStatus URL allowlist, status-inquiry
+fields, status mapping, refund/void, settlement, sandbox/go-live) —
+**CLOSED, 0/12**, nothing inferred from legacy files. The URL foundation
+is explicitly outside this gate (ingress plumbing already built/tested).
+
+Full verification clean: verify:payment-free-staging-rc, verify:apg-url-
+contract, verify:payment-freeze, verify:launch-candidate, verify:staging-
+preflight, 79/79 pg-race, 58/58 Playwright, lint/typecheck/build/Prisma/
+diff all exit 0. Disposable Postgres cleanly torn down; persistent system
+Postgres untouched. The finalized APG URL foundation and payment-free
+staging safeguards are now Protected Scope. No live Bank Alfalah request,
+APG activation, production payment, external provider call, or
+deployment. No merge of this packet's own PR.

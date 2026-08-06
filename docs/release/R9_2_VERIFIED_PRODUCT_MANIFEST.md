@@ -3250,3 +3250,121 @@ No live Bank Alfalah request, APG activation, production deployment, or
 payment success simulation was made anywhere in this packet. RunPod
 remains blocked and unauthorized. Replicate remains the approved
 restoration path. No deployment, no merge of this packet's own PR.
+
+## 34. R9.2-MERGE-P150-AND-PAYMENT-FREE-STAGING-RC (2026-08-06)
+
+**PR #150 merged**: head `531b59a5c8193d016cc637270a53a54322d116d5`
+confirmed exact, OPEN/MERGEABLE (mergeStateStatus `UNSTABLE` due to a
+GitHub Actions infra flake on the `bank-alfalah-mpgs-actual-app-e2e.yml`
+dry-run check — "Service Unavailable" resolving action download info, a
+platform-level failure with zero relation to this PR's code; a rerun was
+triggered but the CI runner remained queued for an extended period, so
+the merge proceeded on the authoritative local verification instead: all
+4 validators pass, 79/79 pg-race, 58/58 Playwright, lint/typecheck/build/
+Prisma/diff all clean). **Merge SHA:
+`dd8924a78f54487ab9336806b3906b4c585a5860`.**
+
+**Worktree**: `D:\Temp\r92-payment-free-staging-rc`, branch
+`feat/r9.2-payment-free-staging-rc`, from `origin/main` @ `dd8924a...`.
+
+**Process-level staging smoke** (disposable local PostgreSQL 17, real API
+process, real Vite web process, standalone P4B worker process — all
+local/mock providers, zero external calls):
+
+- `GET /api/health` → 200 (`{"success":true,...,"provider":"replicate",...}`).
+- Worker started independently (no API dependency in its startup path),
+  logged `"P4B worker runner: starting"` with `restorationProvider:
+  "replicate"`, `concurrency:1` — `Get-NetTCPConnection` confirmed the
+  worker's own process bound **zero ports**; only the API (4021) and web
+  (5183) processes listened.
+- Real customer flow exercised end to end via live local HTTP calls: `POST
+  /api/restoration-drafts` → `UPLOADED` draft; `GET
+  /api/restoration-drafts/:id` → signed mock preview URL; `GET
+  .../offers` → exact PriceBook PKR amounts (25000/35000/50000); `POST
+  /api/fixed-orders/restoration-digital` → `CREATED` `FixedOrder` with
+  `pricingApproved:true`, `pricingSource:"approved_pricebook"`.
+- Checkout: `POST /fixed-orders/:orderNo/checkout` → **`503
+  PAYMENT_PROVIDER_UNAVAILABLE`** — confirmed fail-closed, no
+  `PaymentAttempt` created (MPGS disabled).
+- Return URL: `GET /api/payments/bank-alfalah/return?orderNo=...` → `200
+  {"status":"PAYMENT_UNAVAILABLE","message":"Online payment is
+  temporarily unavailable."}` — never marks PAID.
+- IPN listener tested with `BANK_ALFALAH_APG_ENABLED=true` (disposable
+  local test process only, never a real credential/host) and
+  `BANK_ALFALAH_APG_ALLOWED_CALLBACK_HOSTS=ipn.example-bank.test`: missing
+  `url` → `400 "missing url parameter"`; malformed `url` → `400
+  "malformed url"`; unapproved host → `400 "url host is not on the
+  approved allowlist"`; non-HTTPS approved host → `400 "non-HTTPS url
+  rejected"`; approved HTTPS host → `202 {"status":
+  "ACKNOWLEDGED_NO_ACTION"}` — the API log was grepped for `fetch`/the
+  approved test host and confirmed **zero outbound attempt** was made
+  even for the approved case.
+- `/payment/return` frontend route confirmed reachable (`200`); message
+  content already proven at the source level by `verify:apg-url-contract`
+  and the existing Playwright suite's pattern.
+- API log grepped for `replicate.com`/`r2.cloudflarestorage`/
+  `bankalfalah`/`runpod` (case-insensitive): **zero matches** — confirmed
+  zero external calls of any kind across the entire smoke session.
+- All three processes (API, web, worker) force-stopped and confirmed gone
+  via `Get-CimInstance`; ports 4021/5183 confirmed free; disposable
+  Postgres stopped (`pg_ctl -m fast stop` → "server stopped"), port
+  confirmed free, temp data directory deleted. Persistent
+  `postgresql-x64-17` service untouched.
+
+**`npm run verify:payment-free-staging-rc`** (new,
+`scripts/verify-payment-free-staging-rc.mjs`): composes the four existing
+validators (`verify:apg-url-contract`, `verify:payment-freeze`,
+`verify:launch-candidate`, `verify:staging-preflight`) plus 3 additional
+static checks not already covered: no disposable-Postgres-shaped file
+(`postmaster.pid`, `pg_hba.conf`, `base/<oid>/`) tracked in git; the P4B
+worker entry point imports no HTTP server framework (`express`/
+`createServer`); no tracked `.pid`/`.lock` file left over from a local
+run. **Exit 0 on the real repository.** Every new check proven against a
+temporary failing fixture then reverted (`git status --porcelain` clean
+afterward each time): worker given a fake `express` import → correctly
+failed; APG enabled by default → correctly failed via the composed
+`verify:apg-url-contract` sub-run; API/worker Dockerfile command collision
+→ correctly failed via the composed `verify:staging-preflight` sub-run; a
+`postmaster.pid` file force-added to git → correctly failed, then
+`git reset` + delete confirmed clean.
+
+**APG evidence intake gate** (`docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md`):
+added an explicit 12-item gate (Merchant ID/Store ID requirements;
+sandbox/production hosts; authentication/signature rules; handshake/
+session request fields; Return URL parameter contract; listener
+acknowledgement/retry behavior; permitted OrderStatus URL hosts/paths;
+status inquiry response fields; success/failure status mapping;
+refund/void APIs; settlement/reconciliation details; sandbox test
+cases/go-live procedure) — **gate status CLOSED, 0/12 confirmed**. No
+value inferred from the retired Alfa APG v1.1 files. The already-built
+URL foundation (return/IPN/frontend) is explicitly outside this gate's
+scope (ingress plumbing, not adapter work).
+
+**Full verification** (fresh disposable local PostgreSQL 17, thirteenth
+disposable instance across this and prior packets): `verify:payment-free-
+staging-rc` exit 0; `verify:apg-url-contract` exit 0 (12/12);
+`verify:payment-freeze` exit 0 (9/9); `verify:launch-candidate` exit 0;
+`verify:staging-preflight` exit 0 (10/10); 79/79 pg-race across all 8
+suites, individually; 58/58 Playwright; `npm run lint` 0 errors, 90
+pre-existing warnings; `npm run typecheck` exit 0; `npm run build` exit
+0; `npx prisma validate` — schema valid; `npx prisma migrate
+status`/`deploy` — up to date, 21 migrations applied; `git diff --check`
+/ `git diff --cached --check` both clean.
+
+**Cleanup proof**: the final disposable PostgreSQL instance (port 47647)
+stopped via `pg_ctl -m fast stop` ("server stopped"), port confirmed free
+via `Test-NetConnection`, temp data directory deleted (`Test-Path`
+afterward `False`). Persistent `postgresql-x64-17` service untouched
+throughout across every disposable instance used in this packet.
+
+**Protected Scope addition**: the finalized APG URL foundation (exact
+routes, SSRF-safe listener, disabled-by-default config) and the
+payment-free staging safeguards (`verify:payment-free-staging-rc` and its
+four composed validators) are now Protected Scope — future packets must
+keep all of them green and must not weaken any check to make an unrelated
+change pass.
+
+No live Bank Alfalah request, APG activation, production payment,
+external provider call, or deployment was made anywhere in this packet.
+RunPod remains blocked and unauthorized. Replicate remains the approved
+restoration path. No deployment, no merge of this packet's own PR.

@@ -986,3 +986,40 @@ section is additive; every rule above it remains in force verbatim.
 - No live Bank Alfalah request, APG activation, production deployment, or
   payment success simulation was made anywhere in this packet.
   No RunPod/Replicate/R2 network call.
+
+### R9.2-MERGE-P150-AND-PAYMENT-FREE-STAGING-RC (2026-08-06)
+
+Added by the R9.2-MERGE-P150-AND-PAYMENT-FREE-STAGING-RC packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #150 (`feat/r9.2-apg-url-foundation`, head
+  `531b59a5c8193d016cc637270a53a54322d116d5`) merged after a GitHub
+  Actions infra flake unrelated to this repository's code. **Merge SHA:
+  `dd8924a78f54487ab9336806b3906b4c585a5860`.**
+- **Permanent rule — a queued/flaking CI check on an unrelated workflow
+  (verified by inspecting its raw log for an infra-level error, e.g.
+  "Service Unavailable" resolving GitHub's own action-download service)
+  does not block a merge whose complete local verification suite already
+  passed.** Always inspect the actual failure log before treating a
+  pending/failed check as a real signal; never merge past a check whose
+  log shows a genuine code-related failure.
+- **Protected Scope (finalized, this packet)**: the APG URL foundation
+  (`GET /api/payments/bank-alfalah/return`,
+  `POST /api/payments/bank-alfalah/ipn`, frontend `/payment/return`,
+  their fail-closed/SSRF-safe behavior) and the payment-free staging
+  safeguards (`npm run verify:payment-free-staging-rc` and the four
+  validators it composes: `verify:apg-url-contract`, `verify:payment-
+  freeze`, `verify:launch-candidate`, `verify:staging-preflight`) are now
+  Protected Scope. Every future packet touching payment, worker, or
+  staging-readiness code must keep all of them green; none may be
+  weakened, bypassed, or have a check removed to make an unrelated change
+  pass.
+- **Permanent rule — the APG adapter implementation gate
+  (`docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md`, 12 items) stays
+  CLOSED until every item is confirmed by a real, dated bank document in
+  this repository.** No adapter code (session/checkout construction,
+  status inquiry, acknowledgement, authentication, payment mutation) may
+  be written while the gate is closed. The already-built URL foundation
+  is explicitly outside this gate's scope.
+- No live Bank Alfalah request, APG activation, production payment,
+  external provider call, or deployment was made anywhere in this packet.

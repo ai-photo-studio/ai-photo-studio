@@ -28,6 +28,37 @@ explicitly resolved by a URL-foundation packet remains
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
 | Payment mutation | **Explicitly deferred** | No code path from either route reaches `applyVerifiedPaymentEvidence` — by design, until every row above is resolved |
 
+## APG adapter implementation gate
+
+**No APG adapter work (session/checkout request construction, status
+inquiry, acknowledgement handling, signature/authentication, or payment
+mutation) may begin until the bank has provided all twelve items below.**
+Every item is `AWAITING_BANK_CONFIRMATION` until a real, dated bank
+document exists in this repository confirming it. **None of these values
+may be inferred, guessed, or copied from the retired Alfa APG v1.1 files**
+— that protocol is retired, and a shared bank relationship does not imply
+a shared technical contract.
+
+| # | Required item | Status |
+|---|---|---|
+| 1 | Merchant ID / Store ID requirements | `AWAITING_BANK_CONFIRMATION` |
+| 2 | Sandbox and production hosts | `AWAITING_BANK_CONFIRMATION` |
+| 3 | Authentication/signature rules | `AWAITING_BANK_CONFIRMATION` |
+| 4 | Handshake/session request fields | `AWAITING_BANK_CONFIRMATION` |
+| 5 | Return URL parameter contract | `AWAITING_BANK_CONFIRMATION` |
+| 6 | Listener acknowledgement and retry behavior | `AWAITING_BANK_CONFIRMATION` |
+| 7 | Permitted OrderStatus URL hosts/paths | `AWAITING_BANK_CONFIRMATION` |
+| 8 | Status inquiry response fields | `AWAITING_BANK_CONFIRMATION` |
+| 9 | Success/failure status mapping | `AWAITING_BANK_CONFIRMATION` |
+| 10 | Refund/void APIs | `AWAITING_BANK_CONFIRMATION` |
+| 11 | Settlement/reconciliation details | `AWAITING_BANK_CONFIRMATION` |
+| 12 | Sandbox test cases and go-live procedure | `AWAITING_BANK_CONFIRMATION` |
+
+**Gate status: CLOSED.** 0/12 items confirmed. The URL foundation (return
+route, IPN listener, frontend page — see the table above) is intentionally
+outside this gate: it is ingress plumbing only, already built and tested,
+and does not constitute "adapter work" under this gate's definition.
+
 ## Change log
 
 - 2026-08-06 (R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG): matrix created,
@@ -36,3 +67,6 @@ explicitly resolved by a URL-foundation packet remains
   standalone tracked document; return/listener/frontend URL rows and the
   allowlisting mechanism resolved (URLs defined, values still pending);
   every other row unchanged.
+- 2026-08-06 (R9.2-MERGE-P150-AND-PAYMENT-FREE-STAGING-RC): added the
+  explicit 12-item APG adapter implementation gate, closed (0/12), no
+  values inferred from legacy files.
