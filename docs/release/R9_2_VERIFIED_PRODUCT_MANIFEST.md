@@ -2675,7 +2675,7 @@ change, no destructive Git operation. `.gitignore` not broadened, no
 retired file recreated, no `git add -f`. PR opened for this packet's
 tracked changes, not merged, not deployed.
 
-## 28. R9.2-CANCEL-WRONG-RUN-MERGE-P144-AND-WATCH-USD-PROOF — PR #144 merged; wrong pre-USD run classified; updated main re-verified; awaiting owner USD dispatch (2026-08-06)
+## 28. R9.2-CANCEL-WRONG-RUN-MERGE-P144-AND-WATCH-USD-PROOF / R9.2-CLASSIFY-USD-RUN-31061334403-AND-FINALIZE-P145 — PR #144 merged; wrong pre-USD run classified; updated main re-verified; owner-authorized USD run 31061334403 classified 401 currency-independent (2026-08-06)
 
 **Wrong-run protection**: run `31058730527` (`workflow_dispatch`, branch
 `main`, SHA `e05d04a5b46...`, dispatched before PR #144 merged) was
@@ -2714,20 +2714,43 @@ call" assertion and API-password redaction both intact. The full
 actual-app dry-run suite re-run from this fresh `main` worktree: **7/7
 passed, exit 0.**
 
-**Live USD status**: no `workflow_dispatch` run exists at or after updated
-`main` HEAD. This agent does not dispatch the live workflow itself (a
-standing rule in this repository, re-confirmed this packet). Status:
-**`AWAITING_OWNER_USD_DISPATCH`.**
-
 **New permanent protection**: `rules.md` — a `workflow_dispatch` for a
 workflow whose parameters were just added must be dispatched from a ref
 that actually contains those parameter definitions; dispatching from an
 older ref silently drops undefined inputs and can consume a rationed live
 request on the wrong (default) path with no error or warning.
 
+**Owner-authorized live USD sandbox request — run `31061334403`**: the
+owner dispatched `workflow_dispatch` on `main` at SHA
+`14a745b9274f3d6a23f03ce11ecb4be2c76cee3d` (the updated, `currency`-input
+-bearing HEAD), `mode=live`, `currency=USD`. Dry-run job skipped; live job
+ran exactly once, completed successfully, including "Assert exactly one
+real gateway call was made". Downloaded artifacts and the full
+`api-server.log` confirm exactly one request:
+`POST /api/rest/version/100/merchant/{merchantId}/session`, `currency=USD`,
+`orderIdLength=20`, no Retrieve Order call, no PKR request, no card data,
+no capture, no retry. **Result: `HTTP 401`** ("Invalid credentials") — no
+`session.id`, no `successIndicator`. All three required screenshots
+(`baf-usd-before-click.png`: Market INTERNATIONAL, Tier Original, Amount
+USD 1.50, order `FO-MSGT5ODO-308A59D7`; `baf-usd-result.png`: truthful
+`401` surfaced, no fabricated success; `baf-usd-gateway-sanitized.png`:
+matches the log exactly) and the Playwright trace (browser network log
+contains zero references to the real bank host) were visually reviewed —
+no password, `Authorization` value, or other secret visible anywhere.
+
+**Classification: authentication/merchant-profile access failure,
+confirmed currency-independent.** Three independent live requests across
+two currencies (PKR ×2, USD ×1) all return byte-identical `401` rejection
+shapes — PKR versus USD is conclusively not the cause.
+`P4C_MPGS_AUTH_VERIFIED` remains NOT achieved for either currency. Per
+this packet's own classification rule, the final short bank support email
+(requesting API password reissue and REST permission confirmation) was
+drafted at `D:\Temp\claude\evidence\baf-final-support-email-2026-08-06.txt`
+(outside the repository, no secret) — **not sent**, pending owner review,
+consistent with this and every prior packet's "no bank contact" scope.
+
 No card data, no capture, no test-card payment, no Retrieve Order call, no
 second bank request made by this agent, no RunPod/Replicate/R2/deployment/
 production-credential change, no destructive Git operation. `.gitignore`
 not broadened, no retired file recreated, no `git add -f`. Evidence PR
-opened for this packet's doc-only tracked changes, not merged, not
-deployed.
+updated with this run's evidence and merged after full checks.
