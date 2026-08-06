@@ -558,3 +558,32 @@ No card data, no capture, no Retrieve Order call, no second bank request
 made by this agent, no RunPod/Replicate/R2/deployment/production-credential
 change. Evidence PR (docs-only) updated with this run's evidence and
 merged after full checks.
+
+## 28. R9.2-USD-RETEST-AFTER-BANK-ENABLEMENT-AND-COMPLETE-LAUNCH-READINESS (2026-08-06)
+
+Bank confirmed USD newly enabled on sandbox MID `TESTGLOBALINDUS` and
+requested a retry. Owner dispatched run `31084589628` on `main`
+(`0e9f584...`, PR #145 HEAD), `mode=live`, `currency=USD` — newer than the
+enablement email and prior run `31061334403`. Dry-run skipped, live job ran
+exactly once. `api-server.log` confirms exactly one
+`POST .../session` request, `currency=USD`, `merchant.name` present, zero
+occurrences of `password`/`Authorization`/`PKR`/`capture`/`Retrieve`/`card`
+anywhere in the log. **Result: `HTTP 401`** — no `session.id`.
+**Classification: sandbox API credential/REST-permission failure, confirmed
+unaffected by today's USD enablement** (4th live request, 4th byte-identical
+401 shape). Final short bank email (password reissue + REST permission
+confirmation) drafted, not sent. No second live request made.
+
+Continued launch-candidate readiness from the prior session: root-caused
+and repaired the 4 `.mjs` lint errors (`eslint.config.mjs` globals gap) and
+the 1 vitest-only test non-pass (wrong-runner mismatch, not a code defect;
+162 `tsx --test` + 14 `vitest` = 163). Added `npm run verify:launch-
+candidate`. Proved the full local stubbed journey: 79/79 pg-race tests
+(disposable local PostgreSQL 17) across all 8 suites, 58/58 Playwright
+browser tests, typecheck/build/`prisma validate`/`migrate status`/`git
+diff --check` all clean. Full details, Northflank GO/NO-GO table, and the
+owner-operated staging sequence:
+`docs/restoration/R9_2_LAUNCH_CANDIDATE_READINESS_PROTOCOL.md`. Disposable
+Postgres cleanly torn down (process gone, port free, data dir deleted);
+persistent system Postgres service untouched. No RunPod/Replicate/R2/Bank
+Alfalah network call in any local test. No deployment.

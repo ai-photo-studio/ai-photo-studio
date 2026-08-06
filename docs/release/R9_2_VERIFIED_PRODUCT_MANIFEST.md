@@ -2754,3 +2754,109 @@ second bank request made by this agent, no RunPod/Replicate/R2/deployment/
 production-credential change, no destructive Git operation. `.gitignore`
 not broadened, no retired file recreated, no `git add -f`. Evidence PR
 updated with this run's evidence and merged after full checks.
+
+## 29. R9.2-USD-RETEST-AFTER-BANK-ENABLEMENT-AND-COMPLETE-LAUNCH-READINESS (2026-08-06)
+
+**USD retest after bank-confirmed enablement — run `31084589628`**: the
+owner dispatched `workflow_dispatch` on `main` at SHA
+`0e9f5844cba61082989f1e9da5ff33ce833f677f` (PR #145 merge HEAD), created
+`2026-08-06T08:21:55Z` — newer than the bank's USD-enablement email and
+newer than prior run `31061334403` (`2026-08-06T00:57:58Z`). Dry-run job
+skipped; live job ran exactly once, completed successfully including
+"Assert exactly one real gateway call was made". Artifacts downloaded and
+`api-server.log` inspected in full: exactly one
+`POST /api/rest/version/100/merchant/{merchantId}/session` request,
+`currency=USD`, `orderIdLength=20`, `merchant.name` = "Global Industrial
+Suppliers" (env-injected, matches bank-confirmed value). Zero occurrences
+of `password`, `Authorization`, `PKR`, `capture`, `Retrieve`, or `card`
+anywhere in the full log — no PKR request, no retry, no card data, no
+capture, no Retrieve Order call, no second request of any kind.
+
+**Result: `HTTP 401`** — `content-type=application/json;charset=ISO-8859-1
+www-authenticate=none correlation-id=none`, no `session.id`, no
+`successIndicator`. **Classification: sandbox API credential/
+REST-permission failure, unaffected by today's USD enablement.** This is
+the same 401 shape as the three prior live requests (PKR ×2, USD ×1,
+recorded in §28), now joined by a fourth (USD, post-enablement) —
+currency enablement did not change the outcome, confirming the blocker is
+credential/permission-level, not currency-configuration-level. Per the
+task's classification rule, a final short bank email (requesting API
+password reissue and explicit REST-API permission confirmation for
+`TESTGLOBALINDUS`) was drafted — **not sent**, pending owner review. No
+second live request was made.
+
+**Launch-candidate readiness (continuing from the prior session's phase
+1-2 work)**: fresh worktree `D:\Temp\r92-launch-candidate-readiness`,
+branch `feat/r9.2-launch-candidate-readiness`, built from `origin/main` at
+the confirmed PR #145 SHA above.
+
+- **Lint** (root cause repaired): `eslint.config.mjs` granted Node
+  globals only to `.ts/.tsx` files and one specific `.mjs` directory, not
+  `.mjs` generally, so `apps/web/scripts/render-text-as-png.mjs` (added by
+  §21) failed `no-undef` on `process`/`console`. Added a `files:
+  ["**/*.mjs"]` block with `globals.node`. `npm run lint` now exits `0`
+  (0 errors, 90 pre-existing `@typescript-eslint/no-explicit-any`
+  warnings, unchanged count).
+- **Fast-test split (root cause diagnosed, not hidden)**:
+  `p4c2-mpgs-provisioning-config-diagnostic.test.ts` imports from
+  `vitest` (`vi.mock`) and fails `MODULE_NOT_FOUND` under the `node:test`
+  runner (`tsx --test`) — a runner-invocation mismatch, not a code
+  regression, the same class of finding as this repo's documented
+  pg-race-must-run-individually precedent. Confirmed: 162/162 pass under
+  `tsx --test` (all `*.test.ts` except `*.pg-race.test.ts` and the one
+  vitest-only file); 14/14 pass under `npx vitest run` for that one file.
+  162 + 1 = the 163 referenced by this task.
+- **New `npm run verify:launch-candidate`** (`scripts/verify-launch-
+  candidate.mjs`): runs lint, then the 162-file `tsx --test` glob, then
+  the 1 vitest-only file via `npx vitest run`, in that order, exiting
+  non-zero on any failure. Zero external network calls. Re-run at the end
+  of this packet: **exit 0**.
+- **Full local stubbed journey proof** (disposable local PostgreSQL 17,
+  loopback-only, random port, throwaway `trust` rule, `DATABASE_URL`
+  passed only as an environment variable): all 8 `*.pg-race.test.ts`
+  suites run individually — `customer-checkout` 11/11, `fixed-order`
+  16/16, `p3a-replicate-execution-worker` 10/10, `p4a-payment-verified-
+  execution-queue` 14/14, `p4b-internal-worker-runner` 10/10, `p4c-bank-
+  alfalah-mpgs-gateway` 6/6, `restoration-draft` 9/9, `sharp-variant`
+  3/3 — **79/79 pass**. These suites are this repo's existing proof (built
+  across §6-§19) of: FixedOrder creation with server-owned price/currency
+  (browser/query data cannot mark PAID or supply amount/currency);
+  mismatched order/amount/currency/merchant-id fails closed at Retrieve
+  Order verification; a PENDING/FAILED retrieved order is never processed
+  even when the browser return claims success; two real concurrent
+  workers on the same execution converge on exactly one claim and exactly
+  one provider call; a replayed/duplicate request reuses the same
+  immutable order/execution, never a second one; `DIGITAL_UPGRADE` and
+  `PRINT_ADD_ON` orders can never have Replicate executed against them; a
+  validated master is never re-executed; Sharp variant generation is
+  deterministic and reuses an existing valid variant. All 8 suites confirm
+  zero external network calls in-file.
+- **Full Playwright browser suite** (`npx playwright test tests/browser`,
+  mocked API via `page.route`, no real backend needed): **58/58 pass**
+  (`p4e-checkout-ui`, `p5a-restoration-status`, `p6a-customer-route-
+  hardening`, `p6c-customer-mvp-flow` — the full upload→preview→tier-
+  select→order→review journey for both Pakistan/PKR and International/USD,
+  forged-query-parameter and wrong-token rejection, zero external network
+  calls asserted per-spec).
+- **Remaining verification**: `npm run typecheck` (api+web) exit `0`;
+  `npm run build` (api+web) exit `0`; `npx prisma validate` — schema
+  valid; `npx prisma migrate status` against the disposable instance — 21
+  migrations applied, "Database schema is up to date!"; `git diff --check`
+  and `git diff --cached --check` — both clean.
+- **Cleanup proof**: `pg_ctl -m fast stop` → "server stopped"; the exact
+  `postmaster.pid` PID (3968) confirmed gone via `Get-Process` afterward;
+  `Test-NetConnection` on the chosen port (56869) afterward reported
+  `TcpTestSucceeded: False`; the entire temporary data directory deleted,
+  `Test-Path` afterward `False`; the persistent `postgresql-x64-17`
+  Windows service confirmed `Running`/untouched throughout — only the
+  disposable, loopback-only, random-port cluster was ever created,
+  started, and destroyed.
+
+**Northflank staging readiness — audited from repository configuration
+only (no live dashboard access used, no deployment made)**: see
+`docs/restoration/R9_2_LAUNCH_CANDIDATE_READINESS_PROTOCOL.md` for the
+full GO/NO-GO table and owner-operated staging sequence.
+
+No RunPod, Replicate, R2, or Bank Alfalah network call was made during any
+local test in this packet. RunPod remains blocked and unauthorized.
+Replicate remains the approved restoration path. No deployment, no merge.
