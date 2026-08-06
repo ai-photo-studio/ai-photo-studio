@@ -4,6 +4,13 @@
 // BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED remains open -- this
 // page never fabricates a "paid"/"success" state, including from a URL
 // query parameter (none are read at all).
+//
+// R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG: MPGS is commercially frozen
+// (MPGS_COMMERCIAL_HOLD) and no payment provider is implemented in its
+// place yet. This page must never invent a bank-transfer/COD/JazzCash/
+// RAAST flow -- it shows one truthful fail-closed message and nothing else
+// until a real provider is implemented and enabled.
+const PAYMENT_UNAVAILABLE_MESSAGE = "Online payment is temporarily unavailable.";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
@@ -65,7 +72,7 @@ export function FixedOrderReviewPage() {
     } catch (err) {
       if (mounted.current) {
         const apiError = err as { code?: string; message?: string };
-        setCheckoutError(apiError.code === "PAYMENT_PROVIDER_UNAVAILABLE" ? "Payment provider unavailable. Checkout is not enabled yet." : apiError.message || "Unable to start checkout");
+        setCheckoutError(apiError.code === "PAYMENT_PROVIDER_UNAVAILABLE" ? PAYMENT_UNAVAILABLE_MESSAGE : apiError.message || "Unable to start checkout");
       }
     } finally {
       if (mounted.current) setCheckoutBusy(false);
@@ -101,7 +108,7 @@ export function FixedOrderReviewPage() {
       </div>
 
        <div className="state-panel" style={{ marginTop: "1rem" }}>
-         <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : "Payment is not yet available until you press Pay. Refresh reads status only.")}</p>
+         <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
        </div>
 
        <div className="button-row" style={{ marginTop: "1rem" }}>

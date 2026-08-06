@@ -18,6 +18,7 @@
     "lint": "eslint apps/api apps/web",
     "verify:launch-candidate": "node scripts/verify-launch-candidate.mjs",
     "verify:staging-preflight": "node scripts/verify-staging-preflight.mjs",
+    "verify:payment-freeze": "node scripts/verify-payment-freeze.mjs",
     "scope:check": "node scripts/verify-project-scope.mjs",
     "push:safe": "node scripts/safe-git-push.mjs",
     "r2:check": "node scripts/safe-r2-check.mjs",

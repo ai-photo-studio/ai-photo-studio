@@ -97,6 +97,28 @@ export class MpgsCurrencyNotSupportedError extends Error {
   }
 }
 
+// ---------------------------------------------------------------------------
+// R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06): owner decision --
+// Mastercard MPGS is commercially rejected and frozen. This is a business
+// decision, not a technical one: MPGS sandbox authentication itself was
+// still unresolved (HTTP 401, see docs/payments/bank-alfalah-mastercard/
+// R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md) at the time of this
+// freeze. Bank Alfalah local APG is the new intended payment route, subject
+// to official bank documents not yet received -- no APG code exists or may
+// be activated until then (see p4c-bank-alfalah-legacy-apg-retired.test.ts,
+// which continues to forbid the OLD/retired Alfa APG v1.1 protocol
+// specifically; a future, officially-documented APG integration would be a
+// new module, never a reactivation of the retired one).
+//
+// This module (source, tests, evidence) stays TRACKED and UNCHANGED in
+// logic -- nothing here is deleted or rewritten. The actual kill switch
+// remains `BANK_ALFALAH_MPGS_ENABLED` in apps/api/src/config/env.ts,
+// which already defaults to `"false"` (fail-closed) and is validated by
+// `verify:payment-freeze` (scripts/verify-payment-freeze.mjs) to never
+// change. No customer can initiate an MPGS checkout while this constant's
+// underlying config remains disabled.
+export const MPGS_STATUS = "MPGS_COMMERCIAL_HOLD" as const;
+
 export function assertMpgsCurrencySupported(currency: FixedOrderCurrency): void {
   const support = MPGS_CURRENCY_SUPPORT[currency];
   if (!support || !support.enabled) {

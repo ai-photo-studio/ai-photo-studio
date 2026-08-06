@@ -3037,3 +3037,88 @@ No RunPod, Replicate, R2, or Bank Alfalah network call was made anywhere
 in this packet. RunPod remains blocked and unauthorized. Replicate remains
 the approved restoration path. No deployment, no merge of this packet's
 own PR.
+
+## 32. R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
+
+**Owner decision**: Mastercard MPGS is commercially rejected and frozen.
+Bank Alfalah local APG is the new intended payment route, subject to
+official bank documents not yet received. No APG implementation until
+official documents arrive. No live bank request, deployment, or
+production change was made by this packet.
+
+**Git/PR state**: inspected `main` (HEAD `04d670ba043d35ac55542f1a0e0451f3b5a07769`)
+and all open PRs. No unmerged Mastercard-only PR exists — MPGS was merged
+into `main` long ago (§8), already disabled by default. PR #148 (staging-
+release-preflight, unrelated to MPGS) remains open, untouched. No PR was
+closed, superseded, or merged by this packet.
+
+**MPGS freeze mechanism** (verified, not newly built):
+`BANK_ALFALAH_MPGS_ENABLED` already defaults `"false"`;
+`CustomerCheckoutService.createCheckout` already throws
+`PAYMENT_PROVIDER_UNAVAILABLE` (503) before any `PaymentAttempt` mutation
+when disabled; the live-sandbox workflow already requires `mode=live` +
+an exact `confirm_live` string. Added one export,
+`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"` (`p4c-bank-alfalah-mpgs-gateway.service.ts`),
+with an explanatory comment recording the freeze as commercial, not
+technical — no MPGS source logic, test, or evidence document was deleted
+or rewritten.
+
+**Legacy Alfa APG audit**: classified every file referencing the retired
+protocol (`p4c-bank-alfalah-legacy-apg-retired.test.ts` — reusable generic
+guard, kept as-is; `MPGS_INTEGRATION_EVIDENCE.md` and the manifest's own
+§8 — historical evidence; no `/HS/` route, Store ID/Key1/Key2 field, or
+AES/CBC signing code exists anywhere in tracked source — confirmed
+nothing to literally "reactivate"). Full record, including the 13-row
+APG requirements matrix with every unknown marked
+`AWAITING_BANK_CONFIRMATION`:
+`docs/payments/R9_2_MPGS_FREEZE_AND_APG_REACTIVATION_PROTOCOL.md`.
+
+**Customer checkout**: `FixedOrderReviewPage.tsx` now shows exactly one
+truthful message, both proactively and on `PAYMENT_PROVIDER_UNAVAILABLE`:
+"Online payment is temporarily unavailable." — replacing the prior
+"Payment provider unavailable. Checkout is not enabled yet." /
+"Payment is not yet available until you press Pay." strings. No bank-
+transfer/COD/JazzCash/RAAST flow was invented. Two Playwright specs
+(`p4e-checkout-ui.spec.ts`, `p6c-customer-mvp-flow.spec.ts`) asserted the
+old text and were updated to match — a genuine, expected regression from
+this change, repaired and re-verified (58/58 pass).
+
+**`npm run verify:payment-freeze`** (new, `scripts/verify-payment-freeze.mjs`):
+9 checks, repository-configuration-and-source-only, zero external calls.
+Checks: `BANK_ALFALAH_MPGS_ENABLED` fail-closed default; `MPGS_STATUS`
+constant present; checkout fails closed before any `PaymentAttempt`
+mutation; live workflow retains `mode=live` + exact `confirm_live` gating;
+legacy APG retirement guard test intact; no APG implementation file exists
+without official evidence; `applyVerifiedPaymentEvidence` has exactly one
+caller (the verified MPGS gateway module); historical payment evidence
+documents still present; checkout UI never reads a URL query parameter for
+payment state. **9/9 pass on the real repository.** Every check proven
+against a temporary failing fixture, then reverted — confirmed via
+`git status --porcelain` clean afterward for each: MPGS-enabled-by-default,
+`MPGS_STATUS` removed, live-workflow confirm-string weakened, legacy-APG
+guard pattern stripped, historical evidence file renamed away, a fake
+APG-named implementation file added, an extra `applyVerifiedPaymentEvidence`
+caller injected, and checkout UI reading `URLSearchParams`/`location.search`
+— each correctly failed with its expected error message.
+
+**Full test loop** (fresh disposable local PostgreSQL 17, seventh
+disposable instance across the last four packets): `npm run
+verify:payment-freeze` exit 0 (9/9); `npm run verify:launch-candidate`
+exit 0; 79/79 pg-race across all 8 suites, individually; 58/58 Playwright
+(after the expected test-text repair above); `npm run typecheck` exit 0;
+`npm run build` exit 0; `npx prisma validate` — schema valid; `npx prisma
+migrate status`/`deploy` — up to date, 21 migrations applied; `git diff
+--check` / `git diff --cached --check` both clean. `verify:staging-
+preflight` was not run — its script lives only on the unmerged PR #148
+branch, not yet on `main`; this is a known gap, not a defect in this
+packet's own scope.
+
+**Cleanup proof**: the disposable PostgreSQL instance created this packet
+(port 46392) was stopped via `pg_ctl -m fast stop` ("server stopped"),
+port confirmed free via `Test-NetConnection`, temp data directory deleted
+(`Test-Path` afterward `False`). The persistent `postgresql-x64-17`
+Windows service was never targeted and remained `Running` throughout.
+
+No RunPod, Replicate, R2, or Bank Alfalah network call was made anywhere
+in this packet. RunPod remains blocked and unauthorized. Replicate remains
+the approved restoration path. No deployment, no merge.

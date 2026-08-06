@@ -659,3 +659,39 @@ pg-race, 58/58 Playwright, verify:launch-candidate + verify:staging-
 preflight + typecheck/build/Prisma/diff all exit 0). Disposable Postgres
 cleanly torn down; persistent system Postgres untouched. No RunPod/
 Replicate/R2/Bank Alfalah network call anywhere. No deployment.
+
+## 31. R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
+
+Owner decision: MPGS commercially rejected and frozen; Bank Alfalah local
+APG is the new intended route, subject to official bank documents not yet
+received. No APG code until then. Inspected `main` and all open PRs — no
+unmerged Mastercard-only PR exists (MPGS was merged long ago, already
+disabled by default); nothing to close or supersede. No live bank
+request, deployment, or production change made.
+
+Verified the existing MPGS fail-closed mechanism (`BANK_ALFALAH_MPGS_ENABLED`
+defaults false, checkout throws `PAYMENT_PROVIDER_UNAVAILABLE` before any
+`PaymentAttempt` write, live workflow requires `mode=live` + exact
+confirmation string) and added one status marker,
+`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`. No MPGS source/test/evidence
+deleted or rewritten. Audited every legacy Alfa APG reference and
+classified each (reusable guard test kept as-is, evidence docs kept as
+historical record, confirmed nothing left to literally "reactivate" —
+no retired `/HS/` route or legacy credential field exists in tracked
+source today). Wrote a 13-row APG requirements matrix, every unknown marked
+`AWAITING_BANK_CONFIRMATION`:
+`docs/payments/R9_2_MPGS_FREEZE_AND_APG_REACTIVATION_PROTOCOL.md`.
+
+Checkout now shows one truthful message ("Online payment is temporarily
+unavailable.") both proactively and on failure — no bank-transfer/COD/
+JazzCash/RAAST flow invented. Two Playwright specs asserting the old text
+were updated and re-verified (58/58 pass).
+
+Added `npm run verify:payment-freeze` (9 checks, zero external calls,
+9/9 pass, every check proven against a temporary failing fixture then
+reverted). Full test loop clean: verify:payment-freeze, verify:launch-
+candidate, 79/79 pg-race, 58/58 Playwright, typecheck/build/Prisma/diff
+all exit 0 (`verify:staging-preflight` not run — its script exists only
+on the unmerged PR #148 branch). Disposable Postgres cleanly torn down;
+persistent system Postgres untouched. No RunPod/Replicate/R2/Bank Alfalah
+network call anywhere. No deployment, no merge.

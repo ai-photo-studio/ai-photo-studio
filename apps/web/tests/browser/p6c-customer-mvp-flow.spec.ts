@@ -66,7 +66,7 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await expect(page.getByText("PAKISTAN", { exact: true })).toBeVisible();
     await expect(page.getByText("PKR 250.00")).toBeVisible();
     await expect(page.getByText("PB-2026-08-03-v1")).toBeVisible();
-    await expect(page.getByText(/not yet available/i)).toBeVisible();
+    await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   });
 });
 
@@ -119,7 +119,7 @@ test.describe("P6C forged query parameters cannot fabricate payment success", ()
     // The page ignores query parameters entirely and always renders the
     // truthful, server-reported payment-blocked state -- never a fabricated
     // "paid"/"success" state derived from the URL.
-    await expect(page.getByText(/not yet available/i)).toBeVisible();
+    await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
     await expect(page.getByText(/payment successful|payment complete|paid in full/i)).toHaveCount(0);
   });
 });

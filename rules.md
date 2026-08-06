@@ -899,3 +899,48 @@ section is additive; every rule above it remains in force verbatim.
   check must be updated alongside it, never removed to make a change
   pass.
 - No RunPod/Replicate/R2/Bank Alfalah network call. No deployment.
+
+### R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
+
+Added by the R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- **Owner decision, permanent until superseded: Mastercard MPGS is
+  commercially frozen (`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`,
+  `p4c-bank-alfalah-mpgs-gateway.service.ts`). Bank Alfalah local APG is
+  the intended payment route, subject to official bank documents not yet
+  received.** MPGS source, tests, and evidence remain tracked and
+  unchanged in logic — this is a commercial hold, not a deletion.
+- **Permanent rule — no APG implementation (local-rail adapter, endpoint,
+  credential, or callback) may be written until an official bank document
+  exists in this repository confirming its technical contract.** The
+  13-row requirements matrix in
+  `docs/payments/R9_2_MPGS_FREEZE_AND_APG_REACTIVATION_PROTOCOL.md` marks
+  every unknown `AWAITING_BANK_CONFIRMATION`; this must stay true until
+  real evidence lands, exactly as the MPGS currency-authority rule (§27)
+  already establishes for gateway facts generally.
+- **Permanent rule — the retired Alfa APG v1.1 identifiers
+  (`sandbox.bankalfalah.com`, `payments.bankalfalah.com`, `/HS/`
+  endpoints, Store ID/Key1/Key2, `HS_`-prefixed fields, AES/CBC signing)
+  stay retired even though "local APG" is now the intended route.** A
+  future, officially-documented local APG integration must be a
+  ground-up new module under new names — it must never assume the
+  retired protocol's shape just because both involve Bank Alfalah.
+  `p4c-bank-alfalah-legacy-apg-retired.test.ts` continues to enforce
+  this unchanged.
+- **Permanent rule — `npm run verify:payment-freeze` is the canonical
+  zero-network payment-freeze gate.** Its 9 checks (MPGS fail-closed
+  default, `MPGS_STATUS` marker present, checkout fails closed before any
+  `PaymentAttempt` write, live-workflow manual-confirmation gating intact,
+  legacy-APG guard intact, no un-evidenced APG implementation file,
+  exactly one caller of `applyVerifiedPaymentEvidence`, historical
+  evidence never deleted, checkout UI never reads payment state from a
+  URL query parameter) must all continue to pass. Any future payment-
+  related change must keep this validator green, not bypass or weaken it.
+- **Permanent rule — the customer checkout UI shows exactly one truthful,
+  fail-closed message while no payment provider is active: "Online
+  payment is temporarily unavailable."** No bank-transfer, COD,
+  JazzCash, or RAAST flow may be implied or implemented without an
+  explicit, separately authorized task.
+- No live Bank Alfalah request, deployment, or production change was made
+  by this packet. No RunPod/Replicate/R2 network call.
