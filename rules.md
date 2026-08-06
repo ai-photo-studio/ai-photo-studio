@@ -782,3 +782,47 @@ This section is additive; every rule above it remains in force verbatim.
   dispatch the live workflow itself. Full record:
   `docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`
   §5.
+
+### R9.2-USD-RETEST-AFTER-BANK-ENABLEMENT-AND-COMPLETE-LAUNCH-READINESS (2026-08-06)
+
+Added by the R9.2-USD-RETEST-AFTER-BANK-ENABLEMENT-AND-COMPLETE-LAUNCH-
+READINESS packet. This section is additive; every rule above it remains in
+force verbatim.
+
+- Owner-dispatched run `31084589628` (`main`, `0e9f584...`, PR #145 HEAD,
+  `mode=live`, `currency=USD`, dispatched after the bank confirmed USD
+  newly enabled on sandbox MID `TESTGLOBALINDUS`) produced the same
+  `HTTP 401` as every prior live request. **Permanent record: enabling a
+  currency on the bank's merchant profile does not, by itself, resolve a
+  sandbox `401` — this is a distinct, credential/REST-permission-level
+  gate.** Do not treat a bank's "currency enabled" confirmation as
+  sufficient grounds to expect a live sandbox request to succeed; the
+  `401` classification (§23, §24, §27, §28, this section) stands
+  independently of currency configuration until the bank confirms the API
+  password/REST permission itself.
+- **Permanent rule — test files that import from `vitest` must run under
+  `npx vitest run`, never under `npx tsx --test` (node:test).** Any
+  `*.test.ts` file using `vitest`-specific APIs (`vi.mock`, etc.) fails
+  `MODULE_NOT_FOUND`/closed under the `node:test` runner if included in a
+  `tsx --test` glob. `p4c2-mpgs-provisioning-config-diagnostic.test.ts` is
+  the current sole example. `npm run verify:launch-candidate`
+  (`scripts/verify-launch-candidate.mjs`) codifies the split
+  automatically; any future vitest-only file must be added to that
+  script's `VITEST_ONLY` set, not silently excluded from any suite.
+- **Permanent rule — `eslint.config.mjs` must grant Node globals
+  (`globals.node`) to every `**/*.mjs` file, not just `.ts/.tsx` files and
+  one hardcoded `.mjs` directory.** A gap here (only `apps/api/runpod-
+  worker-dev/**/*.mjs` had Node globals) caused 4 false-positive
+  `no-undef` errors on `apps/web/scripts/render-text-as-png.mjs` (added by
+  §21) with no code defect present. Repaired by adding a `files:
+  ["**/*.mjs"]` block.
+- `npm run verify:launch-candidate` is the canonical smallest deterministic
+  launch-critical gate: lint (0 errors) → the full `node:test` fast suite
+  (162 files) → the vitest-only file (14 tests). Zero external network
+  calls. Full local proof (79/79 pg-race across all 8 suites against a
+  disposable PostgreSQL 17, 58/58 Playwright, typecheck/build/Prisma/git-
+  diff all clean) and the Northflank GO/NO-GO table are recorded in
+  `docs/restoration/R9_2_LAUNCH_CANDIDATE_READINESS_PROTOCOL.md` and
+  manifest §29. No deployment was made; the P4B worker still has no
+  dedicated Northflank service definition in-repo (owner action, see
+  protocol doc §3).
