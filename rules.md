@@ -826,3 +826,38 @@ force verbatim.
   manifest §29. No deployment was made; the P4B worker still has no
   dedicated Northflank service definition in-repo (owner action, see
   protocol doc §3).
+
+### R9.2-MERGE-P146-WORKER-SERVICE-READINESS-AND-DUAL-GATEWAY-PLAN (2026-08-06)
+
+Added by the R9.2-MERGE-P146-WORKER-SERVICE-READINESS-AND-DUAL-GATEWAY-PLAN
+packet. This section is additive; every rule above it remains in force
+verbatim.
+
+- PR #146 (`feat/r9.2-launch-candidate-readiness`, head
+  `e3b34f96355079fa1b0d4c1232b50fc73f757a04`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, exact launch-readiness scope, full first-pass-
+  clean regression) and merged normally. **Merge SHA:
+  `89f9bcd07368b0ac3a06bbc138070d38cd39b28a`.**
+- **Permanent rule — a repo-level Northflank service definition file is a
+  reference specification, not a deployment trigger.**
+  `northflank/p4b-worker.service.yaml` exists so a future, separately
+  authorized task can copy a known-correct contract into the Northflank
+  console; no script, workflow, or CI job in this repository may ever be
+  wired to auto-apply it without a new, explicit authorization.
+- **Permanent rule — `PaymentAttempt.provider` and `PaymentEvent.provider`
+  are intentionally free-text, not an enum, specifically to allow a future
+  second payment provider without a schema migration.** Any future
+  gateway-routing code must preserve this (never hardcode a `bank_alfalah`-
+  only assumption at the schema or query layer) and must follow the
+  existing "no implicit fallback between providers" pattern already
+  proven for `RestorationProviderRouter`.
+- **Permanent rule — no local payment-rail (JazzCash/RAAST/EasyPaisa or
+  similar) code, endpoint, or credential may be implemented until an
+  official bank/aggregator document exists in this repository.**
+  `docs/payments/R9_2_DUAL_GATEWAY_READINESS_PLAN.md` is a plan only; every
+  item in it is marked `AWAITING_BANK_CONFIRMATION` and must stay that way
+  until real evidence lands, exactly as the MPGS currency-authority rule
+  (§27) already establishes for gateway facts generally.
+- No P4B runner source code was changed. No new Bank Alfalah request was
+  made (task explicitly deferred to await the bank's response). No
+  RunPod/Replicate/R2 network call. No deployment.
