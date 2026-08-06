@@ -2860,3 +2860,90 @@ full GO/NO-GO table and owner-operated staging sequence.
 No RunPod, Replicate, R2, or Bank Alfalah network call was made during any
 local test in this packet. RunPod remains blocked and unauthorized.
 Replicate remains the approved restoration path. No deployment, no merge.
+
+## 30. R9.2-MERGE-P146-WORKER-SERVICE-READINESS-AND-DUAL-GATEWAY-PLAN (2026-08-06)
+
+**PR #146 merged**: independently re-verified (OPEN, CLEAN, MERGEABLE,
+head `e3b34f96355079fa1b0d4c1232b50fc73f757a04` matched expected exactly,
+7-file launch-readiness scope only). Full re-run before merge: `npm run
+verify:launch-candidate` exit 0, 79/79 pg-race (disposable local
+PostgreSQL 17, all 8 suites individually), 58/58 Playwright, typecheck/
+build/`prisma validate`/`migrate status` all exit 0, `git diff --check` /
+`git diff --cached --check` both clean. No repair needed — first-pass
+clean. Merged normally. **Merge SHA: `89f9bcd07368b0ac3a06bbc138070d38cd39b28a`.**
+
+**No new Bank Alfalah request made this packet** — the task explicitly
+scoped this session to await the bank's response; the USD-401
+classification from §29 stands unchanged.
+
+**P4B worker service readiness**: new worktree
+`D:\Temp\r92-worker-and-dual-gateway-readiness`, branch
+`feat/r9.2-worker-and-dual-gateway-readiness`, from `origin/main` @
+`89f9bcd...`. No P4B runner source was changed
+(`p4b-worker-runner-main.ts`, `p4b-internal-worker-runner.service.ts`
+remain byte-identical). Added `northflank/p4b-worker.service.yaml` (a
+plain, human-reviewable reference service definition — not a
+schema-validated/applied Northflank template, never invoked by any
+automation) and `docs/deployment/P4B_WORKER_SERVICE_READINESS_PROTOCOL.md`
+recording the proof:
+
+- **No public HTTP dependency**: live process-level proof — started the
+  worker standalone (disposable Postgres, mock storage/AI providers, a
+  fake `REPLICATE_API_TOKEN`) with no API process running at all;
+  `Get-NetTCPConnection -State Listen` confirmed the worker's own process
+  bound **zero ports**.
+- **API and worker run independently**: API started standalone on port
+  4011 with no worker running — `GET /api/health` returned 200. Worker
+  then started standalone with no dependency on the API process.
+- **One-at-a-time claim/concurrency, graceful shutdown, fail-closed
+  config, no external call, restart-safety**: all already proven by the
+  existing `p4b-internal-worker-runner.service.pg-race.test.ts` (`(pg2)`
+  ineligible-row rejection, `(pg3)` exactly-one-claim under real
+  concurrency, `(pg4)` restart/replay safety — a second claim never
+  occurs, `(pg5)` `requestStop()` end-to-end, `(pg6a)`/`(pg6b)` fail-closed
+  startup, `(pg7)` zero external calls) — re-run 10/10 as part of this
+  packet's full regression (see below). OS-level `SIGTERM` delivery from
+  an external process is not exercisable on native Windows without WSL
+  (a dev-machine platform limitation, not a code gap); the in-process
+  `requestStop()` path is the actual mechanism `SIGTERM`/`SIGINT` handlers
+  invoke and is fully proven by `(pg5)`.
+- **Env var names only, no values**: enumerated in both new documents;
+  every value used in the live proof was a disposable/fake placeholder.
+
+**Dual-gateway readiness plan** (`docs/payments/R9_2_DUAL_GATEWAY_READINESS_PLAN.md`,
+new): read the full existing MPGS evidence set (§8-§29 of this manifest)
+and the Prisma schema. Key finding: `PaymentAttempt.provider` and
+`PaymentEvent.provider` are already free-text `String` columns (not
+enums), with `PaymentEvent` already uniquely scoped
+`@@unique([provider, providerEventId])` — a second provider requires no
+schema migration, only a new gateway-adapter module and a routing
+decision at checkout-session creation. No local-rail (JazzCash/RAAST-
+shaped) code, endpoint, or credential was invented; every bank-dependent
+item is marked `AWAITING_BANK_CONFIRMATION`. Confirmed by repository
+search: zero existing references to any local payment rail anywhere in
+this codebase before this document.
+
+**Full regression** (fresh disposable local PostgreSQL 17, third instance
+of this packet, all previous instances cleanly torn down first): `npm run
+verify:launch-candidate` exit 0; 79/79 pg-race across all 8 suites,
+individually; 58/58 Playwright; `npm run typecheck` exit 0; `npm run
+build` exit 0; `npx prisma validate` — schema valid; `npx prisma migrate
+status` — up to date; `git diff --check` / `git diff --cached --check`
+both clean. No source code was touched this packet (only new
+documentation/definition files and this manifest/plan/rules update), so
+no repair loop was needed.
+
+**Cleanup proof**: all three disposable PostgreSQL instances created this
+packet (`r92-disposable-pg2`, `r92-disposable-pg3`, `r92-disposable-pg4`)
+were each stopped via `pg_ctl -m fast stop` ("server stopped"), their
+listening ports confirmed free via `Test-NetConnection`, and their temp
+data directories deleted (`Test-Path` afterward `False`). The manual
+worker/API process pair started for the live process-level proof were
+stopped and confirmed gone via `Get-Process`. The persistent
+`postgresql-x64-17` Windows service was never targeted and remained
+`Running` throughout.
+
+No RunPod, Replicate, R2, or Bank Alfalah network call was made anywhere
+in this packet. RunPod remains blocked and unauthorized. Replicate remains
+the approved restoration path. No deployment, no merge of this packet's
+own PR.

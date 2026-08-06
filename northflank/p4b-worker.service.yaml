@@ -1,0 +1,101 @@
+# R9.2-MERGE-P146-WORKER-SERVICE-READINESS-AND-DUAL-GATEWAY-PLAN
+#
+# Reference service definition for the P4B internal worker runner. This file
+# is NOT applied/deployed by any script or CI job in this repository -- it is
+# a hand-authored, human-reviewable specification the owner copies into the
+# Northflank console (or a future `northflank template apply` step, not yet
+# wired up) when they choose to actually deploy this worker as its own
+# Northflank service. Creating this file makes no network call and changes
+# no live infrastructure.
+#
+# Companion document (narrative form, more detail):
+# docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md
+# Local proof of the properties this file assumes:
+# docs/deployment/P4B_WORKER_SERVICE_READINESS_PROTOCOL.md
+
+apiVersion: v1
+kind: NorthflankServiceReference   # not a Northflank schema keyword -- this
+                                    # file is a plain, reviewable reference,
+                                    # not a validated/applied template.
+metadata:
+  name: p4b-replicate-worker
+  description: >
+    Standalone poll/claim worker that drives QUEUED ReplicateExecution rows
+    created by the existing P4A verified-payment transaction through the
+    existing, unmodified P3A worker. No HTTP surface. No public networking.
+
+spec:
+  # --- Build ---------------------------------------------------------------
+  build:
+    source: this repository, same commit/image as the `api` service
+    dockerfile: Dockerfile              # existing repo-root Dockerfile;
+                                          # identical image as `api`, only the
+                                          # container start command differs
+    buildArgs:
+      BUILD_SHA: "<pipeline-provided commit SHA>"
+
+  # --- Runtime ---------------------------------------------------------------
+  deployment:
+    # Sole supported start command (see runbook section 2). Overrides the
+    # Dockerfile's default `CMD ["node", "--expose-gc", "dist/index.js"]`.
+    startCommand: "node dist/scripts/p4b-worker-runner-main.js"
+    instances: 1                        # fixed -- concurrency is hard-coded
+                                          # to 1 inside the process; do not
+                                          # scale this service
+    autoscaling: disabled
+
+  # --- Networking --------------------------------------------------------
+  networking:
+    publicPorts: []                     # this process binds no port and
+                                          # exposes no Express router
+    internalPorts: []
+    domains: []
+
+  # --- Health --------------------------------------------------------------
+  health:
+    type: process-liveness              # NOT an HTTP probe -- no port is
+                                          # bound. Northflank should restart
+                                          # the container on process exit.
+    restartPolicy: always
+    expectedStartupLogLine: "P4B worker runner: starting"
+    # A clean process exit (code 0) is expected ONLY after a SIGTERM/SIGINT
+    # (graceful shutdown). An unexpected clean exit without a prior signal,
+    # or a non-zero exit outside a known fail-closed startup error, should
+    # be treated as a restart-worthy failure, not routine.
+
+  # --- Environment variables (NAMES ONLY -- no values, no secrets) ---------
+  # Copy the exact same secret group the `api` service already uses; do not
+  # create a divergent partial set. Full rationale per variable:
+  # docs/deployment/P4B_WORKER_NORTHFLANK_RUNBOOK.md section 3.
+  envVarNames:
+    required:
+      - DATABASE_URL
+      - REDIS_URL
+      - JWT_SECRET
+      - ADMIN_JWT_SECRET
+      - WHATSAPP_VERIFY_TOKEN
+      - PAYMENT_GATEWAY_NAME
+      - RESTORATION_PROVIDER          # must be exactly "replicate"
+      - REPLICATE_API_TOKEN
+      - REPLICATE_RESTORATION_MODEL_SLUG
+      - REPLICATE_RESTORATION_MODEL_VERSION
+      - STORAGE_PROVIDER              # must be "r2" in a real deployment
+      - R2_ACCOUNT_ID
+      - R2_ACCESS_KEY_ID
+      - R2_SECRET_ACCESS_KEY
+      - R2_BUCKET_NAME
+      - R2_PUBLIC_BASE_URL
+    optionalTuning:
+      - P4B_WORKER_POLL_INTERVAL_MS   # default 5000
+      - P4B_WORKER_MAX_BACKOFF_MS     # default 60000, must be >= poll interval
+
+  # --- Rollback / feature-disable --------------------------------------------
+  rollback:
+    strategy: redeploy-previous-image   # stateless process, no migration or
+                                          # local persistent state of its own
+    emergencyStop: "scale instances to 0 -- QUEUED/PROCESSING rows remain
+      untouched and are picked up again once a healthy instance resumes
+      polling; no customer-facing request path depends on this service"
+
+status: NOT_DEPLOYED   # this file has never been applied to any Northflank
+                        # project by this repository's automation

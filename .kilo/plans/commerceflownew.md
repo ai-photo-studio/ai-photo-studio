@@ -587,3 +587,37 @@ owner-operated staging sequence:
 Postgres cleanly torn down (process gone, port free, data dir deleted);
 persistent system Postgres service untouched. No RunPod/Replicate/R2/Bank
 Alfalah network call in any local test. No deployment.
+
+## 29. R9.2-MERGE-P146-WORKER-SERVICE-READINESS-AND-DUAL-GATEWAY-PLAN (2026-08-06)
+
+No new bank request made — task explicitly scoped to await the bank's
+response. PR #146 re-verified (head `e3b34f9...` matched exactly, launch-
+readiness scope only) and merged clean after a first-pass-clean full
+re-run (verify:launch-candidate, 79/79 pg-race, 58/58 Playwright,
+typecheck/build/Prisma/diff). **Merge SHA: `89f9bcd0736...`.**
+
+Built the smallest repo-level Northflank worker-service definition
+(`northflank/p4b-worker.service.yaml`, a reviewable reference, not applied
+by any automation) for the existing, unmodified P4B runner. Proved live:
+the worker binds zero ports standalone with no API running; the API
+answers `/api/health` with no worker running; both run fully
+independently. One-at-a-time claim, graceful shutdown, fail-closed config,
+zero external calls, and restart-safety were already proven by the
+existing `p4b-internal-worker-runner.service.pg-race.test.ts`
+(re-run 10/10). Full record:
+`docs/deployment/P4B_WORKER_SERVICE_READINESS_PROTOCOL.md`.
+
+Wrote a dual-gateway (MPGS + possible local rail) readiness **plan**, not
+an implementation: `docs/payments/R9_2_DUAL_GATEWAY_READINESS_PLAN.md`.
+Key finding: `PaymentAttempt`/`PaymentEvent.provider` are already
+free-text columns — a second provider needs no schema migration, only a
+new adapter and a routing decision. Every bank-dependent detail (Merchant
+ID count, endpoint shapes, callback scheme, settlement, refunds) is marked
+`AWAITING_BANK_CONFIRMATION`; no local-gateway code was written.
+
+Full regression re-run clean (fresh disposable PostgreSQL 17, 79/79
+pg-race, 58/58 Playwright, verify:launch-candidate/typecheck/build/Prisma/
+diff all exit 0) — no source code was touched this packet, so no repair
+loop was needed. All three disposable Postgres instances used this packet
+cleanly torn down; persistent system Postgres untouched throughout. No
+RunPod/Replicate/R2/Bank Alfalah network call anywhere. No deployment.
