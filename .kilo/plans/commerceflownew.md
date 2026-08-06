@@ -622,7 +622,45 @@ loop was needed. All three disposable Postgres instances used this packet
 cleanly torn down; persistent system Postgres untouched throughout. No
 RunPod/Replicate/R2/Bank Alfalah network call anywhere. No deployment.
 
-## 30. R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
+## 30. R9.2-MERGE-P147-AND-STAGING-RELEASE-PREFLIGHT (2026-08-06)
+
+Bank Alfalah support email sent; payment integration frozen pending reply
+— no bank call made this packet. PR #147 re-verified (head `b81c1a4...`
+matched exactly, worker-readiness/dual-gateway-plan scope only) and
+merged clean after a first-pass-clean full re-run. **Merge SHA:
+`04d670ba043d35ac55542f1a0e0451f3b5a07769`.**
+
+Audited the repository-defined staging architecture (Cloudflare Pages,
+Northflank API+worker, Neon, private R2, Replicate, Bank-Alfalah-disabled,
+RunPod-blocked) purely from source/config — no live service was
+contacted. Traced R2 privacy precisely: `uploadFile()` does return a
+convenience unsigned `.url`, but the master-persistence path
+(`uploadMaster()`) discards it and returns only `{ key }`; every real
+download goes through `getSignedUrl()`. Wrote a new tracked environment
+matrix (`docs/deployment/R9_2_STAGING_ENVIRONMENT_MATRIX.md`, names/scope/
+required/secret-class/fail-closed behavior/owner/order, no values) and a
+staging release protocol with a GO/NO-GO table and exact 12-step
+owner-operated deployment sequence
+(`docs/deployment/R9_2_STAGING_RELEASE_PROTOCOL.md`).
+
+Added `npm run verify:staging-preflight` (`scripts/verify-staging-
+preflight.mjs`) — 10 repository-configuration-only checks, zero external
+calls: start-command collision, payment fail-closed default, RunPod
+structurally excluded, required env names documented, no real-looking
+committed secret, valid health/readiness config, migrations never
+auto-run by either container, no unsigned R2 URL propagated for masters,
+rollback documented. 10/10 pass on the real repo; every check proven
+against a temporary failing fixture then reverted (one via an isolated
+scratch-logic test after a direct worker-source edit was correctly
+blocked by the harness's own permission classifier).
+
+Full regression re-run clean (fresh disposable PostgreSQL 17, 79/79
+pg-race, 58/58 Playwright, verify:launch-candidate + verify:staging-
+preflight + typecheck/build/Prisma/diff all exit 0). Disposable Postgres
+cleanly torn down; persistent system Postgres untouched. No RunPod/
+Replicate/R2/Bank Alfalah network call anywhere. No deployment.
+
+## 31. R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
 
 Owner decision: MPGS commercially rejected and frozen; Bank Alfalah local
 APG is the new intended route, subject to official bank documents not yet
@@ -639,8 +677,8 @@ confirmation string) and added one status marker,
 deleted or rewritten. Audited every legacy Alfa APG reference and
 classified each (reusable guard test kept as-is, evidence docs kept as
 historical record, confirmed nothing left to literally "reactivate" —
-no `/HS/` route or legacy credential field exists in tracked source
-today). Wrote a 13-row APG requirements matrix, every unknown marked
+no retired `/HS/` route or legacy credential field exists in tracked
+source today). Wrote a 13-row APG requirements matrix, every unknown marked
 `AWAITING_BANK_CONFIRMATION`:
 `docs/payments/R9_2_MPGS_FREEZE_AND_APG_REACTIVATION_PROTOCOL.md`.
 

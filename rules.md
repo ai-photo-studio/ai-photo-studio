@@ -862,6 +862,44 @@ verbatim.
   made (task explicitly deferred to await the bank's response). No
   RunPod/Replicate/R2 network call. No deployment.
 
+### R9.2-MERGE-P147-AND-STAGING-RELEASE-PREFLIGHT (2026-08-06)
+
+Added by the R9.2-MERGE-P147-AND-STAGING-RELEASE-PREFLIGHT packet. This
+section is additive; every rule above it remains in force verbatim.
+
+- PR #147 (`feat/r9.2-worker-and-dual-gateway-readiness`, head
+  `b81c1a46811f9d7efec0e9ac2e194bfacfe34454`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, exact worker-readiness/dual-gateway scope, full
+  first-pass-clean regression) and merged normally. **Merge SHA:
+  `04d670ba043d35ac55542f1a0e0451f3b5a07769`.**
+- **Bank Alfalah support email sent; payment integration is now frozen
+  pending the bank's reply.** No future packet may call or retest Bank
+  Alfalah, change the verified MPGS contract, implement a local/dual
+  gateway, or request production credentials until the bank responds and
+  a new task explicitly authorizes the next step.
+- **Permanent rule — `npm run verify:staging-preflight` is the canonical
+  repository-configuration-only staging gate, zero external calls.** Its
+  10 checks (start-command collision, payment fail-closed default,
+  RunPod-exclusion, required-env-name documentation, no committed
+  real-looking secret, valid health/readiness config, single-owner
+  migration execution, no unsigned R2 URL for masters, documented
+  rollback) must all continue to pass; any future change to `Dockerfile`,
+  `northflank/*.service.yaml`, `env.ts`'s `BANK_ALFALAH_MPGS_ENABLED`/
+  `RESTORATION_PROVIDER` defaults, or the master-persistence upload path
+  must keep this validator green, not bypass or weaken it.
+- **Permanent rule — R2 master privacy depends on `uploadMaster()`
+  discarding `StorageService.uploadFile()`'s convenience `.url` field,
+  not on the absence of a `getPublicUrl()` method.** `getPublicUrl()`
+  legitimately exists on both storage providers for internal/mock use;
+  the actual guarantee is that the master-persistence call site
+  (`replicate-execution.worker.ts`) never returns or persists that field
+  — all real downloads go through `getSignedUrl()`/`generateDownloadUrl()`
+  at request time. Any future code touching this path must preserve that
+  distinction exactly, and `verify:staging-preflight`'s corresponding
+  check must be updated alongside it, never removed to make a change
+  pass.
+- No RunPod/Replicate/R2/Bank Alfalah network call. No deployment.
+
 ### R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
 
 Added by the R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG packet. This

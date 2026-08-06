@@ -2948,7 +2948,97 @@ in this packet. RunPod remains blocked and unauthorized. Replicate remains
 the approved restoration path. No deployment, no merge of this packet's
 own PR.
 
-## 31. R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
+## 31. R9.2-MERGE-P147-AND-STAGING-RELEASE-PREFLIGHT (2026-08-06)
+
+**Bank Alfalah support email sent; payment integration frozen** pending
+bank reply. No Bank Alfalah call of any kind was made this packet
+(explicitly out of scope per the task).
+
+**PR #147 merged**: independently re-verified (OPEN, CLEAN, MERGEABLE,
+head `b81c1a46811f9d7efec0e9ac2e194bfacfe34454` matched expected exactly,
+6-file scope: worker reference definition, worker-readiness protocol,
+dual-gateway plan, plan/manifest/rules updates only — no payment
+implementation, secret, deployment, or RunPod change). Full re-run before
+merge: `npm run verify:launch-candidate` exit 0, 79/79 pg-race (disposable
+local PostgreSQL 17, all 8 suites individually), 58/58 Playwright,
+typecheck/build/`prisma validate`/`migrate status` all exit 0, `git diff
+--check` / `git diff --cached --check` both clean. No repair needed.
+Merged normally. **Merge SHA: `04d670ba043d35ac55542f1a0e0451f3b5a07769`.**
+
+**Worktree**: `D:\Temp\r92-staging-release-preflight`, branch
+`feat/r9.2-staging-release-preflight`, from `origin/main` @
+`04d670b...` (confirmed via `git rev-parse` after worktree creation).
+
+**Staging architecture audit** (repository configuration only, no secret
+values read/printed, no live Northflank/Cloudflare/Neon/Replicate call):
+confirmed Cloudflare Pages config (`apps/web/wrangler.toml`), the API
+`Dockerfile` (start command, `EXPOSE 8080`, `HEALTHCHECK` on
+`/api/health`), the P4B worker reference definition
+(`northflank/p4b-worker.service.yaml`, no public port), Neon/Postgres
+usage identical between API and worker via the shared `loadConfig()`
+gate, R2 privacy (`storage.service.ts` — `R2StorageProvider.uploadFile()`
+does return a legitimate unsigned `.url` convenience field, but
+`replicate-execution.worker.ts`'s `uploadMaster()` discards it entirely
+and returns only `{ key }`; every real download goes through
+`getSignedUrl()`/`generateDownloadUrl()` at request time instead — traced
+by source inspection, not assumption), `RESTORATION_PROVIDER` enum
+(`["replicate","mock"]`, no RunPod member, defaults `replicate`), and
+`BANK_ALFALAH_MPGS_ENABLED` (defaults `"false"`). Full record and GO/NO-GO
+table: `docs/deployment/R9_2_STAGING_RELEASE_PROTOCOL.md`.
+
+**Environment matrix**: new tracked
+`docs/deployment/R9_2_STAGING_ENVIRONMENT_MATRIX.md` — every `env.ts`
+schema field, scope (API/Worker/Web/Both), required/optional, secret/
+non-secret, safe example format, fail-closed behavior, source/owner, and
+deployment order. Proves (by source inspection, not assumption): API and
+worker share `DATABASE_URL` safely (atomic Postgres claim, not
+application-level locking — already proven under real concurrency by
+`(pg3)`); the worker binds zero ports (live-proven in §30, restated here);
+payment defaults disabled; Replicate defaults selected; RunPod
+structurally cannot be selected; R2 access is signed-URL-only for
+masters; migrations run exactly once, by neither container automatically
+(`Dockerfile` bakes `ENV SKIP_MIGRATIONS=true`).
+
+**`npm run verify:staging-preflight`** (new, `scripts/verify-staging-
+preflight.mjs`): 10 checks, repository-configuration-only, zero external
+calls. Checks: API/worker start-command collision; `BANK_ALFALAH_MPGS_ENABLED`
+fail-closed default; `RESTORATION_PROVIDER` enum excludes RunPod and
+defaults `replicate` (plus the worker's own source-level guard);
+required env names documented in the tracked matrix; no real-looking
+secret committed; Dockerfile `HEALTHCHECK` targets `/api/health` on
+`$PORT`; worker declares no public ports / process-liveness-only health;
+migrations never auto-run by either container; master persistence never
+propagates an unsigned R2 URL; rollback instructions exist for both
+services. **10/10 pass on the real repository.** Every check was proven
+against a temporary failing fixture, then the fixture was reverted (9 via
+direct file mutation + restore — confirmed via `git status --porcelain`
+clean afterward; 1, the R2-URL check, via an isolated scratch-file logic
+test after a direct edit to the tracked worker source was correctly
+blocked by the harness's own permission classifier — validated the exact
+same regex against a good/bad string pair instead, no tracked file
+touched).
+
+**Full regression** (fresh disposable local PostgreSQL 17, sixth instance
+across this and the prior two packets, all previous instances cleanly
+torn down first): `npm run verify:launch-candidate` exit 0; `npm run
+verify:staging-preflight` exit 0; 79/79 pg-race across all 8 suites,
+individually; 58/58 Playwright; `npm run typecheck` exit 0; `npm run
+build` exit 0; `npx prisma validate` — schema valid; `npx prisma migrate
+status`/`migrate deploy` — up to date, 21 migrations applied; `git diff
+--check` / `git diff --cached --check` both clean.
+
+**Cleanup proof**: the disposable PostgreSQL instance created this packet
+(port 47803) was stopped via `pg_ctl -m fast stop` ("server stopped"),
+port confirmed free via `Test-NetConnection`, temp data directory
+deleted (`Test-Path` afterward `False`). The persistent `postgresql-x64-17`
+Windows service was never targeted and remained `Running` throughout.
+
+No RunPod, Replicate, R2, or Bank Alfalah network call was made anywhere
+in this packet. RunPod remains blocked and unauthorized. Replicate remains
+the approved restoration path. No deployment, no merge of this packet's
+own PR.
+
+## 32. R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG (2026-08-06)
 
 **Owner decision**: Mastercard MPGS is commercially rejected and frozen.
 Bank Alfalah local APG is the new intended payment route, subject to
