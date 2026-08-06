@@ -742,3 +742,43 @@ section is additive; every rule above it remains in force verbatim.
   and the release manifest; if not yet run, `P4C_MPGS_AUTH_VERIFIED` and
   `BANK_ALFALAH_MERCHANT_PROFILE_ENABLEMENT_REQUIRED` remain exactly as this
   packet found them (unchanged, unresolved, bank-side).
+
+### R9.2-CANCEL-WRONG-RUN-MERGE-P144-AND-WATCH-USD-PROOF (2026-08-06)
+
+Added by the R9.2-CANCEL-WRONG-RUN-MERGE-P144-AND-WATCH-USD-PROOF packet.
+This section is additive; every rule above it remains in force verbatim.
+
+- PR #144 (`feat/r9.2-usd-sandbox-diagnostic`, head
+  `dc681512e89c96de3e0338608e4e369d55b8c3c3`) was independently re-verified
+  (OPEN, CLEAN, MERGEABLE, exact 7-file USD scope, 79/79 pg-race, 58/58
+  Playwright, 7/7 actual-app dry-run, 162/163 fast unit -- the one
+  non-pass a pre-existing, unrelated `vitest`-only gap -- typecheck/build/
+  Prisma clean, and a truthfully-reported lint baseline: `npm run lint`
+  exits `1` repo-wide from 4 pre-existing errors confined to
+  `apps/web/scripts/render-text-as-png.mjs`, confirmed unrelated to this
+  PR's diff; the two `.ts` files this PR actually touches produced zero
+  lint findings) and merged normally. Merge commit:
+  `14a745b9274f3d6a23f03ce11ecb4be2c76cee3d`.
+- **Permanent rule — a `workflow_dispatch` for a workflow whose parameters
+  were just added must be dispatched from a ref that actually contains
+  those parameter definitions.** Run `31058730527` was dispatched on
+  `main` at SHA `e05d04a5b46...` -- the PR #143 merge commit, still
+  *before* PR #144 added the `currency` input -- so its workflow copy had
+  no such input at all and silently ran the old, unconditional PKR path
+  regardless of any dispatch-time intent. The run had already completed
+  by the time it was inspected (nothing to cancel); its evidence was
+  downloaded and classified: one real request, `currency=PKR`,
+  `HTTP 401`, identical failure shape to the first PKR live proof. This
+  did **not** satisfy or consume the owner-authorized USD request. GitHub
+  Actions silently drops `workflow_dispatch` inputs a given workflow
+  revision doesn't define -- it never errors -- so dispatching a
+  parameterized workflow from a stale ref is a silent, not a loud,
+  failure mode. Always dispatch from the ref (branch/tag/SHA) that
+  contains the input's definition, and verify the dispatched run's own
+  `headSha` matches that ref before treating its result as evidence of
+  the newly-added behavior.
+- No live USD request exists yet at updated `main` HEAD as of this
+  packet. Status: `AWAITING_OWNER_USD_DISPATCH`. This agent does not
+  dispatch the live workflow itself. Full record:
+  `docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`
+  §5.

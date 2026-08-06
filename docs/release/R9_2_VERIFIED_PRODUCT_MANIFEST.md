@@ -2674,3 +2674,60 @@ second bank request, no RunPod/Replicate/R2/deployment/production-credential
 change, no destructive Git operation. `.gitignore` not broadened, no
 retired file recreated, no `git add -f`. PR opened for this packet's
 tracked changes, not merged, not deployed.
+
+## 28. R9.2-CANCEL-WRONG-RUN-MERGE-P144-AND-WATCH-USD-PROOF — PR #144 merged; wrong pre-USD run classified; updated main re-verified; awaiting owner USD dispatch (2026-08-06)
+
+**Wrong-run protection**: run `31058730527` (`workflow_dispatch`, branch
+`main`, SHA `e05d04a5b46...`, dispatched before PR #144 merged) was
+inspected. It had already completed — nothing to cancel. Its workflow
+definition predates the `currency` input, so it silently ran the old
+unconditional PKR path. Downloaded and visually inspected: one real
+request, `currency=PKR`, `HTTP 401` ("Invalid credentials"), identical
+failure shape to the first PKR live proof (run `31042211650`). No secret
+visible in any of the three screenshots or the sanitized summary. This is
+**not** the owner-authorized USD request; it neither satisfies nor
+consumes it. Full record:
+`docs/payments/bank-alfalah-mastercard/R9.2_USD_CURRENCY_EVIDENCE_AUDIT_2026-08-06.md`
+§5.1.
+
+**PR #144 merge**: re-verified OPEN/CLEAN/MERGEABLE, head matched expected
+`dc681512e89c96de3e0338608e4e369d55b8c3c3`, exact 7-file USD scope. Full
+regression re-run: 79/79 pg-race, 58/58 Playwright, 7/7 actual-app
+dry-run, 162/163 fast unit (1 pre-existing, confirmed-unrelated `vitest`
+gap), typecheck/build/Prisma all exit 0. Lint baseline established
+truthfully: `npm run lint` exits **1** (94 problems, 4 pre-existing errors
+confined to `apps/web/scripts/render-text-as-png.mjs`, confirmed
+byte-identical on `origin/main` before this packet); the two `.ts` files
+this PR actually touches produced **zero** lint findings. Diff scope
+confirmed exactly the 7 intended files against `origin/main`. Disposable
+Postgres and all API/web/stub processes stopped, ports confirmed free,
+scratch directories deleted. Merged normally. Merge SHA:
+`14a745b9274f3d6a23f03ce11ecb4be2c76cee3d`.
+
+**Updated `main` re-verification**: a fresh worktree from updated
+`origin/main` (not the PR branch) confirmed, statically and by live
+execution: `workflow_dispatch` accepts `currency: PKR | USD` (default
+`PKR`, unchanged); USD selects country "US" (`INTERNATIONAL` market); the
+live spec asserts real PriceBook `USD 1.50`; USD-specific artifact
+filenames present alongside unchanged PKR ones; "exactly one gateway
+call" assertion and API-password redaction both intact. The full
+actual-app dry-run suite re-run from this fresh `main` worktree: **7/7
+passed, exit 0.**
+
+**Live USD status**: no `workflow_dispatch` run exists at or after updated
+`main` HEAD. This agent does not dispatch the live workflow itself (a
+standing rule in this repository, re-confirmed this packet). Status:
+**`AWAITING_OWNER_USD_DISPATCH`.**
+
+**New permanent protection**: `rules.md` — a `workflow_dispatch` for a
+workflow whose parameters were just added must be dispatched from a ref
+that actually contains those parameter definitions; dispatching from an
+older ref silently drops undefined inputs and can consume a rationed live
+request on the wrong (default) path with no error or warning.
+
+No card data, no capture, no test-card payment, no Retrieve Order call, no
+second bank request made by this agent, no RunPod/Replicate/R2/deployment/
+production-credential change, no destructive Git operation. `.gitignore`
+not broadened, no retired file recreated, no `git add -f`. Evidence PR
+opened for this packet's doc-only tracked changes, not merged, not
+deployed.

@@ -512,3 +512,35 @@ merchant-profile-specific confirmation may enable/disable a currency.
 No card data, no capture, no Retrieve Order call, no second bank request,
 no RunPod/Replicate/R2/deployment/production-credential change. PR opened,
 not merged, not deployed.
+
+## 27. R9.2-CANCEL-WRONG-RUN-MERGE-P144-AND-WATCH-USD-PROOF (2026-08-06)
+
+Found run `31058730527` (dispatched on `main` before PR #144 merged, so its
+workflow copy had no `currency` input yet) already completed — nothing to
+cancel. Classified its evidence: one real request, `currency=PKR`,
+`HTTP 401`, same failure shape as the first PKR live proof. Not the
+owner-authorized USD request; does not consume or satisfy it.
+
+PR #144 merged (`14a745b9274f3d6a23f03ce11ecb4be2c76cee3d`) after re-running
+79/79 pg-race, 58/58 Playwright, 7/7 dry-run, 162/163 unit,
+typecheck/build/Prisma clean, and establishing a truthful lint baseline
+(repo-wide `exit 1` from 4 pre-existing, unrelated errors; zero findings in
+the two `.ts` files this PR actually touches).
+
+Re-verified updated `origin/main` from a fresh worktree: `currency` input
+present (PKR default unchanged, USD selects INTERNATIONAL/USD, real
+PriceBook USD 1.50, USD-specific artifact names, exactly-one-call assertion
+and secret redaction intact). Full dry-run suite re-run from this fresh
+`main` worktree: 7/7 pass, exit 0.
+
+No live USD dispatch exists yet at updated `main` HEAD. Status:
+`AWAITING_OWNER_USD_DISPATCH`. This agent does not dispatch it.
+
+New permanent protection (`rules.md`): a `workflow_dispatch` must be run
+from a ref that actually contains a just-added input's definition —
+dispatching from an older ref silently drops it and can consume a
+rationed live request on the wrong default path.
+
+No card data, no capture, no Retrieve Order call, no second bank request
+made by this agent, no RunPod/Replicate/R2/deployment/production-credential
+change. Evidence PR (docs-only) opened, not merged, not deployed.
