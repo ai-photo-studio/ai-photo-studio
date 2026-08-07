@@ -1,10 +1,15 @@
 ﻿# Latest Task Report
 
 Date: 2026-08-07
-Task: R9.3-P7 HD Rotating Hero Slider Assets
+Task: R9.3-P7/P8 HD Rotating Hero Slider — Release Candidate
 
 ## Classification
-**PASS** (verified, source + browser tests). Upgrade of the live homepage hero comparison from the single `hero-compare.png` to 10 rotating HD before/after hero pairs. No protected code touched; no deploy executed (requires owner authorization).
+**HERO_RC_READY** (verified + committed + pushed). Upgrade of the live homepage hero comparison from the single `hero-compare.png` to 10 rotating HD before/after hero pairs. RC commit `f98d060830203ef96dfdf3690bfa111110779bfc`, pushed to `origin/setup/project-automation` (`ca7d797..f98d060`). Production deploy NOT executed (requires explicit owner authorization).
+
+## Release candidate
+- Isolated-index commit (`git commit --only`) contains ONLY the approved hero packet files. The 4 pre-existing unrelated staged API/canary files remain staged, untouched, and excluded from the commit.
+- Pre-deploy verification of this exact RC (SHA `f98d060`): `typecheck` PASS, `build` PASS, `lint` 0 errors, `test:browser:responsive` 18/18 PASS, `test:browser` 54/54 PASS.
+- Note: one cold-start flaky run of the responsive suite (4 failures on the very first invocation after build) resolved to 3 consecutive clean 18/18 passes; not a code regression.
 
 ## Hero asset status
 All 10 concepts present with matched `*-then.jpg` + `*-now.jpg` HD originals (1600x1600) under `apps/web/public/assets/hero/hero/`, plus previews under `hero/preview/`, plus `hero-manifest.json` (captions/alt/damage_style/paths). Manifest then/now URLs corrected to the real `hero/` subpath. Concepts: old parents, grandparents, wedding, childhood siblings, large family, army officer, village family, old city/bazaar, migration/railway, loved-one memorial (10/10).
