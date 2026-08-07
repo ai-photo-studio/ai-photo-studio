@@ -115,3 +115,9 @@ Status: frontend-sales-funnel verified; FULL COMMERCIAL readiness blocked on PAY
 - Pre-deploy verification for this exact RC: `typecheck`, `build`, `lint` (0 errors), `test:browser:responsive` 18/18, `test:browser` 54/54 all PASS.
 - The 4 pre-existing unrelated staged API/canary files remain staged and untouched (excluded from the commit, still in the working tree).
 - Status: **HERO_RC_READY**. Production deploy NOT executed — requires explicit owner authorization. Deploy target remains Cloudflare Pages `ai-photo-studio-frontend` (via `npx wrangler pages deploy apps/web/dist` or the Pages auto-deploy path), same as R9.3-P5.
+
+## Updated 2026-08-07 (R9.3-P9 hero PRODUCTION deploy — PRODUCTION_LIVE)
+- Owner-authorized production deploy of hero RC commit `cceb5d0` to `www.thannow.com`. Cloudflare Pages project `ai-photo-studio-frontend`.
+- Initial default `wrangler pages deploy` landed on **Preview** (project production branch is `main`; branch was `setup/project-automation`). Redeployed the exact same verified `apps/web/dist` with `--branch main` → reached **Production**: deployment `abadf7d7-9d85-49f7-9cb7-3fa135a53b8d`, branch `main`, commit `cceb5d0`. `www.thannow.com` serves the hero RC.
+- Live smoke at `https://www.thannow.com` (Playwright): one compare frame; random valid hero on fresh load (4 distinct heroes across 5 fresh loads); then/now belong to same hero; drag left reveals old / right reveals restored; auto-rotation ~7s resets to 50%; pointer/mouse interaction works; all 10 hero pairs load without broken assets; no horizontal overflow at 1440/1024/768/430/390/360; Upload Photo CTA routes to `/restore/new`; no `hero-compare.png` dependency; no launch-critical console/page/network errors. All PASS.
+- Pre-deploy verification: `typecheck`, `build`, `test:browser:responsive` (18), `test:browser` (54) all PASS.

@@ -1,7 +1,33 @@
 ﻿# Latest Task Report
 
 Date: 2026-08-07
-Task: R9.3-P7/P8 HD Rotating Hero Slider — Release Candidate
+Task: R9.3-P9 Hero Production Deploy
+
+## Classification
+**PRODUCTION_LIVE** (owner-authorized). Hero RC commit `cceb5d0` deployed to `www.thannow.com` (Cloudflare Pages `ai-photo-studio-frontend`) and verified live.
+
+## Deployment
+- Canonical command `npx wrangler pages deploy apps/web/dist --project-name ai-photo-studio-frontend` initially landed on **Preview** because the project's production branch is `main` (deploy ran from `setup/project-automation`). Redeployed the exact same verified `dist` with `--branch main` → **Production**.
+- Production deployment: `abadf7d7-9d85-49f7-9cb7-3fa135a53b8d`, branch `main`, commit `cceb5d0`. `www.thannow.com` (Production) now serves the HD rotating hero RC.
+
+## Live verification (Playwright against https://www.thannow.com) — all PASS
+- One comparison frame; random valid hero on fresh load (4 distinct heroes across 5 fresh cache-busted loads); then/now layers belong to same hero pair.
+- Drag left reveals damaged/old; drag right reveals restored/now; mouse + pointer interaction works.
+- Auto-rotation every ~7s resets divider to 50%; rotation pauses during interaction.
+- All 10 hero pairs load without broken assets; images sharp (1600x1600 HD, no upscale).
+- No horizontal overflow at 1440/1024/768/430/390/360.
+- Upload Photo CTA routes to `/restore/new`; mobile Upload Photo button visible.
+- No `hero-compare.png` dependency.
+- No launch-critical console/page/network errors.
+
+## Tests (pre-deploy)
+`typecheck` PASS, `build` PASS, `test:browser:responsive` 18/18 PASS, `test:browser` 54/54 PASS.
+
+## Protected scope
+Only the frontend hero packet was deployed. R9.4 commerce bridge, Bank Alfalah/payment, RunPod, Replicate, R2, Prisma/DB, auth and unrelated APIs untouched. 4 pre-existing unrelated staged API/canary files still staged and untouched. No `git add .`/reset/stash.
+
+---
+## Historical: R9.3-P7/P8 HD Rotating Hero Slider — Release Candidate
 
 ## Classification
 **HERO_RC_READY** (verified + committed + pushed). Upgrade of the live homepage hero comparison from the single `hero-compare.png` to 10 rotating HD before/after hero pairs. RC commit `f98d060830203ef96dfdf3690bfa111110779bfc`, pushed to `origin/setup/project-automation` (`ca7d797..f98d060`). Production deploy NOT executed (requires explicit owner authorization).
