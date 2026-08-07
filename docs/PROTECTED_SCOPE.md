@@ -18,3 +18,9 @@ Protected scope can be changed only by an explicitly authorized task with focuse
 - The published homepage image set under `/assets/` (`apps/web/public/assets/`, 16 approved human-memory files + `README_ASSETS.txt`) is finalized UI scope. Do not replace these with unapproved images, remove them, or repoint HomePage to other visuals without prior approval.
 - Do not redesign the locked direction. Changes require prior intentional approval, consistent with `DESIGN_LOCK.md`.
 - `UI/` remains the canonical source reference for the design and must stay tracked (do not ignore or remove).
+
+## HD rotating hero scope (R9.3-P7, 2026-08-07)
+- The homepage hero comparison is implemented by `apps/web/src/components/HeroCompareSlider.tsx` and is driven by `apps/web/src/data/heroes.ts` (typed registry mirroring `apps/web/public/assets/hero/hero-manifest.json`).
+- It renders ONE locked comparison frame with two aligned layers: base = Then/original (`...-then.jpg`), overlay = Now/restored (`...-now.jpg`), 1600x1600 HD originals under `apps/web/public/assets/hero/hero/`. It rotates through all 10 hero concepts (~7s), starts on a random hero, resets the divider to 50% on change, pauses while the user drags, and preloads only the current + next pair.
+- The legacy single `hero-compare.png` in the homepage hero is decommissioned. Future agents must NOT revert `HomePage.tsx` to `hero-compare.png` or a static image. Any change to the hero asset registry/count requires an explicitly authorized task.
+- Homepage Upload Photo CTA, modal, and `/restore/new` routing remain unchanged and are still finalized scope.

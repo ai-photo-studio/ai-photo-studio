@@ -2618,22 +2618,114 @@ img {
   position: relative;
 }
 
-.thannow-home .hero-compare-slot {
+.thannow-home .hero-compare-wrap {
   border-radius: var(--thannow-radius, 18px);
   box-shadow: var(--thannow-shadow, none);
   border: 1px solid #d8cbbd;
   overflow: hidden;
-  aspect-ratio: 1 / 1;
   background: linear-gradient(145deg, var(--thannow-purple-soft, #f4edfb), var(--thannow-cream, #fbf6ee));
+}
+
+.thannow-home .hero-compare-frame {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  overflow: hidden;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.thannow-home .hero-layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.thannow-home .hero-layer-then {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thannow-home .hero-layer-now {
+  width: 100%;
+  height: 100%;
+}
+
+.thannow-home .hero-layer-now .hero-layer-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thannow-home .hero-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.thannow-home .hero-handle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--thannow-purple, #5b1aa8);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
   display: grid;
   place-items: center;
 }
 
-.thannow-home .hero-media img,
-.thannow-home .hero-compare-slot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.thannow-home .hero-handle::after {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #fff;
+  display: block;
+}
+
+.thannow-home .hero-compare-frame.is-dragging .hero-divider {
+  transition: none;
+}
+
+.thannow-home .hero-compare-frame:not(.is-dragging) .hero-divider {
+  transition: left 0.28s ease-out;
+}
+
+.thannow-home .hero-caption {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(25, 16, 31, 0.66);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.thannow-home .hero-media img {
+  max-width: 100%;
   display: block;
 }
 

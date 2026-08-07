@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { HeroCompareSlider } from "../components/HeroCompareSlider";
 
 // ThanNow locked human-memory homepage (R9.3).
 // References the approved UI/DESIGN_LOCK.md direction. Upload CTAs route to
@@ -108,9 +109,7 @@ export function HomePage() {
         </div>
 
         <div className="hero-media">
-          <div className="hero-compare-slot">
-            <RenderAsset fileName="hero-compare.png" alt="Before and after AI restoration of an old family photograph" label="Before &amp; After" />
-          </div>
+          <HeroCompareSlider />
           <button className="hero-upload upload-trigger" type="button" onClick={openModal}>Upload Photo</button>
         </div>
       </section>

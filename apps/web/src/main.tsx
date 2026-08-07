@@ -15,7 +15,7 @@ declare global {
 const meta = {
   title: "ThanNow | Restore, Upscale and Print Memories",
   description: "ThanNow AI photo restoration, upscaling and premium printing for the people and moments that matter most.",
-  image: "https://www.thannow.com/assets/hero-compare.png",
+  image: "https://www.thannow.com/assets/hero/hero/hero-01-old-parents-now.jpg",
   url: "https://www.thannow.com"
 };
 
