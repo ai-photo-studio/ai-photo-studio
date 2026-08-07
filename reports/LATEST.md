@@ -1,7 +1,40 @@
 ﻿# Latest Task Report
 
 Date: 2026-08-07
-Task: R9.3-P10 Hero Quality Fix
+Task: R9.3-P11 Hero Quality Production Deploy
+
+## Classification
+**PRODUCTION_LIVE** (owner-authorized). Hero-quality commit `72825bc` pushed and deployed to `www.thannow.com` and verified live.
+
+## Deployment
+- Push: `origin/setup/project-automation` `9e40d13..72825bc`, local == remote.
+- Production deploy: `npx wrangler pages deploy apps/web/dist --project-name ai-photo-studio-frontend --branch main` → **Production** deployment `3a52a1f0-8f14-4a9b-a5d0-704d52820d3a` (branch `main`, commit `72825bc`), target `https://www.thannow.com`.
+
+## Live hero-quality verification (Playwright against www.thannow.com) — all PASS
+- CSS loaded correctly (stylesheet served as text/css, contains the P10 `object-fit: contain` + `.hero-bg` blur rules).
+- Full photo visible without cropping (`object-fit: contain`, center); one comparison frame; blurred/darkened same-image background fills unused space; sharp contained image fully inside frame; no image overflow outside frame.
+- Then/Now pixel-aligned (both 1600x1600) with identical layer geometry.
+- Slider: drag left reveals Then, drag right reveals Now; mouse + touch/pointer (`touch-action:none`).
+- Random first hero on fresh load (4 distinct across 5 loads); auto-rotation ~7s resets divider to 50%; rotation cycles all 10 distinct damage presets.
+- Caption strip and Upload CTA stay outside the image; CTA routes to `/restore/new`.
+- No horizontal overflow at 1440/1024/768/430/390/360.
+- All 20 hero layer files return HTTP 200.
+- No launch-critical console/page/network errors.
+
+## Tests (pre-deploy)
+`typecheck` PASS, `build` PASS, `test:browser:responsive` 18/18 PASS, `test:browser` 59/59 PASS.
+
+## 10 damage-style status
+All present and distinct (verified unique file hashes in P10): faded sepia/cracks (01), B&W dim/aged (02), torn/folded/stained (03), faded color/water damage (04), low contrast/dust/uneven fading (05), B&W scratches/cracked emulsion (06), torn edges/missing corner (07), aged B&W/grain/dark (08), severe tears/stains/aging (09), dim/emulsion damage/partial fading (10).
+
+## Protected scope
+Only R9.3-P10 hero-quality work deployed/pushed. R9.4 commerce bridge untouched; R9.4-P2 not run (preserved for later GPT-5.6 Sol execution). 4 pre-existing unrelated staged API/canary files preserved and excluded. No `git add .`/reset/stash/force-push.
+
+## Readiness
+Hero stage **100% PRODUCTION_LIVE**. Frontend readiness **100%**. Full commercial readiness **~70%** (blocked on PAYMENT_EXTERNAL_BLOCKER + processing/download/print bridge).
+
+---
+## Historical: R9.3-P10 Hero Quality Fix
 
 ## Classification
 **PASS** (verified). Hero comparison display/quality upgraded and fully re-verified. Deploy to production NOT executed (requires separate explicit owner authorization).
