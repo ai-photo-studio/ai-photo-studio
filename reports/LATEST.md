@@ -1,9 +1,40 @@
 ﻿# Latest Task Report
 
 Date: 2026-08-07
-Task: R9.3-P9 Hero Production Deploy
+Task: R9.3-P10 Hero Quality Fix
 
 ## Classification
+**PASS** (verified). Hero comparison display/quality upgraded and fully re-verified. Deploy to production NOT executed (requires separate explicit owner authorization).
+
+## Hero display fix
+- Switched comparison layers from `object-fit: cover` (which cropped photos) to `object-fit: contain` + `object-position: center`. Both Then and Now layers use identical contain geometry, so the COMPLETE photograph is always visible and pixel-aligned.
+- Added a blurred/darkened copy of the SAME image as the frame background for a full-bleed look without stretching or cropping the sharp image. `overflow: hidden` only on the outer frame.
+- Moved the caption to a strip BELOW the frame (no longer covering faces) and the Upload CTA outside the photo area. Slider handle stays inside the frame.
+
+## 10 damage presets (distinct)
+- All `*-then.jpg` regenerated deterministically FROM their exact matching `*-now.jpg` (same scene/people/pose/background/crop/1600x1600) via seeded, idempotent generator `apps/web/scripts/generate-hero-then.cjs` (sharp).
+- Each hero has a DISTINCT damage treatment: faded sepia+light cracks / B&W dim+paper aging / torn corners+fold lines+stains / faded color+water damage / very low contrast+dust+uneven fading / B&W strong scratches+cracked emulsion / heavy torn edges+missing corner / aged B&W grain+scratches+dark / severe aging+multiple tears+stains / dim+damaged emulsion+scratches+partial fading. Verified 10 distinct file hashes, all 1600x1600.
+
+## Slider / rotation
+- One comparison frame retained; base=Then, overlay=Now, draggable divider (mouse+touch+pointer, `touch-action:none`), start ~50%, random first hero per load, ~7s auto-rotation resetting to 50%, pause while dragging then resume. Unchanged from P7, re-verified.
+
+## Assets
+- All 20 layer files (10 then + 10 now) resolve 1600x1600 and are packaged into the build (`dist/assets/hero/hero/`). Filenames/manifest preserved; routing stable.
+
+## Tests
+`typecheck` PASS, `build` PASS, `lint` 0 errors (106 pre-existing warnings), `test:browser:responsive` 18/18 PASS, full `test:browser` 59/59 PASS. Added 5 hero-quality tests: full-image visible (contain, centered), Then/Now identical geometry + pixel-aligned, blurred same-image background, caption/Upload CTA outside the photo, all 20 hero assets resolve.
+
+## Files changed
+- `apps/web/src/components/HeroCompareSlider.tsx`, `apps/web/src/styles.css` (display/geometry), all 10 `apps/web/public/assets/hero/hero/*-then.jpg` (regenerated), new `apps/web/scripts/generate-hero-then.cjs`, `apps/web/tests/browser/hero-slider.spec.ts`, docs (`PROJECT_STATE.md`, `DECISIONS.md`, `PROTECTED_SCOPE.md`, `reports/LATEST.md`).
+
+## Protected scope
+No payment/RunPod/Replicate/R2/Prisma/DB/auth/API changes; R9.4 commerce bridge untouched; R9.4-P2 not run (preserved for later GPT-5.6 Sol execution). 4 pre-existing unrelated staged API/canary files preserved. No `git add .`/reset/stash. No production deploy.
+
+---
+## Historical: R9.3-P9 Hero Production Deploy
+
+## Classification
+**PRODUCTION_LIVE** (owner-authorized). Hero RC commit `cceb5d0` deployed to `www.thannow.com` (Cloudflare Pages `ai-photo-studio-frontend`) and verified live.
 **PRODUCTION_LIVE** (owner-authorized). Hero RC commit `cceb5d0` deployed to `www.thannow.com` (Cloudflare Pages `ai-photo-studio-frontend`) and verified live.
 
 ## Deployment

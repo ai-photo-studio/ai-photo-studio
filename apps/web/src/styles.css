@@ -2644,22 +2644,36 @@ img {
   display: block;
 }
 
-.thannow-home .hero-layer-then {
+/* Blurred/darkened full-bleed background copy of the SAME image so the frame
+   reads as full-bleed without cropping or stretching the sharp image. */
+.thannow-home .hero-bg {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  filter: blur(26px) brightness(0.7) saturate(1.1);
+  transform: scale(1.12);
 }
 
-.thannow-home .hero-layer-now {
-  width: 100%;
-  height: 100%;
-}
-
+/* R9.3-P10: never crop the photograph. contain + center keeps the entire image
+   visible and pixel-aligned between Then and Now. */
+.thannow-home .hero-layer-then,
 .thannow-home .hero-layer-now .hero-layer-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   display: block;
+}
+
+.thannow-home .hero-layer-then {
+  z-index: 0;
+}
+
+.thannow-home .hero-layer-now {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .thannow-home .hero-divider {
@@ -2707,21 +2721,17 @@ img {
   transition: left 0.28s ease-out;
 }
 
+/* Clean caption strip BELOW the photo so it never covers faces. */
 .thannow-home .hero-caption {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
   margin: 0;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(25, 16, 31, 0.66);
-  color: #fff;
-  font-size: 12px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid #efe5d8;
+  background: var(--thannow-cream, #fbf6ee);
+  color: var(--thannow-ink, #18131d);
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1.4;
   text-align: center;
-  pointer-events: none;
-  z-index: 3;
 }
 
 .thannow-home .hero-media img {
@@ -2729,15 +2739,17 @@ img {
   display: block;
 }
 
+/* Upload CTA sits BELOW the whole comparison (outside the photo area) so it
+   never overlaps image content. */
 .thannow-home .hero-upload {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
+  display: inline-block;
+  position: relative;
+  margin-top: 14px;
   border: 0;
   border-radius: 999px;
   background: rgba(91, 26, 168, 0.94);
   color: white;
-  padding: 10px 15px;
+  padding: 11px 18px;
   font-weight: 800;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }

@@ -2,14 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { HERO_HEROES, type HeroHero } from "../data/heroes";
 
 /**
- * R9.3-P7 HD rotating hero comparison slider.
+ * R9.3-P7 HD rotating hero comparison slider (R9.3-P10 quality fix).
  *
  * One comparison frame holds two aligned layers of a single before/after photo:
  *   - base layer  = Then/original (damaged) image
  *   - overlay layer = Now/restored image
- * A customer-draggable divider reveals the restored layer. The frame is square
- * (matching the 1600x1600 HD source) and both layers use object-fit: cover with
- * identical sizing so the two layers are perfectly aligned at every crop.
+ * A customer-draggable divider reveals the restored layer.
+ *
+ * Display policy (R9.3-P10): the full photograph must always remain visible.
+ * Both layers use `object-fit: contain` + `object-position: center` with
+ * identical dimensions so Then and Now are pixel-aligned at every resolution.
+ * When the fixed comparison viewport is a different aspect ratio than the
+ * 1600x1600 source, a stretched blurred/darkened copy of the SAME image is
+ * rendered behind the layers so the frame reads as full-bleed without any
+ * cropping or stretching of the sharp contained image. overflow is clipped
+ * only on the outer frame, never on the image.
  *
  * Behavior:
  *   - a fresh mount starts on a random hero
@@ -74,6 +81,8 @@ export function HeroCompareSlider() {
     setDragging(false);
   };
 
+  const clip = `inset(0 ${100 - position}% 0 0)`;
+
   return (
     <div className="hero-compare-wrap">
       <div
@@ -90,6 +99,7 @@ export function HeroCompareSlider() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        <img className="hero-bg hero-layer" src={active.now} alt="" aria-hidden="true" loading="eager" draggable={false} />
         <img
           className="hero-layer hero-layer-then"
           src={active.then}
@@ -97,7 +107,7 @@ export function HeroCompareSlider() {
           loading="eager"
           draggable={false}
         />
-        <span className="hero-layer hero-layer-now" style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}>
+        <span className="hero-layer hero-layer-now" style={{ clipPath: clip }}>
           <img
             className="hero-layer-img"
             src={active.now}

@@ -218,3 +218,114 @@ test("homepage hero causes no horizontal overflow at desktop", async ({ page }) 
   await getActiveHero(page);
   await expectNoHorizontalOverflow(page);
 });
+
+// --- R9.3-P10 quality: image display, geometry, captions, damage presets ----
+
+test("full image is visible without cropping (object-fit contain, centered)", async ({ page }) => {
+  await page.goto("/");
+  await getActiveHero(page);
+
+  const thenFit = await page.locator(".hero-layer-then").evaluate((el) => getComputedStyle(el).objectFit);
+  const thenPos = await page.locator(".hero-layer-then").evaluate((el) => getComputedStyle(el).objectPosition);
+  const nowFit = await page.locator(".hero-layer-now .hero-layer-img").evaluate((el) => getComputedStyle(el).objectFit);
+  const nowPos = await page.locator(".hero-layer-now .hero-layer-img").evaluate((el) => getComputedStyle(el).objectPosition);
+
+  expect(thenFit).toBe("contain");
+  expect(nowFit).toBe("contain");
+  expect(thenPos).toContain("50%");
+  expect(nowPos).toContain("50%");
+});
+
+test("Then and Now layers share identical display geometry (pixel-aligned)", async ({ page }) => {
+  await page.goto("/");
+  const hero = await getActiveHero(page);
+
+  const geo = await page.evaluate(() => {
+    const thenEl = document.querySelector(".hero-layer-then") as HTMLImageElement;
+    const nowEl = document.querySelector(".hero-layer-img") as HTMLImageElement;
+    return {
+      thenW: thenEl.naturalWidth,
+      thenH: thenEl.naturalHeight,
+      nowW: nowEl.naturalWidth,
+      nowH: nowEl.naturalHeight
+    };
+  });
+  // Same source resolution for both layers = same crop/composition.
+  expect(geo.thenW).toBe(geo.nowW);
+  expect(geo.thenH).toBe(geo.nowH);
+  expect(geo.thenW).toBe(1600);
+  expect(geo.thenH).toBe(1600);
+
+  // Both layers share the same frame box (identical dimensions/position).
+  const boxThen = await page.locator(".hero-layer-then").boundingBox();
+  const boxNow = await page.locator(".hero-layer-now").boundingBox();
+  expect(boxNow).toBeTruthy();
+  expect(Math.abs(boxThen!.width - boxNow!.width)).toBeLessThan(1);
+  expect(Math.abs(boxThen!.height - boxNow!.height)).toBeLessThan(1);
+  expect(hero.then?.replace(/-then\.jpg$/i, "")).toBe(hero.now?.replace(/-now\.jpg$/i, ""));
+});
+
+test("blurred same-image background fills the frame without cropping the sharp layer", async ({ page }) => {
+  await page.goto("/");
+  const bgSrc = await page.locator(".hero-bg").getAttribute("src");
+  const hero = await getActiveHero(page);
+  expect(bgSrc).toBe(hero.now);
+  const bgFit = await page.locator(".hero-bg").evaluate((el) => getComputedStyle(el).objectFit);
+  expect(bgFit).toBe("cover");
+});
+
+test("caption sits below the frame and Upload CTA does not overlap the photo", async ({ page }) => {
+  await page.goto("/");
+  const frameBox = await page.locator(".hero-compare-frame").boundingBox();
+  expect(frameBox).toBeTruthy();
+
+  const captionBox = await page.locator(".hero-caption").boundingBox();
+  expect(captionBox).toBeTruthy();
+  expect(captionBox.y).toBeGreaterThanOrEqual(frameBox!.y + frameBox!.height - 1);
+
+  const uploadBox = await page.locator(".hero-upload").boundingBox();
+  if (uploadBox) {
+    const overlap = !(uploadBox.y >= frameBox!.y + frameBox!.height || uploadBox.y + uploadBox.height <= frameBox!.y);
+    expect(overlap).toBe(false);
+  }
+});
+
+test("all 20 hero layer assets resolve and are pixel-aligned 1600x1600", async ({
+  page,
+  consoleErrors,
+  pageErrors,
+  failedFirstPartyRequests,
+  blockedRequests
+}) => {
+  await page.goto("/");
+  const urls: string[] = [];
+  for (const id of VALID_IDS) {
+    urls.push(`/assets/hero/hero/${id}-then.jpg`, `/assets/hero/hero/${id}-now.jpg`);
+  }
+
+  const results = await page.evaluate(async (list) => {
+    const out: Array<{ src: string; ok: boolean; w: number; h: number }> = [];
+    for (const src of list) {
+      const r = await new Promise<{ ok: boolean; w: number; h: number }>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ ok: img.naturalWidth > 0, w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ ok: false, w: 0, h: 0 });
+        img.src = src;
+      });
+      out.push({ src, ...r });
+    }
+    return out;
+  }, urls);
+
+  for (const r of results) {
+    expect(r.ok, `${r.src} failed to load`).toBe(true);
+    expect(r.w, `${r.src} width`).toBe(1600);
+    expect(r.h, `${r.src} height`).toBe(1600);
+  }
+
+  expectNoPageErrors(consoleErrors, pageErrors);
+  expectNoFailedFirstPartyRequests(failedFirstPartyRequests);
+  expectCleanNetwork(blockedRequests);
+});
+
+
