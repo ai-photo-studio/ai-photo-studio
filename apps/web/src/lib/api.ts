@@ -82,7 +82,11 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
     throw new ApiError(payload?.message || `Request failed (${response.status})`, response.status, payload?.code);
   }
 
-  return (payload?.data ?? payload) as T;
+  // `?? payload` previously collapsed an explicit, legitimate `data: null`
+  // (e.g. "no PaymentAttempt exists yet") back to the whole envelope object,
+  // since `??` treats `null` as nullish too. Checking for the `data` key
+  // directly preserves a real null result instead of losing it.
+  return (payload && typeof payload === "object" && "data" in payload ? payload.data : payload) as T;
 };
 
 export const apiRequest = async <T>(path: string, init: RequestInit = {}, token?: string, guestToken?: string): Promise<T> => {

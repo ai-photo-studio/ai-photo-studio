@@ -1,48 +1,52 @@
 ﻿# Latest Task Report
 
-Date: 2026-08-03
+Date: 2026-08-07
+Task: R9.3-P2 Launch Prep — the ThanNow Restore->Upscale->Print website is DEPLOY_READY
 
-## Files created
-- `AGENTS.md`
-- `docs/PROJECT_STATE.md`
-- `docs/NEXT_TASK.md`
-- `docs/PROTECTED_SCOPE.md`
-- `docs/COMPLETION_STATUS.md`
-- `docs/DECISIONS.md`
-- `reports/LATEST.md`
+## Classification: DEPLOY_READY (deployment awaits owner authorization)
+All launch-critical code, assets, routing, branding, responsive, and production-build checks pass. Final deployment (push / wrangler pages deploy) is NOT executed because rules.md requires explicit owner authorization for production deployment, which does not yet exist.
 
-## Files not created because they already existed
-- None of the seven requested files existed before setup. The existing `AI_code_audit_report.md` was preserved.
+## How it was verified (evidence)
+- typecheck, build, lint, browser:responsive (18), browser (44) — all pass.
+- Production build (`dist/`) served via a static SPA server and probed end-to-end:
+  - `/` 200, `<title>ThanNow | Restore, Upscale and Print Memories`, hero present.
+  - **No old "AI Product Photo Studio" meta, no `example.com` URLs, no `YOUR_PIXEL_ID`/`GA_MEASUREMENT_ID` placeholders** in the served page or built bundle.
+  - SPA deep routes all 200 with app mounted: `/restore/new`, `/login`, `/restore`, `/pricing`.
+  - Critical path works: Home -> Upload modal -> Continue -> `/restore/new`, then preview/select/review/order/print routes exist.
+  - Assets resolve 200; all 16 filenames present in the built bundle and in `dist/assets/`.
+  - Mobile 430px: no horizontal overflow, floating Upload CTA visible; nav + 8 footer links present.
+- Deployment target confirmed: `wrangler.toml` -> Cloudflare Pages `pages_build_output_dir="dist"`, project `ai-photo-studio-frontend`; SPA fallback via `public/_redirects` (`/* /index.html 200`); production API `https://api.thannow.com` (no secrets exposed).
 
-## Repository observations
-- npm monorepo with API, web, and RunPod worker packages.
-- Prisma migrations, authentication, payment, provider, deployment, and WhatsApp-related code are present.
-- Documentation identifies Cloudflare Pages, Northflank, R2, PostgreSQL/Redis, and Replicate as architecture references; live state was not claimed.
-- No `.github/workflows` files were found.
-- Git worktree had extensive pre-existing changes; no application files were changed.
+## Launch blocker fixed this task
+- `apps/web/src/main.tsx` had stale old product-studio branding (title, description, OG/canonical all forced to "AI Product Photo Studio ... aistudio.example.com") plus placeholder GTM/Facebook pixel IDs shipping to every page. Repointed branding to ThanNow, and neutralized placeholder analytics (now gated behind `VITE_GTM_MEASUREMENT_ID` / `VITE_FACEBOOK_PIXEL_ID`; nothing ships without real IDs).
 
-## Commands executed
-- Repository file/package/documentation inspection.
-- `git status --short`
-- `git branch --show-current`
-- `git log -5 --oneline`
-- `npm run scope:check`
-- `npm run project-info`
-- `npm run typecheck`
-- `npm run build`
+## Exact launch packet (frontend-only scope; commit/push required before deploy)
+Tracked-modified:
+- apps/web/index.html
+- apps/web/src/components/PublicLayout.tsx
+- apps/web/src/main.tsx
+- apps/web/src/pages/HomePage.tsx
+- apps/web/src/styles.css
+- apps/web/src/lib/api.ts, src/pages/RestoreNewPage.tsx, RestoreOrderPage.tsx, RestorationHistoryPage.tsx, FixedOrderReviewPage.tsx, RestorePrintPage.tsx
+Untracked (must be added):
+- apps/web/public/assets/** (16 approved images + README_ASSETS.txt)
+- apps/web/src/pages/DigitalTierSelectPage.tsx, apps/web/src/pages/OriginalPreviewPage.tsx
+- apps/web/playwright.config.ts, apps/web/tests/browser/** (specs + fixtures)
 
-## Verification results
-- Typecheck: passed.
-- Build: passed for API and web.
-- Scope check: failed because current branch is `setup/project-automation`, while the script expects `main`.
-- Project info: failed because `PROJECT_LOCK.json` is missing.
-- No deployment, push, cloud mutation, or destructive database command was run.
+Do NOT include API/RunPod/migration/dirty unrelated files.
 
-## Protected areas identified
-Authentication, payment gateway/payment readiness, RunPod integration and approval gates, Replicate/working AI-provider path, production deployment configuration, Prisma schema/migrations, PostgreSQL/Redis/R2, and WhatsApp integration.
+## Exact next commands (for owner approval; NOT executed)
+```
+git add apps/web/index.html apps/web/src/components/PublicLayout.tsx apps/web/src/main.tsx apps/web/src/pages/HomePage.tsx apps/web/src/styles.css apps/web/src/lib/api.ts apps/web/src/pages/RestoreNewPage.tsx apps/web/src/pages/RestoreOrderPage.tsx apps/web/src/pages/RestorationHistoryPage.tsx apps/web/src/pages/FixedOrderReviewPage.tsx apps/web/src/pages/RestorePrintPage.tsx apps/web/src/pages/DigitalTierSelectPage.tsx apps/web/src/pages/OriginalPreviewPage.tsx apps/web/public/assets apps/web/playwright.config.ts apps/web/tests/browser
+git commit -m "R9.3: ThanNow Restore->Upscale->Print homepage launch"
+git push origin setup/project-automation
+# then either merge to main (auto-deploy webhook) or:
+npx wrangler pages deploy apps/web/dist --project-name ai-photo-studio-frontend
+```
+Verify no secrets inside any launch file before pushing.
 
-## Unresolved issues and uncertain information
-Live deployment state, credentials, payment activation, proxy topology, cloud resources, provider availability, and exact CI configuration require later validation. Existing Git changes require ownership/reconciliation before unrelated edits.
+## Protected scope / docs
+No backend, payment, RunPod, Replicate, R2, Prisma, or unrelated files changed. `.gitignore` untouched; canonical source/docs stay tracked. Only development docs updated: `reports/LATEST.md`, `docs/DECISIONS.md`, `docs/PROJECT_STATE.md`.
 
 ## Recommended next action
-Perform repository verification and project-state validation on the intended branch, reconcile current and historical documentation, and investigate the missing `PROJECT_LOCK.json` without modifying protected scope.
+Owner reviews the launch packet, authorizes production deployment, then runs the exact commands above (merge to main or direct `wrangler pages deploy`). Post-launch polish (analytics IDs, verified testimonials, SEO, caching) follows after launch.

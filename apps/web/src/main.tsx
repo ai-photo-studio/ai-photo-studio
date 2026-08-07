@@ -13,10 +13,10 @@ declare global {
 }
 
 const meta = {
-  title: "AI Product Photo Studio | Ecommerce Background Removal & AI Photo Editing",
-  description: "Professional AI product photo editing for ecommerce sellers. Background removal, auto crop, flat lay, lifestyle scenes, virtual models, and more.",
-  image: "https://aistudio.example.com/og-image.png",
-  url: "https://aistudio.example.com"
+  title: "ThanNow | Restore, Upscale and Print Memories",
+  description: "ThanNow AI photo restoration, upscaling and premium printing for the people and moments that matter most.",
+  image: "https://www.thannow.com/assets/hero-compare.png",
+  url: "https://www.thannow.com"
 };
 
 const updateMeta = () => {
@@ -84,28 +84,37 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 
 if (typeof window !== "undefined") {
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){(window.dataLayer as unknown[]).push(arguments);}
-  if (window.gtag) {
-    window.gtag('js', new Date());
-    window.gtag('config', 'GA_MEASUREMENT_ID');
+  // Analytics only load when real IDs are configured via build-time env; the
+  // placeholder IDs/URLs must not ship to production (R9.3 launch prep).
+  const gtmId = import.meta.env.VITE_GTM_MEASUREMENT_ID;
+  const fbPixelId = import.meta.env.VITE_FACEBOOK_PIXEL_ID;
+
+  if (gtmId) {
+    window.dataLayer = window.dataLayer || [];
+    function _gtag(...args: unknown[]){(window.dataLayer as unknown[]).push(args);}
+    if (window.gtag) {
+      window.gtag('js', new Date());
+      window.gtag('config', gtmId);
+    }
   }
-  
-  const fbPixel = document.createElement("script");
-  fbPixel.innerHTML = `
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', 'YOUR_PIXEL_ID');
-    fbq('track', 'PageView');
-  `;
-  document.head.appendChild(fbPixel);
-  
-  const noscript = document.createElement("noscript");
-  noscript.innerHTML = '<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID&ev=PageView&noscript=1"/>';
-  document.head.appendChild(noscript);
+
+  if (fbPixelId) {
+    const fbPixel = document.createElement("script");
+    fbPixel.innerHTML = `
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', ${JSON.stringify(fbPixelId)});
+      fbq('track', 'PageView');
+    `;
+    document.head.appendChild(fbPixel);
+
+    const noscript = document.createElement("noscript");
+    noscript.innerHTML = `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${encodeURIComponent(fbPixelId)}&ev=PageView&noscript=1"/>`;
+    document.head.appendChild(noscript);
+  }
 }

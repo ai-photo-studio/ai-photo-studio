@@ -54,14 +54,14 @@ export function RestoreOrderPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewModal, setPreviewModal] = useState(false);
   const [comparisonPosition, setComparisonPosition] = useState(50);
-  const [bothReady, setBothReady] = useState(false);
+  const [_bothReady, setBothReady] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [downloadAllState, setDownloadAllState] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
-  const [polling, setPolling] = useState(false);
+  const [_polling, setPolling] = useState(false);
   const processingRef = useRef(false);
   const terminalRef = useRef(false);
 
