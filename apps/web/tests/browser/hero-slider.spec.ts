@@ -265,13 +265,72 @@ test("Then and Now layers share identical display geometry (pixel-aligned)", asy
   expect(hero.then?.replace(/-then\.jpg$/i, "")).toBe(hero.now?.replace(/-now\.jpg$/i, ""));
 });
 
-test("blurred same-image background fills the frame without cropping the sharp layer", async ({ page }) => {
+test("no ghost background layer and exactly one sharp Then + one sharp Now", async ({ page }) => {
   await page.goto("/");
-  const bgSrc = await page.locator(".hero-bg").getAttribute("src");
-  const hero = await getActiveHero(page);
-  expect(bgSrc).toBe(hero.now);
-  const bgFit = await page.locator(".hero-bg").evaluate((el) => getComputedStyle(el).objectFit);
-  expect(bgFit).toBe("cover");
+  await getActiveHero(page);
+
+  // No blurred second-image background (square frame = no empty space).
+  await expect(page.locator(".hero-bg")).toHaveCount(0);
+
+  // Exactly one sharp Then and one sharp Now foreground layer (no duplicates).
+  await expect(page.locator(".hero-layer-then")).toHaveCount(1);
+  await expect(page.locator(".hero-layer-now")).toHaveCount(1);
+  await expect(page.locator(".hero-layer-now .hero-layer-img")).toHaveCount(1);
+});
+
+test("slider handle shows horizontal LEFT/RIGHT arrows (not a vertical triangle)", async ({ page }) => {
+  await page.goto("/");
+  const handle = page.locator(".hero-handle");
+  await expect(handle).toBeVisible();
+  const styles = await handle.evaluate((el) => {
+    const before = getComputedStyle(el, "::before");
+    const after = getComputedStyle(el, "::after");
+    return {
+      display: getComputedStyle(el).display,
+      beforeDisplay: before.display !== "none",
+      beforeContent: before.content,
+      beforeBorderRight: before.getPropertyValue("border-right-width"),
+      afterDisplay: after.display !== "none"
+    };
+  });
+  expect(styles.display).toBe("flex");
+  expect(styles.beforeDisplay).toBe(true);
+  expect(styles.afterDisplay).toBe(true);
+  expect(styles.beforeBorderRight).not.toBe("0px"); // left arrow
+});
+
+test("Then/Now labels are present as UI and never cover the opposite side", async ({ page }) => {
+  await page.goto("/");
+  const thenLabel = page.locator(".hero-label-then");
+  const nowLabel = page.locator(".hero-label-now");
+  await expect(thenLabel).toHaveText("Then");
+  await expect(nowLabel).toHaveText("Now");
+  const frameBox = await page.locator(".hero-compare-frame").boundingBox();
+  const thenBox = await thenLabel.boundingBox();
+  const nowBox = await nowLabel.boundingBox();
+  expect(thenBox!.x).toBeLessThanOrEqual(frameBox!.x + frameBox!.width * 0.4);
+  expect(nowBox!.x).toBeGreaterThanOrEqual(frameBox!.x + frameBox!.width * 0.6);
+  await expect(thenLabel).toBeVisible();
+});
+
+test("desktop hero uses available column width with full image visible at 1440/1024/768", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await getActiveHero(page);
+  const frameBox = await page.locator(".hero-compare-frame").boundingBox();
+  expect(frameBox!.width).toBeGreaterThan(560);
+  expect(frameBox!.width).toBeLessThanOrEqual(620);
+  // Full square image fully fills the square frame (contain, no crop).
+  const inside = await page.evaluate(() => {
+    const f = document.querySelector(".hero-compare-frame").getBoundingClientRect();
+    const t = document.querySelector(".hero-layer-then").getBoundingClientRect();
+    const n = document.querySelector(".hero-layer-now .hero-layer-img").getBoundingClientRect();
+    const inF = (b) => b.left >= f.left - 1 && b.right <= f.right + 1 && b.top >= f.top - 1 && b.bottom <= f.bottom + 1;
+    return inF(t) && inF(n);
+  });
+  expect(inside).toBe(true);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expectNoHorizontalOverflow(page);
 });
 
 test("caption sits below the frame and Upload CTA does not overlap the photo", async ({ page }) => {

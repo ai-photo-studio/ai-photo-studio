@@ -1,7 +1,55 @@
 ﻿# Latest Task Report
 
-Date: 2026-08-07
-Task: R9.3-P11 Hero Quality Production Deploy
+Date: 2026-08-08
+Task: R9.3-P10B Hero Desktop Visual Repair
+
+## Classification
+**REPAIRED_VERIFIED** (verified locally; NOT pushed, NOT deployed — R9.4-P2 and R9.3-P11 held).
+
+## Root causes found
+1. A blurred `.hero-bg` full-frame copy of the Now image looped behind the layers, producing the visible second/ghost image layer.
+2. The comparison frame had no `max-width` cap, so at tablet the square frame rendered at full column width (~942px) and, combined with the blur overlay, looked like stacked/overlapping layers.
+3. The slider handle was a downward triangle (vertical look) with no clear horizontal drag affordance.
+4. No Then/Now direction labels, so left/right intent was confusing.
+5. The damage overlay system used discrete geometric SVG circles/polygons/lines that read as artificial/transparent shapes and too-similar treatment.
+
+## Files changed
+- `apps/web/src/components/HeroCompareSlider.tsx` (removed `.hero-bg`, added Then/Now labels)
+- `apps/web/src/styles.css` (removed `.hero-bg`, capped frame `max-width:620px` + centered, horizontal `< >` handle, label styles)
+- `apps/web/scripts/generate-hero-then.cjs` (rewritten: photorealistic damage, no geometric overlays)
+- all 10 `apps/web/public/assets/hero/hero/*-then.jpg` (regenerated)
+- `apps/web/tests/browser/hero-slider.spec.ts` (replaced bg test; added no-ghost/single-layer, arrow-handle, labels, desktop-geometry tests)
+- docs (`PROJECT_STATE.md`, `DECISIONS.md`, `PROTECTED_SCOPE.md`, `reports/LATEST.md`)
+
+## Desktop hero result
+One comparison frame; at 50% LEFT=Then RIGHT=Now; exactly one sharp Then + one sharp Now (no ghost/duplicate); square frame fully fits the 1600x1600 source via `object-fit: contain` (no crop, no left/right cut); frame `max-width:620px` + centered gives a premium uniform presentation at 1440/1280/1024/768.
+
+## Mobile regression result
+None. Mobile (430/390/360) unchanged: frame fills column width with `object-fit: contain`, full image visible, no overflow (verified at all 6 viewports).
+
+## Slider / layer architecture
+Base sharp Then + clipped sharp Now overlay (one divider, one handle). Handle is a horizontal LEFT/RIGHT `< >` double-arrow (mouse + touch + pointer, `touch-action:none`). Then/Now are small UI/CSS pills pinned to the outer left/right edges (never over the opposite side, never baked into assets). Blur background removed entirely (square frame needs no backdrop).
+
+## Pakistani asset audit
+All 10 concepts follow the approved Pakistani visual direction per manifest metadata (Pakistani families, parents/grandparents, shalwar kameez, dupatta, Pakistani wedding styling, village/city environments, Pakistan military/service memories, 1947-1990 heritage). No asset objectively rejected by metadata; a human visual confirmation of each asset is recommended (this packet has no image-input support for viewing the images directly).
+
+## 10 damage presets (photorealistic, distinct)
+01 faded sepia/low contrast/fine cracks/worn border; 02 true B&W/dim/yellow/light age spotting; 03 fold marks/torn corner/stains/scratches/faded highlights; 04 faded color/water stain/colour cast/emulsion loss; 05 very low contrast/dust/uneven exposure/creases/age spots; 06 B&W/strong horiz-vert scratches/cracked emulsion; 07 badly torn edge/missing corner/dirt/faded sepia; 08 old B&W/heavy grain/dark/scratches; 09 most severe multi-tears/folds/stains/missing emulsion/dim faces; 10 dim/silvering/emulsion deterioration/partial fading. All generated from the exact matching Now (1600x1600, pixel-aligned); JPEG outputs (no transparency); 10 distinct hashes.
+
+## Premium visual result
+Clean one-frame hero, full sharp restored image, convincingly damaged old image, caption below, CTA below and outside the photo, horizontal arrow control, subtle border/shadow/radius, centered frame with whitespace.
+
+## Screenshots inspected
+Captured at 1440/1024/768/430/390/360 (before + after). Layout verified programmatically at all 6 viewports (can't view images directly; structural invariants all PASS).
+
+## Tests
+`typecheck` ✓ `build` ✓ `lint` 0 errors ✓ `test:browser:responsive` 18/18 ✓ full `test:browser` 62/62 ✓.
+
+## Protected scope
+Only hero frontend + hero assets touched. R9.4 commerce bridge, payment, RunPod, Replicate, R2, Prisma/DB, auth, unrelated APIs untouched; R9.4-P2 and R9.3-P11 held (no push/deploy). 4 pre-existing unrelated staged API/canary files preserved.
+
+---
+## Historical: R9.3-P11 Hero Quality Production Deploy
 
 ## Classification
 **PRODUCTION_LIVE** (owner-authorized). Hero-quality commit `72825bc` pushed and deployed to `www.thannow.com` and verified live.

@@ -2,21 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { HERO_HEROES, type HeroHero } from "../data/heroes";
 
 /**
- * R9.3-P7 HD rotating hero comparison slider (R9.3-P10 quality fix).
+ * R9.3-P7 HD rotating hero comparison slider (R9.3-P10B desktop visual repair).
  *
- * One comparison frame holds two aligned layers of a single before/after photo:
- *   - base layer  = Then/original (damaged) image
- *   - overlay layer = Now/restored image
- * A customer-draggable divider reveals the restored layer.
+ * Exactly ONE comparison frame renders the full-width photograph with two
+ * aligned layers of a single before/after photo:
+ *   - base layer  = Then/original (damaged) image (full sharp copy)
+ *   - overlay layer = Now/restored image (full sharp copy, clipped to the
+ *                     divider position so it reveals the right side)
+ * A customer-draggable divider sits at the midline: at 50% the LEFT half shows
+ * Then and the RIGHT half shows Now.
  *
- * Display policy (R9.3-P10): the full photograph must always remain visible.
- * Both layers use `object-fit: contain` + `object-position: center` with
- * identical dimensions so Then and Now are pixel-aligned at every resolution.
- * When the fixed comparison viewport is a different aspect ratio than the
- * 1600x1600 source, a stretched blurred/darkened copy of the SAME image is
- * rendered behind the layers so the frame reads as full-bleed without any
- * cropping or stretching of the sharp contained image. overflow is clipped
- * only on the outer frame, never on the image.
+ * Rendering rules (R9.3-P10B):
+ *   - The frame is square, matching the 1600x1600 source, so `object-fit:
+ *     contain` fills every pixel with no empty space, no letterboxing and no
+ *     crop. No blurred background layer is rendered (nothing to fill), which
+ *     eliminates any ghost/second-image bleed.
+ *   - There is exactly ONE sharp Then layer and ONE sharp Now layer (no
+ *     duplicate foreground copies).
+ *   - The divider handle renders horizontal LEFT/RIGHT arrows (not a vertical
+ *     triangle) to signal the drag direction.
+ *   - Small "Then"/"Now" labels are UI/CSS pills at the LEFT/RIGHT edges at
+ *     the midline; they are never baked into the image assets.
  *
  * Behavior:
  *   - a fresh mount starts on a random hero
@@ -24,6 +30,11 @@ import { HERO_HEROES, type HeroHero } from "../data/heroes";
  *   - rotation pauses during pointer/touch drag and resumes afterward
  *   - timer is cleaned up on unmount to avoid leaks
  */
+const LABELS = {
+  then: "Then",
+  now: "Now"
+};
+
 export function HeroCompareSlider() {
   const [activeIndex, setActiveIndex] = useState(
     () => Math.floor(Math.random() * HERO_HEROES.length)
@@ -99,7 +110,6 @@ export function HeroCompareSlider() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        <img className="hero-bg hero-layer" src={active.now} alt="" aria-hidden="true" loading="eager" draggable={false} />
         <img
           className="hero-layer hero-layer-then"
           src={active.then}
@@ -107,7 +117,7 @@ export function HeroCompareSlider() {
           loading="eager"
           draggable={false}
         />
-        <span className="hero-layer hero-layer-now" style={{ clipPath: clip }}>
+        <span className="hero-layer hero-layer-now" style={{ clipPath: clip }} aria-hidden="true">
           <img
             className="hero-layer-img"
             src={active.now}
@@ -116,6 +126,8 @@ export function HeroCompareSlider() {
             draggable={false}
           />
         </span>
+        <span className="hero-label hero-label-then" aria-hidden="true">{LABELS.then}</span>
+        <span className="hero-label hero-label-now" aria-hidden="true">{LABELS.now}</span>
         <span className="hero-divider" style={{ left: `${position}%` }} aria-hidden="true">
           <span className="hero-handle" />
         </span>

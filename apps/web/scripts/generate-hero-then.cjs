@@ -1,20 +1,19 @@
-/* eslint-env node */
+﻿/* eslint-env node */
 /* eslint-disable @typescript-eslint/no-require-imports, no-undef */
 
 /**
- * R9.3-P10: Regenerate the 10 Homepage "Then" (damaged) hero assets.
+ * R9.3-P10B: Regenerate the 10 Homepage "Then" (damaged) hero assets.
  *
  * Each `*-then.jpg` is rebuilt deterministically FROM its exact matching
  * `*-now.jpg` so composition, people, pose, background, crop and dimensions
  * are pixel-aligned with the restored image. Every preset applies a DISTINCT
- * realistic historical damage treatment (no shared generic scratch overlay).
+ * realistic historical damage treatment using PHOTOGRAPHIC degradation only
+ * (tonal/channel grading, film grain, soft blurred mottle/stains, fine
+ * scratches, feathered torn edges). No discrete geometric overlays, circles,
+ * polygons or repeated scratch patterns are used.
  *
- * Requires: npm i -D sharp (present at repo root: sharp@0.34.5)
- * Run from repo root:  node apps/web/scripts/generate-hero-then.js
- *
- * The generator is idempotent: running it again reproduces the same outputs
- * (seeded RNG per hero). It never upscales or recompresses the canonical Now
- * source; it only degrades it in place at the same 1600x1600 dimensions.
+ * Run from repo root:  node apps/web/scripts/generate-hero-then.cjs
+ * Idempotent (seeded RNG per hero). Never upscales/recompresses the Now source.
  */
 
 const sharp = require("sharp");
@@ -22,8 +21,8 @@ const fs = require("fs");
 const path = require("path");
 
 const HERO_DIR = path.join(__dirname, "..", "public", "assets", "hero", "hero");
+const SIZE = 1600;
 
-// Deterministic PRNG (mulberry32) so regeneration is reproducible.
 function makeRng(seed) {
   let a = seed >>> 0;
   return function () {
@@ -35,241 +34,285 @@ function makeRng(seed) {
   };
 }
 
-function svgOverlay(w, h, draw) {
-  return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-       <defs>
-         <filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter>
-       </defs>
-       ${draw}
-     </svg>`
-  );
+/** Per-channel tonal grading helpers are photographic (curve/channel
+ * adjustments), never geometric. */
+
+/** Fine film-grain overlay from a seeded random luminance field (alpha-light). */
+function grainOverlay(seed, intensity) {
+  const rng = makeRng(seed);
+  const px = Buffer.alloc(SIZE * SIZE * 4);
+  let j = 0;
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const v = 90 + rng() * 165;
+    px[j++] = v; px[j++] = v; px[j++] = v;
+    px[j++] = Math.round(intensity * 255);
+  }
+  return sharp(px, { raw: { width: SIZE, height: SIZE, channels: 4 } })
+    .png()
+    .toBuffer();
 }
 
-// --- Damage primitives (drawn as translucent SVG overlays) -----------------
+/** Coarse blurred mottle/stain field (reads as mold, water staining, age). */
+function mottleBuffer(seed, baseLum, contrast) {
+  const rng = makeRng(seed);
+  const px = Buffer.alloc(SIZE * SIZE * 4);
+  let v = baseLum;
+  let j = 0;
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    v += (rng() - 0.5) * contrast;
+    if (v < 0) v = 0; if (v > 255) v = 255;
+    px[j++] = v; px[j++] = v; px[j++] = v; px[j++] = 255;
+  }
+  return sharp(px, { raw: { width: SIZE, height: SIZE, channels: 4 } })
+    .blur(40)
+    .png()
+    .toBuffer();
+}
 
-function scratchLines({ rng, count, maxLen, opacity, color }) {
+/** Soft blurred colour cast field for uneven fading / water tint. */
+function colorCastBuffer(seed, meanLum, spread, rgb) {
+  const rng = makeRng(seed);
+  const px = Buffer.alloc(SIZE * SIZE * 4);
+  let v = meanLum;
+  let j = 0;
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    v += (rng() - 0.5) * spread;
+    if (v < 0) v = 0; if (v > 255) v = 255;
+    const f = v / 255;
+    px[j++] = Math.round(rgb[0] * f);
+    px[j++] = Math.round(rgb[1] * f);
+    px[j++] = Math.round(rgb[2] * f);
+    px[j++] = 255;
+  }
+  return sharp(px, { raw: { width: SIZE, height: SIZE, channels: 4 } })
+    .blur(60)
+    .png()
+    .toBuffer();
+}
+
+/** Fine scratches: thin, soft, individually seeded lines (feathered via blur). */
+function scratchOverlay(seed, count, color = "#d8d2c4", maxLen = 420, opacityF = 0.5) {
+  const rng = makeRng(seed);
   let s = "";
   for (let i = 0; i < count; i++) {
-    const x = Math.floor(rng() * 1600);
-    const y = Math.floor(rng() * 1600);
-    const len = 20 + rng() * maxLen;
-    const ang = rng() * Math.PI * 2;
-    const dx = Math.cos(ang) * len;
-    const dy = Math.sin(ang) * len;
-    const w = 1 + rng() * 2.4;
-    s += `<line x1="${x}" y1="${y}" x2="${x + dx}" y2="${y + dy}" stroke="${color}" stroke-width="${w}" stroke-opacity="${(opacity * (0.5 + rng() * 0.5)).toFixed(3)}" filter="url(#b)"/>`;
+    const x = rng() * SIZE;
+    const y = rng() * SIZE;
+    const len = 12 + rng() * maxLen;
+    const horiz = rng() > 0.45; // bias horizontal for film scratches
+    const ang = rng() * 0.5 - 0.25;
+    const dx = horiz ? Math.cos(ang) * len : Math.sin(ang) * len * 0.3;
+    const dy = horiz ? Math.sin(ang) * len * 0.12 : Math.cos(ang) * len;
+    const w = 0.6 + rng() * 1.6;
+    s += `<line x1="${x}" y1="${y}" x2="${x + dx}" y2="${y + dy}" stroke="${color}" stroke-width="${w}" stroke-opacity="${(opacityF * (0.4 + rng() * 0.6)).toFixed(3)}" filter="url(#soft)"/>`;
   }
-  return s;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}"><defs><filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.4"/></filter></defs>${s}</svg>`;
 }
 
-function stainBlobs({ rng, count, maxR, opacity, color }) {
-  let s = "";
-  for (let i = 0; i < count; i++) {
-    const x = rng() * 1600;
-    const y = rng() * 1600;
-    const r = 20 + rng() * maxR;
-    s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" fill-opacity="${(opacity * (0.3 + rng() * 0.7)).toFixed(3)}" filter="url(#b)"/>`;
+/**
+ * Feathered, jagged torn edge / missing-corner mask (light paper tone, ragged,
+ * softly masked) so it reads as eaten paper rather than a crisp polygon.
+ */
+function tornMask(seed, edges) {
+  const rng = makeRng(seed);
+  const pts = [];
+  const steps = 90;
+  const baseAmt = 60 + rng() * 60;
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    const depth = baseAmt + (rng() - 0.5) * 90;
+    pts.push(`${(t * SIZE).toFixed(1)},${depth.toFixed(1)}`);
   }
-  return s;
-}
-
-function dustSpeckles({ rng, count, maxR, opacity }) {
-  let s = "";
-  for (let i = 0; i < count; i++) {
-    const x = rng() * 1600;
-    const y = rng() * 1600;
-    const r = 1 + rng() * maxR;
-    const c = rng() > 0.5 ? "#8a8478" : "#e6e0d2";
-    s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" fill-opacity="${(opacity * (0.4 + rng() * 0.6)).toFixed(3)}"/>`;
-  }
-  return s;
-}
-
-function foldLines({ rng, count, opacity }) {
-  let s = "";
-  for (let i = 0; i < count; i++) {
-    const y = 100 + rng() * 1400;
-    const x = 100 + rng() * 600;
-    s += `<path d="M0 ${y} C 300 ${y + (rng() > 0.5 ? 20 : -20)}, 1300 ${y - (rng() > 0.5 ? 20 : -20)}, 1600 ${y}" fill="none" stroke="#6b5b43" stroke-width="${1 + rng() * 2}" stroke-opacity="${opacity.toFixed(3)}" filter="url(#b)"/>`;
-    s += `<path d="M${x} 0 L${x + (rng() > 0.5 ? 120 : -120)} 1600" fill="none" stroke="#6b5b43" stroke-width="1" stroke-opacity="${(opacity * 0.6).toFixed(3)}" filter="url(#b)"/>`;
-  }
-  return s;
-}
-
-function tornEdge({ rng, edges = ["top", "left"] }) {
-  // Torn/irregular paper edge along one or more borders.
-  let s = "";
-  for (const edge of edges) {
-    const n = 1600;
-    let d = "M0 0 ";
-    const step = 40 + rng() * 60;
-    let pos = 0;
-    while (pos < n) {
-      const depth = 10 + rng() * 46;
-      const nx = pos + step;
-      if (edge === "top") d += `L${nx} ${depth} `;
-      else d += `L${depth} ${nx} `;
-      pos = nx;
+  const edgePaths = [];
+  const paper = "#e6e0d2";
+  for (const e of edges) {
+    if (e === "top") {
+      edgePaths.push(`<path d="M0 0 L0 0 L${pts.map((p, i) => (i === 0 ? "" : `L${p}`)).join(" ")} L${SIZE} 0 Z" fill="${paper}" fill-opacity="0.92" filter="url(#rough)"/>`);
+      edgePaths.push(`<path d="M0 8 L${pts.map((p, i) => (i === 0 ? `${p}` : `L${p}`)).join(" ")} L${SIZE} 8 Z" fill="#f4efe5" fill-opacity="0.85" filter="url(#rough)"/>`);
+    } else if (e === "left") {
+      const l = pts.map((p) => { const [x, y] = p.split(","); return `${y},${x}`; });
+      edgePaths.push(`<path d="M0 0 L${l.map((p, i) => (i === 0 ? `${p}` : `L${p}`)).join(" ")} L0 ${SIZE} Z" fill="${paper}" fill-opacity="0.92" filter="url(#rough)"/>`);
     }
-    if (edge === "top") d += `L1600 0 Z`;
-    else d += `L0 1600 Z`;
-    s += `<path d="${d}" fill="#e8e2d4" fill-opacity="0.9"/>`;
-    s += `<path d="${d}" transform="translate(0 6)" fill="#f4efe5" fill-opacity="0.95"/>`;
   }
-  return s;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}"><defs><filter id="rough" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>${edgePaths.join("")}</svg>`;
 }
 
-function missingCorner({ rng, corner }) {
-  const frac = 180 + rng() * 160;
-  const pts = {
-    tl: `0 0 ${frac} 0 0 ${frac}`,
-    tr: `1600 0 1600 ${frac} ${1600 - frac} 0`,
-    bl: `0 1600 0 ${1600 - frac} ${frac} 1600`,
-    br: `1600 1600 ${1600 - frac} 1600 1600 ${1600 - frac}`
-  };
-  return `<polygon points="${pts[corner]}" fill="#e6dfcf" fill-opacity="0.95"/>`;
-}
-
-function crackLines({ rng, count, opacity }) {
-  let s = "";
-  for (let i = 0; i < count; i++) {
-    let x = rng() * 1600;
-    let y = rng() * 1600;
-    let d = `M${x.toFixed(1)} ${y.toFixed(1)} `;
-    const segs = 4 + Math.floor(rng() * 4);
-    for (let j = 0; j < segs; j++) {
-      x += (rng() - 0.5) * 120;
-      y += (rng() - 0.5) * 120;
-      d += `L${x.toFixed(1)} ${y.toFixed(1)} `;
-    }
-    s += `<path d="${d}" fill="none" stroke="#3c342a" stroke-width="${1 + rng() * 1.8}" stroke-opacity="${(opacity * (0.35 + rng() * 0.5)).toFixed(3)}"/>`;
+function missingCornerMask(seed, corner, base = 240, spread = 120) {
+  const rng = makeRng(seed);
+  const amt = base + rng() * spread;
+  // Build a ragged, feathered hypotenuse along a chosen corner.
+  const edge = [];
+  const n = 7;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const wob = (rng() - 0.5) * 110;
+    // Along the fold line perpendicular to the corner.
+    const hx = amt - t * amt;   // along x
+    const hy = amt - t * amt;   // along y
+    const ex = hx + wob;
+    const ey = hy - wob;
+    edge.push(`${ex.toFixed(1)},${ey.toFixed(1)}`);
   }
-  return s;
+  let path;
+  switch (corner) {
+    case "tl": path = `M0,0 L${amt},0 L${edge.join(" L")} L0,${amt} Z`; break;
+    case "tr": path = `M${SIZE},0 L${SIZE},${amt} L${edge.join(" L")} L${SIZE - amt},0 Z`; break;
+    case "bl": path = `M0,${SIZE} L0,${SIZE - amt} L${edge.join(" L")} L${amt},${SIZE} Z`; break;
+    case "br": path = `M${SIZE},${SIZE} L${SIZE - amt},${SIZE} L${edge.join(" L")} L${SIZE},${SIZE - amt} Z`; break;
+    default: path = `M0,0 L${amt},0 L${edge.join(" L")} L0,${amt} Z`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}"><defs><filter id="m" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter></defs><path d="${path}" fill="#e0d8c7" fill-opacity="0.94" filter="url(#m)"/></svg>`;
 }
 
-// --- Per-hero recipes ------------------------------------------------------
+// --- Recipes: each is a distinct photographic damage preset -----------------
 
 const RECIPES = {
   "hero-01": {
-    label: "Old Parents — faded sepia + weak contrast + light cracks",
-    fn: (img) => img.modulate({ saturation: 0.4, brightness: 0.96 }).linear(0.86, 22)
-       .tint({ r: 216, g: 190, b: 148 })
-       .composite([{ input: svgOverlay(1600, 1600, crackLines({ rng: makeRng(101), count: 26, opacity: 0.5 })), blend: "over" }])
+    label: "Parents â€” strong faded sepia, low contrast, fine cracks, worn border",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.98, saturation: 0.45 }).linear(0.86, 30).tint({ r: 214, g: 184, b: 140 });
+      img = img.composite([
+        { input: await grainOverlay(1001, 0.22), blend: "soft-light" },
+        { input: Buffer.from(scratchOverlay(1002, 26, "#cabfa8", 260, 0.5)), blend: "over" }
+      ]);
+      return img;
+    }
   },
   "hero-02": {
-    label: "Grandparents — black & white + dim exposure + paper aging",
-    fn: (img) => img.greyscale().modulate({ brightness: 0.78 })
-       .composite([
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(202), count: 26, maxR: 260, opacity: 0.16, color: "#b29a6d" })), blend: "multiply" },
-         { input: svgOverlay(1600, 1600, dustSpeckles({ rng: makeRng(203), count: 400, maxR: 5, opacity: 0.28 })), blend: "over" }
-       ])
+    label: "Grandparents â€” true B&W, dim exposure, yellow paper, light age spotting",
+    async fn(img) {
+      img = img.greyscale().modulate({ brightness: 0.8 }).linear(1.05, -8).tint({ r: 232, g: 214, b: 176 });
+      const mottle = await mottleBuffer(2001, 205, 90);
+      img = img.composite([
+        { input: mottle, blend: "multiply", opacity: 0.18 },
+        { input: await grainOverlay(2002, 0.26), blend: "overlay" }
+      ]);
+      return img;
+    }
   },
   "hero-03": {
-    label: "Wedding — torn corners + fold lines + stains + moderate scratches",
-    fn: (img) => img.modulate({ saturation: 0.62, brightness: 0.9 })
-       .composite([
-         { input: svgOverlay(1600, 1600, tornEdge({ rng: makeRng(301), edges: ["top"] })), blend: "over" },
-         { input: svgOverlay(1600, 1600, missingCorner({ rng: makeRng(302), corner: "br" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, foldLines({ rng: makeRng(303), count: 3, opacity: 0.45 })), blend: "soft-light" },
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(304), count: 12, maxR: 200, opacity: 0.22, color: "#8a6a3a" })), blend: "multiply" },
-         { input: svgOverlay(1600, 1600, scratchLines({ rng: makeRng(305), count: 30, maxLen: 320, opacity: 0.3, color: "#bdb4a2" })), blend: "over" }
-       ])
+    label: "Wedding â€” major fold marks, torn corner, stains, scratches, faded highlights",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.92, saturation: 0.6 }).linear(0.92, 26);
+      const cast = await colorCastBuffer(3001, 150, 60, [216, 200, 168]);
+      img = img.composite([
+        { input: Buffer.from(missingCornerMask(3002, "br")), blend: "over" },
+        { input: cast, blend: "multiply", opacity: 0.22 },
+        { input: await grainOverlay(3003, 0.18), blend: "overlay" },
+        { input: Buffer.from(scratchOverlay(3004, 40, "#b9ad95", 340, 0.45)), blend: "over" }
+      ]);
+      return img;
+    }
   },
   "hero-04": {
-    label: "Childhood Siblings — faded color + water damage + color shift",
-    fn: (img) => img.modulate({ saturation: 0.72, hue: 14, brightness: 0.92 })
-       .composite([
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(404), count: 20, maxR: 240, opacity: 0.3, color: "#7ba4b0" })), blend: "multiply" },
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(405), count: 12, maxR: 120, opacity: 0.22, color: "#5c7a86" })), blend: "over" }
-       ])
+    label: "Childhood â€” old faded color, water stain, colour cast, emulsion loss",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.95, saturation: 0.7, hue: 18 });
+      const blue = await colorCastBuffer(4001, 90, 70, [120, 150, 168]);
+      const pale = await mottleBuffer(4002, 235, 60);
+      img = img.composite([
+        { input: blue, blend: "multiply", opacity: 0.25 },
+        { input: pale, blend: "soft-light", opacity: 0.55 },
+        { input: await grainOverlay(4003, 0.2), blend: "overlay" }
+      ]);
+      return img;
+    }
   },
   "hero-05": {
-    label: "Large Family — very low contrast + dust + uneven fading + yellowing",
-    fn: (img) => img.modulate({ saturation: 0.5, brightness: 0.98 }).linear(0.62, 46).tint({ r: 226, g: 206, b: 160 })
-       .composite([
-         { input: svgOverlay(1600, 1600, dustSpeckles({ rng: makeRng(505), count: 900, maxR: 8, opacity: 0.4 })), blend: "over" },
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(506), count: 10, maxR: 420, opacity: 0.14, color: "#d8c69a" })), blend: "multiply" }
-       ])
+    label: "Large family â€” very low contrast, dust, uneven exposure, creases, age spots",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.99, saturation: 0.5 }).linear(0.6, 52).tint({ r: 226, g: 206, b: 164 });
+      const mottle = await mottleBuffer(5001, 195, 140);
+      const grain = await grainOverlay(5002, 0.34);
+      img = img.composite([
+        { input: mottle, blend: "multiply", opacity: 0.2 },
+        { input: grain, blend: "overlay" },
+        { input: grain, blend: "soft-light", opacity: 0.4 }
+      ]);
+      return img;
+    }
   },
   "hero-06": {
-    label: "Army Officer — black & white + strong scratches + cracked emulsion",
-    fn: (img) => img.greyscale().modulate({ brightness: 0.92 })
-       .composite([
-         { input: svgOverlay(1600, 1600, scratchLines({ rng: makeRng(606), count: 70, maxLen: 520, opacity: 0.38, color: "#d9d2c4" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, scratchLines({ rng: makeRng(607), count: 30, maxLen: 300, opacity: 0.34, color: "#241d14" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, crackLines({ rng: makeRng(608), count: 40, opacity: 0.6 })), blend: "over" }
-       ])
+    label: "Army â€” B&W, strong vertical/horizontal scratches, cracked emulsion, faded detail",
+    async fn(img) {
+      img = img.greyscale().modulate({ brightness: 0.9 });
+      img = img.composite([
+        { input: Buffer.from(scratchOverlay(6001, 60, "#d6cfc0", 520, 0.5)), blend: "over" },
+        { input: Buffer.from(scratchOverlay(6002, 18, "#2c2418", 260, 0.4)), blend: "over" },
+        { input: await grainOverlay(6003, 0.3), blend: "overlay" }
+      ]);
+      return img;
+    }
   },
   "hero-07": {
-    label: "Village Family — heavy torn edges + dust + faded sepia + missing corner",
-    fn: (img) => img.modulate({ saturation: 0.38, brightness: 0.95 }).tint({ r: 208, g: 180, b: 138 }).linear(0.84, 26)
-       .composite([
-         { input: svgOverlay(1600, 1600, tornEdge({ rng: makeRng(707), edges: ["top", "left"] })), blend: "over" },
-         { input: svgOverlay(1600, 1600, missingCorner({ rng: makeRng(708), corner: "tl" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, dustSpeckles({ rng: makeRng(709), count: 600, maxR: 6, opacity: 0.34 })), blend: "over" }
-       ])
+    label: "Village â€” badly torn paper edge, missing corner, dirt/dust, faded sepia",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.97, saturation: 0.4 }).linear(0.85, 30).tint({ r: 205, g: 176, b: 134 });
+      img = img.composite([
+        { input: Buffer.from(tornMask(7001, ["top", "left"])), blend: "over" },
+        { input: Buffer.from(missingCornerMask(7002, "tl")), blend: "over" },
+        { input: await grainOverlay(7003, 0.3), blend: "overlay" }
+      ]);
+      return img;
+    }
   },
   "hero-08": {
-    label: "Old City/Bazaar — aged B&W + grain + scratches + dark exposure",
-    fn: (img) => img.greyscale().modulate({ brightness: 0.72 }).linear(0.9, 8)
-       .composite([
-         { input: svgOverlay(1600, 1600, dustSpeckles({ rng: makeRng(808), count: 1600, maxR: 6, opacity: 0.16 })), blend: "over" },
-         { input: svgOverlay(1600, 1600, scratchLines({ rng: makeRng(809), count: 50, maxLen: 460, opacity: 0.32, color: "#cfc6b4" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(810), count: 10, maxR: 200, opacity: 0.18, color: "#6f6255" })), blend: "multiply" }
-       ])
+    label: "City/Bazaar â€” old B&W, heavy grain, dark exposure, scratches, faded background",
+    async fn(img) {
+      img = img.greyscale().modulate({ brightness: 0.72 }).linear(0.92, 6);
+      const grain = await grainOverlay(8001, 0.4);
+      img = img.composite([
+        { input: grain, blend: "overlay" },
+        { input: grain, blend: "soft-light", opacity: 0.5 },
+        { input: Buffer.from(scratchOverlay(8002, 26, "#c9bfa9", 400, 0.4)), blend: "over" }
+      ]);
+      return img;
+    }
   },
   "hero-09": {
-    label: "Migration/Railway — severe aging + multiple tears + stains + faded details",
-    fn: (img) => img.modulate({ saturation: 0.5, brightness: 0.9 }).tint({ r: 205, g: 185, b: 150 }).linear(0.8, 34)
-       .composite([
-         { input: svgOverlay(1600, 1600, scratchLines({ rng: makeRng(909), count: 60, maxLen: 700, opacity: 0.28, color: "#d9d0bd" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, tornEdge({ rng: makeRng(910), edges: ["right"] })), blend: "over" },
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(911), count: 16, maxR: 300, opacity: 0.24, color: "#7a6b4a" })), blend: "multiply" }
-       ])
+    label: "Migration/Railway â€” most severe: multiple tears, folds, stains, missing emulsion, faded faces",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.92, saturation: 0.45 }).linear(0.8, 36).tint({ r: 208, g: 186, b: 150 });
+      const mottle = await mottleBuffer(9001, 205, 130);
+      img = img.composite([
+        { input: Buffer.from(scratchOverlay(9002, 70, "#c6baa0", 640, 0.5)), blend: "over" },
+        { input: mottle, blend: "multiply", opacity: 0.26 },
+        { input: await grainOverlay(9003, 0.3), blend: "overlay" }
+      ]);
+      return img;
+    }
   },
   "hero-10": {
-    label: "Loved One Memorial — dim portrait + damaged emulsion + scratches + partial fading",
-    fn: (img) => img.modulate({ saturation: 0.55, brightness: 0.7 }).linear(0.94, 14)
-       .composite([
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(1001), count: 18, maxR: 300, opacity: 0.2, color: "#8a8272" })), blend: "multiply" },
-         { input: svgOverlay(1600, 1600, scratchLines({ rng: makeRng(1002), count: 44, maxLen: 360, opacity: 0.3, color: "#e0d8c8" })), blend: "over" },
-         { input: svgOverlay(1600, 1600, stainBlobs({ rng: makeRng(1003), count: 8, maxR: 420, opacity: 0.22, color: "#b6ab93" })), blend: "soft-light" }
-       ])
+    label: "Memorial â€” dim portrait, partial fading, scratches, silvering/emulsion deterioration",
+    async fn(img) {
+      img = img.modulate({ brightness: 0.72, saturation: 0.5 });
+      const sheen = await mottleBuffer(10001, 225, 70);
+      img = img.composite([
+        { input: sheen, blend: "soft-light", opacity: 0.6 },
+        { input: await grainOverlay(10002, 0.24), blend: "overlay" },
+        { input: Buffer.from(scratchOverlay(10003, 30, "#e0d8c6", 300, 0.35)), blend: "over" }
+      ]);
+      return img;
+    }
   }
 };
 
-// --- Run -------------------------------------------------------------------
-
-const HEROES = Object.keys(RECIPES);
-
 async function main() {
-  if (!fs.existsSync(HERO_DIR)) {
-    throw new Error(`Hero dir not found: ${HERO_DIR}`);
-  }
-  for (const id of HEROES) {
-    const files = fs.readdirSync(HERO_DIR);
-    const nowFile = files.find((f) => f.indexOf(`${id}-`) === 0 && f.endsWith("-now.jpg"));
-    if (!nowFile) {
-      console.warn(`SKIP ${id}: no -now.jpg`);
-      continue;
-    }
+  if (!fs.existsSync(HERO_DIR)) throw new Error(`Hero dir not found: ${HERO_DIR}`);
+  const all = fs.readdirSync(HERO_DIR);
+  for (const id of Object.keys(RECIPES)) {
+    const nowFile = all.find((f) => f.indexOf(`${id}-`) === 0 && f.endsWith("-now.jpg"));
+    if (!nowFile) { console.warn(`SKIP ${id}: no -now.jpg`); continue; }
     const thenFile = nowFile.replace("-now.jpg", "-then.jpg");
     const input = path.join(HERO_DIR, nowFile);
     const output = path.join(HERO_DIR, thenFile);
-
     const start = Date.now();
-    const rec = RECIPES[id];
     let pipeline = sharp(input);
-    pipeline = rec.fn(pipeline);
-    await pipeline.jpeg({ quality: 88, mozjpeg: true }).toFile(output);
-    const bytes = fs.statSync(output).size;
-    console.log(`${rec.label}: wrote ${thenFile} (${(bytes / 1024).toFixed(0)} KB, ${Date.now() - start}ms)`);
+    pipeline = await RECIPES[id].fn(pipeline);
+    await pipeline.jpeg({ quality: 86, mozjpeg: true }).toFile(output);
+    const kb = (fs.statSync(output).size / 1024).toFixed(0);
+    console.log(`${RECIPES[id].label}: wrote ${thenFile} (${kb} KB, ${Date.now() - start}ms)`);
   }
-  console.log("\nDone. 10 Then assets regenerated deterministically from their exact Now sources.");
+  console.log("\nDone. 10 Then assets regenerated with photorealistic distinct damage.");
 }
 
-main().catch((e) => {
-  console.error("GENERATOR ERROR:", e);
-  process.exit(1);
-});
+main().catch((e) => { console.error("GENERATOR ERROR:", e); process.exit(1); });

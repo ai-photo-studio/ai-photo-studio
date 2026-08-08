@@ -2621,15 +2621,24 @@ img {
 .thannow-home .hero-compare-wrap {
   border-radius: var(--thannow-radius, 18px);
   box-shadow: var(--thannow-shadow, none);
-  border: 1px solid #d8cbbd;
+  border: 1px solid #e0d2c2;
   overflow: hidden;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
   background: linear-gradient(145deg, var(--thannow-purple-soft, #f4edfb), var(--thannow-cream, #fbf6ee));
 }
 
+/* R9.3-P10B: exactly ONE comparison frame. Square aspect matches the 1600x1600
+   source so contain never leaves empty space, never crops, and needs no
+   blurred background layer. max-width keeps the desktop hero premium rather
+   than an oversized box; margin auto centers it inside its column. */
 .thannow-home .hero-compare-frame {
   position: relative;
   aspect-ratio: 1 / 1;
   width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
   overflow: hidden;
   cursor: ew-resize;
   touch-action: none;
@@ -2644,19 +2653,8 @@ img {
   display: block;
 }
 
-/* Blurred/darkened full-bleed background copy of the SAME image so the frame
-   reads as full-bleed without cropping or stretching the sharp image. */
-.thannow-home .hero-bg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  filter: blur(26px) brightness(0.7) saturate(1.1);
-  transform: scale(1.12);
-}
-
-/* R9.3-P10: never crop the photograph. contain + center keeps the entire image
-   visible and pixel-aligned between Then and Now. */
+/* R9.3-P10B: never crop or ghost the photograph. Exactly one sharp Then layer
+   and one sharp Now layer, both contain + center, identical geometry. */
 .thannow-home .hero-layer-then,
 .thannow-home .hero-layer-now .hero-layer-img {
   width: 100%;
@@ -2682,35 +2680,49 @@ img {
   bottom: 0;
   width: 2px;
   transform: translateX(-1px);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   z-index: 2;
 }
 
+/* Horizontal LEFT/RIGHT arrow handle (not a vertical triangle). */
 .thannow-home .hero-handle {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+  width: 40px;
+  height: 30px;
+  border-radius: 999px;
   background: var(--thannow-purple, #5b1aa8);
-  border: 3px solid #fff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
-  display: grid;
-  place-items: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
+.thannow-home .hero-handle::before,
 .thannow-home .hero-handle::after {
   content: "";
+  display: block;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 8px solid #fff;
-  display: block;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+
+/* left "‹" */
+.thannow-home .hero-handle::before {
+  border-right: 9px solid #fff;
+}
+
+/* right "›" */
+.thannow-home .hero-handle::after {
+  border-left: 9px solid #fff;
 }
 
 .thannow-home .hero-compare-frame.is-dragging .hero-divider {
@@ -2719,6 +2731,33 @@ img {
 
 .thannow-home .hero-compare-frame:not(.is-dragging) .hero-divider {
   transition: left 0.28s ease-out;
+}
+
+/* Then/Now UI labels (styled, never baked into assets), pinned to the outer
+   edges at the vertical centre so they never sit over the opposite side. */
+.thannow-home .hero-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(25, 16, 31, 0.68);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+}
+
+.thannow-home .hero-label-then {
+  left: 12px;
+}
+
+.thannow-home .hero-label-now {
+  right: 12px;
 }
 
 /* Clean caption strip BELOW the photo so it never covers faces. */
@@ -2732,6 +2771,10 @@ img {
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 
 .thannow-home .hero-media img {
@@ -2742,9 +2785,9 @@ img {
 /* Upload CTA sits BELOW the whole comparison (outside the photo area) so it
    never overlaps image content. */
 .thannow-home .hero-upload {
-  display: inline-block;
+  display: block;
   position: relative;
-  margin-top: 14px;
+  margin: 14px auto 0;
   border: 0;
   border-radius: 999px;
   background: rgba(91, 26, 168, 0.94);
