@@ -3250,3 +3250,36 @@ No live Bank Alfalah request, APG activation, production deployment, or
 payment success simulation was made anywhere in this packet. RunPod
 remains blocked and unauthorized. Replicate remains the approved
 restoration path. No deployment, no merge of this packet's own PR.
+
+### R9.5-P3 production frontend release (2026-08-08)
+
+- Owner-authorized source branch `feat/r9.5-product-ready-integration` was
+  pushed at source SHA `1560c9e8783e32ecf5aaaf8405a4a33842568e32`, containing
+  the verified P2A checkpoint `c22f9ebd758340239d570cd7343e4b15f33ddb86` and
+  P2B commit `1560c9e8783e32ecf5aaaf8405a4a33842568e32`.
+- Release gates passed before deployment: lint (0 errors, 90 existing
+  warnings), typecheck, build, Prisma validate/generate, Git diff checks,
+  Hero V2 `18/18`, full browser `87/87`, and responsive `87/87` across
+  1440/1280/1024/768/430/390/360 coverage.
+- Only the Cloudflare Pages frontend was deployed. Project:
+  `ai-photo-studio-frontend`; production deployment ID
+  `19852141-bd78-488e-9170-9c8ffb60baa1`; deployment URL
+  `https://19852141.ai-photo-studio-frontend.pages.dev`; associated source
+  SHA `1560c9e8783e32ecf5aaaf8405a4a33842568e32`. Production domains remain
+  `thannow.com` and `www.thannow.com`. No API/backend deployment occurred.
+- Non-billable live smoke passed on `https://www.thannow.com`: home, login,
+  signup, pricing, restore upload, protected-route redirect, and print route
+  loaded; Hero V2 Then/Now assets returned valid matched dimensions with
+  cache-busted checks; no console/page/request failures were observed; no
+  horizontal overflow occurred at 1440 or 390; Print performed GET-only
+  access and remained truthful.
+- The immediately previous known-good production deployment is
+  `50ea593f-8ecc-44c7-83ab-ea1cbd7e0a8d` (source `646f27b`). Rollback is
+  owner-operated through Cloudflare Pages deployment history/dashboard by
+  restoring that production deployment, or by redeploying its exact known-good
+  build. No rollback was executed.
+- Protected Scope remains unchanged: no P3A/P4A/P4B, Replicate, RunPod,
+  Bank Alfalah, payment, schema, migration, production database, secret, or
+  API deployment change. `PAYMENT_EXTERNAL_BLOCKER` remains open and
+  `PRINT_CHECKOUT_PENDING` remains truthful until authoritative print
+  checkout/catalog capability exists.
