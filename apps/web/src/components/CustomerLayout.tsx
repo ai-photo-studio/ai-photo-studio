@@ -5,12 +5,12 @@ export function CustomerLayout() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="site-shell customer-shell">
+    <div className="site-shell customer-shell customer-page">
       <header className="site-header customer-header">
         <Link to="/" className="brand">
-          <span className="brand-mark">AI</span>
+          <span className="brand-mark">TN</span>
           <span>
-            <strong>Photo Studio</strong>
+            <strong>ThanNow</strong>
             <small>Customer workspace</small>
           </span>
         </Link>

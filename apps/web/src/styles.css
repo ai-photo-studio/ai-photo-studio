@@ -2561,3 +2561,191 @@ img {
     width: 100%;
   }
 }
+
+/* ---- ThanNow shared customer system ---- */
+.customer-page {
+  --bg: #fbf6ee;
+  --surface: #fffdf9;
+  --surface-soft: #f5edf9;
+  --text: #18131d;
+  --muted: #6f6776;
+  --accent: #5b1aa8;
+  --accent-strong: #3f126f;
+  --line: #e6d8c8;
+  --danger: #a83b46;
+  --radius: 16px;
+  background:
+    radial-gradient(circle at 8% 4%, rgba(222, 199, 240, 0.38), transparent 24%),
+    radial-gradient(circle at 94% 10%, rgba(242, 220, 192, 0.34), transparent 25%),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.customer-page .site-header,
+.customer-page .site-footer,
+.customer-page .site-main {
+  width: min(1180px, calc(100% - 36px));
+}
+
+.customer-page .site-header {
+  border-bottom-color: var(--line);
+  background: rgba(255, 253, 249, 0.94);
+}
+
+.customer-page .brand-mark {
+  border-radius: 12px;
+  background: var(--thannow-purple);
+  box-shadow: 0 8px 18px rgba(91, 26, 168, 0.2);
+}
+
+.customer-page .brand strong,
+.customer-page h1,
+.customer-page h2,
+.customer-page h3 {
+  color: var(--thannow-ink);
+}
+
+.customer-page h1,
+.customer-page h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: -0.02em;
+}
+
+.customer-page .nav-link:hover,
+.customer-page .nav-link.active,
+.customer-page .text-link,
+.customer-page .eyebrow,
+.customer-page .price,
+.customer-page .tier-price,
+.customer-page .print-price {
+  color: var(--thannow-purple-strong);
+}
+
+.customer-page .button {
+  border-color: var(--thannow-purple);
+  background: var(--thannow-purple);
+  box-shadow: 0 8px 18px rgba(91, 26, 168, 0.12);
+}
+
+.customer-page .button:hover {
+  border-color: var(--thannow-purple-strong);
+  background: var(--thannow-purple-strong);
+}
+
+.customer-page .button-secondary,
+.customer-page .button-ghost {
+  border-color: var(--thannow-line);
+  background: rgba(255, 253, 249, 0.9);
+  color: var(--thannow-purple-strong);
+  box-shadow: none;
+}
+
+.customer-page .button-secondary:hover,
+.customer-page .button-ghost:hover {
+  border-color: #cdb4e2;
+  background: var(--thannow-purple-soft);
+  color: var(--thannow-purple-strong);
+}
+
+.customer-page .card,
+.customer-page .pricing-card,
+.customer-page .metric-card,
+.customer-page .state-panel,
+.customer-page .faq-card,
+.customer-page .upload-card,
+.customer-page .payment-card,
+.customer-page .export-card {
+  border-color: var(--thannow-line);
+  border-radius: var(--thannow-radius);
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: 0 12px 32px rgba(64, 43, 25, 0.05);
+}
+
+.customer-page .pricing-card-highlight,
+.customer-page .card-selected {
+  border-color: #a77ccc;
+  box-shadow: 0 0 0 2px rgba(91, 26, 168, 0.14), 0 16px 36px rgba(64, 43, 25, 0.08);
+}
+
+.customer-page .field input,
+.customer-page .field select,
+.customer-page .field textarea,
+.customer-page input,
+.customer-page select,
+.customer-page textarea {
+  border-color: var(--thannow-line);
+  border-radius: 12px;
+  background: #fffdf9;
+  color: var(--thannow-ink);
+}
+
+.customer-page .field input:focus,
+.customer-page .field select:focus,
+.customer-page .field textarea:focus,
+.customer-page input:focus,
+.customer-page select:focus,
+.customer-page textarea:focus {
+  border-color: #a77ccc;
+  outline: 3px solid rgba(91, 26, 168, 0.14);
+}
+
+.customer-page .form-success,
+.customer-page .status-pill.ready {
+  background: #f0e8f8;
+  color: var(--thannow-purple-strong);
+}
+
+.customer-page .form-error-panel,
+.customer-page .state-panel-error {
+  border-color: #e6bfc4;
+  background: #fff3f2;
+}
+
+.customer-page .status-pill,
+.customer-page .pill,
+.customer-page .market-badge {
+  border-color: var(--thannow-line);
+  background: #fffdf9;
+}
+
+.customer-page .site-footer {
+  border-top-color: var(--thannow-line);
+}
+
+.customer-page .auth-shell {
+  padding-top: 42px;
+}
+
+.customer-page .auth-hero {
+  background: linear-gradient(145deg, #f4edfb, #fffdf9);
+}
+
+.customer-page .account-banner {
+  border-bottom: 1px solid var(--thannow-line);
+  padding-bottom: 22px;
+}
+
+.customer-page .upload-zone,
+.customer-page .single-preview-stage,
+.customer-page .preview-frame,
+.customer-page .waiting-compare {
+  border-color: var(--thannow-line);
+  background-color: #fffdf9;
+}
+
+.customer-page .restore-progress-track {
+  background: #eadfee;
+}
+
+.customer-page .restore-progress-bar {
+  background: var(--thannow-purple);
+}
+
+@media (max-width: 560px) {
+  .customer-page .site-header,
+  .customer-page .site-footer,
+  .customer-page .site-main {
+    width: min(100% - 20px, 1180px);
+  }
+}

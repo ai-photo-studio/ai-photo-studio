@@ -2,13 +2,13 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 export function PublicLayout() {
   return (
-    <div className="site-shell">
+    <div className="site-shell customer-page">
       <header className="site-header">
         <Link to="/" className="brand">
-          <span className="brand-mark">AI</span>
+          <span className="brand-mark">TN</span>
           <span>
-            <strong>Photo Studio</strong>
-            <small>AI product photography</small>
+            <strong>ThanNow</strong>
+            <small>Restore what matters</small>
           </span>
         </Link>
         <nav className="site-nav">
@@ -42,7 +42,7 @@ export function PublicLayout() {
         <Outlet />
       </main>
       <footer className="site-footer">
-        <p>&copy; 2026 AI Product Photo Studio. Pakistan-ready ecommerce visuals in PKR.</p>
+        <p>&copy; 2026 ThanNow. Restore, preserve and print what matters.</p>
       </footer>
     </div>
   );
