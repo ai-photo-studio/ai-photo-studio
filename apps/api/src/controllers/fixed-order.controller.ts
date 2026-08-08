@@ -24,8 +24,9 @@ export class FixedOrderController {
     try {
       const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : "";
       const tier = typeof req.body?.tier === "string" ? req.body.tier : "";
+      const product = req.body?.product === "PRINT_DIGITAL" ? "PRINT_DIGITAL" : "DIGITAL";
       const data = await this.fixedOrders.createRestorationDigitalOrder(
-        { draftId, tier },
+        { draftId, tier, product, printSize: req.body?.printSize, quantity: req.body?.quantity },
         actorFromRequest(req)
       );
       res.status(201).json({ success: true, data });
@@ -33,6 +34,8 @@ export class FixedOrderController {
       this.handleError(res, error);
     }
   };
+
+  getPrintCatalog = (_req: Request, res: Response): void => { res.json({ success: true, data: this.fixedOrders.getPrintCatalog() }); };
 
   /** GET /api/fixed-orders/:orderNo -- read-only. */
   getByOrderNo = async (req: Request, res: Response): Promise<void> => {

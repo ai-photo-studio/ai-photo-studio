@@ -31,6 +31,7 @@ export const createRestorationRouter = (config: AppConfig): Router => {
     rateLimit(60_000, 20),
     fixedOrderController.createRestorationDigitalOrder
   );
+  router.get("/print-catalog", rateLimit(60_000, 60), fixedOrderController.getPrintCatalog);
   router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
   // R9.2-MPGS-ACTUAL-APP-E2E: these were previously mounted at
   // /orders/:orderNo/checkout and /orders/:orderNo/payment-status, which

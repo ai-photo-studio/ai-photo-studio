@@ -1,88 +1,53 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { usePackages } from "../lib/packages";
+import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
 
-const toFeatureList = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item));
-  }
-  return [];
-};
+type PrintItem = Awaited<ReturnType<typeof customerApi.getPrintCatalog>>[number];
+type MemoryPackage = { code: string; name: string; priceMinor: number; currency: "PKR"; includes: string[]; checkoutReady: boolean; blocker?: string };
+
+const money = (minor: number, currency: string) => `${currency} ${(minor / 100).toFixed(2)}`;
 
 export function PricingPage() {
-  const { packages, loading, error } = usePackages();
+  const [offers, setOffers] = useState<DigitalOfferSummary[]>([]);
+  const [prints, setPrints] = useState<PrintItem[]>([]);
+  const [packages, setPackages] = useState<MemoryPackage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([
+      fetch("/api/digital-catalog?market=PAKISTAN").then((r) => r.ok ? r.json() : Promise.reject(new Error("Restoration pricing unavailable"))),
+      fetch("/api/memory-packages").then((r) => r.ok ? r.json() : Promise.reject(new Error("Memory packages unavailable")))
+    ]).then(([offerPayload, packagePayload]) => {
+      if (!alive) return;
+      setOffers(Array.isArray(offerPayload?.data?.offers) ? offerPayload.data.offers : []);
+      setPrints(Array.isArray(offerPayload?.data?.printCatalog) ? offerPayload.data.printCatalog : []);
+      setPackages(Array.isArray(packagePayload?.data) ? packagePayload.data : []);
+    }).catch((reason: unknown) => { if (alive) setError(reason instanceof Error ? reason.message : "Pricing unavailable"); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   return (
     <section className="page-stack">
-      <div className="section-heading">
-        <p className="eyebrow">Pricing</p>
-        <h1>Simple, transparent pricing for teams of all sizes.</h1>
-        <p className="section-lead">
-          Credits power all features. Use them for background removal, flat lays, virtual models, and more.
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="state-panel">
-          <p>Loading packages...</p>
+      <div className="section-heading"><p className="eyebrow">ThanNow Pricing</p><h1>Restore, preserve and print what matters.</h1><p>Every amount is returned by the server catalog. No browser-computed prices.</p></div>
+      {loading && <div className="state-panel"><p>Loading current pricing...</p></div>}
+      {error && <div className="state-panel state-panel-error"><p>{error}</p></div>}
+      {!loading && !error && <>
+        <h2>Restore &amp; Download</h2>
+        <div className="pricing-grid">
+          {offers.map((offer) => <article className="pricing-card" key={offer.tier}><p className="eyebrow">{offer.tier}</p><h3>{offer.label}</h3><p className="price">{money(offer.amountMinor, offer.currency)}</p><p>{offer.description}</p><small>{offer.priceBookVersion}</small><Link className="button button-secondary button-block" to="/restore-mvp/new">Choose this quality</Link></article>)}
         </div>
-      ) : error ? (
-        <div className="state-panel state-panel-error">
-          <p>{error}</p>
+        <h2>Print + Digital</h2>
+        <div className="pricing-grid">
+          {prints.map((print) => <article className="pricing-card" key={print.size}><h3>{print.size}</h3><p className="price">{money(print.unitAmountMinor, print.currency)} each</p><p>Minimum quantity: {print.minimumQuantity}</p><p>Delivery: {money(print.deliveryAmountMinor, print.currency)} per shipment</p><small>{print.catalogVersion}</small></article>)}
         </div>
-      ) : (
-        <div className="pricing-grid pricing-grid-wide">
-          {packages.map((pkg, index) => {
-            const features = toFeatureList(pkg.includesJson);
-            return (
-              <article key={pkg.id} className={`pricing-card pricing-card-featured${index === Math.floor(packages.length / 2) ? " pricing-card-highlight" : ""}`}>
-                <div className="pricing-card-top">
-                  <p className="eyebrow">{pkg.code}</p>
-                  <h2>{pkg.name}</h2>
-                </div>
-                <p className="price">
-                  {pkg.currency} {pkg.price}
-                </p>
-                <p>{pkg.description || "A credit bundle for ecommerce product photography."}</p>
-                <ul className="feature-list">
-                  <li>{pkg.creditsIncluded} included credits</li>
-                  <li>Background removal and white background today</li>
-                  <li>More studio styles: flat lay, lifestyle, model, video</li>
-                  {features.slice(0, 3).map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-                <div className="button-row">
-                  <Link to="/signup" className="button button-secondary button-block">
-                    Get started
-                  </Link>
-                  <Link to="/login" className="button button-ghost button-block">
-                    Buy now
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
+        <h2>Memory Packages</h2>
+        <div className="pricing-grid">
+          {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <Link className="button button-secondary button-block" to="/restore-mvp/new">Start package</Link> : <div className="state-panel"><p>{pkg.blocker || "Package fulfilment details required"}</p></div>}</article>)}
         </div>
-      )}
-
-      <div className="section-heading">
-        <h2>FAQ about pricing</h2>
-      </div>
-
-      <div className="faq-grid">
-        <details className="faq-card">
-          <summary>How do credits work?</summary>
-          <p>Each credit processes one product photo. Credits never expire and can be used for any feature.</p>
-        </details>
-        <details className="faq-card">
-          <summary>Do you offer discounts for bulk purchases?</summary>
-          <p>Yes, we offer volume discounts for teams and enterprises. Contact us for custom pricing.</p>
-        </details>
-        <details className="faq-card">
-          <summary>Can I upgrade or downgrade anytime?</summary>
-          <p>You can purchase additional credits at any time. Your existing credits remain available.</p>
-        </details>
-      </div>
+      </>}
     </section>
   );
 }

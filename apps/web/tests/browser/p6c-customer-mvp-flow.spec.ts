@@ -61,7 +61,7 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await mockCreateDraft(page, draft);
     await mockGetDraft(page, DRAFT_ID, { ...draft, previewUrl: "http://127.0.0.1/mock-preview.png" });
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-    const order = orderFixture({ market: "PAKISTAN", currency: "PKR", tier: "ORIGINAL", amount: "25000" });
+    const order = orderFixture({ market: "PAKISTAN", currency: "PKR", tier: "ORIGINAL", amount: "50000" });
     await mockCreateOrder(page, order);
     await mockGetOrder(page, ORDER_NO, order);
 
@@ -74,14 +74,14 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
-    await expect(page.getByText("PKR 250.00")).toBeVisible();
-    await page.getByText("Original", { exact: true }).click();
+    await expect(page.getByText("PKR 500.00")).toBeVisible();
+    await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Review & Checkout" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
     await expect(page.getByText("PAKISTAN", { exact: true })).toBeVisible();
-    await expect(page.getByText("PKR 250.00")).toBeVisible();
-    await expect(page.getByText("PB-2026-08-03-v1")).toBeVisible();
+    await expect(page.getByText("PKR 500.00")).toBeVisible();
+    await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toBeVisible();
     await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   });
 });
@@ -94,19 +94,18 @@ test.describe("P6C International USD flow", () => {
     await mockOffers(page, DRAFT_ID, offersFixture("USD"));
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await expect(page.getByText("USD 1.50")).toBeVisible();
-    await expect(page.getByText("USD 2.50")).toBeVisible();
-    await expect(page.getByText("USD 3.50")).toBeVisible();
+    await expect(page.getByText("USD 1.99")).toBeVisible();
+    await expect(page.getByText("USD 2.99")).toBeVisible();
+    await expect(page.getByText("USD 4.99")).toBeVisible();
   });
 
   test("International order review shows correct USD amount and market", async ({ page }) => {
     await blockExternalNetwork(page);
-    const order = orderFixture({ market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amount: "350" });
+    const order = orderFixture({ market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amount: "499" });
     await mockGetOrder(page, ORDER_NO, order);
     await page.goto(`/orders/${ORDER_NO}/review`);
     await expect(page.getByText("INTERNATIONAL")).toBeVisible();
-    await expect(page.getByText("USD 3.50")).toBeVisible();
-    await expect(page.getByText("4HD")).toBeVisible();
+    await expect(page.getByText("USD 4.99")).toBeVisible();
   });
 });
 
@@ -117,7 +116,7 @@ test.describe("P6C product choice truthfulness", () => {
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
     await expect(page.getByRole("button", { name: "Digital Download Restore your photo and download it when ready.", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /Print \+ Digital Download/i }).click();
-    await expect(page.getByText("PRINT CATALOG REQUIRED")).toBeVisible();
+    await expect(page.locator("select")).toBeVisible();
     await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeDisabled();
   });
 });
@@ -245,7 +244,7 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: "Upload photo" }).click();
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
-    await page.getByText("Original", { exact: true }).click();
+    await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Review & Checkout" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
 

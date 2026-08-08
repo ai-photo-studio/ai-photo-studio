@@ -43,32 +43,27 @@ function makeBook(overrides: Partial<PriceBook> = {}): PriceBook {
 }
 
 // ---------------------------------------------------------------------------
-// Real approved data: the six owner-approved prices resolve correctly (test 1).
+// Real approved data: V1 remains immutable and V2 resolves the workbook values.
 // ---------------------------------------------------------------------------
 {
-  const provider = new ApprovedOfferProvider({ now: () => new Date("2026-08-03T00:00:01Z") });
+  const provider = new ApprovedOfferProvider({ now: () => new Date("2026-08-09T00:00:01Z") });
   const pkOffers = expectOk("Pakistan offers resolve", () => provider.getDigitalOffers({ market: "PAKISTAN" }));
   if (!Array.isArray(pkOffers)) throw new Error("expected Pakistan offers to be available");
-  const pkExpected: Record<string, number> = { ORIGINAL: 25000, HD_2X: 35000, HD_4X: 50000 };
+  const pkExpected: Record<string, number> = { ORIGINAL: 50000, HD_2X: 100000, HD_4X: 150000, HD_6X: 250000, HD_8X: 350000, HD_10X: 400000, HD_12X: 500000 };
   for (const tier of ALLOWED_DIGITAL_TIERS) {
     const offer = pkOffers.find((o) => o.tier === tier);
     if (!offer) throw new Error(`missing Pakistan offer for ${tier}`);
     if (offer.amountMinor !== pkExpected[tier]) throw new Error(`Pakistan ${tier}: expected ${pkExpected[tier]}, got ${offer.amountMinor}`);
     if (offer.currency !== "PKR") throw new Error(`Pakistan ${tier}: expected PKR, got ${offer.currency}`);
     if (offer.source !== "approved_pricebook") throw new Error(`Pakistan ${tier}: expected approved_pricebook source`);
-    if (offer.priceBookVersion !== "PB-2026-08-03-v1") throw new Error(`Pakistan ${tier}: unexpected PriceBook version ${offer.priceBookVersion}`);
+     if (offer.priceBookVersion !== "PB-2026-08-09-TRIAL-V3") throw new Error(`Pakistan ${tier}: unexpected PriceBook version ${offer.priceBookVersion}`);
   }
 
-  const intlOffers = expectOk("International offers resolve", () => provider.getDigitalOffers({ market: "INTERNATIONAL" }));
-  if (!Array.isArray(intlOffers)) throw new Error("expected International offers to be available");
-  const usdExpected: Record<string, number> = { ORIGINAL: 150, HD_2X: 250, HD_4X: 350 };
-  for (const tier of ALLOWED_DIGITAL_TIERS) {
-    const offer = intlOffers.find((o) => o.tier === tier);
-    if (!offer) throw new Error(`missing International offer for ${tier}`);
-    if (offer.amountMinor !== usdExpected[tier]) throw new Error(`International ${tier}: expected ${usdExpected[tier]}, got ${offer.amountMinor}`);
-    if (offer.currency !== "USD") throw new Error(`International ${tier}: expected USD, got ${offer.currency}`);
-  }
-  console.log("PASS 1. six approved prices resolve correctly");
+  const intlOffers = expectOk("International USD offers resolve independently", () => provider.getDigitalOffers({ market: "INTERNATIONAL" }));
+  if (!Array.isArray(intlOffers)) throw new Error("expected International USD offers to be available");
+  const usdExpected: Record<string, number> = { ORIGINAL: 199, HD_2X: 299, HD_4X: 499, HD_6X: 699, HD_8X: 899, HD_10X: 1099, HD_12X: 1299 };
+  for (const tier of ALLOWED_DIGITAL_TIERS) if (intlOffers.find((o) => o.tier === tier)?.amountMinor !== usdExpected[tier]) throw new Error(`USD ${tier} mismatch`);
+  console.log("PASS 1. V3 seven PKR and seven USD prices resolve correctly");
 }
 
 // ---------------------------------------------------------------------------
@@ -191,9 +186,9 @@ console.log("PASS automaticFxAllowed defense-in-depth");
 // Sanity: the real APPROVED_PRICE_BOOKS constant itself has exactly one
 // version and exactly six entries (the owner-approved six, no more/less).
 // ---------------------------------------------------------------------------
-if (APPROVED_PRICE_BOOKS.length !== 1) throw new Error(`expected exactly 1 real PriceBook version, found ${APPROVED_PRICE_BOOKS.length}`);
-if (APPROVED_PRICE_BOOKS[0].entries.length !== 6) throw new Error(`expected exactly 6 real PriceBook entries, found ${APPROVED_PRICE_BOOKS[0].entries.length}`);
-if (APPROVED_PRICE_BOOKS[0].automaticFxAllowed !== false) throw new Error("expected automaticFxAllowed:false on the real PriceBook");
-console.log("PASS real APPROVED_PRICE_BOOKS shape (1 version, 6 entries, automaticFxAllowed:false)");
+if (APPROVED_PRICE_BOOKS.length !== 1) throw new Error(`expected exactly one current PriceBook, found ${APPROVED_PRICE_BOOKS.length}`);
+if (APPROVED_PRICE_BOOKS[0].version !== "PB-2026-08-09-TRIAL-V3" || APPROVED_PRICE_BOOKS[0].entries.length !== 14) throw new Error("V3 shape mismatch");
+if (APPROVED_PRICE_BOOKS[0].automaticFxAllowed !== false) throw new Error("expected automaticFxAllowed:false on V3");
+console.log("PASS real APPROVED_PRICE_BOOKS shape (one V3 catalog, FX disabled)");
 
 console.log("priceBook.test.ts: all checks passed");

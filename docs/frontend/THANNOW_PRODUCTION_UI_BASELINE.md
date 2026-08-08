@@ -92,3 +92,23 @@ generic UI and any older home-page composition remain rejected.
 - P4A candidate screenshots are stored under
   `D:/Temp/kilo/r95-p4a-funnel-candidate/` for human review before any future
   deployment.
+
+## Pre-production commerce reset (2026-08-09)
+
+- Sole current trial PriceBook: `PB-2026-08-09-TRIAL-V3`; PKR and USD values
+  are independently authored and automatic FX is disabled.
+- Current print catalog: `PRINT-CATALOG-2026-08-09-TRIAL-V2`; international
+  print checkout fails closed as `INTERNATIONAL_PRINT_SHIPPING_REQUIRED` until
+  destination rates exist.
+- Print + Digital delivery address is stored in the additive
+  `PrintDeliveryAddress` model. Paid fulfilment remains operationally pending;
+  no shipment or tracking state is fabricated.
+- Memory packages expose PKR and USD trial catalog values. Packages with
+  incomplete fulfilment details remain `checkoutReady=false` with
+  `PACKAGE_FULFILMENT_DETAILS_REQUIRED`.
+- The first real commercial payment will restore immutable historical pricing;
+  this reset is pre-production only and no production database was modified.
+- Evidence: 23-migration disposable PostgreSQL deploy/status proof, PriceBook
+  and print catalog tests, FixedOrder/P4A/P4B/P3A race suites individually,
+  full browser `91/91`, responsive `89/89`, and screenshots under
+  `D:/Temp/kilo/r95-p4b4-commerce-screens/`.

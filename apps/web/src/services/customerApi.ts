@@ -261,7 +261,7 @@ export const customerApi = {
       guestToken
     ),
 
-  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string }, guestToken?: string) =>
+  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string; product?: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } }, guestToken?: string) =>
     apiRequest<FixedOrderSummary>(
       "/api/fixed-orders/restoration-digital",
       { method: "POST", body: JSON.stringify(input) },
@@ -295,7 +295,8 @@ export const customerApi = {
       currency: "PKR" | "USD";
       sessionId: string | null;
       successIndicator: string | null;
-    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken)
+    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken),
+  getPrintCatalog: () => apiRequest<Array<{ catalogVersion: string; size: string; unitAmountMinor: number; currency: "PKR" | "USD"; minimumQuantity: number; deliveryAmountMinor: number | null; blocker?: string }>>("/api/print-catalog")
 };
 
 export type RestorationDraftSummary = {
@@ -311,12 +312,15 @@ export type RestorationDraftSummary = {
 };
 
 export type DigitalOfferSummary = {
-  tier: "ORIGINAL" | "HD_2X" | "HD_4X";
+  tier: "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
   label: string;
   amountMinor: number;
   currency: "PKR" | "USD";
   description: string;
   source: "local_fixture" | "approved_pricebook";
+  priceBookVersion?: string;
+  approvalReference?: string;
+  effectiveAt?: string;
 };
 
 export type FixedOrderSummary = {
@@ -325,7 +329,7 @@ export type FixedOrderSummary = {
   status: string;
   market: "PAKISTAN" | "INTERNATIONAL";
   currency: "PKR" | "USD";
-  tier: "ORIGINAL" | "HD_2X" | "HD_4X";
+  tier: "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
   totalAmountMinor: string;
   pricingSource: string;
   pricingApproved: boolean;
@@ -333,4 +337,5 @@ export type FixedOrderSummary = {
   priceBookApprovalReference: string | null;
   priceBookEffectiveAt: string | null;
   createdAt: string;
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
 };

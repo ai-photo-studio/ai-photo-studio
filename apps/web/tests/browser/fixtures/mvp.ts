@@ -34,11 +34,11 @@ export function draftFixture(overrides: Partial<{ market: string; currency: stri
 }
 
 export function offersFixture(currency: "PKR" | "USD") {
-  const amounts = currency === "PKR" ? [25000, 35000, 50000] : [150, 250, 350];
+  const amounts = currency === "PKR" ? [50000, 100000, 150000] : [199, 299, 499];
   return [
-    { tier: "ORIGINAL", label: "Original", amountMinor: amounts[0], currency, description: "Source resolution", source: "approved_pricebook" },
-    { tier: "HD_2X", label: "2HD", amountMinor: amounts[1], currency, description: "2x enhanced", source: "approved_pricebook" },
-    { tier: "HD_4X", label: "4HD", amountMinor: amounts[2], currency, description: "4x enhanced", source: "approved_pricebook" }
+    { tier: "ORIGINAL", label: "Restored Original", amountMinor: amounts[0], currency, description: "Source resolution", source: "approved_pricebook", priceBookVersion: "PB-2026-08-09-TRIAL-V3" },
+    { tier: "HD_2X", label: "2x HD", amountMinor: amounts[1], currency, description: "2x enhanced", source: "approved_pricebook", priceBookVersion: "PB-2026-08-09-TRIAL-V3" },
+    { tier: "HD_4X", label: "4x Ultra HD", amountMinor: amounts[2], currency, description: "4x enhanced", source: "approved_pricebook", priceBookVersion: "PB-2026-08-09-TRIAL-V3" }
   ];
 }
 
@@ -50,12 +50,12 @@ export function orderFixture(overrides: Partial<{ market: string; currency: stri
     market: overrides.market ?? "PAKISTAN",
     currency: overrides.currency ?? "PKR",
     tier: overrides.tier ?? "ORIGINAL",
-    totalAmountMinor: overrides.amount ?? "25000",
+    totalAmountMinor: overrides.amount ?? "50000",
     pricingSource: "approved_pricebook",
     pricingApproved: true,
-    priceBookVersion: "PB-2026-08-03-v1",
+    priceBookVersion: "PB-2026-08-09-TRIAL-V3",
     priceBookApprovalReference: "OWNER-CHAT-2026-08-03-P1C-B-01",
-    priceBookEffectiveAt: "2026-08-03T00:00:00Z",
+    priceBookEffectiveAt: "2026-08-08T00:00:00Z",
     createdAt: new Date().toISOString()
   };
 }
