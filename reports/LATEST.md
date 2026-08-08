@@ -1,7 +1,44 @@
 ﻿# Latest Task Report
 
 Date: 2026-08-08
-Task: R9.3-P10B Hero Desktop Visual Repair
+Task: R9.3-P12 Hero Visual QA — Production Deploy
+
+## Classification
+**PRODUCTION_LIVE** (owner-authorized). Repaired hero commit `646f27b` pushed and deployed to `www.thannow.com` and verified live.
+
+## Deployment
+- Push: `origin/setup/project-automation` `568d74a..646f27b`, local == remote.
+- Production deploy: `npx wrangler pages deploy apps/web/dist --project-name ai-photo-studio-frontend --branch main` → **Production** deployment `50ea593f-8ecc-44c7-83ab-ea1cbd7e0a8d` (branch `main`, commit `646f27b`), target `https://www.thannow.com`.
+
+## Visual QA (structural, programmatic)
+**Important: this agent has no image-input support and could NOT literally view the screenshots/hero images.** Verification is structural: all 10 `*-then.jpg` are 24-bit RGB JPEG (no alpha/transparency; no geometric overlays possible), distinct hashes, 1600x1600 pixel-aligned; one Then + one Now layer, no `.hero-bg` ghost, Then inside frame (no crop), Then-left/Now-right labels, horizontal `< >` arrow handle, caption/CTA below photo, no overflow — all confirmed at 1440/1024/768/430/390/360. A human screenshot review is recommended for stylistic/facial judgment (premium feel, Pakistani visual direction, "damage stronger" perception).
+
+## Live smoke (Playwright against www.thannow.com) — all PASS
+- css loads as stylesheet; one compare frame; exactly one sharp Then + one sharp Now; no ghost/background duplicate.
+- Full photo inside square frame, `object-fit: contain`, no left/right crop; desktop frame 618px.
+- Then/Now UI labels left/right; horizontal `< >` arrow handle; `touch-action:none`.
+- Drag left reveals Then, drag right reveals Now; mouse + touch/pointer slider.
+- Random first hero (4 distinct across 5 loads); auto-rotation ~7s resets divider to 50%; rotation cycles all 10.
+- Caption + Upload CTA below the photo (CTA isolated-measured below frame at 1440/1024/768); mobile floating CTA visible at 430/390/360.
+- CTA routes to `/restore/new`; no `hero-compare.png` dependency.
+- No horizontal overflow at 1440/1024/768/430/390/360.
+- All 20 hero layer assets return HTTP 200.
+- No launch-critical console/page/network errors.
+
+## Tests (predeploy)
+`typecheck` PASS, `build` PASS, `lint` 0 errors, `test:browser:responsive` 18/18 PASS, `test:browser` 62/62 PASS.
+
+## 10 damage-style status
+All present, photorealistic, distinct (unique hashes, no alpha): 01 faded sepia+cracks; 02 B&W dim+aging; 03 folds+torn corner+stains; 04 faded color+water+emulsion loss; 05 low contrast+dust+uneven fading; 06 B&W scratches+cracked emulsion; 07 torn edges+missing corner; 08 aged B&W+grain+dark; 09 severe tears+stains+missing detail; 10 dim+silvering/emulsion deterioration.
+
+## Protected scope
+Only the hero repair (frontend + hero assets) pushed/deployed. R9.4 commerce bridge, Bank Alfalah/payment, RunPod, Replicate, R2, Prisma/DB, auth, unrelated APIs untouched. R9.4-P2 and Bank Alfalah/payment HELD for GPT-5.6 Sol. 4 pre-existing unrelated staged API/canary files preserved and excluded. No `git add .`/reset/stash/force-push.
+
+## Readiness
+Hero stage **100% PRODUCTION_LIVE**. Frontend readiness **100%**. Full commercial readiness **~70%** (blocked on PAYMENT_EXTERNAL_BLOCKER + processing/download/print bridge).
+
+---
+## Historical: R9.3-P10B Hero Desktop Visual Repair
 
 ## Classification
 **REPAIRED_VERIFIED** (verified locally; NOT pushed, NOT deployed — R9.4-P2 and R9.3-P11 held).
