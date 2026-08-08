@@ -61,3 +61,16 @@ generic UI and any older home-page composition remain rejected.
 - Recovery preserved current App route additions and customer-flow pages while
   restoring only the locked presentation shell, homepage composition, style
   system, and locked hero registry/assets.
+
+## Current recovered production implementation
+
+- Owner human visual approval: confirmed before this deployment packet.
+- Recovered source: `4965032ce1305e78261b9702ec77b8ba44f63607`
+- Current production deployment:
+  `72cdd2d7-7334-4f36-80bb-bb6f5a33226c`
+- Current production URL: `https://www.thannow.com`
+- Previous rollback target retained:
+  `44595069-4841-4ea6-bd72-4acd523fd353`
+- Live structural verification passed at 1440, 1024, 430 and 390 widths:
+  locked sections/navigation/CTA, matched Hero pairs, zero overflow, no
+  runtime/request failures, protected-route redirect, and read-only Print.

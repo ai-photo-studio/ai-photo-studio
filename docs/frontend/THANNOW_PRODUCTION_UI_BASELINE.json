@@ -21,6 +21,16 @@
     ],
     "humanVisualApprovalRequired": true
   },
+  "currentRecoveredImplementation": {
+    "ownerVisualApproval": true,
+    "sourceSha": "4965032ce1305e78261b9702ec77b8ba44f63607",
+    "productionDeploymentId": "72cdd2d7-7334-4f36-80bb-bb6f5a33226c",
+    "productionUrl": "https://www.thannow.com",
+    "rollbackDeploymentId": "44595069-4841-4ea6-bd72-4acd523fd353",
+    "liveViewports": [1440, 1024, 430, 390],
+    "liveOverflowPixels": 0,
+    "liveRuntimeOrRequestFailures": 0
+  },
   "protectedFiles": [
     "apps/web/src/pages/HomePage.tsx",
     "apps/web/src/components/PublicLayout.tsx",
