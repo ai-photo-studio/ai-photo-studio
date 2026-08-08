@@ -1,21 +1,34 @@
 import { Link, useNavigate } from "react-router-dom";
+import { HeroCompareSlider } from "../components/HeroCompareSlider";
 
+// ThanNow human-memory homepage (Premium Hero V2).
+// The comparison hero is a rotating, customer-draggable Then/Now slider over
+// the approved 10 Premium Hero V2 concepts. Upload CTAs route to the existing
+// restoration flow (/restore/new); no pricing/processing is fabricated here.
 export function HomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="home-page">
+    <div className="thannow-home">
       <section className="hero-section premium-home-hero">
         <div className="hero-copy">
           <p className="eyebrow">Then and Now Photo Studio</p>
-          <h1>Restore old memories. Create clean product photos.</h1>
+          <h1>Bring Your Precious Memories Back to Life</h1>
           <p className="section-lead">
-            Two focused tools for treasured family photos and marketplace-ready product images.
+            AI-powered restoration, upscaling and premium printing for the moments that matter most.
           </p>
         </div>
 
-        <div className="home-visual-pair"><div className="home-photo-concept home-photo-aged" aria-label="Old photo concept"><span>Then</span></div><div className="home-photo-concept home-photo-restored" aria-label="Restored photo concept"><span>Now</span></div></div>
-        <div className="button-row"><button type="button" className="button" onClick={() => navigate("/restore/new")}>Restore Photo</button><Link to="/background-removal" className="button button-secondary">Remove Background</Link></div>
+        <div className="hero-media">
+          <HeroCompareSlider />
+          <Link className="hero-upload" to="/restore/new">Upload Photo</Link>
+        </div>
+
+        <div className="button-row">
+          <Link className="button" to="/restore/new">Upload Photo and View Pricing</Link>
+          <button type="button" className="button button-secondary" onClick={() => navigate("/restore/new")}>Restore Photo</button>
+          <Link to="/pricing" className="button button-ghost">See Pricing</Link>
+        </div>
       </section>
 
       <section className="home-features">

@@ -2293,3 +2293,271 @@ img {
   text-align: center;
   padding: 3rem 1rem 1rem;
 }
+
+/* ---- Premium Hero V2 (ThanNow purple + cream) ---- */
+:root {
+  --thannow-purple: #5b1aa8;
+  --thannow-purple-strong: #3f126f;
+  --thannow-purple-soft: #f4edfb;
+  --thannow-cream: #fbf6ee;
+  --thannow-ink: #18131d;
+  --thannow-muted: #6f6776;
+  --thannow-line: #e6d8c8;
+  --thannow-radius: 18px;
+  --thannow-max: 1200px;
+}
+
+.thannow-home .hero-section {
+  max-width: var(--thannow-max);
+  margin: 0 auto;
+}
+
+.thannow-home .hero-copy {
+  max-width: 620px;
+  margin: 0 auto 24px;
+}
+
+.thannow-home .hero-copy h1 {
+  margin: 0;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+}
+
+.thannow-home .hero-copy .section-lead {
+  color: var(--thannow-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.thannow-home .hero-media {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.thannow-home .hero-compare-wrap {
+  border-radius: var(--thannow-radius);
+  box-shadow: 0 22px 60px rgba(91, 26, 168, 0.14);
+  border: 1px solid var(--thannow-line);
+  overflow: hidden;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  background: linear-gradient(145deg, var(--thannow-purple-soft), var(--thannow-cream));
+}
+
+/* Exactly ONE comparison frame. Square aspect matches the source so contain
+   never leaves empty space, never crops, and needs no blurred background
+   layer. max-width keeps the desktop hero premium; margin auto centers it. */
+.thannow-home .hero-compare-frame {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  overflow: hidden;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.thannow-home .hero-layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* Never crop or ghost the photograph. Exactly one sharp Then layer and one
+   sharp Now layer, both contain + center, identical geometry. */
+.thannow-home .hero-layer-then,
+.thannow-home .hero-layer-now .hero-layer-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.thannow-home .hero-layer-then {
+  z-index: 0;
+}
+
+.thannow-home .hero-layer-now {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.thannow-home .hero-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Horizontal LEFT/RIGHT arrow handle (not a vertical triangle). */
+.thannow-home .hero-handle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--thannow-purple);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.thannow-home .hero-handle::before,
+.thannow-home .hero-handle::after {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+
+/* left "‹" */
+.thannow-home .hero-handle::before {
+  border-right: 9px solid #fff;
+}
+
+/* right "›" */
+.thannow-home .hero-handle::after {
+  border-left: 9px solid #fff;
+}
+
+.thannow-home .hero-compare-frame.is-dragging .hero-divider {
+  transition: none;
+}
+
+.thannow-home .hero-compare-frame:not(.is-dragging) .hero-divider {
+  transition: left 0.28s ease-out;
+}
+
+/* Then/Now UI labels (styled, never baked into assets), pinned to the outer
+   edges at the vertical centre so they never sit over the opposite side. */
+.thannow-home .hero-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(25, 16, 31, 0.68);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+}
+
+.thannow-home .hero-label-then {
+  left: 12px;
+}
+
+.thannow-home .hero-label-now {
+  right: 12px;
+}
+
+/* Clean caption strip BELOW the photo so it never covers faces. */
+.thannow-home .hero-caption {
+  margin: 0;
+  padding: 12px 16px 14px;
+  border-top: 1px solid #efe5d8;
+  background: var(--thannow-cream);
+  color: var(--thannow-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+/* Upload CTA sits BELOW the whole comparison (outside the photo area) so it
+   never overlaps image content. */
+.thannow-home .hero-upload {
+  display: block;
+  position: relative;
+  margin: 14px auto 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(91, 26, 168, 0.94);
+  color: white;
+  padding: 11px 18px;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  width: max-content;
+}
+
+.thannow-home .button-row {
+  justify-content: center;
+  margin-top: 26px;
+}
+
+.thannow-home .button {
+  border-color: var(--thannow-purple);
+  background: var(--thannow-purple);
+}
+
+.thannow-home .button:hover {
+  background: var(--thannow-purple-strong);
+  border-color: var(--thannow-purple-strong);
+}
+
+.thannow-home .button-secondary,
+.thannow-home .button-ghost {
+  background: white;
+  color: var(--thannow-purple-strong);
+  border-color: var(--thannow-line);
+}
+
+.thannow-home .button-secondary:hover,
+.thannow-home .button-ghost:hover {
+  background: var(--thannow-purple-soft);
+  color: var(--thannow-purple-strong);
+}
+
+.thannow-home .eyebrow {
+  color: var(--thannow-purple-strong);
+}
+
+@media (max-width: 700px) {
+  .thannow-home .hero-media {
+    order: -1;
+  }
+  .thannow-home .hero-upload {
+    display: none;
+  }
+  .thannow-home .hero-compare-frame {
+    max-width: 560px;
+  }
+}
+
+@media (max-width: 470px) {
+  .thannow-home .button-row {
+    flex-direction: column;
+  }
+  .thannow-home .button-row .button {
+    width: 100%;
+  }
+}
