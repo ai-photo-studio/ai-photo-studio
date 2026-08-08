@@ -95,9 +95,9 @@ export function FixedOrderReviewPage() {
   return (
     <section className="page-stack">
       <div className="section-heading">
-        <p className="eyebrow">Review</p>
-        <h1>Order {order.orderNo}</h1>
-        <p>Read-only. Refresh never writes.</p>
+        <p className="eyebrow">Review &amp; Checkout</p>
+        <h1>Review your restoration</h1>
+        <p>Order {order.orderNo}. Pricing is locked by the server and refresh is read-only.</p>
       </div>
 
       <div className="metric-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
@@ -113,7 +113,7 @@ export function FixedOrderReviewPage() {
 
        <div className="button-row" style={{ marginTop: "1rem" }}>
          <button type="button" className="button" onClick={() => void startCheckout()} disabled={checkoutBusy}>
-           {checkoutBusy ? "Starting checkout..." : "Pay securely"}
+           {checkoutBusy ? "Starting checkout..." : "Pay & Restore Photo"}
          </button>
          <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>
            Check payment status

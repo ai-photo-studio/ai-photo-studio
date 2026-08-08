@@ -37,7 +37,7 @@ async function setup(page: Parameters<typeof test>[0]["page"], checkoutStatus = 
 test("blocked provider is truthful and Pay is explicit", async ({ page }) => {
   const calls = await setup(page);
   expect(calls).toEqual([]);
-  await page.getByRole("button", { name: "Pay securely" }).click();
+  await page.getByRole("button", { name: "Pay & Restore Photo" }).click();
   await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   expect(calls).toEqual(["POST checkout"]);
   await expect(page.getByText(/PAID/i)).not.toBeVisible();
@@ -52,7 +52,7 @@ test("refresh payment status performs GET only", async ({ page }) => {
 
 test("mocked-ready session redirects only after explicit Pay and duplicate clicks are disabled", async ({ page }) => {
   const calls = await setup(page, 200);
-  await page.getByRole("button", { name: "Pay securely" }).click();
+  await page.getByRole("button", { name: "Pay & Restore Photo" }).click();
   expect(calls).toEqual(["POST checkout"]);
 });
 
@@ -61,6 +61,6 @@ for (const width of [360, 390, 430]) {
     await page.setViewportSize({ width, height: 800 });
     await setup(page);
     await expect(page.getByText("PKR 2500.00")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Pay securely" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pay & Restore Photo" })).toBeVisible();
   });
 }

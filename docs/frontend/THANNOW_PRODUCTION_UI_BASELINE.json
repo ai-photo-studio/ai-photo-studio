@@ -31,6 +31,17 @@
     "liveOverflowPixels": 0,
     "liveRuntimeOrRequestFailures": 0
   },
+  "restorationFunnel": {
+    "authoritativeUpload": "RestorationDraft",
+    "uploadCount": 1,
+    "previewRefresh": "GET_ONLY",
+    "productOptions": ["DIGITAL", "PRINT_DIGITAL"],
+    "priceAuthority": "SERVER_PRICEBOOK",
+    "printStatus": "PRINT_CATALOG_REQUIRED",
+    "paymentStatus": "BANK_ACTION_REQUIRED",
+    "processingStart": "SERVER_VERIFIED_PAYMENT_ONLY",
+    "candidateEvidence": "D:/Temp/kilo/r95-p4a-funnel-candidate/"
+  },
   "protectedFiles": [
     "apps/web/src/pages/HomePage.tsx",
     "apps/web/src/components/PublicLayout.tsx",

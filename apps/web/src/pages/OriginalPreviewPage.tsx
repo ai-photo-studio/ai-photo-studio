@@ -48,12 +48,20 @@ export function OriginalPreviewPage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Preview</p>
-        <h1>Your uploaded photo</h1>
-        <p>Read-only. Refresh never writes.</p>
+        <h1>Preview &amp; Analysis</h1>
+        <p>Your original is uploaded once and stored securely. Refresh is read-only.</p>
       </div>
 
       <div className="card">
         <img src={draft.previewUrl} alt="Uploaded original" style={{ maxWidth: "100%", borderRadius: "var(--radius)" }} />
+        <div className="stack" style={{ marginTop: "1rem" }}>
+          <strong>Uploaded original</strong>
+          <span className="helper-text">Original image ready for restoration offers.</span>
+          <details>
+            <summary>Technical metadata</summary>
+            <p className="helper-text">{draft.originalWidth && draft.originalHeight ? `${draft.originalWidth} × ${draft.originalHeight} pixels · ` : ""}{draft.originalMimeType || "Image"} · Market: {draft.market} · Currency: {draft.currency}</p>
+          </details>
+        </div>
       </div>
 
       <div className="button-row" style={{ marginTop: "1rem" }}>
@@ -62,12 +70,12 @@ export function OriginalPreviewPage() {
           className="button"
           onClick={() => navigate(`/restore-mvp/${draft.id}/tiers`)}
         >
-          Choose resolution
+          Choose Your Restoration
         </button>
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh
         </button>
-        <Link className="button button-ghost" to="/restore-mvp/new">Upload another</Link>
+        <Link className="button button-ghost" to="/restore-mvp/new">Choose a different photo</Link>
       </div>
     </section>
   );

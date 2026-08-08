@@ -74,3 +74,21 @@ generic UI and any older home-page composition remain rejected.
 - Live structural verification passed at 1440, 1024, 430 and 390 widths:
   locked sections/navigation/CTA, matched Hero pairs, zero overflow, no
   runtime/request failures, protected-route redirect, and read-only Print.
+
+## Restoration customer funnel rule
+
+- Homepage upload creates the authoritative server-backed `RestorationDraft`
+  exactly once and navigates directly to its persisted preview.
+- Preview and refresh are GET-only; the customer is never asked to upload the
+  same image again.
+- Product and quality are selected together. Digital Download can proceed with
+  server PriceBook offers; Print + Digital remains visible but blocked as
+  `PRINT_CATALOG_REQUIRED` until an authoritative catalog, delivery price, and
+  fulfilment checkout exist.
+- Checkout uses the immutable `FixedOrder`. Production payment remains
+  fail-closed and restoration cannot start before server-verified payment.
+- Production demo-paid controls are prohibited. The legacy `/restore/new`
+  workflow is not the homepage funnel authority.
+- P4A candidate screenshots are stored under
+  `D:/Temp/kilo/r95-p4a-funnel-candidate/` for human review before any future
+  deployment.

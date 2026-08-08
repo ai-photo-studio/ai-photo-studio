@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { HeroCompareSlider } from "../components/HeroCompareSlider";
+import { useAuth } from "../lib/auth";
+import { setGuestOwnershipToken } from "../lib/guest";
+import { customerApi } from "../services/customerApi";
 
 // ThanNow locked human-memory homepage (R9.3).
 // References the approved UI/DESIGN_LOCK.md direction. Upload CTAs route to
@@ -63,9 +66,12 @@ function RenderAsset({ fileName, alt, label }: { fileName: string; alt: string; 
 }
 
 export function HomePage() {
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openModal = () => setModalOpen(true);
@@ -75,10 +81,33 @@ export function HomePage() {
     if (selected) setFile(selected);
   };
 
-  const continueFromModal = () => {
-    closeModal();
-    setFile(null);
-    navigate("/restore/new");
+  const continueFromModal = async () => {
+    if (!file || uploading) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Unable to read the selected image"));
+        reader.readAsDataURL(file);
+      });
+      const bodyBase64 = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
+      const draft = await customerApi.createRestorationDraft(token || undefined, {
+        fileName: file.name,
+        contentType: file.type || "image/jpeg",
+        bodyBase64,
+        country: "PK",
+        confirmed: true
+      });
+      if (draft.guestOwnershipToken) setGuestOwnershipToken(draft.id, draft.guestOwnershipToken);
+      closeModal();
+      navigate(`/restore-mvp/${draft.id}/preview`);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Unable to upload the image");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -234,8 +263,10 @@ export function HomePage() {
               </div>
             )}
 
-            <button className="btn btn-primary btn-full" type="button" id="continueButton" disabled={!file} onClick={continueFromModal}>
-              Continue to Restoration
+            {uploadError && <div className="state-panel state-panel-error"><p>{uploadError}</p></div>}
+
+            <button className="btn btn-primary btn-full" type="button" id="continueButton" disabled={!file || uploading} onClick={() => void continueFromModal()}>
+              {uploading ? "Uploading..." : "Continue to Preview"}
             </button>
           </section>
         </div>

@@ -19,6 +19,22 @@ import {
 } from "./fixtures/mvp";
 
 test.describe("P6C upload page never uploads before the explicit button click", () => {
+  test("homepage modal uploads exactly once and continues to the persisted preview", async ({ page }) => {
+    await blockExternalNetwork(page);
+    let createCalls = 0;
+    await page.route("**/api/restoration-drafts", async (route) => {
+      if (route.request().method() === "POST") createCalls++;
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: draftFixture() }) });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Upload Your Photo" }).first().click();
+    await page.setInputFiles('#photoInput', tinyPngPath());
+    expect(createCalls).toBe(0);
+    await page.getByRole("button", { name: "Continue to Preview" }).click();
+    await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
+    expect(createCalls).toBe(1);
+  });
+
   test("selecting a file and confirming market does not upload until the button is clicked", async ({ page }) => {
     await blockExternalNetwork(page);
     let createCalls = 0;
@@ -55,12 +71,12 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await page.getByRole("button", { name: "Upload photo" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
-    await page.getByRole("button", { name: "Choose resolution" }).click();
+    await page.getByRole("button", { name: "Choose Your Restoration" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
     await expect(page.getByText("PKR 250.00")).toBeVisible();
     await page.getByText("Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Create order" }).click();
+    await page.getByRole("button", { name: "Review & Checkout" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
     await expect(page.getByText("PAKISTAN", { exact: true })).toBeVisible();
@@ -91,6 +107,18 @@ test.describe("P6C International USD flow", () => {
     await expect(page.getByText("INTERNATIONAL")).toBeVisible();
     await expect(page.getByText("USD 3.50")).toBeVisible();
     await expect(page.getByText("4HD")).toBeVisible();
+  });
+});
+
+test.describe("P6C product choice truthfulness", () => {
+  test("digital and Print + Digital are visible while print checkout remains blocked", async ({ page }) => {
+    await blockExternalNetwork(page);
+    await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+    await expect(page.getByRole("button", { name: "Digital Download Restore your photo and download it when ready.", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Print \+ Digital Download/i }).click();
+    await expect(page.getByText("PRINT CATALOG REQUIRED")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeDisabled();
   });
 });
 
@@ -185,7 +213,7 @@ test.describe("P6C mobile usability", () => {
       const draft = draftFixture();
       await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
       await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-      await expect(page.getByRole("button", { name: "Create order" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       void draft;
@@ -216,9 +244,9 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.setInputFiles('input[type="file"]', tinyPngPath());
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: "Upload photo" }).click();
-    await page.getByRole("button", { name: "Choose resolution" }).click();
+    await page.getByRole("button", { name: "Choose Your Restoration" }).click();
     await page.getByText("Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Create order" }).click();
+    await page.getByRole("button", { name: "Review & Checkout" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
 
     expect(externalCompleted).toEqual([]);
