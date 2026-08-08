@@ -46,3 +46,18 @@ These frontend presentation files are protected against silent regression:
 Any future frontend presentation change must be owner-requested and must ship
 with updated screenshots, validator updates, and protocol updates. The older
 generic UI and any older home-page composition remain rejected.
+
+## Recovery evidence
+
+- Recovery branch: `fix/r9.5-restore-known-good-ui`
+- Recovered source commit: recorded by the P3D recovery commit
+- Candidate screenshots:
+  - `D:/Temp/kilo/r95-p3d-recovered-candidate/desktop-1440.png`
+  - `D:/Temp/kilo/r95-p3d-recovered-candidate/mobile-390.png`
+  - `D:/Temp/kilo/r95-p3d-recovered-candidate/desktop-1024.png`
+  - `D:/Temp/kilo/r95-p3d-recovered-candidate/mobile-430.png`
+- Direct image comparison is unavailable in the agent environment; human
+  visual approval is required before any future deployment.
+- Recovery preserved current App route additions and customer-flow pages while
+  restoring only the locked presentation shell, homepage composition, style
+  system, and locked hero registry/assets.

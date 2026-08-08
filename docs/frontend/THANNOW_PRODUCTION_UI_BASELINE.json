@@ -12,6 +12,15 @@
     "handle": "horizontal",
     "ghostLayer": false
   },
+  "recoveryEvidence": {
+    "candidateScreenshots": [
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/desktop-1440.png",
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/mobile-390.png",
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/desktop-1024.png",
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/mobile-430.png"
+    ],
+    "humanVisualApprovalRequired": true
+  },
   "protectedFiles": [
     "apps/web/src/pages/HomePage.tsx",
     "apps/web/src/components/PublicLayout.tsx",

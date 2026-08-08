@@ -1,24 +1,32 @@
 import { expect, test } from "./fixtures";
 
-const APPROVED_NAV = ["Home", "Restoration", "Upscaling", "Printing", "How It Works", "Pricing", "Login", "Sign Up", "Get Started"];
+const APPROVED_NAV = ["Home", "Restoration", "Upscaling", "Printing", "How It Works", "Pricing"];
 
 test.describe("ThanNow production UI baseline", () => {
   test("home page keeps the locked visual signature", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("link", { name: "ThanNow home" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ThanNow home" }).first()).toBeVisible();
+    const navigation = page.getByRole("navigation", { name: "Primary navigation" });
     for (const label of APPROVED_NAV) {
-      await expect(page.getByRole("link", { name: label })).toBeVisible();
+      await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
     }
+    const actions = page.locator(".header-actions");
+    await expect(actions.getByRole("link", { name: "Login", exact: true })).toBeVisible();
+    await expect(actions.getByRole("link", { name: "Sign Up", exact: true })).toBeVisible();
+    await expect(actions.getByRole("link", { name: "Get Started", exact: true })).toBeVisible();
 
     await expect(page.getByRole("link", { name: "Upload Photo and View Pricing" })).toHaveCount(1);
-    await expect(page.getByText("1. Choose")).toBeVisible();
-    await expect(page.getByText("2. Process")).toBeVisible();
-    await expect(page.getByText("3. Download")).toBeVisible();
+    for (const section of ["Memories We Restore", "Upscale and Display Anywhere", "Print and Preserve Forever", "How It Works", "Choose Your Print Size"]) {
+      await expect(page.getByRole("heading", { name: section, exact: true })).toBeVisible();
+    }
+    await expect(page.getByText("1. Choose")).toHaveCount(0);
+    await expect(page.getByText("2. Process")).toHaveCount(0);
+    await expect(page.getByText("3. Download")).toHaveCount(0);
 
-    await expect(page.getByText("Remove BG")).toHaveCount(0);
-    await expect(page.getByText("Services")).toHaveCount(0);
-    await expect(page.getByText("Restore Photos")).toHaveCount(0);
+    await expect(navigation.getByText("Remove BG")).toHaveCount(0);
+    await expect(navigation.getByText("Services")).toHaveCount(0);
+    await expect(navigation.getByText("Restore Photos")).toHaveCount(0);
 
     const frame = page.locator(".hero-compare-frame");
     await expect(frame).toBeVisible();

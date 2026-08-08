@@ -2,19 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { HERO_HEROES, type HeroHero } from "../data/heroes";
 
 /**
- * Premium Hero V2 rotating comparison slider.
+ * R9.3-P7 HD rotating hero comparison slider (R9.3-P10B desktop visual repair).
  *
- * Exactly ONE comparison frame renders the full photograph with two aligned
- * layers of a single before/after pair:
+ * Exactly ONE comparison frame renders the full-width photograph with two
+ * aligned layers of a single before/after photo:
  *   - base layer  = Then/original (damaged) image (full sharp copy)
  *   - overlay layer = Now/restored image (full sharp copy, clipped to the
- *                     divider position so it reveals the matching side)
- * A customer-draggable divider sits at the middle: at 50% the LEFT half shows
+ *                     divider position so it reveals the right side)
+ * A customer-draggable divider sits at the midline: at 50% the LEFT half shows
  * Then and the RIGHT half shows Now.
  *
- * Rendering rules (Premium Hero V2):
- *   - Exactly one sharp Then layer and one sharp Now layer (no duplicate
- *     foreground copies, no blurred/ghost background layer).
+ * Rendering rules (R9.3-P10B):
+ *   - The frame is square, matching the 1600x1600 source, so `object-fit:
+ *     contain` fills every pixel with no empty space, no letterboxing and no
+ *     crop. No blurred background layer is rendered (nothing to fill), which
+ *     eliminates any ghost/second-image bleed.
+ *   - There is exactly ONE sharp Then layer and ONE sharp Now layer (no
+ *     duplicate foreground copies).
  *   - The divider handle renders horizontal LEFT/RIGHT arrows (not a vertical
  *     triangle) to signal the drag direction.
  *   - Small "Then"/"Now" labels are UI/CSS pills at the LEFT/RIGHT edges at
@@ -22,8 +26,7 @@ import { HERO_HEROES, type HeroHero } from "../data/heroes";
  *
  * Behavior:
  *   - a fresh mount starts on a random hero
- *   - automatic rotation to the next hero (~7s per manifest) resets the
- *     divider to 50%
+ *   - automatic rotation to the next hero (~7s) resets the divider to 50%
  *   - rotation pauses during pointer/touch drag and resumes afterward
  *   - timer is cleaned up on unmount to avoid leaks
  */
