@@ -1144,3 +1144,24 @@ This section is additive; every rule above it remains in force verbatim.
   `13d792a4b49248b0e70d47ba80ae11516237850b6`; retain platform rollback
   revisions before activation. No P5A action authorizes deployment, push,
   production DB mutation, real payment, Replicate, or RunPod.
+
+### R9.5-P5B-RELEASE-LINEAGE-AND-MIGRATION-GATE (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- The safe release branch is `release/r9.5-pakistan`, based on
+  `origin/main=dd8924a78f54487ab9336806b3906b4c585a5860`, integrating candidate
+  `653d240253a723b81748b912d71490d2d160b469` with `git merge --no-ff`.
+  Both ancestor proofs must pass before any release-ref push or deployment.
+- The only migration delta versus current `origin/main` is the two additive
+  R9.5 migrations: four enum values and `PrintDeliveryAddress`. Inspect SQL
+  before every production apply. No destructive or backfill migration is
+  authorized in this release.
+- `Dockerfile` has `SKIP_MIGRATIONS=true`; the current Northflank workflow has
+  no migration step. Therefore production migration status/apply requires an
+  explicit owner-approved operator mechanism and credential before API deploy.
+  Never infer, guess, or mutate a managed database from a local shell.
+- Required deployment sequence is permanently migration preflight/apply,
+  API-first smoke, frontend-second smoke, and immediate platform rollback on
+  any failed gate. No main force push, rebase, reset, RunPod action, real
+  payment, or production DB mutation is implied by this readiness packet.

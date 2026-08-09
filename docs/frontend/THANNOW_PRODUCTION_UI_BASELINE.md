@@ -373,3 +373,40 @@ generic UI and any older home-page composition remain rejected.
   passed 13/13 and 28/28; the existing Vitest diagnostic could not be invoked
   because `vitest` is absent from installed dependencies and the API workspace
   has no unit-test script.
+
+## Safe production release lineage (R9.5-P5B: 2026-08-09)
+
+- Release branch: `release/r9.5-pakistan`, created from `origin/main`
+  `dd8924a78f54487ab9336806b3906b4c585a5860`.
+- Integration: `git merge --no-ff 653d240`; no conflicts, blanket ours/theirs
+  resolution, reset, rebase, force push, or main rewrite. Release HEAD after
+  the verification documentation commit is `5f5e3c09742a1848ea17753d91edd1cfd8920080`.
+- Both lineage proofs pass: `origin/main` is an ancestor of the release branch
+  and candidate `653d240` is an ancestor of the release branch. The release
+  branch contains the verified canonical upload/Pakistan commerce behavior and
+  preserves unrelated current main history.
+- Migration delta calculated against `origin/main`: exactly
+  `20260808000000_r95_p4b_pricebook_v2_tiers` (four additive `DigitalTier`
+  enum values) and `20260809000000_r95_p4b4_print_delivery_address` (new
+  address table, unique fixed-order index, and foreign key). Both are
+  `ADDITIVE`; no `DROP`, destructive rewrite, or data backfill exists.
+- Disposable release-schema proof: all 23 migrations applied from empty;
+  second `prisma migrate deploy` reported no pending migrations;
+  `prisma migrate status` reported up to date. FixedOrder, V3 tiers/payment,
+  P4A/P4B/P3A, and print fulfilment tests passed on that schema.
+- Production mechanism finding: `Dockerfile` sets `SKIP_MIGRATIONS=true` and
+  does not run migrations. Repository deployment workflow builds/deploys the
+  API but has no production migration step. The documented procedure says
+  migrations run separately, but no approved Northflank job/command or
+  production `DATABASE_URL` is available in this workspace.
+- Required owner action before API deploy: provide the approved read-only
+  production migration-status mechanism/credential, confirm production is
+  ready for the two additive migrations, then apply only those migrations via
+  the approved operator path. Never use `db push`, reset, destructive SQL, or
+  an unreviewed startup migration.
+- Future release order remains: migration status/apply -> API release and
+  `/api/health`, V3 catalog, print catalog, draft support, and FixedOrder
+  status smoke -> same-lineage frontend release -> live customer smoke.
+  Current rollback references remain Cloudflare deployment
+  `72cdd2d7-7334-4f36-80bb-bb6f5a33226c` / source `4965032` and API
+  `BUILD_SHA=dd8924a78f54487ab9336806b3906b4c585a5860`.
