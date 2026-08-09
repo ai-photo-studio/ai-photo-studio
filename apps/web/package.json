@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "test:browser:p5a": "playwright test tests/browser/p5a-restoration-status.spec.ts",
+    "test:browser:responsive": "playwright test tests/browser/hero-slider.spec.ts tests/browser/p4e-checkout-ui.spec.ts tests/browser/p5a-restoration-status.spec.ts tests/browser/p6a-customer-route-hardening.spec.ts tests/browser/p6c-customer-mvp-flow.spec.ts tests/browser/print-truthfulness.spec.ts",
     "test:browser": "playwright test tests/browser"
   },
   "dependencies": {

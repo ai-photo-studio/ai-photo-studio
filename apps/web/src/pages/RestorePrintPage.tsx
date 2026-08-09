@@ -1,15 +1,94 @@
-import { useState } from "react";
+// Truthful restore-print page.
+//
+// Print fulfillment is only offered from a REAL completed restoration result,
+// and only after a real payment/checkout provider is active. There is no
+// authoritative print-catalog pricing API on this baseline, so this page never
+// invents PKR amounts and never shows a fake "Continue" checkout. It surfaces
+// the restored result (when truly completed) with a truthful
+// PRINT_CHECKOUT_PENDING status and points to /pricing for authoritative
+// pricing. Mount/refresh are GET-only — this page never triggers processing.
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-
-const PRODUCTS = [
-  ["4x6", "4×6", "500", "Table frame or wallet memory"], ["5x7", "5×7", "700", "Bedside or office desk"],
-  ["8x10", "8×10", "1,000", "Family display"], ["a4", "A4", "1,200", "Wall memory print"],
-  ["a3", "A3", "2,000", "Feature wall print"], ["canvas", "Canvas", "3,500", "Living room wall"],
-  ["frame", "Frame", "5,000", "Ready-to-hang gift"], ["album", "Album", "8,000", "Wedding or family memory book"]
-];
+import { useAuth } from "../lib/auth";
+import { getGuestOwnershipToken } from "../lib/guest";
+import { customerApi } from "../services/customerApi";
+import type { LegacyRestorationOrderResponse } from "../lib/portal-types";
 
 export function RestorePrintPage() {
   const { orderId } = useParams<{ orderId: string }>();
-  const [selected, setSelected] = useState<string | null>(null);
-  return <section className="page-stack"><div className="section-heading"><p className="eyebrow">Step 3 · Print</p><h1>Bring your restored memory home.</h1><p>Select a print product. Payment is not collected on this screen.</p></div><div className="print-products">{PRODUCTS.map(([key, size, price, description]) => <button type="button" key={key} className={`print-product-card card ${selected === key ? "card-selected" : ""}`} onClick={() => setSelected(key)}><div className={`print-mockup print-mockup-${key}`}><span>{size}</span></div><div className="print-product-copy"><span className="pill">Home Delivery</span><h3>{key === "frame" || key === "canvas" || key === "album" ? key[0].toUpperCase() + key.slice(1) : `${size} Print`}</h3><p>{description}</p><strong>PKR {price}</strong></div></button>)}</div><div className="print-checkout-bar"><Link className="button button-secondary" to={`/restore/${orderId}`}>Back to Result</Link><button className="button" type="button" disabled={!selected}>Continue</button></div></section>;
+  const { token } = useAuth();
+  const [order, setOrder] = useState<LegacyRestorationOrderResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
+    const guestToken = getGuestOwnershipToken(orderId);
+    void customerApi
+      .getLegacyRestorationOrder(token || undefined, orderId, undefined, guestToken || undefined)
+      .then((data) => {
+        if (!disposed) setOrder(data);
+      })
+      .catch((err) => {
+        if (!disposed) setError(err instanceof Error ? err.message : "Unable to load the restoration result");
+      })
+      .finally(() => {
+        if (!disposed) setLoading(false);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [orderId, token]);
+
+  if (loading) {
+    return <section className="page-stack"><div className="state-panel"><p>Loading restoration result...</p></div></section>;
+  }
+
+  if (error || !order) {
+    return (
+      <section className="page-stack">
+        <div className="state-panel state-panel-error"><p>{error || "Restoration result not found"}</p></div>
+        <div className="button-row" style={{ marginTop: "1rem" }}>
+          <Link className="button button-secondary" to="/restore">Back to Restorations</Link>
+          <Link className="button" to="/pricing">View Current Pricing</Link>
+        </div>
+      </section>
+    );
+  }
+
+  const completedItem = order.items.find((item) => item.status === "COMPLETED" && item.finalUrl);
+
+  return (
+    <section className="page-stack">
+      <div className="section-heading">
+        <p className="eyebrow">Step 3 · Print</p>
+        <h1>Print your restored memory.</h1>
+        <p>Print fulfillment is pending checkout. Payment is not collected on this screen.</p>
+      </div>
+
+      {completedItem ? (
+        <>
+          <div className="state-panel">
+            <p>Restoration complete for this item. Print fulfillment status: <strong>PRINT_CHECKOUT_PENDING</strong>.</p>
+          </div>
+          <div className="download-preview">
+            <img className="restored-image" src={completedItem.finalUrl || undefined} alt="Restored result" />
+          </div>
+          <p className="helper-text">Authoritative print pricing is available on the pricing page.</p>
+          <div className="button-row" style={{ marginTop: "1rem" }}>
+            <Link className="button button-secondary" to={`/restore/${orderId}`}>Back to Result</Link>
+            <Link className="button" to="/pricing">View Current Pricing</Link>
+          </div>
+        </>
+      ) : (
+        <div className="state-panel state-panel-error">
+          <p>There is no completed restoration result to print yet.</p>
+        </div>
+      )}
+    </section>
+  );
 }

@@ -13,7 +13,7 @@ export function RestorationHistoryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
     let cancelled = false;
     const load = async () => {
       setLoading(true);
@@ -62,7 +62,7 @@ export function RestorationHistoryPage() {
       </div>
 
       <div className="button-row" style={{ marginBottom: "1rem", marginTop: "1rem" }}>
-        <Link to="/restore/new" className="button">New Restoration</Link>
+        <Link to="/?upload=1" className="button">New Restoration</Link>
         <Link to="/payments" className="button button-secondary">Invoices</Link>
       </div>
 
@@ -74,7 +74,7 @@ export function RestorationHistoryPage() {
         <div className="state-panel">
           <p>No restoration orders yet.</p>
           <div className="button-row" style={{ marginTop: "1rem", justifyContent: "center" }}>
-            <Link to="/restore/new" className="button">Start Your First Restoration</Link>
+            <Link to="/?upload=1" className="button">Start Your First Restoration</Link>
           </div>
         </div>
       ) : (

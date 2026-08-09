@@ -986,3 +986,161 @@ section is additive; every rule above it remains in force verbatim.
 - No live Bank Alfalah request, APG activation, production deployment, or
   payment success simulation was made anywhere in this packet.
   No RunPod/Replicate/R2 network call.
+
+### R9.5-P4B7-WORKSPACE-RECONCILIATION: canonical workspace protocol (2026-08-09)
+
+Added by the R9.5-P4B7-REAL-LOCAL-MULTIPROCESS-E2E workspace-reconciliation
+step. This section is additive; every rule above it remains in force
+verbatim.
+
+- **Permanent rule — `D:\AI Product Photo Studio on WhatsApp` is the ONLY
+  active project workspace.** All agents and sessions must open, branch,
+  build, and test from this path.
+- **Permanent rule — never create or use `D:\Temp\r95-product-ready-
+  integration` again.** It existed only as a linked `git worktree` of this
+  same repository (same `.git`, same `origin`, same branches — not a
+  separate clone or a fork with independent history). It has been removed
+  from `git worktree list`; a residual on-disk folder may remain (Windows
+  file locks prevented full deletion) but it is no longer a git worktree
+  and carries no authority. Do not resurrect it or treat its presence on
+  disk as meaningful.
+- Branch `setup/project-automation` is retired from active use. Its
+  history is fully pushed to `origin/setup/project-automation`
+  (`156ba266b06406ba0babd15335bde700f352d858`) and its pre-reconciliation
+  uncommitted working tree was additionally snapshotted to local branch
+  `backup/setup-project-automation-dirty-20260809-152222`
+  (`03835d369063b7d8dcff891e23b3f1c354504bb1`) before this workspace was
+  switched — no commit or uncommitted work was lost. Do not check this
+  branch back out as the active branch; if any of its uncommitted content
+  is needed going forward, cherry-pick or diff it from the backup branch
+  explicitly.
+- The active branch for R9.5-P4B7 work is `fix/r9.5-restore-known-good-ui`,
+  verified at HEAD `6395f2b981d8a2906c7cd40c215e44b21b715c0c` immediately
+  after reconciliation, clean working tree.
+- This repository carries dozens of other agent/task worktrees under
+  `.claude/worktrees/`, `.kilo/worktrees/`, and various `D:/Temp/*`
+  directories from prior sessions. This rule does not retire or clean
+  those up — only `D:\Temp\r95-product-ready-integration` is superseded by
+  this entry — and no other worktree may be assumed authoritative for R9.5
+  work without an explicit, separately authorized task.
+
+### R9.5-P4B7B-PKR-LOCAL-E2E-READY (2026-08-09)
+
+Added by the R9.5-P4B7B-FINISH-PKR-BROWSER-E2E-AND-PROCESS-SPAWN-FIX packet.
+This section is additive; every rule above it remains in force verbatim.
+
+- **`PKR_LOCAL_E2E_READY` achieved.** `npm run test:e2e:commerce-local`
+  passed clean end-to-end: real disposable Postgres, real API, real mock
+  P4B worker, real Vite web, and a real (non-`page.route`-mocked) Playwright
+  browser drove Home → upload → Preview → Digital tier select → Review →
+  Complete TEST Payment → real P4A → real mock P4B worker → real P3A →
+  `SUCCEEDED`/`VALIDATED` → download link, with exactly one row each of
+  FixedOrder/PaymentAttempt/RestorationEntitlement/RestorationMaster/
+  ReplicateExecution and zero Replicate/RunPod/Bank/production-host calls.
+  Full detail in `docs/frontend/THANNOW_PRODUCTION_UI_BASELINE.md`'s "Real
+  local multi-process commerce harness" section — read it before touching
+  this harness, the mock P3A/P4B guards, the test-checkout seam, or
+  `MockStorageProvider`'s disk-backed mode.
+- **Permanent rule — `ReplicateExecutionWorker`'s provider guard accepts
+  exactly `"replicate"` or `"mock"`, never anything else.** Production
+  topology is unaffected because `p4b-worker-runner-main.ts` (the only
+  production caller) still refuses to start unless
+  `RESTORATION_PROVIDER === "replicate"`; only the separate, triple-guarded
+  `p4b-worker-runner-mock-local.ts` ever supplies `"mock"`. Do not widen
+  this guard further, and do not remove the outer runner-level guards that
+  make the `"mock"` allowance inert in production.
+  `p3a-replicate-execution-worker.test.ts` proves both the refusal (any
+  other selection) and the `"mock"` authorization.
+- **Permanent rule — the test-only checkout seam
+  (`customer-checkout-test.service.ts`/`customer-checkout-test.controller.ts`,
+  routes `/fixed-orders/:orderNo/test-checkout(/complete)`,
+  `/e2e/test-mode`) may only ever be mounted when `NODE_ENV != "production"
+  && COMMERCE_E2E_TEST_MODE === "true"`, checked at server-startup route
+  registration (`restoration.routes.ts`), not merely inside each handler.**
+  It must never read or set `bankAlfalahMpgs.enabled` and must never call
+  Bank Alfalah. The customer-facing "Complete TEST Payment" button
+  (`FixedOrderReviewPage.tsx`) must only ever appear after a live server
+  response from `GET /api/e2e/test-mode` — never inferred from
+  `import.meta.env`/any client-side value — and must never alter the
+  production "Pay & Restore Photo" → live Bank Alfalah redirect path.
+
+### R9.5-P4B9-CANONICAL-PAKISTAN-PAID-FLOW (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **Permanent rule - one customer upload authority.** All restoration,
+  upscale, print, pricing, header, footer, floating, and re-upload customer
+  starts plus `/restore/new` and `/restore-mvp/new` must resolve to the shared
+  `Upload Your Photo` modal and one `POST /api/restoration-drafts`. No active
+  customer route may render `RestoreNewPage` or call the legacy restoration/
+  order upload pipelines.
+- **Permanent rule - 100% server-verified advance payment before paid
+  processing.** No browser query, button, local storage value, unpaid/pending/
+  failed/cancelled attempt, or direct process request may create or claim a
+  `ReplicateExecution`. Only verified payment evidence matching the immutable
+  server-owned order amount and currency may run P4A and enqueue execution.
+- **Permanent rule - reads never start work.** Preview, Review, processing
+  status, refresh, download, and polling GETs are read-only. The canonical
+  processing status source is
+  `GET /api/fixed-orders/:orderNo/restoration-status`.
+- **Permanent rule - print reuses the restoration master.** A paid Pakistan
+  Print+Digital order performs one restoration only. After its master is
+  `VALIDATED`, print preparation creates at most one `PrintEntitlement` and
+  one pending `FulfilmentOrder`. Until a real partner is assigned it reports
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED`; it never fabricates a partner,
+  tracking number, shipment, dispatch, or delivery.
+- Full evidence and counts are in
+  `docs/frontend/THANNOW_PRODUCTION_UI_BASELINE.md`, section "Canonical
+  Pakistan paid restoration flow". Protected scope remains: no production
+  DB/deploy/push, no real payment, no test-time Replicate/RunPod/Bank call.
+
+### R9.5-P4B10-HISTORICAL-ASSET-RETENTION (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- `old images/` is historical/reference evidence and must not be deleted
+  without explicit owner authorization. It must not be wired into active
+  customer UI or runtime processing merely because it is restored.
+- `price book/prices.xlsx` and local `prices.xlsx`/`prices(1).xlsx` workbook
+  evidence remain ignored and historical-only. Archived PriceBook material
+  never becomes runtime authority.
+- `PB-2026-08-09-TRIAL-V3` remains the sole active customer PriceBook. V1/V2
+  catalogs and obsolete prices must remain inactive. Deleting either
+  historical asset folder requires explicit owner authorization.
+
+### R9.5-P4B11-PRODUCTION-PARITY-GATE (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- Local Pakistan commerce acceptance is not production acceptance. Before any
+  release, compare the live Cloudflare bundle and API health build identity to
+  the candidate commit and prove the canonical upload, V3 catalog, FixedOrder
+  status, payment gate, and print boundary are deployed together.
+- The P4B11 candidate is
+  `cee6ea250ac71a865a1cf837215ac5a6bfb5c7b6`. The live evidence recorded on
+  2026-08-09 is frontend asset `index-D6CznrWT.js` and API
+  `BUILD_SHA=dd8924a78f54487ab9336806b3906b4c585a5860`; neither is accepted as
+  the candidate source identity.
+- No deployment, production database mutation, real payment, real Replicate
+  call, or RunPod action is authorized by this parity packet. A future release
+  must use the exact candidate commit and retain platform-level rollback
+  revisions for both Cloudflare Pages and Northflank before activation.
+
+### R9.5-P5A-PAKISTAN-LAUNCH-GATES (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- Bank Alfalah remains `BANK_ACTION_REQUIRED` until the owner supplies bank-
+  confirmed Merchant ID/region/host, REST API Password, Hosted Checkout/API
+  enablement, API version/path, and sanitized success/correlation evidence.
+  Never guess credentials or endpoint shape, and never run a real charge.
+- Print code may create only one pending fulfilment record after verified PAID,
+  validated RestorationMaster, address, and authoritative print snapshot. No
+  partner, tracking, shipment, dispatch, or delivery may be invented. Without
+  supplied partner data, operations are `PARTNER_DATA_REQUIRED` and the safe
+  code state is `READY_FOR_PARTNER_DATA`.
+- Production release order is permanently API first, API smoke, frontend
+  second, live customer smoke. The exact candidate is
+  `13d792a4b49248b0e70d47ba80ae11516237850b6`; retain platform rollback
+  revisions before activation. No P5A action authorizes deployment, push,
+  production DB mutation, real payment, Replicate, or RunPod.

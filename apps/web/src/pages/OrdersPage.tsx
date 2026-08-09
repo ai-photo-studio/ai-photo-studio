@@ -229,14 +229,14 @@ export function OrdersPage() {
       </div>
 
       <div className="split-layout">
-        <article className="card stack" style={{ cursor: "pointer" }} onClick={() => navigate("/restore/new")}>
+        <article className="card stack" style={{ cursor: "pointer" }} onClick={() => navigate("/?upload=1")}>
           <div className="section-heading section-heading-tight">
             <p className="eyebrow">Upload & Restore</p>
             <h2>Start a new restoration</h2>
           </div>
           <p>Use the unified restoration flow to upload images, get AI analysis, preview results, select resolution or package, and pay.</p>
           <div className="button-row" style={{ marginTop: "0.75rem" }}>
-            <button type="button" className="button button-block" onClick={(e) => { e.stopPropagation(); navigate("/restore/new"); }}>
+            <button type="button" className="button button-block" onClick={(e) => { e.stopPropagation(); navigate("/?upload=1"); }}>
               Go to Restoration
             </button>
           </div>

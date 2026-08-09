@@ -146,15 +146,15 @@ test("(q1) Pakistan ORIGINAL creates the correct PKR approved-price order", asyn
 
   assert.equal(result.market, "PAKISTAN");
   assert.equal(result.currency, "PKR");
-  assert.equal(result.totalAmountMinor, "25000");
+  assert.equal(result.totalAmountMinor, "50000");
   assert.equal(result.pricingApproved, true);
   assert.equal(result.pricingSource, "approved_pricebook");
-  assert.equal(result.priceBookVersion, "PB-2026-08-03-v1");
+  assert.equal(result.priceBookVersion, "PB-2026-08-09-TRIAL-V3");
   assert.ok(result.priceBookApprovalReference, "approval reference must be recorded");
   assert.ok(result.priceBookEffectiveAt, "effective-at snapshot must be recorded");
 
   const row = await clientA.fixedOrder.findUnique({ where: { id: result.id }, include: { items: true } });
-  assert.equal(row?.priceBookVersion, "PB-2026-08-03-v1", "server persists the exact PriceBook version");
+  assert.equal(row?.priceBookVersion, "PB-2026-08-09-TRIAL-V3", "server persists the exact PriceBook version");
   assert.equal(row?.items[0]?.pricingApproved, true);
   assert.equal(row?.items[0]?.pricingSource, "approved_pricebook");
 });
@@ -172,7 +172,7 @@ test("(q2) International 2HD creates the correct USD approved-price order", asyn
 
   assert.equal(result.market, "INTERNATIONAL");
   assert.equal(result.currency, "USD");
-  assert.equal(result.totalAmountMinor, "250");
+  assert.equal(result.totalAmountMinor, "299");
   assert.equal(result.pricingApproved, true);
   assert.equal(result.pricingSource, "approved_pricebook");
 });
@@ -184,12 +184,12 @@ test("(q3) 4HD tier uses the exact server prices for both markets", async () => 
   const { draft: pkrDraft, guestToken: pkrGuest } = await seedDraft("pkr-4hd");
   const pkrResult = await service.createRestorationDigitalOrder({ draftId: pkrDraft.id, tier: "HD_4X" }, { guestToken: pkrGuest });
   createdOrderIds.push(pkrResult.id);
-  assert.equal(pkrResult.totalAmountMinor, "50000");
+  assert.equal(pkrResult.totalAmountMinor, "150000");
 
   const { draft: usdDraft, guestToken: usdGuest } = await seedDraft("usd-4hd", { market: "INTERNATIONAL", currency: "USD" });
   const usdResult = await service.createRestorationDigitalOrder({ draftId: usdDraft.id, tier: "HD_4X" }, { guestToken: usdGuest });
   createdOrderIds.push(usdResult.id);
-  assert.equal(usdResult.totalAmountMinor, "350");
+  assert.equal(usdResult.totalAmountMinor, "499");
 });
 
 test("(q4) forged amount/currency/version/source/approval fields in the request are ignored, never trusted", async () => {
@@ -215,8 +215,8 @@ test("(q4) forged amount/currency/version/source/approval fields in the request 
   createdOrderIds.push(result.id);
 
   assert.equal(result.currency, "PKR", "server-resolved currency must win, not the forged USD");
-  assert.equal(result.totalAmountMinor, "25000", "server-resolved amount must win, not the forged 1");
-  assert.equal(result.priceBookVersion, "PB-2026-08-03-v1", "server-resolved version must win, not the forged value");
+  assert.equal(result.totalAmountMinor, "50000", "server-resolved amount must win, not the forged 1");
+  assert.equal(result.priceBookVersion, "PB-2026-08-09-TRIAL-V3", "server-resolved version must win, not the forged value");
   assert.equal(result.pricingSource, "approved_pricebook", "server-resolved source must win, not the forged local_fixture");
 });
 
@@ -354,8 +354,8 @@ test("(q11a) R9.2-P6C: getByOrderNo returns the server review view (amount, mark
   assert.equal(reviewed.market, "PAKISTAN");
   assert.equal(reviewed.currency, "PKR");
   assert.equal(reviewed.tier, "HD_2X");
-  assert.equal(reviewed.totalAmountMinor, "35000");
-  assert.equal(reviewed.priceBookVersion, "PB-2026-08-03-v1");
+  assert.equal(reviewed.totalAmountMinor, "100000");
+  assert.equal(reviewed.priceBookVersion, "PB-2026-08-09-TRIAL-V3");
 });
 
 test("(q11b) R9.2-P6C: getByOrderNo wrong-owner and nonexistent orderNo produce an identical enumeration-safe 404", async () => {

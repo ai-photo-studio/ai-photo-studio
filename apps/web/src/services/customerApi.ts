@@ -261,7 +261,7 @@ export const customerApi = {
       guestToken
     ),
 
-  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string }, guestToken?: string) =>
+  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string; product?: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } }, guestToken?: string) =>
     apiRequest<FixedOrderSummary>(
       "/api/fixed-orders/restoration-digital",
       { method: "POST", body: JSON.stringify(input) },
@@ -295,7 +295,48 @@ export const customerApi = {
       currency: "PKR" | "USD";
       sessionId: string | null;
       successIndicator: string | null;
-    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken)
+    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken),
+  getPrintCatalog: () => apiRequest<Array<{ catalogVersion: string; size: string; unitAmountMinor: number; currency: "PKR" | "USD"; minimumQuantity: number; deliveryAmountMinor: number | null; blocker?: string }>>("/api/print-catalog"),
+
+  // R9.5-P4B7B: server-authoritative test-mode check. A 404 (production, or
+  // any environment without the seam mounted) is treated as "disabled" by
+  // the caller -- never treated as an error to surface to the customer.
+  getE2ETestModeStatus: () => apiRequest<{ enabled: boolean }>("/api/e2e/test-mode"),
+
+  createTestCheckout: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{ paymentAttemptId: string; fixedOrderId: string; orderNo: string; amountMinor: string; currency: "PKR" | "USD"; status: string; testMode: true }>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/test-checkout`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
+    ),
+
+  completeTestPayment: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{ outcome: string; applied?: Record<string, string> }>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/test-checkout/complete`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
+    ),
+
+  getFixedOrderRestorationStatus: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{
+      orderNo: string;
+      entitlementStatus: string | null;
+      masterStatus: string | null;
+      executionStatus: string | null;
+      failureReason: string | null;
+      downloadAvailable: boolean;
+      downloadUrl: string | null;
+    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/restoration-status`, {}, token, guestToken),
+
+  preparePrintFulfilment: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{ printEntitlementId: string; fulfilmentOrderId: string; status: string; blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" }>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/print-fulfilment`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
+    )
 };
 
 export type RestorationDraftSummary = {
@@ -311,21 +352,25 @@ export type RestorationDraftSummary = {
 };
 
 export type DigitalOfferSummary = {
-  tier: "ORIGINAL" | "HD_2X" | "HD_4X";
+  tier: "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
   label: string;
   amountMinor: number;
   currency: "PKR" | "USD";
   description: string;
   source: "local_fixture" | "approved_pricebook";
+  priceBookVersion?: string;
+  approvalReference?: string;
+  effectiveAt?: string;
 };
 
 export type FixedOrderSummary = {
   id: string;
   orderNo: string;
+  sourceDraftId: string | null;
   status: string;
   market: "PAKISTAN" | "INTERNATIONAL";
   currency: "PKR" | "USD";
-  tier: "ORIGINAL" | "HD_2X" | "HD_4X";
+  tier: "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
   totalAmountMinor: string;
   pricingSource: string;
   pricingApproved: boolean;
@@ -333,4 +378,7 @@ export type FixedOrderSummary = {
   priceBookApprovalReference: string | null;
   priceBookEffectiveAt: string | null;
   createdAt: string;
+  paymentStatus?: string;
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 };

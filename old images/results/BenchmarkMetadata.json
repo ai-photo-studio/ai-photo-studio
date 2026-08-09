@@ -1,0 +1,96 @@
+{
+  "benchmarkId": "OPS-94",
+  "timestamp": "2026-07-22T13:58:01.247Z",
+  "image": {
+    "fileName": "2.jpeg",
+    "inputSizeBytes": 38247
+  },
+  "prompt": {
+    "source": "docs/prompts/photo-restoration-standard.md",
+    "length": 828
+  },
+  "providers": {
+    "replicate": {
+      "success": true,
+      "model": "sczhou/codeformer@cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
+      "endpoint": "POST /v1/models/sczhou/codeformer/versions/cc4956dd/predictions",
+      "latencyMs": 6961,
+      "gpuSeconds": 1.870187069,
+      "predictionId": "71pd7tcx4nrmr0czh8etcfj4sg",
+      "requestId": "71pd7tcx4nrmr0czh8etcfj4sg",
+      "outputSizeBytes": 2418918,
+      "estimatedCost": 0.0034,
+      "actualCost": 0.0016,
+      "costSource": "CALCULATED",
+      "qualityMetrics": {
+        "ssim": 0.8,
+        "psnr": 7.66,
+        "sharpness": 100,
+        "noise": 100,
+        "contrast": 100,
+        "brightness": 100,
+        "printQuality": 81
+      },
+      "qualityScores": {
+        "scratchRemoval": 100,
+        "crackRepair": 100,
+        "dustRemoval": 0,
+        "faceRestoration": 100,
+        "identityPreservation": 98,
+        "backgroundPreservation": 100,
+        "naturalAppearance": 100,
+        "printReadiness": 81,
+        "overall": 85
+      },
+      "failureReason": ""
+    },
+    "openai": {
+      "success": true,
+      "model": "gpt-image-1",
+      "endpoint": "POST /v1/images/edits",
+      "latencyMs": 52812,
+      "gpuSeconds": 0,
+      "predictionId": "",
+      "requestId": "1784728682",
+      "outputSizeBytes": 2095763,
+      "estimatedCost": 0.04,
+      "actualCost": 0.00007,
+      "costSource": "ACTUAL",
+      "qualityMetrics": {
+        "ssim": 0.8,
+        "psnr": 6.99,
+        "sharpness": 100,
+        "noise": 100,
+        "contrast": 100,
+        "brightness": 100,
+        "printQuality": 81
+      },
+      "qualityScores": {
+        "scratchRemoval": 100,
+        "crackRepair": 100,
+        "dustRemoval": 0,
+        "faceRestoration": 100,
+        "identityPreservation": 95,
+        "backgroundPreservation": 100,
+        "naturalAppearance": 100,
+        "printReadiness": 81,
+        "overall": 85
+      },
+      "failureReason": ""
+    }
+  },
+  "packageRouting": {
+    "originalRestore": {
+      "primary": "openai",
+      "strategy": "lowest-cost"
+    },
+    "hd2x": {
+      "primary": "openai",
+      "strategy": "best-quality-cost-ratio"
+    },
+    "premiumPrintable": {
+      "primary": "replicate",
+      "strategy": "highest-quality"
+    }
+  }
+}

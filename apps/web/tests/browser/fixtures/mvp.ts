@@ -34,12 +34,12 @@ export function draftFixture(overrides: Partial<{ market: string; currency: stri
 }
 
 export function offersFixture(currency: "PKR" | "USD") {
-  const amounts = currency === "PKR" ? [25000, 35000, 50000] : [150, 250, 350];
-  return [
-    { tier: "ORIGINAL", label: "Original", amountMinor: amounts[0], currency, description: "Source resolution", source: "approved_pricebook" },
-    { tier: "HD_2X", label: "2HD", amountMinor: amounts[1], currency, description: "2x enhanced", source: "approved_pricebook" },
-    { tier: "HD_4X", label: "4HD", amountMinor: amounts[2], currency, description: "4x enhanced", source: "approved_pricebook" }
-  ];
+  const amounts = currency === "PKR" ? [50000, 100000, 150000, 250000, 350000, 400000, 500000] : [199, 299, 499, 699, 999, 1299, 1599];
+  const tiers = [
+    ["ORIGINAL", "Restored Original"], ["HD_2X", "2x HD"], ["HD_4X", "4x Ultra HD"],
+    ["HD_6X", "6x"], ["HD_8X", "8x"], ["HD_10X", "10x"], ["HD_12X", "12x"]
+  ] as const;
+  return tiers.map(([tier, label], index) => ({ tier, label, amountMinor: amounts[index], currency, description: index === 1 ? "2x enhanced" : "Enhanced restoration", source: "approved_pricebook" as const, priceBookVersion: "PB-2026-08-09-TRIAL-V3" }));
 }
 
 export function orderFixture(overrides: Partial<{ market: string; currency: string; tier: string; amount: string }> = {}) {
@@ -50,12 +50,12 @@ export function orderFixture(overrides: Partial<{ market: string; currency: stri
     market: overrides.market ?? "PAKISTAN",
     currency: overrides.currency ?? "PKR",
     tier: overrides.tier ?? "ORIGINAL",
-    totalAmountMinor: overrides.amount ?? "25000",
+    totalAmountMinor: overrides.amount ?? "50000",
     pricingSource: "approved_pricebook",
     pricingApproved: true,
-    priceBookVersion: "PB-2026-08-03-v1",
+    priceBookVersion: "PB-2026-08-09-TRIAL-V3",
     priceBookApprovalReference: "OWNER-CHAT-2026-08-03-P1C-B-01",
-    priceBookEffectiveAt: "2026-08-03T00:00:00Z",
+    priceBookEffectiveAt: "2026-08-08T00:00:00Z",
     createdAt: new Date().toISOString()
   };
 }

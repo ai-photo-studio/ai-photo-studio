@@ -1,0 +1,55 @@
+{
+  "lockedSourceSha": "646f27b565aa7b9fb7baa6a781f8656ccf8c2662",
+  "lockedProductionDeploymentId": "44595069-4841-4ea6-bd72-4acd523fd353",
+  "lockedProductionUrl": "https://www.thannow.com",
+  "approvedNavigation": ["Home", "Restoration", "Upscaling", "Printing", "How It Works", "Pricing", "Login", "Sign Up", "Get Started"],
+  "homepageCTA": "Upload Photo and View Pricing",
+  "homepageSections": ["hero", "memories", "upscale", "printing", "how", "pricing", "final-upload-block"],
+  "heroSignature": {
+    "frame": "single",
+    "pairing": "Then left / Now right",
+    "rotationSeconds": 7,
+    "handle": "horizontal",
+    "ghostLayer": false
+  },
+  "recoveryEvidence": {
+    "candidateScreenshots": [
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/desktop-1440.png",
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/mobile-390.png",
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/desktop-1024.png",
+      "D:/Temp/kilo/r95-p3d-recovered-candidate/mobile-430.png"
+    ],
+    "humanVisualApprovalRequired": true
+  },
+  "currentRecoveredImplementation": {
+    "ownerVisualApproval": true,
+    "sourceSha": "4965032ce1305e78261b9702ec77b8ba44f63607",
+    "productionDeploymentId": "72cdd2d7-7334-4f36-80bb-bb6f5a33226c",
+    "productionUrl": "https://www.thannow.com",
+    "rollbackDeploymentId": "44595069-4841-4ea6-bd72-4acd523fd353",
+    "liveViewports": [1440, 1024, 430, 390],
+    "liveOverflowPixels": 0,
+    "liveRuntimeOrRequestFailures": 0
+  },
+  "restorationFunnel": {
+    "authoritativeUpload": "RestorationDraft",
+    "uploadCount": 1,
+    "previewRefresh": "GET_ONLY",
+    "productOptions": ["DIGITAL", "PRINT_DIGITAL"],
+    "priceAuthority": "SERVER_PRICEBOOK",
+    "printStatus": "PRINT_CATALOG_REQUIRED",
+    "paymentStatus": "BANK_ACTION_REQUIRED",
+    "processingStart": "SERVER_VERIFIED_PAYMENT_ONLY",
+    "candidateEvidence": "D:/Temp/kilo/r95-p4a-funnel-candidate/"
+  },
+  "protectedFiles": [
+    "apps/web/src/pages/HomePage.tsx",
+    "apps/web/src/components/PublicLayout.tsx",
+    "apps/web/src/components/CustomerLayout.tsx",
+    "apps/web/src/styles.css",
+    "apps/web/src/App.tsx",
+    "apps/web/src/data/heroes.ts",
+    "apps/web/src/components/HeroCompareSlider.tsx",
+    "apps/web/public/assets/hero/hero/**"
+  ]
+}

@@ -17,7 +17,6 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PricingPage } from "./pages/PricingPage";
 import { SignupPage } from "./pages/SignupPage";
-import { RestoreNewPage } from "./pages/RestoreNewPage";
 import { RestoreOrderPage } from "./pages/RestoreOrderPage";
 import { RestorationStatusPage } from "./pages/RestorationStatusPage";
 import { RestorePrintPage } from "./pages/RestorePrintPage";
@@ -28,7 +27,6 @@ import { WalletPage } from "./pages/WalletPage";
 import { PaymentsPage } from "./pages/PaymentsPage";
 import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { CustomerLayout } from "./components/CustomerLayout";
-import { RestorationUploadPage } from "./pages/RestorationUploadPage";
 import { OriginalPreviewPage } from "./pages/OriginalPreviewPage";
 import { DigitalTierSelectPage } from "./pages/DigitalTierSelectPage";
 import { FixedOrderReviewPage } from "./pages/FixedOrderReviewPage";
@@ -50,13 +48,13 @@ export function App() {
         <Route path="register" element={<SignupPage />} />
         <Route path="signup" element={<SignupPage />} />
         <Route path="restore" element={<RestorationHistoryPage />} />
-        <Route path="restore/new" element={<RestoreNewPage />} />
+        <Route path="restore/new" element={<Navigate to="/?upload=1" replace={false} />} />
         <Route path="restore/:orderId" element={<RestoreOrderPage />} />
         <Route path="restore/:orderId/status" element={<RestorationStatusPage />} />
         <Route path="restore/:orderId/print" element={<RestorePrintPage />} />
         <Route path="history/restorations" element={<RestorationHistoryPage />} />
         <Route path="account" element={<AccountPage />} />
-        <Route path="restore-mvp/new" element={<RestorationUploadPage />} />
+        <Route path="restore-mvp/new" element={<Navigate to="/?upload=1" replace={false} />} />
         <Route path="restore-mvp/:draftId/preview" element={<OriginalPreviewPage />} />
         <Route path="restore-mvp/:draftId/tiers" element={<DigitalTierSelectPage />} />
         <Route path="orders/:orderNo/review" element={<FixedOrderReviewPage />} />

@@ -183,7 +183,18 @@ export interface ReplicateExecutionWorkerDeps {
   persistence: MasterPersistencePort;
   /** The Replicate-only provider seam (`RestorationProviderRouter` in production). Called at most once. */
   providerExecutor: ProviderExecutionPort;
-  /** Mirrors AppConfig.restorationProvider. Anything other than "replicate" fails closed before any claim. */
+  /**
+   * Mirrors AppConfig.restorationProvider. Anything other than "replicate" or
+   * "mock" fails closed before any claim. Production topology is unaffected
+   * by the "mock" allowance: `p4b-worker-runner-main.ts` (the only process
+   * that ever drives this worker in production) refuses to start unless this
+   * value is exactly "replicate", so a live deployment can never construct
+   * this worker with "mock" in the first place. "mock" exists only so
+   * `p4b-worker-runner-mock-local.ts` -- a separate, non-production,
+   * triple-guarded process -- can drive the identical claim/eligibility/
+   * completion logic against the mock provider for a disposable local E2E
+   * harness, without duplicating this file.
+   */
   providerSelection: RestorationProviderSelection;
 }
 
@@ -346,10 +357,12 @@ export class ReplicateExecutionWorker {
       throw new TypeError("executionId is required");
     }
 
-    // Invariant: this worker is Replicate-only. Assert BEFORE any claim so a
-    // misconfigured selection can never consume a queued execution.
-    if (this.deps.providerSelection !== "replicate") {
-      logger.warn("P3A worker refused: provider selection is not replicate", {
+    // Invariant: this worker only ever runs against "replicate" (production)
+    // or "mock" (disposable local E2E harness only -- see the deps doc
+    // comment above). Assert BEFORE any claim so a misconfigured selection
+    // can never consume a queued execution.
+    if (this.deps.providerSelection !== "replicate" && this.deps.providerSelection !== "mock") {
+      logger.warn("P3A worker refused: provider selection is not replicate or mock", {
         executionId,
         providerSelection: this.deps.providerSelection
       });

@@ -41,15 +41,21 @@ import {
   type OfferProvider
 } from "../domain/pricing/offerProvider";
 import { ApprovedOfferProvider } from "../domain/pricing/approvedOfferProvider";
+import { PRINT_CATALOG_VERSION, publicPrintCatalog, quotePrint } from "../domain/pricing/printCatalog";
 
 export interface CreateRestorationDigitalOrderInput {
   draftId: string;
   tier: string;
+  product?: "DIGITAL" | "PRINT_DIGITAL";
+  printSize?: string;
+  quantity?: number;
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
 
 export interface FixedOrderSafeView {
   id: string;
   orderNo: string;
+  sourceDraftId: string | null;
   status: string;
   market: Market;
   currency: FixedOrderCurrency;
@@ -61,6 +67,9 @@ export interface FixedOrderSafeView {
   priceBookApprovalReference: string | null;
   priceBookEffectiveAt: string | null;
   createdAt: string;
+  paymentStatus?: string;
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
 
 const orderNo = (): string => {
@@ -76,6 +85,7 @@ function isUniqueConstraintViolation(err: unknown): boolean {
 function toSafeView(order: {
   id: string;
   orderNo: string;
+  sourceDraftId: string | null;
   status: string;
   market: string;
   currency: string;
@@ -84,12 +94,15 @@ function toSafeView(order: {
   priceBookApprovalReference: string | null;
   priceBookEffectiveAt: Date | null;
   createdAt: Date;
-  items: Array<{ tierOrSku: string | null; pricingSource: string; pricingApproved: boolean }>;
+  items: Array<{ tierOrSku: string | null; pricingSource: string; pricingApproved: boolean; metadata: unknown }>;
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2: string | null; city: string; region: string | null; postalCode: string | null; countryCode: string } | null;
+  paymentAttempt?: { status: string } | null;
 }): FixedOrderSafeView {
   const item = order.items[0];
   return {
     id: order.id,
     orderNo: order.orderNo,
+    sourceDraftId: order.sourceDraftId,
     status: order.status,
     market: order.market as Market,
     currency: order.currency as FixedOrderCurrency,
@@ -100,11 +113,23 @@ function toSafeView(order: {
     priceBookVersion: order.priceBookVersion,
     priceBookApprovalReference: order.priceBookApprovalReference,
     priceBookEffectiveAt: order.priceBookEffectiveAt ? order.priceBookEffectiveAt.toISOString() : null,
-    createdAt: order.createdAt.toISOString()
+    createdAt: order.createdAt.toISOString(),
+    paymentStatus: order.paymentAttempt?.status,
+    print: order.items[0]?.metadata && typeof order.items[0].metadata === "object" && "print" in order.items[0].metadata ? (order.items[0].metadata as any).print : undefined,
+    deliveryAddress: order.deliveryAddress ? {
+      recipientName: order.deliveryAddress.recipientName,
+      phone: order.deliveryAddress.phone,
+      addressLine1: order.deliveryAddress.addressLine1,
+      ...(order.deliveryAddress.addressLine2 ? { addressLine2: order.deliveryAddress.addressLine2 } : {}),
+      city: order.deliveryAddress.city,
+      ...(order.deliveryAddress.region ? { region: order.deliveryAddress.region } : {}),
+      ...(order.deliveryAddress.postalCode ? { postalCode: order.deliveryAddress.postalCode } : {}),
+      countryCode: order.deliveryAddress.countryCode
+    } : undefined
   };
 }
 
-const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const } } };
+const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const }, select: { tierOrSku: true, pricingSource: true, pricingApproved: true, metadata: true } }, deliveryAddress: true, paymentAttempt: { select: { status: true } } };
 
 export class FixedOrderService {
   private readonly offerProvider: OfferProvider;
@@ -180,20 +205,29 @@ export class FixedOrderService {
     }
 
     const isApproved = offer.source === "approved_pricebook";
+    const isPrint = input.product === "PRINT_DIGITAL";
+    let printQuote: ReturnType<typeof quotePrint> | undefined;
+    if (isPrint) {
+      if (owned.currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
+      if (owned.currency !== "PKR" || !input.printSize || !Number.isSafeInteger(input.quantity)) throw new AppError("valid PKR print size and quantity are required", 422, "INVALID_PRINT_SELECTION");
+      const address = input.deliveryAddress;
+      if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");
+      try { printQuote = quotePrint(offer.amountMinor, input.printSize, input.quantity); } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
+    }
 
     try {
       const created = await prisma.$transaction(async (tx) => {
         const order = await tx.fixedOrder.create({
           data: {
             orderNo: orderNo(),
-            type: "RESTORATION_DIGITAL",
+            type: isPrint ? "RESTORATION_WITH_PRINT" : "RESTORATION_DIGITAL",
             market: owned.market as Market,
             currency: owned.currency as FixedOrderCurrency,
             ownerUserId: owned.ownerUserId ?? null,
             ownerCustomerId: null,
             guestOwnershipTokenHash: owned.guestOwnershipTokenHash ?? null,
             sourceDraftId: owned.id,
-            totalAmountMinor: BigInt(offer.amountMinor),
+            totalAmountMinor: BigInt(printQuote?.totalAmountMinor ?? offer.amountMinor),
             priceBookVersion: isApproved ? offer.priceBookVersion ?? null : null,
             priceBookApprovalReference: isApproved ? offer.approvalReference ?? null : null,
             priceBookEffectiveAt: isApproved && offer.effectiveAt ? new Date(offer.effectiveAt) : null,
@@ -202,10 +236,11 @@ export class FixedOrderService {
                 kind: "RESTORATION_DIGITAL_TIER",
                 tierOrSku: tier,
                 unitAmountMinor: BigInt(offer.amountMinor),
-                totalAmountMinor: BigInt(offer.amountMinor),
+                totalAmountMinor: BigInt(printQuote?.totalAmountMinor ?? offer.amountMinor),
                 currency: owned.currency as FixedOrderCurrency,
                 pricingSource: offer.source,
-                pricingApproved: isApproved
+                pricingApproved: isApproved,
+                metadata: printQuote && input.printSize ? { print: { size: input.printSize, quantity: input.quantity, unitAmountMinor: printQuote.printSubtotalMinor / (input.quantity ?? 1), subtotalMinor: printQuote.printSubtotalMinor, deliveryAmountMinor: printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION } } : undefined
               }
             }
           },
@@ -216,6 +251,9 @@ export class FixedOrderService {
           where: { id: owned.id },
           data: { status: "ORDER_SELECTION" }
         });
+        if (isPrint && input.deliveryAddress) {
+          await tx.printDeliveryAddress.create({ data: { fixedOrderId: order.id, ...input.deliveryAddress } });
+        }
 
         return order;
       });
@@ -240,6 +278,8 @@ export class FixedOrderService {
       throw err;
     }
   }
+
+  getPrintCatalog() { return publicPrintCatalog(); }
 }
 
 // Exported only so a test can prove the fixture path is rejected without
