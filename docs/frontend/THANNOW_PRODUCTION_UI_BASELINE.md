@@ -112,3 +112,20 @@ generic UI and any older home-page composition remain rejected.
   and print catalog tests, FixedOrder/P4A/P4B/P3A race suites individually,
   full browser `91/91`, responsive `89/89`, and screenshots under
   `D:/Temp/kilo/r95-p4b4-commerce-screens/`.
+
+## Trial reset and print fulfilment boundary (2026-08-09)
+
+- Operator command: `npx tsx src/scripts/trial-commerce-reset.ts` from
+  `apps/api`; default is dry-run. `--apply` is required for writes.
+- Reset refuses non-loopback/managed database hosts, aborts on paid or verified
+  evidence, uses one transaction, never calls a provider, and is idempotent.
+- Eligible unpaid trial orders update only to
+  `PB-2026-08-09-TRIAL-V3`; totals/items and safe unpaid PaymentAttempt amounts
+  are recomputed server-side. No PaymentEvent, entitlement, master, execution,
+  print entitlement, fulfilment order, or shipment is created.
+- Print fulfilment preparation requires paid FixedOrder, validated master,
+  valid print snapshot, and `PrintDeliveryAddress`. It creates at most one
+  `PrintEntitlement` and pending `FulfilmentOrder`; partner assignment remains
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED` and no tracking/shipped state is faked.
+- International print remains blocked as
+  `INTERNATIONAL_PRINT_SHIPPING_REQUIRED` without destination-specific rates.
