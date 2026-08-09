@@ -34,12 +34,12 @@ export function draftFixture(overrides: Partial<{ market: string; currency: stri
 }
 
 export function offersFixture(currency: "PKR" | "USD") {
-  const amounts = currency === "PKR" ? [50000, 100000, 150000] : [199, 299, 499];
-  return [
-    { tier: "ORIGINAL", label: "Restored Original", amountMinor: amounts[0], currency, description: "Source resolution", source: "approved_pricebook", priceBookVersion: "PB-2026-08-09-TRIAL-V3" },
-    { tier: "HD_2X", label: "2x HD", amountMinor: amounts[1], currency, description: "2x enhanced", source: "approved_pricebook", priceBookVersion: "PB-2026-08-09-TRIAL-V3" },
-    { tier: "HD_4X", label: "4x Ultra HD", amountMinor: amounts[2], currency, description: "4x enhanced", source: "approved_pricebook", priceBookVersion: "PB-2026-08-09-TRIAL-V3" }
-  ];
+  const amounts = currency === "PKR" ? [50000, 100000, 150000, 250000, 350000, 400000, 500000] : [199, 299, 499, 699, 999, 1299, 1599];
+  const tiers = [
+    ["ORIGINAL", "Restored Original"], ["HD_2X", "2x HD"], ["HD_4X", "4x Ultra HD"],
+    ["HD_6X", "6x"], ["HD_8X", "8x"], ["HD_10X", "10x"], ["HD_12X", "12x"]
+  ] as const;
+  return tiers.map(([tier, label], index) => ({ tier, label, amountMinor: amounts[index], currency, description: index === 1 ? "2x enhanced" : "Enhanced restoration", source: "approved_pricebook" as const, priceBookVersion: "PB-2026-08-09-TRIAL-V3" }));
 }
 
 export function orderFixture(overrides: Partial<{ market: string; currency: string; tier: string; amount: string }> = {}) {

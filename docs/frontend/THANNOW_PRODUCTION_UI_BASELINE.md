@@ -289,3 +289,35 @@ generic UI and any older home-page composition remain rejected.
   catalogs. `PB-2026-08-09-TRIAL-V3` remains the sole current customer-facing
   PriceBook authority. Deleting either historical folder requires explicit
   owner authorization.
+
+## Production parity and release candidate (R9.5-P4B11: 2026-08-09)
+
+- **Parity finding:** local candidate is `cee6ea250ac71a865a1cf837215ac5a6bfb5c7b6`.
+  The tracked remote branch still points to `37c317a`, so commits `6bd50ff`,
+  `942cc2f`, and `cee6ea2` are not proven deployed. The live Cloudflare Pages
+  HTML serves `/assets/index-D6CznrWT.js`; its bundle contains `Upload Photos
+  for Restoration`, `Demo Payment Mode`, `/restore/new`, and stale `250`, but
+  contains neither `PB-2026-08-09-TRIAL-V3` nor `Print + Digital`. This proves
+  `FRONTEND_NOT_DEPLOYED`, not a browser-cache-only defect.
+- **API parity:** `GET https://api.thannow.com/api/health` reports
+  `build_sha=dd8924a78f54487ab9336806b3906b4c585a5860`, `provider=replicate`,
+  and `payment_mode=manual`. Its Pakistan digital catalog endpoint returns
+  404, proving the deployed API is also not the P4B9 candidate. The result is
+  `API_NOT_DEPLOYED` plus `MIXED_FRONTEND_API_VERSIONS`; no production DB was
+  mutated.
+- **Candidate deploy package:** deploy the exact Git commit
+  `cee6ea250ac71a865a1cf837215ac5a6bfb5c7b6` to Cloudflare Pages project
+  `ai-photo-studio-whatsapp-web` and the API service through the approved
+  Northflank main-branch release process. Do not deploy from the stale
+  `37c317a` branch or from a dirty worktree.
+- **Rollback package:** retain the currently live Cloudflare deployment
+  identified by asset `index-D6CznrWT.js` and the currently live API revision
+  identified by `BUILD_SHA=dd8924a78f54487ab9336806b3906b4c585a5860` in the
+  platform consoles. Roll back platform revisions, not database state; do not
+  infer a Git SHA from the API build SHA until the release system records that
+  mapping.
+- **Candidate acceptance:** local browser 102/102 and responsive 92/92 tests,
+  the canonical 14-CTA matrix, Pakistan Digital and Print+Digital real local
+  E2E, V3 price tests, and all payment/processing/print race suites pass.
+  Candidate screenshots were not captured because no repository screenshot
+  capture workflow is available; production was not changed.

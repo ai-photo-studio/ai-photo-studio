@@ -1107,3 +1107,21 @@ This section is additive; every rule above it remains in force verbatim.
 - `PB-2026-08-09-TRIAL-V3` remains the sole active customer PriceBook. V1/V2
   catalogs and obsolete prices must remain inactive. Deleting either
   historical asset folder requires explicit owner authorization.
+
+### R9.5-P4B11-PRODUCTION-PARITY-GATE (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- Local Pakistan commerce acceptance is not production acceptance. Before any
+  release, compare the live Cloudflare bundle and API health build identity to
+  the candidate commit and prove the canonical upload, V3 catalog, FixedOrder
+  status, payment gate, and print boundary are deployed together.
+- The P4B11 candidate is
+  `cee6ea250ac71a865a1cf837215ac5a6bfb5c7b6`. The live evidence recorded on
+  2026-08-09 is frontend asset `index-D6CznrWT.js` and API
+  `BUILD_SHA=dd8924a78f54487ab9336806b3906b4c585a5860`; neither is accepted as
+  the candidate source identity.
+- No deployment, production database mutation, real payment, real Replicate
+  call, or RunPod action is authorized by this parity packet. A future release
+  must use the exact candidate commit and retain platform-level rollback
+  revisions for both Cloudflare Pages and Northflank before activation.

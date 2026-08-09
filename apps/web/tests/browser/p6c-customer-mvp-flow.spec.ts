@@ -135,6 +135,16 @@ test.describe("P6C product choice truthfulness", () => {
   });
 });
 
+test("P4B11 Pakistan offer page exposes all seven V3 tiers and no stale 250 price", async ({ page }) => {
+  await blockExternalNetwork(page);
+  await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+  await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+  await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
+  for (const label of ["2x HD", "4x Ultra HD", "6x", "8x", "10x", "12x"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
+  await expect(page.getByText(/PKR 250\.00|PKR 350\.00/)).toHaveCount(0);
+  await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toHaveCount(0);
+});
+
 test.describe("P6C ownership: forged/wrong guest token is rejected", () => {
   test("wrong guest token on the review page renders a not-found state, not the order", async ({ page }) => {
     await blockExternalNetwork(page);
