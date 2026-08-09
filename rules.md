@@ -1165,3 +1165,26 @@ This section is additive; every rule above it remains in force verbatim.
   API-first smoke, frontend-second smoke, and immediate platform rollback on
   any failed gate. No main force push, rebase, reset, RunPod action, real
   payment, or production DB mutation is implied by this readiness packet.
+
+### R9.5-P5C-GUARDED-PRODUCTION-MIGRATIONS (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- The only approved repository migration commands are
+  `npm run db:migrate:status:production` (read-only) and
+  `npm run db:migrate:production` (apply). Both require a process-only,
+  valid PostgreSQL `DATABASE_URL`; apply additionally requires
+  `ALLOW_PRODUCTION_MIGRATIONS=true`.
+- The wrapper runs `migrate status` first, permits only Prisma's exact
+  pending-migrations exit state before apply, then runs `migrate deploy` and a
+  final status. It never runs `migrate dev`, `db push`, reset/drop/schema-force,
+  or migrations during API startup. Credentials are redacted from output.
+- Before production use, status must show only the two reviewed additive R9.5
+  migrations pending: `20260808000000_r95_p4b_pricebook_v2_tiers` and
+  `20260809000000_r95_p4b4_print_delivery_address`. Unexpected drift, failed
+  migrations, extra pending migrations, or unavailable approved credentials is
+  a true stop.
+- Fresh disposable proof passed: status -> authorized deploy -> clean status
+  -> second authorized deploy with no pending migrations. Production migration
+  remains `AWAITING_CREDENTIAL_AND_AUTHORIZATION`; this packet does not
+  authorize database access or deployment.

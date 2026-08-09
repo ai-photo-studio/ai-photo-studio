@@ -410,3 +410,36 @@ generic UI and any older home-page composition remain rejected.
   Current rollback references remain Cloudflare deployment
   `72cdd2d7-7334-4f36-80bb-bb6f5a33226c` / source `4965032` and API
   `BUILD_SHA=dd8924a78f54487ab9336806b3906b4c585a5860`.
+
+## Guarded production migration mechanism (R9.5-P5C: 2026-08-10)
+
+- Added `npm run db:migrate:status:production` for read-only operator
+  preflight and `npm run db:migrate:production` for explicitly authorized
+  apply. Both use the checked-in `apps/api/prisma/schema.prisma` through the
+  installed Prisma CLI; neither changes normal API startup or Dockerfile
+  `SKIP_MIGRATIONS=true`.
+- Both commands require a process-only `DATABASE_URL` with a valid
+  `postgres://`/`postgresql://` URL. Apply additionally requires the exact
+  `ALLOW_PRODUCTION_MIGRATIONS=true` flag. Credentials are never printed;
+  Prisma output is redacted before display. Unsupported migration verbs,
+  missing/malformed/placeholder URLs, and missing apply authorization fail
+  closed with non-zero status.
+- Apply sequence is status -> deploy -> status. Prisma status returns exit 1
+  when pending migrations are listed; the wrapper permits that exact pending
+  state only as the apply preflight and rejects all other status failures.
+  It invokes only `migrate deploy`, never `migrate dev`, `db push`, reset,
+  drop, schema force, or automatic startup migration.
+- Disposable proof: fresh loopback PostgreSQL status listed 23 pending
+  migrations; authorized apply applied all 23; post-status was clean; a
+  second authorized apply reported no pending migrations. Guard tests passed
+  4/4. The release delta remains exactly the two additive R9.5 migrations.
+- Next operator procedure: obtain production `DATABASE_URL` through the
+  approved secure channel; run `npm run db:migrate:status:production`; verify
+  only the expected two migrations are pending against the known production
+  baseline; obtain explicit migration authorization; run
+  `ALLOW_PRODUCTION_MIGRATIONS=true npm run db:migrate:production`; verify
+  status clean; then API deploy/smoke, frontend deploy, and live smoke.
+- Protected scope: no production DB access, deploy, push, real payment,
+  Replicate, RunPod, or Bank call occurred. Evidence-based readiness remains
+  frontend 100%, Pakistan funnel 100%, processing 100%, internal print 100%,
+  payment integration 50%, full Pakistan readiness 80%.
