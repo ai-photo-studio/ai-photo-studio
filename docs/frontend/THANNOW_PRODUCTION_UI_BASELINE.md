@@ -468,3 +468,23 @@ generic UI and any older home-page composition remain rejected.
   been dispatched from this commit; no production DB query, mutation, API
   deploy, frontend deploy, payment, Replicate call, or RunPod action occurred
   in this packet.
+
+## Production image asset integrity (R9.5-P5G: 2026-08-10)
+
+- The active HomePage had 15 missing `/assets/*.jpg` references across the
+  Memories, Upscale, and Printing cards. Exact approved files were restored
+  from `ca7d79744c93443553373c3cf5a86ed3d26efea4` without regeneration or
+  recompression. The restored card assets are separate from the retained
+  historical `old images/` tree and do not alter the locked Hero asset set.
+- Added `homepage-image-integrity.spec.ts`. At 1440x900 and 390x844 it scrolls
+  every lazy image, verifies `complete`, `naturalWidth`, and `naturalHeight`,
+  fails on first-party `/assets/` 404s, checks all five memory labels, checks
+  CSS asset URLs, captures screenshots, and verifies no horizontal overflow.
+- Focused browser proof: 2/2. Production `vite preview` proof: 17/17 images
+  valid at both desktop and mobile, zero first-party 404s, zero overflow.
+  All active customer images must remain inside the production bundle or use a
+  deliberately verified external source; Windows case-insensitive resolution
+  is not sufficient.
+- `old images/` remains retained historical evidence and cannot be deleted
+  without explicit owner authorization. The migration workflow remains
+  isolated from runtime release lineage on its separate bootstrap branch.

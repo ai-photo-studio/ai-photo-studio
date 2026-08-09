@@ -1206,3 +1206,21 @@ This section is additive; every rule above it remains in force verbatim.
   pending migrations. Apply requires explicit workflow input and
   `ALLOW_PRODUCTION_MIGRATIONS=true`, then runs only the guarded deploy and
   final status. No deployment is implied by this workflow.
+
+### R9.5-P5G-ASSET-INTEGRITY-AND-WORKFLOW-BOOTSTRAP (2026-08-10)
+
+This section is additive; every rule above remains in force verbatim.
+
+- Every active customer-visible image must resolve with production-compatible
+  exact casing and be present in the Vite/public bundle or be an explicitly
+  verified external source. Desktop and mobile asset integrity, including
+  lazy images and first-party 404 detection, is release-blocking.
+- The 15 HomePage card assets restored from the approved R9.3 source commit
+  are runtime assets; `old images/` remains historical/reference-only and
+  requires owner authorization before deletion. No image regeneration or
+  redesign is permitted under this rule.
+- `.github/workflows/production-migration-preflight.yml` is a dispatch-only,
+  read-only-by-default workflow. Its bootstrap must remain isolated from the
+  runtime release lineage and contain only that workflow when based on
+  `origin/main`; workflow secrets are consumed inside Actions and never
+  exposed in output, artifacts, source, or documentation.
