@@ -44,11 +44,11 @@ jobs:
           DATABASE_URL_SECRET: ${{ secrets.DATABASE_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           NEON_POOLER_URL: ${{ secrets.NEON_POOLER_URL }}
+          APPLY_MIGRATIONS: ${{ inputs.apply_migrations }}
+          ALLOW_PRODUCTION_MIGRATIONS: ${{ inputs.apply_migrations == true && 'true' || '' }}
         shell: bash
         run: |
           set -euo pipefail
-          APPLY_MIGRATIONS: ${{ inputs.apply_migrations }}
-          ALLOW_PRODUCTION_MIGRATIONS: ${{ inputs.apply_migrations == true && 'true' || '' }}
           status_log="${RUNNER_TEMP}/production-migration-status.log"
           apply_log="${RUNNER_TEMP}/production-migration-apply.log"
           expected_one='20260808000000_r95_p4b_pricebook_v2_tiers'
