@@ -204,13 +204,13 @@ test("shows no broken hero assets and makes no unexpected external calls", async
   expectCleanNetwork(blockedRequests);
 });
 
-test("CTA link still routes to /restore/new", async ({ page }) => {
+test("pricing CTA opens the canonical upload modal", async ({ page }) => {
   await page.goto("/");
-  const link = page.getByRole("link", { name: "Upload Photo and View Pricing" });
-  await link.scrollIntoViewIfNeeded();
-  await expect(link).toBeVisible();
-  await link.click();
-  await expect(page).toHaveURL(/\/restore\/new/);
+  const button = page.getByRole("button", { name: "Upload Photo and View Pricing" });
+  await button.scrollIntoViewIfNeeded();
+  await button.click();
+  await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+  await expect(page.getByText("Upload Photos for Restoration")).toHaveCount(0);
 });
 
 test("homepage hero causes no horizontal overflow at desktop", async ({ page }) => {

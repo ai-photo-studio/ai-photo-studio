@@ -30,7 +30,7 @@ test.describe("P6C upload page never uploads before the explicit button click", 
     await page.getByRole("button", { name: "Upload Your Photo" }).first().click();
     await page.setInputFiles('#photoInput', tinyPngPath());
     expect(createCalls).toBe(0);
-    await page.getByRole("button", { name: "Continue to Preview" }).click();
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     expect(createCalls).toBe(1);
   });
@@ -48,7 +48,7 @@ test.describe("P6C upload page never uploads before the explicit button click", 
     await page.waitForTimeout(300);
     expect(createCalls).toBe(0);
 
-    await page.getByRole("button", { name: "Upload photo" }).click();
+    await page.locator("form").getByRole("button", { name: "Upload photo" }).click();
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     expect(createCalls).toBe(1);
   });
@@ -68,7 +68,7 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await page.goto("/restore-mvp/new");
     await page.setInputFiles('input[type="file"]', tinyPngPath());
     await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "Upload photo" }).click();
+    await page.locator("form").getByRole("button", { name: "Upload photo" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
@@ -242,7 +242,7 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.goto("/restore-mvp/new");
     await page.setInputFiles('input[type="file"]', tinyPngPath());
     await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "Upload photo" }).click();
+    await page.locator("form").getByRole("button", { name: "Upload photo" }).click();
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Review & Checkout" }).click();

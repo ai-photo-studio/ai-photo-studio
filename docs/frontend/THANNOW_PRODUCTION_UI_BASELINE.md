@@ -77,6 +77,10 @@ generic UI and any older home-page composition remain rejected.
 
 ## Restoration customer funnel rule
 
+- ThanNow has ONE customer restoration upload entry flow. All Upload Photo /
+  restoration-start CTAs and `/restore/new` resolve to the canonical Upload Your
+  Photo experience. No CTA may directly resurrect the legacy upload page.
+
 - Homepage upload creates the authoritative server-backed `RestorationDraft`
   exactly once and navigates directly to its persisted preview.
 - Preview and refresh are GET-only; the customer is never asked to upload the

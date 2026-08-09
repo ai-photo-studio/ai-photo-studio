@@ -14,9 +14,9 @@ test.describe("ThanNow production UI baseline", () => {
     const actions = page.locator(".header-actions");
     await expect(actions.getByRole("link", { name: "Login", exact: true })).toBeVisible();
     await expect(actions.getByRole("link", { name: "Sign Up", exact: true })).toBeVisible();
-    await expect(actions.getByRole("link", { name: "Get Started", exact: true })).toBeVisible();
+    await expect(actions.getByRole("button", { name: "Get Started", exact: true })).toBeVisible();
 
-    await expect(page.getByRole("link", { name: "Upload Photo and View Pricing" })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Upload Photo and View Pricing" })).toHaveCount(1);
     for (const section of ["Memories We Restore", "Upscale and Display Anywhere", "Print and Preserve Forever", "How It Works", "Choose Your Print Size"]) {
       await expect(page.getByRole("heading", { name: section, exact: true })).toBeVisible();
     }

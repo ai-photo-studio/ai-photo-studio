@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { RestorationUploadController, useRestorationUpload } from "./RestorationUploadController";
 
 // ThanNow locked public shell (R9.3). Human-memory restoration journey.
 // Header nav links to homepage anchors so that top-level sections remain
@@ -17,6 +18,15 @@ export function PublicLayout() {
   const onHome = pathname === "/";
   const hrefFor = (anchor: string) => (onHome ? anchor : `/${anchor}`);
 
+  return (
+    <RestorationUploadController>
+      <PublicShell hrefFor={hrefFor} />
+    </RestorationUploadController>
+  );
+}
+
+function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
+  const { openRestorationUpload } = useRestorationUpload();
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -39,7 +49,7 @@ export function PublicLayout() {
         <div className="header-actions">
           <Link to="/login" className="btn btn-ghost">Login</Link>
           <Link to="/register" className="btn btn-ghost">Sign Up</Link>
-          <Link to="/restore/new" className="btn btn-primary upload-trigger">Get Started</Link>
+          <button type="button" className="btn btn-primary upload-trigger" onClick={openRestorationUpload}>Get Started</button>
         </div>
       </header>
 
@@ -74,7 +84,7 @@ export function PublicLayout() {
           <div className="footer-cta">
             <h4>Start Restoring</h4>
             <p>Bring a precious photo back to life today.</p>
-            <a className="btn btn-primary btn-full upload-trigger" href="/restore/new">Upload Photo</a>
+            <button type="button" className="btn btn-primary btn-full upload-trigger" onClick={openRestorationUpload}>Upload Photo</button>
           </div>
         </div>
         <div className="footer-bottom section-shell">

@@ -1,13 +1,10 @@
-import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { HeroCompareSlider } from "../components/HeroCompareSlider";
-import { useAuth } from "../lib/auth";
-import { setGuestOwnershipToken } from "../lib/guest";
-import { customerApi } from "../services/customerApi";
+import { useRestorationUpload } from "../components/RestorationUploadController";
 
 // ThanNow locked human-memory homepage (R9.3).
-// References the approved UI/DESIGN_LOCK.md direction. Upload CTAs route to
-// the existing restoration flow (/restore/new). Image assets under /assets/
+// References the approved UI/DESIGN_LOCK.md direction. Upload CTAs use the
+// shared restoration upload controller. Image assets under /assets/
 // are licence-gated: RenderAsset fall backs to a clean slot until owned images
 // are supplied. No unlicensed/hotlinked imagery is ever added.
 
@@ -66,49 +63,7 @@ function RenderAsset({ fileName, alt, label }: { fileName: string; alt: string; 
 }
 
 export function HomePage() {
-  const { token } = useAuth();
-  const navigate = useNavigate();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const openModal = () => setModalOpen(true);
-  const closeModal = () => setModalOpen(false);
-
-  const handleFile = (selected: File | undefined | null) => {
-    if (selected) setFile(selected);
-  };
-
-  const continueFromModal = async () => {
-    if (!file || uploading) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ""));
-        reader.onerror = () => reject(new Error("Unable to read the selected image"));
-        reader.readAsDataURL(file);
-      });
-      const bodyBase64 = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
-      const draft = await customerApi.createRestorationDraft(token || undefined, {
-        fileName: file.name,
-        contentType: file.type || "image/jpeg",
-        bodyBase64,
-        country: "PK",
-        confirmed: true
-      });
-      if (draft.guestOwnershipToken) setGuestOwnershipToken(draft.id, draft.guestOwnershipToken);
-      closeModal();
-      navigate(`/restore-mvp/${draft.id}/preview`);
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Unable to upload the image");
-    } finally {
-      setUploading(false);
-    }
-  };
+  const { openRestorationUpload } = useRestorationUpload();
 
   return (
     <div className="thannow-home">
@@ -125,7 +80,7 @@ export function HomePage() {
           </ul>
 
           <div className="hero-actions">
-            <button type="button" className="btn btn-primary btn-large upload-trigger" onClick={openModal}>Upload Your Photo</button>
+            <button type="button" className="btn btn-primary btn-large upload-trigger" onClick={openRestorationUpload}>Upload Your Photo</button>
             <a className="btn btn-light btn-large" href="#how">See How It Works</a>
           </div>
 
@@ -139,7 +94,7 @@ export function HomePage() {
 
         <div className="hero-media">
           <HeroCompareSlider />
-          <button className="hero-upload upload-trigger" type="button" onClick={openModal}>Upload Photo</button>
+          <button className="hero-upload upload-trigger" type="button" onClick={openRestorationUpload}>Upload Photo</button>
         </div>
       </section>
 
@@ -172,7 +127,7 @@ export function HomePage() {
           ))}
         </div>
         <div className="center-action">
-          <button type="button" className="btn btn-primary upload-trigger" onClick={openModal}>Upload and Check Your Photo</button>
+          <button type="button" className="btn btn-primary upload-trigger" onClick={openRestorationUpload}>Upload and Check Your Photo</button>
         </div>
       </section>
 
@@ -221,56 +176,17 @@ export function HomePage() {
           ))}
         </div>
         <div className="center-action">
-          <Link className="btn btn-light upload-trigger" to="/restore/new">Upload Photo and View Pricing</Link>
+          <button type="button" className="btn btn-light upload-trigger" onClick={openRestorationUpload}>Upload Photo and View Pricing</button>
         </div>
       </section>
 
       <section className="section-shell content-section">
         <div className="section-heading"><h2>Restore, Upscale, Print</h2></div>
         <div className="center-action">
-          <button type="button" className="btn btn-primary btn-large upload-trigger" onClick={openModal}>Upload Your Photo</button>
+          <button type="button" className="btn btn-primary btn-large upload-trigger" onClick={openRestorationUpload}>Upload Your Photo</button>
         </div>
       </section>
 
-      <button className="floating-upload upload-trigger" type="button" aria-label="Upload a photo" onClick={openModal}>Upload Photo</button>
-
-      {modalOpen && (
-        <div className="upload-modal open" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
-          <div className="modal-backdrop" onClick={closeModal} />
-          <section className="modal-panel">
-            <button className="modal-close" type="button" aria-label="Close" onClick={closeModal}>x</button>
-            <span className="eyebrow">START RESTORATION</span>
-            <h2 id="uploadTitle">Upload Your Photo</h2>
-            <p>Choose a human portrait, family photo, wedding photo or another personal memory.</p>
-
-            <label className="drop-zone" htmlFor="photoInput">
-              <span className="drop-icon">+</span>
-              <strong>Click to choose your image</strong>
-              <small>JPG, PNG or WEBP</small>
-              <input
-                ref={fileInputRef}
-                id="photoInput"
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                onChange={(e) => handleFile(e.target.files?.[0])}
-              />
-            </label>
-
-            {file && (
-              <div className="selected-preview">
-                <div className="selected-fallback" aria-hidden="true">IMG</div>
-                <div><strong>{file.name}</strong><small>Ready for restoration</small></div>
-              </div>
-            )}
-
-            {uploadError && <div className="state-panel state-panel-error"><p>{uploadError}</p></div>}
-
-            <button className="btn btn-primary btn-full" type="button" id="continueButton" disabled={!file || uploading} onClick={() => void continueFromModal()}>
-              {uploading ? "Uploading..." : "Continue to Preview"}
-            </button>
-          </section>
-        </div>
-      )}
     </div>
   );
 }
