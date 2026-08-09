@@ -35,78 +35,118 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Resolve production database through Northflank
-        id: resolve
+      - name: Resolve and diagnose production database candidates
         env:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
           NORTHFLANK_PROJECT_ID: ai-photo-studio
           NORTHFLANK_SERVICE_ID: ai-photo-studio
+          NEON_DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+          DATABASE_URL_SECRET: ${{ secrets.DATABASE_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          NEON_POOLER_URL: ${{ secrets.NEON_POOLER_URL }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${NORTHFLANK_API_KEY:-}" ]]; then
-            echo "NORTHFLANK_API_KEY is unavailable"
-            exit 1
-          fi
-          response="$(curl --fail-with-body --silent --show-error --max-time 30 \
-            -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
-            "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}/runtime-environment")"
-          database_url="$(jq -r '.runtimeEnvironment.DATABASE_URL // .data.runtimeEnvironment.DATABASE_URL // .DATABASE_URL // .data.DATABASE_URL // empty' <<<"${response}")"
-          unset response
-          if [[ -z "${database_url}" || "${database_url}" == "null" ]]; then
-            echo "Northflank runtime DATABASE_URL is unavailable or unreadable"
-            exit 1
-          fi
-          echo "::add-mask::${database_url}"
-          {
-            printf 'DATABASE_URL<<EOF\n%s\nEOF\n' "${database_url}"
-          } >> "${GITHUB_ENV}"
-          unset database_url
-          echo "database_source=northflank_runtime_environment" >> "${GITHUB_OUTPUT}"
-
-      - name: Run guarded migration status and optional apply
-        env:
           APPLY_MIGRATIONS: ${{ inputs.apply_migrations }}
           ALLOW_PRODUCTION_MIGRATIONS: ${{ inputs.apply_migrations == true && 'true' || '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
           status_log="${RUNNER_TEMP}/production-migration-status.log"
           apply_log="${RUNNER_TEMP}/production-migration-apply.log"
           expected_one='20260808000000_r95_p4b_pricebook_v2_tiers'
           expected_two='20260809000000_r95_p4b4_print_delivery_address'
 
-          set +e
-          npm run db:migrate:status:production >"${status_log}" 2>&1
-          status_exit=$?
-          set -e
-          mapfile -t pending < <(grep -oE '202[0-9]{14}_[A-Za-z0-9_-]+' "${status_log}" | sort -u || true)
-          rm -f "${status_log}"
+          diagnose_url() {
+            CHECK_URL="$1" node -e 'const dns=require("node:dns"); const net=require("node:net"); const value=process.env.CHECK_URL||""; let parsed; try { parsed=new URL(value) } catch { parsed=null } const valid=!!parsed; console.log(`schemeValid=${valid&&(parsed.protocol==="postgres:"||parsed.protocol==="postgresql:")}`); console.log(`hostnamePresent=${!!(parsed&&parsed.hostname)}`); console.log(`databaseNamePresent=${!!(parsed&&parsed.pathname&&parsed.pathname.length>1)}`); console.log(`passwordPresent=${!!(parsed&&parsed.password)}`); console.log(`sslConfigured=${!!(parsed&&((parsed.searchParams.get("sslmode")||"")!=="disable"||parsed.searchParams.has("ssl")))}`); console.log(`urlParseValid=${valid}`); if(!valid||!parsed.hostname){console.log("dnsResolvable=NO"); console.log("tcpReachable=NO"); process.exit(0)} dns.lookup(parsed.hostname,{all:false},(dnsError)=>{ console.log(`dnsResolvable=${dnsError?"NO":"YES"}`); if(dnsError){console.log("tcpReachable=NO"); return} const socket=net.createConnection({host:parsed.hostname,port:Number(parsed.port||5432)}); let done=false; const finish=(ok)=>{if(done)return;done=true;socket.destroy();console.log(`tcpReachable=${ok?"YES":"NO"}`)}; socket.setTimeout(5000); socket.once("connect",()=>finish(true)); socket.once("timeout",()=>finish(false)); socket.once("error",()=>finish(false)); });' 2>/dev/null
+          }
 
-          if (( status_exit == 0 )) && (( ${#pending[@]} == 0 )); then
-            echo "migration_status=clean"
-          elif (( ${#pending[@]} == 2 )) && [[ "${pending[0]}" == "${expected_one}" && "${pending[1]}" == "${expected_two}" ]]; then
-            echo "pending_migration=${pending[0]}"
-            echo "pending_migration=${pending[1]}"
-            echo "migration_status=expected_pending"
-          else
-            echo "migration_status=drift_or_unexpected_failure"
+          classify_failure() {
+            if grep -qiE 'P1001|ECONNREFUSED|ETIMEDOUT' "$1"; then echo 'failure_class=DATABASE_HOST_UNREACHABLE';
+            elif grep -qiE 'ENOTFOUND|EAI_AGAIN|could not translate host' "$1"; then echo 'failure_class=DNS_FAILURE';
+            elif grep -qiE 'P1000|authentication failed|password authentication' "$1"; then echo 'failure_class=AUTH_FAILURE';
+            elif grep -qiE 'P1003|database .* does not exist' "$1"; then echo 'failure_class=DATABASE_NOT_FOUND';
+            elif grep -qiE 'P1013|invalid.*connection|malformed' "$1"; then echo 'failure_class=DATABASE_URL_MALFORMED';
+            elif grep -qiE 'SSL|TLS|certificate' "$1"; then echo 'failure_class=TLS_SSL_FAILURE';
+            else echo 'failure_class=PRISMA_COMMAND_FAILURE'; fi
+          }
+
+          try_candidate() {
+            local source="$1" candidate="$2" status_exit pending_count
+            [[ -n "$candidate" ]] || return 1
+            echo "candidate_source=${source}"
+            echo 'url_diagnostics_start'
+            diagnose_url "$candidate"
+            echo 'url_diagnostics_end'
+            echo "::add-mask::${candidate}"
+            set +e
+            DATABASE_URL="$candidate" npm run db:migrate:status:production >"${status_log}" 2>&1
+            status_exit=$?
+            set -e
+            mapfile -t pending < <(grep -oE '202[0-9]{14}_[A-Za-z0-9_-]+' "${status_log}" | sort -u || true)
+            pending_count=${#pending[@]}
+            if (( status_exit == 0 )) && (( pending_count == 0 )); then
+              echo 'migration_status=clean'
+              SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=0
+              rm -f "${status_log}"; return 0
+            fi
+            if (( pending_count == 2 )) && [[ "${pending[0]}" == "${expected_one}" && "${pending[1]}" == "${expected_two}" ]]; then
+              echo "pending_migration=${pending[0]}"
+              echo "pending_migration=${pending[1]}"
+              echo 'migration_status=expected_pending'
+              SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=2
+              rm -f "${status_log}"; return 0
+            fi
+            classify_failure "${status_log}"
             for migration in "${pending[@]}"; do echo "pending_migration=${migration}"; done
+            rm -f "${status_log}"
+            return 1
+          }
+
+          SELECTED_URL=''; SELECTED_SOURCE=''; PENDING_COUNT=0
+          candidates=(
+            "NEON_DIRECT_URL|${NEON_DIRECT_URL:-}"
+            "DATABASE_URL|${DATABASE_URL_SECRET:-}"
+            "NEON_DATABASE_URL|${NEON_DATABASE_URL:-}"
+            "NEON_POOLER_URL|${NEON_POOLER_URL:-}"
+          )
+          for item in "${candidates[@]}"; do
+            source="${item%%|*}"; candidate="${item#*|}"
+            if try_candidate "$source" "$candidate"; then break; fi
+          done
+
+          if [[ -z "${SELECTED_URL}" && -n "${NORTHFLANK_API_KEY:-}" ]]; then
+            response="$(curl --fail --silent --max-time 30 \
+              -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+              "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}/runtime-environment" 2>/dev/null || true)"
+            runtime_url="$(jq -r '.runtimeEnvironment.DATABASE_URL // .data.runtimeEnvironment.DATABASE_URL // .DATABASE_URL // .data.DATABASE_URL // empty' <<<"${response}")"
+            unset response
+            if [[ -n "${runtime_url}" && "${runtime_url}" != "null" ]]; then
+              try_candidate 'northflank_runtime_environment' "$runtime_url" || true
+              unset runtime_url
+            else
+              echo 'northflank_resolution=unavailable'
+            fi
+          fi
+
+          if [[ -z "${SELECTED_URL}" ]]; then
+            echo 'migration_status=DATABASE_CONNECTIVITY_OR_CONFIGURATION_BLOCKED'
             exit 1
           fi
 
+          echo "selected_database_source=${SELECTED_SOURCE}"
           if [[ "${APPLY_MIGRATIONS}" != "true" ]]; then
-            echo "apply_migrations=false"
+            echo 'apply_migrations=false'
+            unset SELECTED_URL
             exit 0
           fi
 
-          if (( ${#pending[@]} != 2 )); then
+          if (( PENDING_COUNT != 2 )); then
             echo "apply_migrations=not_needed"
+            unset SELECTED_URL
             exit 0
           fi
 
-          npm run db:migrate:production >"${apply_log}" 2>&1
+          DATABASE_URL="${SELECTED_URL}" npm run db:migrate:production >"${apply_log}" 2>&1
           mapfile -t applied < <(grep -oE '202[0-9]{14}_[A-Za-z0-9_-]+' "${apply_log}" | sort -u || true)
           rm -f "${apply_log}"
           for migration in "${applied[@]}"; do echo "applied_migration=${migration}"; done
           echo "apply_migrations=true"
+          unset SELECTED_URL
