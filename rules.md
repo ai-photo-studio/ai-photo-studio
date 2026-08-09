@@ -1125,3 +1125,22 @@ This section is additive; every rule above it remains in force verbatim.
   call, or RunPod action is authorized by this parity packet. A future release
   must use the exact candidate commit and retain platform-level rollback
   revisions for both Cloudflare Pages and Northflank before activation.
+
+### R9.5-P5A-PAKISTAN-LAUNCH-GATES (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- Bank Alfalah remains `BANK_ACTION_REQUIRED` until the owner supplies bank-
+  confirmed Merchant ID/region/host, REST API Password, Hosted Checkout/API
+  enablement, API version/path, and sanitized success/correlation evidence.
+  Never guess credentials or endpoint shape, and never run a real charge.
+- Print code may create only one pending fulfilment record after verified PAID,
+  validated RestorationMaster, address, and authoritative print snapshot. No
+  partner, tracking, shipment, dispatch, or delivery may be invented. Without
+  supplied partner data, operations are `PARTNER_DATA_REQUIRED` and the safe
+  code state is `READY_FOR_PARTNER_DATA`.
+- Production release order is permanently API first, API smoke, frontend
+  second, live customer smoke. The exact candidate is
+  `13d792a4b49248b0e70d47ba80ae11516237850b6`; retain platform rollback
+  revisions before activation. No P5A action authorizes deployment, push,
+  production DB mutation, real payment, Replicate, or RunPod.

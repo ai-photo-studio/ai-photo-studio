@@ -321,3 +321,55 @@ generic UI and any older home-page composition remain rejected.
   E2E, V3 price tests, and all payment/processing/print race suites pass.
   Candidate screenshots were not captured because no repository screenshot
   capture workflow is available; production was not changed.
+
+## Pakistan launch gates (R9.5-P5A: 2026-08-09)
+
+- **Bank Alfalah:** `BANK_ACTION_REQUIRED`. The canonical MPGS integration is
+  disabled by default and fail-closed. The latest sanitized sandbox evidence
+  is Hosted Checkout HTTP 404 on the v74 initialization path, not a proven
+  local authentication defect. The owner must obtain from Bank Alfalah the
+  exact provisioned Merchant ID, correct sandbox host/region, REST API Password
+  (not portal/operator password), Hosted Checkout/API enablement, supported API
+  version/path, and a sanitized request/response or correlation-ID contract.
+  No secret was read, echoed, guessed, or tested here.
+- **Print operations:** code is `READY_FOR_PARTNER_DATA`: paid + validated
+  order, address, print snapshot, and the same RestorationMaster are required
+  before the idempotent boundary creates one `PrintEntitlement` and one
+  `FulfilmentOrder.PENDING`. No partner assignment seam currently exists. Once
+  real partner data is supplied, an authorized operations actor must assign
+  partner ID/name/service area/contact reference/supported sizes/active state,
+  verify the address and catalog specification, record the assignment audit,
+  and only then dispatch through the real partner process. No tracking,
+  shipment, dispatched, or delivered state may be fabricated.
+- **Migration preflight:** before any API deployment, run `DATABASE_URL=<local
+  or approved target> npx prisma migrate status`; candidate migrations beyond
+  the original baseline are `20260802183254_r92_p0a_fixed_order_foundation`,
+  `20260803000000_r92_p1a_fixed_order_source_draft_unique`,
+  `20260803010000_r92_p1b_fixed_order_item_pricing_provenance`,
+  `20260803020000_r92_p1c_b_fixed_order_pricebook_snapshot`,
+  `20260808000000_r95_p4b_pricebook_v2_tiers`, and
+  `20260809000000_r95_p4b4_print_delivery_address`. Apply migrations in
+  repository order, rerun status, then perform API smoke. Never use production
+  DB credentials in local verification and never roll back schema destructively.
+- **Release order:** API first at candidate commit
+  `13d792a4b49248b0e70d47ba80ae11516237850b`; verify health, V3 catalog,
+  print catalog, `POST /api/restoration-drafts` support, and
+  `GET /api/fixed-orders/:orderNo/restoration-status`. Only after those pass,
+  deploy the same candidate frontend to Cloudflare Pages and run live browser
+  smoke: modal upload once, Preview, seven tiers, Digital/Print+Digital,
+  server total, no PKR 250, no Demo Payment Mode, no legacy upload page,
+  completed FixedOrder result/download, and pending print fulfilment.
+- **Rollback:** frontend rollback is the currently deployed Cloudflare Pages
+  deployment serving `index-D6CznrWT.js`; API rollback is the currently serving
+  platform revision reporting `BUILD_SHA=dd8924a78f54487ab9336806b3906b4c585a5860`.
+  Roll back API/frontend as platform revisions in reverse release order, keep
+  Replicate as the provider, preserve payment fail-closed behavior, and do not
+  mutate or reverse database migrations automatically.
+- **Protected scope:** no deployment, push, production DB mutation, real
+  payment, real Replicate call, RunPod action, Bank credential access, or print
+  partner invention occurred. Current evidence remains browser 102/102,
+  responsive 92/92, Pakistan Digital and Print+Digital E2E passed, and all
+  five PostgreSQL race suites passed individually. Bank config/gateway tests
+  passed 13/13 and 28/28; the existing Vitest diagnostic could not be invoked
+  because `vitest` is absent from installed dependencies and the API workspace
+  has no unit-test script.
