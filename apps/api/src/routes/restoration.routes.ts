@@ -4,6 +4,7 @@ import { RestorationController } from "../controllers/restoration.controller";
 import { RestorationCustomerController } from "../controllers/restoration-customer.controller";
 import { FixedOrderController } from "../controllers/fixed-order.controller";
 import { requireAuth } from "../middleware/auth.middleware";
+import { actorFromRequest } from "../utils/ownership";
 import { rateLimit } from "../middleware/rate-limit.middleware";
 import { CustomerCheckoutController } from "../controllers/customer-checkout.controller";
 import { FixedOrderRestorationStatusController } from "../controllers/fixed-order-restoration-status.controller";
@@ -13,6 +14,7 @@ import { FixedOrderRestorationStatusController } from "../controllers/fixed-orde
 // below strictly behind `testCheckoutSeamAllowed()`, so this import is safe
 // even in a production process (the class is simply never instantiated).
 import { CustomerCheckoutTestController } from "../controllers/customer-checkout-test.controller";
+import { PrintFulfilmentBoundaryService } from "../services/print-fulfilment-boundary.service";
 
 /**
  * R9.5-P4B7-TEST-CHECKOUT-SEAM: true only for a disposable local E2E harness
@@ -30,6 +32,7 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   const fixedOrderController = new FixedOrderController();
   const checkoutController = new CustomerCheckoutController(config);
   const restorationStatusController = new FixedOrderRestorationStatusController(config);
+  const printFulfilment = new PrintFulfilmentBoundaryService();
 
   router.post("/restorations", rateLimit(60_000, 10), controller.createOrder);
   router.get("/restorations", requireAuth(config), controller.listOrders);
@@ -40,7 +43,6 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   router.post("/restorations/:id/items/:itemId/approve", controller.approveItem);
   router.post("/restorations/:id/items/:itemId/download", rateLimit(60_000, 30), controller.getDownload);
   router.get("/restorations/:id/items/:itemId/download", rateLimit(60_000, 30), controller.getDownload);
-  router.post("/restorations/:id/items/:itemId/process", rateLimit(60_000, 60), controller.processItem);
   router.get("/customer/restorations/:id", rateLimit(60_000, 30), customerController.getStatus);
   router.get("/customer/restorations/:id/download/:itemId", rateLimit(60_000, 30), customerController.getDownload);
   router.post(
@@ -66,6 +68,10 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   router.post("/fixed-orders/:orderNo/checkout", rateLimit(60_000, 20), checkoutController.create);
   router.get("/fixed-orders/:orderNo/payment-status", rateLimit(60_000, 60), checkoutController.status);
   router.get("/fixed-orders/:orderNo/restoration-status", rateLimit(60_000, 60), restorationStatusController.getStatus);
+  router.post("/fixed-orders/:orderNo/print-fulfilment", rateLimit(60_000, 20), async (req, res) => {
+    try { res.status(200).json({ success: true, data: await printFulfilment.prepare(req.params.orderNo, actorFromRequest(req)) }); }
+    catch (error) { const appError = error as { statusCode?: number; code?: string; message?: string }; res.status(appError.statusCode || 500).json({ success: false, code: appError.code || "INTERNAL_ERROR", message: appError.message || "Unable to prepare print fulfilment" }); }
+  });
 
   // R9.5-P4B7-TEST-CHECKOUT-SEAM: only ever registered in a disposable local
   // E2E process. Not present in the route table at all (not just refused at

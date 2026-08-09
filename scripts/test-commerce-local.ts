@@ -208,7 +208,7 @@ async function main() {
     processStartCounts.web = 1;
     await waitForHttp(`http://127.0.0.1:${webPort}/`);
 
-    // ---- 6. Real browser flow. ----
+    // ---- 6. Real browser flows. ----
     console.log("[flow] launching chromium...");
     const browser = await chromium.launch({ headless: true, timeout: 20_000 });
     console.log("[flow] chromium launched");
@@ -225,52 +225,110 @@ async function main() {
       await fn();
       console.log(`[flow] <- ${label} ok`);
     };
+    const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+    const orderNos: string[] = [];
+    const flow = async (kind: "DIGITAL" | "PRINT_DIGITAL") => {
+      await step(`${kind}: home`, () => page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" }));
+      await step(`${kind}: open canonical upload`, () => page.getByRole("button", { name: "Upload Your Photo", exact: true }).first().click());
+      await step(`${kind}: select image once`, () => page.setInputFiles("#photoInput", fixturePath));
+      await step(`${kind}: persist draft`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
+      await step(`${kind}: preview`, () => page.waitForURL(/\/restore-mvp\/.+\/preview/, { timeout: 15_000 }));
+      await step(`${kind}: choose restoration`, () => page.getByRole("button", { name: "Choose Your Restoration" }).click());
+      await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
+
+      if (kind === "PRINT_DIGITAL") {
+        await page.getByRole("button", { name: /Print \+ Digital/ }).click();
+        await page.getByLabel("Print size").selectOption("4x6");
+        await page.getByLabel("Quantity").fill("10");
+        await page.getByLabel("Recipient name").fill("Local E2E Customer");
+        await page.getByLabel("Phone").fill("03001234567");
+        await page.getByLabel("Address").fill("1 Test Street");
+        await page.getByLabel("City").fill("Lahore");
+        await page.getByText("4x Ultra HD", { exact: true }).click();
+      } else {
+        await page.getByText("2x HD", { exact: true }).click();
+      }
+
+      await step(`${kind}: review`, () => page.getByRole("button", { name: "Review & Checkout" }).click());
+      await step(`${kind}: review route`, () => page.waitForURL(/\/orders\/.+\/review/, { timeout: 15_000 }));
+      const orderNo = page.url().match(/\/orders\/([^/]+)\/review/)?.[1];
+      if (!orderNo) throw new Error(`${kind}: could not read orderNo`);
+      orderNos.push(orderNo);
+
+      const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { orderNo } });
+      if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
+      const expectedTotal = kind === "DIGITAL" ? 100000n : 275000n;
+      if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected ${expectedTotal}, got ${order.totalAmountMinor}`);
+      if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid order queued processing`);
+
+      const guestToken = await page.evaluate((key) => JSON.parse(localStorage.getItem("ai-photo-studio-guest-ownership") || "{}")[key] as string, orderNo);
+      const headers = { "content-type": "application/json", "x-guest-ownership-token": guestToken };
+      const pendingResponse = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/test-checkout`, { method: "POST", headers, body: "{}" });
+      if (!pendingResponse.ok) throw new Error(`${kind}: unable to create pending test checkout`);
+      if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: pending payment queued processing`);
+
+      await page.goto(`${page.url()}?paid=true`);
+      if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: forged paid query queued processing`);
+      const legacyProcess = await fetch(`http://127.0.0.1:${apiPort}/api/restorations/forged/items/forged/process`, { method: "POST", headers, body: "{}" });
+      if (legacyProcess.status !== 404) throw new Error(`${kind}: legacy processing endpoint remains active (${legacyProcess.status})`);
+
+      await step(`${kind}: complete verified TEST payment`, () => page.click('[data-testid="e2e-complete-test-payment"]'));
+      await step(`${kind}: completed download`, () => page.waitForSelector('[data-testid="e2e-download-link"]', { timeout: 20_000 }));
+      const duplicatePayment = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/test-checkout/complete`, { method: "POST", headers, body: "{}" });
+      if (!duplicatePayment.ok) throw new Error(`${kind}: duplicate verified evidence did not converge`);
+      for (let index = 0; index < 10; index++) {
+        const status = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/restoration-status`, { headers });
+        if (!status.ok) throw new Error(`${kind}: status refresh ${index + 1} failed`);
+      }
+      if (kind === "PRINT_DIGITAL") await page.waitForSelector('[data-testid="print-fulfilment-status"]', { timeout: 15_000 });
+    };
+
     try {
-      await step("goto /restore-mvp/new", () => page.goto(`http://127.0.0.1:${webPort}/restore-mvp/new`, { waitUntil: "domcontentloaded" }));
-      await step("selectOption country", () => page.selectOption("select", "PK"));
-      await step("check confirm", () => page.click('input[type="checkbox"]'));
-      await step("setInputFiles", () => page.setInputFiles('input[type="file"]', fixturePath));
-      await step("submit upload", () => page.click('button[type="submit"]'));
-      await step("wait /preview", () => page.waitForURL(/\/restore-mvp\/.+\/preview/, { timeout: 15_000 }));
-
-      await step("click Choose Your Restoration", () => page.click('text=Choose Your Restoration'));
-      await step("wait /tiers", () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
-      await step("click 2x HD", () => page.click('text=2x HD'));
-      await step("click Review & Checkout", () => page.click('text=Review & Checkout'));
-      await step("wait /review", () => page.waitForURL(/\/orders\/.+\/review/, { timeout: 15_000 }));
-
-      const priceBookText = await page.locator("text=PriceBook").locator("..").innerText();
-      if (!priceBookText.includes("PB-2026-08-09-TRIAL-V3")) throw new Error(`unexpected PriceBook: ${priceBookText}`);
-      const amountText = await page.locator("text=Amount").locator("..").innerText();
-      if (!amountText.includes("1,000.00") && !amountText.includes("1000.00")) throw new Error(`unexpected amount: ${amountText}`);
-
-      await step("click Complete TEST Payment", () => page.click('[data-testid="e2e-complete-test-payment"]'));
-      await step("wait download link", () => page.waitForSelector('[data-testid="e2e-download-link"]', { timeout: 20_000 }));
+      await flow("DIGITAL");
+      await flow("PRINT_DIGITAL");
     } catch (flowError) {
       await page.screenshot({ path: resolve(scratchRoot, `failure-${runId}.png`), fullPage: true }).catch(() => {});
       await writeFile(resolve(scratchRoot, `failure-${runId}.html`), await page.content().catch(() => "")).catch(() => {});
       await browser.close().catch(() => {});
+      await prisma.$disconnect();
       throw flowError;
     }
-
-    const orderNo = page.url().match(/\/orders\/([^/]+)\/review/)?.[1];
     await browser.close();
-    if (!orderNo) throw new Error("could not read orderNo from URL");
 
     // ---- 7. DB assertions. ----
-    const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
     try {
-      const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { orderNo } });
-      const counts = {
-        fixedOrder: await prisma.fixedOrder.count({ where: { id: order.id } }),
-        paymentAttempt: await prisma.paymentAttempt.count({ where: { fixedOrderId: order.id } }),
-        restorationEntitlement: await prisma.restorationEntitlement.count({ where: { fixedOrderId: order.id } }),
-        restorationMaster: await prisma.restorationMaster.count({ where: { restorationEntitlement: { fixedOrderId: order.id } } }),
-        replicateExecution: await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } })
-      };
-      for (const [key, value] of Object.entries(counts)) {
-        if (value !== 1) throw new Error(`expected exactly 1 ${key}, got ${value}`);
+      const orders = await prisma.fixedOrder.findMany({
+        where: { orderNo: { in: orderNos } },
+        include: {
+          items: true,
+          paymentAttempt: { include: { events: true } },
+          restorationEntitlement: { include: { restorationMaster: { include: { replicateExecution: true } } } },
+          deliveryAddress: true
+        }
+      });
+      if (orders.length !== 2 || await prisma.restorationDraft.count() !== 2) throw new Error("expected exactly two drafts and two orders");
+      for (const order of orders) {
+        if (order.items.length !== 1 || !order.paymentAttempt || order.paymentAttempt.events.length !== 1 || !order.restorationEntitlement?.restorationMaster?.replicateExecution) throw new Error(`${order.orderNo}: incomplete or duplicate paid chain`);
+        if (order.paymentAttempt.status !== "PAID" || order.restorationEntitlement.restorationMaster.status !== "VALIDATED" || order.restorationEntitlement.restorationMaster.replicateExecution.status !== "SUCCEEDED") throw new Error(`${order.orderNo}: processing did not complete`);
       }
+      const printOrder = orders.find((order) => order.type === "RESTORATION_WITH_PRINT");
+      if (!printOrder?.deliveryAddress) throw new Error("print delivery address missing");
+      const counts = {
+        restorationDraft: await prisma.restorationDraft.count(),
+        fixedOrder: await prisma.fixedOrder.count(),
+        fixedOrderItem: await prisma.fixedOrderItem.count(),
+        paymentAttempt: await prisma.paymentAttempt.count(),
+        paymentEvent: await prisma.paymentEvent.count(),
+        restorationEntitlement: await prisma.restorationEntitlement.count(),
+        restorationMaster: await prisma.restorationMaster.count(),
+        replicateExecution: await prisma.replicateExecution.count(),
+        printDeliveryAddress: await prisma.printDeliveryAddress.count(),
+        printEntitlement: await prisma.printEntitlement.count(),
+        fulfilmentOrder: await prisma.fulfilmentOrder.count(),
+        shipment: await prisma.shipment.count()
+      };
+      const expected = { restorationDraft: 2, fixedOrder: 2, fixedOrderItem: 2, paymentAttempt: 2, paymentEvent: 2, restorationEntitlement: 2, restorationMaster: 2, replicateExecution: 2, printDeliveryAddress: 1, printEntitlement: 1, fulfilmentOrder: 1, shipment: 0 };
+      for (const [key, value] of Object.entries(expected)) if (counts[key as keyof typeof counts] !== value) throw new Error(`expected ${value} ${key}, got ${counts[key as keyof typeof counts]}`);
       // Only Replicate/RunPod/Bank Alfalah/production-API are safety-critical
       // for a zero-cost harness -- those must be exactly 0. "other" catches
       // everything else off-loopback (e.g. the app shell's static Facebook
@@ -280,8 +338,10 @@ async function main() {
         throw new Error(`unsafe external calls detected: ${JSON.stringify(external)}`);
       }
       console.log(JSON.stringify({
-        orderNo,
+        orderNos,
         counts,
+        processing: orders.map((order) => ({ orderNo: order.orderNo, paymentAttempt: order.paymentAttempt?.status, paymentEventVerified: order.paymentAttempt?.events[0]?.verified, entitlement: order.restorationEntitlement?.status, master: order.restorationEntitlement?.restorationMaster?.status, execution: order.restorationEntitlement?.restorationMaster?.replicateExecution?.status, workerClaimed: !!order.restorationEntitlement?.restorationMaster?.replicateExecution?.startedAt })),
+        print: { fulfilmentStatus: await prisma.fulfilmentOrder.findFirst().then((row) => row?.status), blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" },
         processStartCounts,
         external,
         realCharges: 0,

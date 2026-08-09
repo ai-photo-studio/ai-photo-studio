@@ -1063,3 +1063,33 @@ This section is additive; every rule above it remains in force verbatim.
   response from `GET /api/e2e/test-mode` — never inferred from
   `import.meta.env`/any client-side value — and must never alter the
   production "Pay & Restore Photo" → live Bank Alfalah redirect path.
+
+### R9.5-P4B9-CANONICAL-PAKISTAN-PAID-FLOW (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **Permanent rule - one customer upload authority.** All restoration,
+  upscale, print, pricing, header, footer, floating, and re-upload customer
+  starts plus `/restore/new` and `/restore-mvp/new` must resolve to the shared
+  `Upload Your Photo` modal and one `POST /api/restoration-drafts`. No active
+  customer route may render `RestoreNewPage` or call the legacy restoration/
+  order upload pipelines.
+- **Permanent rule - 100% server-verified advance payment before paid
+  processing.** No browser query, button, local storage value, unpaid/pending/
+  failed/cancelled attempt, or direct process request may create or claim a
+  `ReplicateExecution`. Only verified payment evidence matching the immutable
+  server-owned order amount and currency may run P4A and enqueue execution.
+- **Permanent rule - reads never start work.** Preview, Review, processing
+  status, refresh, download, and polling GETs are read-only. The canonical
+  processing status source is
+  `GET /api/fixed-orders/:orderNo/restoration-status`.
+- **Permanent rule - print reuses the restoration master.** A paid Pakistan
+  Print+Digital order performs one restoration only. After its master is
+  `VALIDATED`, print preparation creates at most one `PrintEntitlement` and
+  one pending `FulfilmentOrder`. Until a real partner is assigned it reports
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED`; it never fabricates a partner,
+  tracking number, shipment, dispatch, or delivery.
+- Full evidence and counts are in
+  `docs/frontend/THANNOW_PRODUCTION_UI_BASELINE.md`, section "Canonical
+  Pakistan paid restoration flow". Protected scope remains: no production
+  DB/deploy/push, no real payment, no test-time Replicate/RunPod/Bank call.

@@ -35,7 +35,22 @@ test.describe("P6C upload page never uploads before the explicit button click", 
     expect(createCalls).toBe(1);
   });
 
-  test("selecting a file and confirming market does not upload until the button is clicked", async ({ page }) => {
+  test("double Continue creates exactly one persisted draft", async ({ page }) => {
+    await blockExternalNetwork(page);
+    let createCalls = 0;
+    await page.route("**/api/restoration-drafts", async (route) => {
+      createCalls++;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: draftFixture() }) });
+    });
+    await page.goto("/?upload=1");
+    await page.setInputFiles("#photoInput", tinyPngPath());
+    await page.getByRole("button", { name: "Continue to Restoration" }).evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
+    await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
+    expect(createCalls).toBe(1);
+  });
+
+  test("direct former upload route resolves to the modal and uploads only on Continue", async ({ page }) => {
     await blockExternalNetwork(page);
     let createCalls = 0;
     await page.route("**/api/restoration-drafts", async (route) => {
@@ -43,12 +58,12 @@ test.describe("P6C upload page never uploads before the explicit button click", 
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: draftFixture() }) });
     });
     await page.goto("/restore-mvp/new");
-    await page.setInputFiles('input[type="file"]', tinyPngPath());
-    await page.getByRole("checkbox").check();
+    await expect(page).toHaveURL(/\/?upload=1/);
+    await page.setInputFiles("#photoInput", tinyPngPath());
     await page.waitForTimeout(300);
     expect(createCalls).toBe(0);
 
-    await page.locator("form").getByRole("button", { name: "Upload photo" }).click();
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     expect(createCalls).toBe(1);
   });
@@ -65,10 +80,9 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await mockCreateOrder(page, order);
     await mockGetOrder(page, ORDER_NO, order);
 
-    await page.goto("/restore-mvp/new");
-    await page.setInputFiles('input[type="file"]', tinyPngPath());
-    await page.getByRole("checkbox").check();
-    await page.locator("form").getByRole("button", { name: "Upload photo" }).click();
+    await page.goto("/?upload=1");
+    await page.setInputFiles("#photoInput", tinyPngPath());
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
@@ -114,8 +128,8 @@ test.describe("P6C product choice truthfulness", () => {
     await blockExternalNetwork(page);
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await expect(page.getByRole("button", { name: "Digital Download Restore your photo and download it when ready.", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: /Print \+ Digital Download/i }).click();
+    await expect(page.getByRole("button", { name: /Restore & Download/i })).toBeVisible();
+    await page.getByRole("button", { name: /Print \+ Digital/i }).click();
     await expect(page.locator("select")).toBeVisible();
     await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeDisabled();
   });
@@ -239,10 +253,9 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await mockCreateOrder(page, order);
     await mockGetOrder(page, ORDER_NO, order);
 
-    await page.goto("/restore-mvp/new");
-    await page.setInputFiles('input[type="file"]', tinyPngPath());
-    await page.getByRole("checkbox").check();
-    await page.locator("form").getByRole("button", { name: "Upload photo" }).click();
+    await page.goto("/?upload=1");
+    await page.setInputFiles("#photoInput", tinyPngPath());
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Review & Checkout" }).click();

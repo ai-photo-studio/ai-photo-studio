@@ -224,3 +224,55 @@ generic UI and any older home-page composition remain rejected.
   RestorationEntitlement/RestorationMaster/ReplicateExecution; duplicate
   `test-checkout/complete` calls and repeated status polls create zero
   additional rows.
+
+## Canonical Pakistan paid restoration flow (R9.5-P4B9: 2026-08-09)
+
+- **One customer upload authority:** every one of the 14 restoration-start CTA
+  sites, `/restore/new`, `/restore-mvp/new`, pricing starts, and re-upload
+  actions resolve to the existing `Upload Your Photo` modal. It performs one
+  explicit `POST /api/restoration-drafts`, persists guest ownership and the
+  draft id, then navigates directly to persisted Preview. The historical
+  `RestoreNewPage` (`Upload Photos for Restoration`) remains source-only and
+  unrouted; the direct legacy `/restorations/:id/items/:itemId/process` route
+  is removed.
+- **One Pakistan commerce journey:** upload once -> Preview -> Restore &
+  Download or Print + Digital - Home Delivery -> one V3 quality -> immutable
+  server-priced Review -> 100% verified advance payment -> P4A -> P4B -> P3A
+  -> canonical FixedOrder status -> download. Print reuses the same validated
+  restoration master and never creates a second AI execution.
+- **Advance-payment invariant:** CREATED/PENDING/FAILED/CANCELLED/EXPIRED and
+  forged browser query state create zero `ReplicateExecution` rows. Only a
+  verified `PaymentEvent` matching the immutable server amount/currency can
+  mark `PaymentAttempt.PAID` and enqueue the first execution. Duplicate and
+  concurrent verified evidence converge to one event/entitlement/master/
+  execution. GET/refresh/poll routes never create or claim work.
+- **Review and print:** Review shows product, quality, server-owned digital
+  amount, print subtotal, delivery, total, and address. Pakistan print uses
+  `PRINT-CATALOG-2026-08-09-TRIAL-V2`. After payment and master validation,
+  concurrent print preparation converges to one `PrintEntitlement.PREPAID`
+  and one `FulfilmentOrder.PENDING`; shipment count remains zero and the
+  truthful blocker is `PRINT_PARTNER_ASSIGNMENT_REQUIRED`.
+- **Processing investigation:** the current full-stack reproduction does not
+  stick. Both orders transition PAID/verified -> GRANTED -> VALIDATED ->
+  SUCCEEDED, the worker has a non-null `startedAt`, and the browser polls only
+  `GET /api/fixed-orders/:orderNo/restoration-status`. The previously observed
+  symptom was `WORKER_NOT_RUNNING`: manually spawned worker grandchildren did
+  not survive separate shell-process lifetimes. The one-command harness owns
+  API/web/worker lifetimes and tree teardown, which is the established fix.
+- **Real local proof:** `npm run test:e2e:commerce-local` now drives both
+  Digital 2x HD (PKR 1,000) and Print+Digital 4x/4x6 quantity 10 (PKR 2,750 =
+  1,500 digital + 1,000 print + 250 delivery) from the homepage modal. Final
+  disposable DB counts are 2 drafts/orders/items/payment attempts/verified
+  payment events/entitlements/masters/executions; 1 address/print entitlement/
+  fulfilment order; 0 shipments. Replicate/RunPod/Bank/production calls,
+  predictions, and real charges are all zero.
+- **Verification:** browser 101/101; responsive 91/91; FixedOrder 16/16, P4A
+  14/14, P4B 10/10, P3A 10/10, print fulfilment 1/1 PostgreSQL suites; empty
+  23-migration deploy, second deploy, and status clean; lint has only the 91
+  pre-existing warnings; typecheck/build/Prisma validate/generate pass.
+- Evidence-based completion: frontend 100%, Pakistan funnel 100%, processing
+  100%, internal print 100%, internal commercial 100%. Live payment integration
+  is 50% and full Pakistan commercial readiness is 80% because Bank activation
+  and real print-partner assignment remain external launch blockers.
+- Protected scope held: no production database, deploy, push, real payment,
+  Replicate call, RunPod call, Bank call, or production routing change.

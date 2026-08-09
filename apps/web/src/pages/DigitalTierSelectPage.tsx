@@ -56,7 +56,7 @@ export function DigitalTierSelectPage() {
     };
   }, [load]);
 
-  useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { setPrintCatalog(items); if (!printSize && items[0]) { setPrintSize(items[0].size); setQuantity(items[0].minimumQuantity); } }).catch(() => setPrintCatalog([])); }, [product]);
+  useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
 
   const createOrder = async () => {
     if (!draftId || !selected) return;
@@ -86,10 +86,10 @@ export function DigitalTierSelectPage() {
 
       <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
         <button type="button" className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("DIGITAL")}>
-          <h3>Digital Download</h3><p>Restore your photo and download it when ready.</p>
+          <h3>Restore &amp; Download</h3><p>Restore or upscale your photo and download it when ready.</p>
         </button>
         <button type="button" className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("PRINT_DIGITAL")}>
-          <h3>Print + Digital Download</h3><p>Restore your photo, receive the digital copy, and order home delivery.</p>
+          <h3>Print + Digital — Home Delivery</h3><p>Restore your photo once, receive the digital copy, and order home delivery.</p>
         </button>
       </div>
 

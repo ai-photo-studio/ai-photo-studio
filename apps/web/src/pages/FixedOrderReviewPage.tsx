@@ -17,12 +17,13 @@ import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type FixedOrderSummary } from "../services/customerApi";
 
-const TIER_LABELS: Record<string, string> = { ORIGINAL: "Original", HD_2X: "2HD", HD_4X: "4HD" };
+const TIER_LABELS: Record<string, string> = { ORIGINAL: "Restored Original", HD_2X: "2x HD", HD_4X: "4x Ultra HD", HD_6X: "6x", HD_8X: "8x", HD_10X: "10x", HD_12X: "12x" };
 
 export function FixedOrderReviewPage() {
   const { orderNo } = useParams<{ orderNo: string }>();
   const { token } = useAuth();
   const [order, setOrder] = useState<FixedOrderSummary | null>(null);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -34,6 +35,8 @@ export function FixedOrderReviewPage() {
   // false, so this is fail-closed identically to production.
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [testPaymentBusy, setTestPaymentBusy] = useState(false);
+  const [printFulfilment, setPrintFulfilment] = useState<{ status: string; blocker: string } | null>(null);
+  const printPreparationStarted = useRef(false);
   const [restorationStatus, setRestorationStatus] = useState<{
     executionStatus: string | null;
     downloadAvailable: boolean;
@@ -50,6 +53,13 @@ export function FixedOrderReviewPage() {
       const data = await customerApi.getFixedOrder(token || undefined, orderNo, guestToken || undefined);
       if (!mounted.current) return;
       setOrder(data);
+      if (data.paymentStatus) setPaymentStatus(data.paymentStatus);
+      if (data.sourceDraftId) {
+        const draftToken = getGuestOwnershipToken(data.sourceDraftId) || guestToken;
+        void customerApi.getRestorationDraft(token || undefined, data.sourceDraftId, draftToken || undefined)
+          .then((draft) => { if (mounted.current) setThumbnailUrl(draft.previewUrl); })
+          .catch(() => { if (mounted.current) setThumbnailUrl(null); });
+      }
     } catch (err) {
       if (!mounted.current) return;
       setError(err instanceof Error ? err.message : "Unable to load the order");
@@ -146,10 +156,25 @@ export function FixedOrderReviewPage() {
     return () => clearInterval(interval);
   }, [paymentStatus, restorationStatus, pollRestorationStatus]);
 
+  useEffect(() => {
+    if (!orderNo || !order?.print || !restorationStatus?.downloadAvailable || printPreparationStarted.current) return;
+    printPreparationStarted.current = true;
+    const guestToken = getGuestOwnershipToken(orderNo);
+    void customerApi.preparePrintFulfilment(token || undefined, orderNo, guestToken || undefined)
+      .then((result) => { if (mounted.current) setPrintFulfilment(result); })
+      .catch((err) => {
+        printPreparationStarted.current = false;
+        if (mounted.current) setCheckoutError(err instanceof Error ? err.message : "Unable to prepare print fulfilment");
+      });
+  }, [orderNo, order, restorationStatus, token]);
+
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading order...</p></div></section>;
   if (error || !order) return <section className="page-stack"><div className="state-panel state-panel-error"><p>{error || "Order not found"}</p></div></section>;
 
   const amountMajor = (Number(order.totalAmountMinor) / 100).toFixed(2);
+  const printSubtotalMinor = Number(order.print?.subtotalMinor || 0);
+  const deliveryAmountMinor = Number(order.print?.deliveryAmountMinor || 0);
+  const digitalAmountMinor = Number(order.totalAmountMinor) - printSubtotalMinor - deliveryAmountMinor;
 
   return (
     <section className="page-stack">
@@ -161,10 +186,15 @@ export function FixedOrderReviewPage() {
 
       <div className="metric-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
         <article className="metric-card"><span>Market</span><strong>{order.market}</strong></article>
+        <article className="metric-card"><span>Product</span><strong>{order.print ? "Print + Digital" : "Restore & Download"}</strong></article>
         <article className="metric-card"><span>Tier</span><strong>{TIER_LABELS[order.tier] || order.tier}</strong></article>
-        <article className="metric-card"><span>Amount</span><strong>{order.currency} {amountMajor}</strong></article>
+        <article className="metric-card"><span>Total</span><strong>{order.currency} {amountMajor}</strong></article>
         <article className="metric-card"><span>PriceBook</span><strong>{order.priceBookVersion || "-"}</strong></article>
       </div>
+
+      {thumbnailUrl && <div className="card" style={{ marginTop: "1rem" }}><img src={thumbnailUrl} alt="Original photo thumbnail" style={{ display: "block", maxHeight: "220px", maxWidth: "100%", margin: "0 auto", objectFit: "contain" }} /></div>}
+
+      {order.print && <div className="state-panel" style={{ marginTop: "1rem" }}><p><strong>{order.print.size}, quantity {order.print.quantity}</strong></p><p>Digital: {order.currency} {(digitalAmountMinor / 100).toFixed(2)} · Print: {order.currency} {(printSubtotalMinor / 100).toFixed(2)} · Delivery: {order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</p>{order.deliveryAddress && <p>Deliver to: {order.deliveryAddress.recipientName}, {order.deliveryAddress.addressLine1}, {order.deliveryAddress.city}</p>}</div>}
 
        <div className="state-panel" style={{ marginTop: "1rem" }}>
          <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
@@ -172,7 +202,7 @@ export function FixedOrderReviewPage() {
 
        <div className="button-row" style={{ marginTop: "1rem" }}>
          <button type="button" className="button" onClick={() => void startCheckout()} disabled={checkoutBusy}>
-           {checkoutBusy ? "Starting checkout..." : "Pay & Restore Photo"}
+            {checkoutBusy ? "Starting checkout..." : "Pay 100% & Restore Photo"}
          </button>
          <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>
            Check payment status
@@ -213,6 +243,7 @@ export function FixedOrderReviewPage() {
           )}
         </div>
       )}
+      {printFulfilment && <div className="state-panel" data-testid="print-fulfilment-status"><p><strong>Print order ready for fulfilment</strong></p><p>Status: {printFulfilment.status}</p><p>{printFulfilment.blocker}</p></div>}
     </section>
   );
 }

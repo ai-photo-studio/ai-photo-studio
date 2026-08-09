@@ -27,7 +27,6 @@ import { WalletPage } from "./pages/WalletPage";
 import { PaymentsPage } from "./pages/PaymentsPage";
 import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { CustomerLayout } from "./components/CustomerLayout";
-import { RestorationUploadPage } from "./pages/RestorationUploadPage";
 import { OriginalPreviewPage } from "./pages/OriginalPreviewPage";
 import { DigitalTierSelectPage } from "./pages/DigitalTierSelectPage";
 import { FixedOrderReviewPage } from "./pages/FixedOrderReviewPage";
@@ -55,7 +54,7 @@ export function App() {
         <Route path="restore/:orderId/print" element={<RestorePrintPage />} />
         <Route path="history/restorations" element={<RestorationHistoryPage />} />
         <Route path="account" element={<AccountPage />} />
-        <Route path="restore-mvp/new" element={<RestorationUploadPage />} />
+        <Route path="restore-mvp/new" element={<Navigate to="/?upload=1" replace={false} />} />
         <Route path="restore-mvp/:draftId/preview" element={<OriginalPreviewPage />} />
         <Route path="restore-mvp/:draftId/tiers" element={<DigitalTierSelectPage />} />
         <Route path="orders/:orderNo/review" element={<FixedOrderReviewPage />} />

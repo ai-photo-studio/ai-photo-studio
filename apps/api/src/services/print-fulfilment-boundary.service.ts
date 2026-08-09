@@ -18,6 +18,10 @@ export class PrintFulfilmentBoundaryService {
     const existing = item.printEntitlements[0];
     if (existing?.fulfilmentOrder) return { printEntitlementId: existing.id, fulfilmentOrderId: existing.fulfilmentOrder.id, status: existing.fulfilmentOrder.status, blocker: PRINT_PARTNER_ASSIGNMENT_REQUIRED };
     const created = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${owned.id}))`;
+      const current = await tx.fixedOrderItem.findUnique({ where: { id: item.id }, include: { printEntitlements: { include: { fulfilmentOrder: true } } } });
+      const winner = current?.printEntitlements.find((candidate) => candidate.fulfilmentOrder);
+      if (winner?.fulfilmentOrder) return { entitlement: winner, fulfilment: winner.fulfilmentOrder };
       const entitlement = await tx.printEntitlement.create({ data: { fixedOrderItemId: item.id, restorationMasterId: owned.restorationEntitlement.restorationMaster.id, printSku: String((snapshot as { size: string }).size), status: "PREPAID" } });
       const fulfilment = await tx.fulfilmentOrder.create({ data: { printEntitlementId: entitlement.id, status: "PENDING" } });
       return { entitlement, fulfilment };

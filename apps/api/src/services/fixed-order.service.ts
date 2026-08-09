@@ -55,6 +55,7 @@ export interface CreateRestorationDigitalOrderInput {
 export interface FixedOrderSafeView {
   id: string;
   orderNo: string;
+  sourceDraftId: string | null;
   status: string;
   market: Market;
   currency: FixedOrderCurrency;
@@ -66,6 +67,7 @@ export interface FixedOrderSafeView {
   priceBookApprovalReference: string | null;
   priceBookEffectiveAt: string | null;
   createdAt: string;
+  paymentStatus?: string;
   print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
   deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
@@ -83,6 +85,7 @@ function isUniqueConstraintViolation(err: unknown): boolean {
 function toSafeView(order: {
   id: string;
   orderNo: string;
+  sourceDraftId: string | null;
   status: string;
   market: string;
   currency: string;
@@ -92,11 +95,14 @@ function toSafeView(order: {
   priceBookEffectiveAt: Date | null;
   createdAt: Date;
   items: Array<{ tierOrSku: string | null; pricingSource: string; pricingApproved: boolean; metadata: unknown }>;
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2: string | null; city: string; region: string | null; postalCode: string | null; countryCode: string } | null;
+  paymentAttempt?: { status: string } | null;
 }): FixedOrderSafeView {
   const item = order.items[0];
   return {
     id: order.id,
     orderNo: order.orderNo,
+    sourceDraftId: order.sourceDraftId,
     status: order.status,
     market: order.market as Market,
     currency: order.currency as FixedOrderCurrency,
@@ -108,11 +114,22 @@ function toSafeView(order: {
     priceBookApprovalReference: order.priceBookApprovalReference,
     priceBookEffectiveAt: order.priceBookEffectiveAt ? order.priceBookEffectiveAt.toISOString() : null,
     createdAt: order.createdAt.toISOString(),
-    print: order.items[0]?.metadata && typeof order.items[0].metadata === "object" && "print" in order.items[0].metadata ? (order.items[0].metadata as any).print : undefined
+    paymentStatus: order.paymentAttempt?.status,
+    print: order.items[0]?.metadata && typeof order.items[0].metadata === "object" && "print" in order.items[0].metadata ? (order.items[0].metadata as any).print : undefined,
+    deliveryAddress: order.deliveryAddress ? {
+      recipientName: order.deliveryAddress.recipientName,
+      phone: order.deliveryAddress.phone,
+      addressLine1: order.deliveryAddress.addressLine1,
+      ...(order.deliveryAddress.addressLine2 ? { addressLine2: order.deliveryAddress.addressLine2 } : {}),
+      city: order.deliveryAddress.city,
+      ...(order.deliveryAddress.region ? { region: order.deliveryAddress.region } : {}),
+      ...(order.deliveryAddress.postalCode ? { postalCode: order.deliveryAddress.postalCode } : {}),
+      countryCode: order.deliveryAddress.countryCode
+    } : undefined
   };
 }
 
-const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const }, select: { tierOrSku: true, pricingSource: true, pricingApproved: true, metadata: true } } };
+const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const }, select: { tierOrSku: true, pricingSource: true, pricingApproved: true, metadata: true } }, deliveryAddress: true, paymentAttempt: { select: { status: true } } };
 
 export class FixedOrderService {
   private readonly offerProvider: OfferProvider;
@@ -191,6 +208,7 @@ export class FixedOrderService {
     const isPrint = input.product === "PRINT_DIGITAL";
     let printQuote: ReturnType<typeof quotePrint> | undefined;
     if (isPrint) {
+      if (owned.currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
       if (owned.currency !== "PKR" || !input.printSize || !Number.isSafeInteger(input.quantity)) throw new AppError("valid PKR print size and quantity are required", 422, "INVALID_PRINT_SELECTION");
       const address = input.deliveryAddress;
       if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");

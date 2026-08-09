@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useRestorationUpload } from "../components/RestorationUploadController";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
 
 type PrintItem = Awaited<ReturnType<typeof customerApi.getPrintCatalog>>[number];
@@ -8,6 +8,7 @@ type MemoryPackage = { code: string; name: string; priceMinor: number; currency:
 const money = (minor: number, currency: string) => `${currency} ${(minor / 100).toFixed(2)}`;
 
 export function PricingPage() {
+  const { openRestorationUpload } = useRestorationUpload();
   const [offers, setOffers] = useState<DigitalOfferSummary[]>([]);
   const [prints, setPrints] = useState<PrintItem[]>([]);
   const [packages, setPackages] = useState<MemoryPackage[]>([]);
@@ -37,7 +38,7 @@ export function PricingPage() {
       {!loading && !error && <>
         <h2>Restore &amp; Download</h2>
         <div className="pricing-grid">
-          {offers.map((offer) => <article className="pricing-card" key={offer.tier}><p className="eyebrow">{offer.tier}</p><h3>{offer.label}</h3><p className="price">{money(offer.amountMinor, offer.currency)}</p><p>{offer.description}</p><small>{offer.priceBookVersion}</small><Link className="button button-secondary button-block" to="/restore-mvp/new">Choose this quality</Link></article>)}
+          {offers.map((offer) => <article className="pricing-card" key={offer.tier}><p className="eyebrow">{offer.tier}</p><h3>{offer.label}</h3><p className="price">{money(offer.amountMinor, offer.currency)}</p><p>{offer.description}</p><small>{offer.priceBookVersion}</small><button type="button" className="button button-secondary button-block" onClick={openRestorationUpload}>Choose this quality</button></article>)}
         </div>
         <h2>Print + Digital</h2>
         <div className="pricing-grid">
@@ -45,7 +46,7 @@ export function PricingPage() {
         </div>
         <h2>Memory Packages</h2>
         <div className="pricing-grid">
-          {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <Link className="button button-secondary button-block" to="/restore-mvp/new">Start package</Link> : <div className="state-panel"><p>{pkg.blocker || "Package fulfilment details required"}</p></div>}</article>)}
+          {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <button type="button" className="button button-secondary button-block" onClick={openRestorationUpload}>Start package</button> : <div className="state-panel"><p>{pkg.blocker || "Package fulfilment details required"}</p></div>}</article>)}
         </div>
       </>}
     </section>

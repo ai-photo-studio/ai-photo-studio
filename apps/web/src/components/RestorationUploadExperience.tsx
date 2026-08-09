@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { setGuestOwnershipToken } from "../lib/guest";
@@ -11,11 +11,21 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+    fileInputRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open, onClose]);
 
   if (!open) return null;
 
   const continueFromModal = async () => {
-    if (!file || uploading) return;
+    if (!file || uploadInFlightRef.current) return;
+    uploadInFlightRef.current = true;
     setUploading(true);
     setUploadError(null);
     try {
@@ -38,6 +48,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Unable to upload the image");
     } finally {
+      uploadInFlightRef.current = false;
       setUploading(false);
     }
   };
@@ -59,7 +70,22 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
             id="photoInput"
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
+            onChange={(event) => {
+              const selected = event.target.files?.[0] || null;
+              setUploadError(null);
+              if (!selected) { setFile(null); return; }
+              if (!["image/jpeg", "image/png", "image/webp"].includes(selected.type)) {
+                setFile(null);
+                setUploadError("Choose a JPG, PNG, or WEBP image.");
+                return;
+              }
+              if (selected.size > 10 * 1024 * 1024) {
+                setFile(null);
+                setUploadError("Image must be 10 MB or smaller.");
+                return;
+              }
+              setFile(selected);
+            }}
           />
         </label>
         {file && <div className="selected-preview"><div className="selected-fallback" aria-hidden="true">IMG</div><div><strong>{file.name}</strong><small>Ready for restoration</small></div></div>}

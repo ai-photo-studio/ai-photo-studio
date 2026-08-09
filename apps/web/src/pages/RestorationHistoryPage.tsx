@@ -13,7 +13,7 @@ export function RestorationHistoryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
     let cancelled = false;
     const load = async () => {
       setLoading(true);

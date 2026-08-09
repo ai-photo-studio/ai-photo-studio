@@ -2,7 +2,7 @@
 // and on refresh -- issues a GET only, never a write. Moving to tier
 // selection is an explicit button action.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type RestorationDraftSummary } from "../services/customerApi";
@@ -75,7 +75,7 @@ export function OriginalPreviewPage() {
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh
         </button>
-        <Link className="button button-ghost" to="/restore-mvp/new">Choose a different photo</Link>
+        <button type="button" className="button button-ghost" onClick={() => navigate("/?upload=1")}>Choose a different photo</button>
       </div>
     </section>
   );

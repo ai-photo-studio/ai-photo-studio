@@ -1,4 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from "./fixtures";
+import { mockAuthenticatedSession } from "./fixtures/auth";
+import { DRAFT_ID, draftFixture, mockGetDraft } from "./fixtures/mvp";
 
 test.describe("canonical restoration upload entry", () => {
   for (const label of ["Upload Your Photo", "Upload Photo"]) {
@@ -27,6 +29,60 @@ test.describe("canonical restoration upload entry", () => {
     await expect(page.getByText("Upload Photos for Restoration")).toHaveCount(0);
   });
 
+  test("all 14 restoration-start CTA sites resolve to the same modal", async ({ page }) => {
+    test.setTimeout(90_000);
+    for (let index = 0; index < 8; index++) {
+      await page.goto("/");
+      const triggers = page.locator(".upload-trigger");
+      await expect(triggers).toHaveCount(8);
+      await triggers.nth(index).scrollIntoViewIfNeeded();
+      await triggers.nth(index).click();
+      await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+      await page.getByRole("button", { name: "Close" }).click();
+    }
+
+    await page.goto("/restore");
+    for (const name of ["New Restoration", "Start Your First Restoration"]) {
+      await page.getByRole("link", { name }).click();
+      await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+      await page.getByRole("button", { name: "Close" }).click();
+      if (name === "New Restoration") await page.goto("/restore");
+    }
+
+    await mockAuthenticatedSession(page);
+    await page.route("**/api/me/wallet", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { user: { id: "test" }, wallet: { id: "wallet", currency: "PKR", availableBalance: 0, reservedBalance: 0 }, summary: { availableBalance: 0, totalTransactions: 0, activeSubscriptions: 0, lifetimeSpent: 0, lifetimeCredited: 0, pendingPayments: 0 }, activeSubscription: null } }) }));
+    await page.route("**/api/packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [] }) }));
+    await page.goto("/orders");
+    await page.getByRole("button", { name: "Go to Restoration" }).click();
+    await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+    await page.getByRole("button", { name: "Close" }).click();
+    await page.goto("/orders");
+    await page.getByRole("heading", { name: "Start a new restoration" }).click();
+    await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+
+    await page.route("**/api/digital-catalog?market=PAKISTAN", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { offers: [{ tier: "HD_2X", label: "2x HD", amountMinor: 100000, currency: "PKR", description: "Sharp detail", priceBookVersion: "PB-2026-08-09-TRIAL-V3" }], printCatalog: [] } }) }));
+    await page.route("**/api/memory-packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ code: "TEST", name: "Test Package", priceMinor: 100000, currency: "PKR", includes: [], checkoutReady: true }] }) }));
+    await page.goto("/pricing");
+    for (const name of ["Choose this quality", "Start package"]) {
+      await page.getByRole("button", { name }).click();
+      await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+      await page.getByRole("button", { name: "Close" }).click();
+      if (name === "Choose this quality") await page.goto("/pricing");
+    }
+  });
+
+  test("former direct upload and re-upload routes use the canonical modal", async ({ page }) => {
+    await page.goto("/restore-mvp/new");
+    await expect(page).toHaveURL(/\/?upload=1/);
+    await expect(page.locator("input[type=file]")).toHaveCount(1);
+    await page.getByRole("button", { name: "Close" }).click();
+    await mockGetDraft(page, DRAFT_ID, { ...draftFixture(), previewUrl: "http://127.0.0.1/preview.png" });
+    await page.goto(`/restore-mvp/${DRAFT_ID}/preview`);
+    await page.getByRole("button", { name: "Choose a different photo" }).click();
+    await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
+    await expect(page.locator("input[type=file]")).toHaveCount(1);
+  });
+
   test("keyboard activation, selected ready state, close, and mobile overflow work", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
@@ -40,5 +96,15 @@ test.describe("canonical restoration upload entry", () => {
     await page.getByRole("button", { name: "Close" }).click();
     await expect(modal).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("unsupported and oversized files are rejected before upload", async ({ page }) => {
+    await page.goto("/?upload=1");
+    await page.locator("#photoInput").setInputFiles({ name: "memory.gif", mimeType: "image/gif", buffer: Buffer.from("gif") });
+    await expect(page.getByText("Choose a JPG, PNG, or WEBP image.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
+    await page.locator("#photoInput").setInputFiles({ name: "large.jpg", mimeType: "image/jpeg", buffer: Buffer.alloc(10 * 1024 * 1024 + 1) });
+    await expect(page.getByText("Image must be 10 MB or smaller.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
   });
 });

@@ -187,6 +187,8 @@ export function HomePage() {
         </div>
       </section>
 
+      <button className="floating-upload upload-trigger" type="button" aria-label="Upload a photo" onClick={openRestorationUpload}>Upload Photo</button>
+
     </div>
   );
 }

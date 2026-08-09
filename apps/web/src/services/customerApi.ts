@@ -328,7 +328,15 @@ export const customerApi = {
       failureReason: string | null;
       downloadAvailable: boolean;
       downloadUrl: string | null;
-    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/restoration-status`, {}, token, guestToken)
+    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/restoration-status`, {}, token, guestToken),
+
+  preparePrintFulfilment: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{ printEntitlementId: string; fulfilmentOrderId: string; status: string; blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" }>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/print-fulfilment`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
+    )
 };
 
 export type RestorationDraftSummary = {
@@ -358,6 +366,7 @@ export type DigitalOfferSummary = {
 export type FixedOrderSummary = {
   id: string;
   orderNo: string;
+  sourceDraftId: string | null;
   status: string;
   market: "PAKISTAN" | "INTERNATIONAL";
   currency: "PKR" | "USD";
@@ -369,5 +378,7 @@ export type FixedOrderSummary = {
   priceBookApprovalReference: string | null;
   priceBookEffectiveAt: string | null;
   createdAt: string;
+  paymentStatus?: string;
   print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 };

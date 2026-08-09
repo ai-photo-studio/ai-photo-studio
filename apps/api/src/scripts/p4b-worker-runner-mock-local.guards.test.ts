@@ -58,6 +58,7 @@ test("mock P4B worker runner refuses to start against RESTORATION_PROVIDER=repli
       PAYMENT_GATEWAY_NAME: "manual",
       AI_PROVIDER: "mock",
       AI_PROVIDER_NAME: "mock",
+      STORAGE_PROVIDER: "mock",
       ADMIN_JWT_SECRET: "guard-test-admin-secret",
       JWT_SECRET: "guard-test-jwt-secret"
     },
