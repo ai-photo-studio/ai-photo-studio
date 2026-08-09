@@ -1093,3 +1093,17 @@ This section is additive; every rule above it remains in force verbatim.
   `docs/frontend/THANNOW_PRODUCTION_UI_BASELINE.md`, section "Canonical
   Pakistan paid restoration flow". Protected scope remains: no production
   DB/deploy/push, no real payment, no test-time Replicate/RunPod/Bank call.
+
+### R9.5-P4B10-HISTORICAL-ASSET-RETENTION (2026-08-09)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- `old images/` is historical/reference evidence and must not be deleted
+  without explicit owner authorization. It must not be wired into active
+  customer UI or runtime processing merely because it is restored.
+- `price book/prices.xlsx` and local `prices.xlsx`/`prices(1).xlsx` workbook
+  evidence remain ignored and historical-only. Archived PriceBook material
+  never becomes runtime authority.
+- `PB-2026-08-09-TRIAL-V3` remains the sole active customer PriceBook. V1/V2
+  catalogs and obsolete prices must remain inactive. Deleting either
+  historical asset folder requires explicit owner authorization.

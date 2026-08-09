@@ -276,3 +276,16 @@ generic UI and any older home-page composition remain rejected.
   and real print-partner assignment remain external launch blockers.
 - Protected scope held: no production database, deploy, push, real payment,
   Replicate call, RunPod call, Bank call, or production routing change.
+
+## Historical asset retention (R9.5-P4B10: 2026-08-09)
+
+- `old images/` is retained as historical/reference evidence and must not be
+  deleted without explicit owner authorization. It is not wired into the
+  active frontend or processing runtime.
+- `price book/prices.xlsx` is retained as local historical workbook evidence
+  and remains ignored, alongside `prices.xlsx` and `prices(1).xlsx`; it is not
+  an API or runtime price source.
+- Restoring archived PriceBook/reference material never reactivates obsolete
+  catalogs. `PB-2026-08-09-TRIAL-V3` remains the sole current customer-facing
+  PriceBook authority. Deleting either historical folder requires explicit
+  owner authorization.
