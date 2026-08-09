@@ -296,7 +296,39 @@ export const customerApi = {
       sessionId: string | null;
       successIndicator: string | null;
     }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken),
-  getPrintCatalog: () => apiRequest<Array<{ catalogVersion: string; size: string; unitAmountMinor: number; currency: "PKR" | "USD"; minimumQuantity: number; deliveryAmountMinor: number | null; blocker?: string }>>("/api/print-catalog")
+  getPrintCatalog: () => apiRequest<Array<{ catalogVersion: string; size: string; unitAmountMinor: number; currency: "PKR" | "USD"; minimumQuantity: number; deliveryAmountMinor: number | null; blocker?: string }>>("/api/print-catalog"),
+
+  // R9.5-P4B7B: server-authoritative test-mode check. A 404 (production, or
+  // any environment without the seam mounted) is treated as "disabled" by
+  // the caller -- never treated as an error to surface to the customer.
+  getE2ETestModeStatus: () => apiRequest<{ enabled: boolean }>("/api/e2e/test-mode"),
+
+  createTestCheckout: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{ paymentAttemptId: string; fixedOrderId: string; orderNo: string; amountMinor: string; currency: "PKR" | "USD"; status: string; testMode: true }>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/test-checkout`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
+    ),
+
+  completeTestPayment: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{ outcome: string; applied?: Record<string, string> }>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/test-checkout/complete`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
+    ),
+
+  getFixedOrderRestorationStatus: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<{
+      orderNo: string;
+      entitlementStatus: string | null;
+      masterStatus: string | null;
+      executionStatus: string | null;
+      failureReason: string | null;
+      downloadAvailable: boolean;
+      downloadUrl: string | null;
+    }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/restoration-status`, {}, token, guestToken)
 };
 
 export type RestorationDraftSummary = {

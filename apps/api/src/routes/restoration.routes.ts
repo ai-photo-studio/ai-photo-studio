@@ -6,6 +6,22 @@ import { FixedOrderController } from "../controllers/fixed-order.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { rateLimit } from "../middleware/rate-limit.middleware";
 import { CustomerCheckoutController } from "../controllers/customer-checkout.controller";
+import { FixedOrderRestorationStatusController } from "../controllers/fixed-order-restoration-status.controller";
+// R9.5-P4B7-TEST-CHECKOUT-SEAM: importing this module has no side effects on
+// its own -- `CustomerCheckoutTestController`/`CustomerCheckoutTestService`
+// only ever throw from inside their constructors, and construction happens
+// below strictly behind `testCheckoutSeamAllowed()`, so this import is safe
+// even in a production process (the class is simply never instantiated).
+import { CustomerCheckoutTestController } from "../controllers/customer-checkout-test.controller";
+
+/**
+ * R9.5-P4B7-TEST-CHECKOUT-SEAM: true only for a disposable local E2E harness
+ * process -- never in production, and never without the explicit opt-in this
+ * repo already uses everywhere else for zero-cost test mode. Mirrors the
+ * mock P4B worker runner's own guard (`p4b-worker-runner-mock-local.ts`).
+ */
+const testCheckoutSeamAllowed = (): boolean =>
+  process.env.NODE_ENV !== "production" && process.env.COMMERCE_E2E_TEST_MODE === "true";
 
 export const createRestorationRouter = (config: AppConfig): Router => {
   const router = Router();
@@ -13,6 +29,7 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   const customerController = new RestorationCustomerController(config);
   const fixedOrderController = new FixedOrderController();
   const checkoutController = new CustomerCheckoutController(config);
+  const restorationStatusController = new FixedOrderRestorationStatusController(config);
 
   router.post("/restorations", rateLimit(60_000, 10), controller.createOrder);
   router.get("/restorations", requireAuth(config), controller.listOrders);
@@ -48,6 +65,27 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   // legacy Order/PaymentService system at all.
   router.post("/fixed-orders/:orderNo/checkout", rateLimit(60_000, 20), checkoutController.create);
   router.get("/fixed-orders/:orderNo/payment-status", rateLimit(60_000, 60), checkoutController.status);
+  router.get("/fixed-orders/:orderNo/restoration-status", rateLimit(60_000, 60), restorationStatusController.getStatus);
+
+  // R9.5-P4B7-TEST-CHECKOUT-SEAM: only ever registered in a disposable local
+  // E2E process. Not present in the route table at all (not just refused at
+  // runtime) unless both guards hold at server startup -- see
+  // `customer-checkout-test.service.ts` for the full trust-boundary note.
+  if (testCheckoutSeamAllowed()) {
+    const testCheckoutController = new CustomerCheckoutTestController();
+    router.post("/fixed-orders/:orderNo/test-checkout", rateLimit(60_000, 20), testCheckoutController.create);
+    router.post("/fixed-orders/:orderNo/test-checkout/complete", rateLimit(60_000, 20), testCheckoutController.complete);
+    // R9.5-P4B7B: server-authoritative test-mode signal for the browser --
+    // the customer UI must never infer "test mode" from its own build-time
+    // Vite env (a client value carries no authority over payment). This
+    // route's mere presence (200) is the only signal the Review page trusts;
+    // its absence (404, identical to production) means "do not show the
+    // test-payment button." No request body, no state, nothing to guard
+    // beyond the same route-mount guard already gating the seam above.
+    router.get("/e2e/test-mode", rateLimit(60_000, 60), (_req, res) => {
+      res.json({ success: true, data: { enabled: true } });
+    });
+  }
 
   return router;
 };

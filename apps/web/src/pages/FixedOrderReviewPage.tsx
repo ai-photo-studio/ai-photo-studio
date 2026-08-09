@@ -28,6 +28,17 @@ export function FixedOrderReviewPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  // R9.5-P4B7B: never inferred from Vite/browser env -- true only after the
+  // server itself confirms the test-checkout seam is mounted (see
+  // customerApi.getE2ETestModeStatus). Absent/404/error all resolve to
+  // false, so this is fail-closed identically to production.
+  const [testModeEnabled, setTestModeEnabled] = useState(false);
+  const [testPaymentBusy, setTestPaymentBusy] = useState(false);
+  const [restorationStatus, setRestorationStatus] = useState<{
+    executionStatus: string | null;
+    downloadAvailable: boolean;
+    downloadUrl: string | null;
+  } | null>(null);
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -79,13 +90,61 @@ export function FixedOrderReviewPage() {
     }
   };
 
+  const pollRestorationStatus = useCallback(async () => {
+    if (!orderNo) return;
+    const guestToken = getGuestOwnershipToken(orderNo);
+    try {
+      const status = await customerApi.getFixedOrderRestorationStatus(token || undefined, orderNo, guestToken || undefined);
+      if (mounted.current) {
+        setRestorationStatus({
+          executionStatus: status.executionStatus,
+          downloadAvailable: status.downloadAvailable,
+          downloadUrl: status.downloadUrl
+        });
+      }
+    } catch {
+      // Restoration has not started yet (e.g. before payment) -- not an error.
+    }
+  }, [orderNo, token]);
+
+  const completeTestPayment = async () => {
+    if (!orderNo || testPaymentBusy) return;
+    setTestPaymentBusy(true);
+    setCheckoutError(null);
+    try {
+      const guestToken = getGuestOwnershipToken(orderNo);
+      await customerApi.createTestCheckout(token || undefined, orderNo, guestToken || undefined);
+      await customerApi.completeTestPayment(token || undefined, orderNo, guestToken || undefined);
+      if (mounted.current) setPaymentStatus("PAID");
+      await pollRestorationStatus();
+    } catch (err) {
+      if (mounted.current) setCheckoutError(err instanceof Error ? err.message : "Unable to complete the test payment");
+    } finally {
+      if (mounted.current) setTestPaymentBusy(false);
+    }
+  };
+
   useEffect(() => {
     mounted.current = true;
     void load();
+    // Server-authoritative only -- a 404/error here always leaves
+    // testModeEnabled at its fail-closed default of false.
+    void customerApi
+      .getE2ETestModeStatus()
+      .then((result) => { if (mounted.current) setTestModeEnabled(result.enabled === true); })
+      .catch(() => { if (mounted.current) setTestModeEnabled(false); });
     return () => {
       mounted.current = false;
     };
   }, [load]);
+
+  // Once a payment has been confirmed (real or test), poll processing status
+  // on a bounded interval until a download is available. Purely read-only.
+  useEffect(() => {
+    if (paymentStatus !== "PAID" || (restorationStatus && restorationStatus.downloadAvailable)) return;
+    const interval = setInterval(() => { void pollRestorationStatus(); }, 1500);
+    return () => clearInterval(interval);
+  }, [paymentStatus, restorationStatus, pollRestorationStatus]);
 
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading order...</p></div></section>;
   if (error || !order) return <section className="page-stack"><div className="state-panel state-panel-error"><p>{error || "Order not found"}</p></div></section>;
@@ -122,6 +181,38 @@ export function FixedOrderReviewPage() {
            Refresh
          </button>
       </div>
+
+      {testModeEnabled && (
+        <div className="state-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
+          <p><strong>TEST MODE — No real charge</strong></p>
+          <div className="button-row">
+            <button
+              type="button"
+              className="button"
+              data-testid="e2e-complete-test-payment"
+              onClick={() => void completeTestPayment()}
+              disabled={testPaymentBusy || paymentStatus === "PAID"}
+            >
+              {testPaymentBusy ? "Completing TEST payment..." : "Complete TEST Payment"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {paymentStatus === "PAID" && (
+        <div className="state-panel" style={{ marginTop: "1rem" }} data-testid="restoration-processing-status">
+          {restorationStatus?.downloadAvailable ? (
+            <>
+              <p><strong>Completed</strong></p>
+              {restorationStatus.downloadUrl && (
+                <a className="button" href={restorationStatus.downloadUrl} data-testid="e2e-download-link">Download</a>
+              )}
+            </>
+          ) : (
+            <p>Processing... ({restorationStatus?.executionStatus || "QUEUED"})</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -146,3 +146,77 @@ generic UI and any older home-page composition remain rejected.
   execution, claim, validation, and download orchestration without external
   compute. A full browser/API multi-process E2E remains a separate harness
   packet; no production bypass is introduced here.
+
+## Real local multi-process commerce harness (R9.5-P4B7/P4B7B: PKR_LOCAL_E2E_READY)
+
+- Command: `npm run test:e2e:commerce-local` -- one process (`tsx
+  scripts/test-commerce-local.ts`), no manual steps.
+- Lifecycle, each started exactly once per run: `initdb`/`pg_ctl` disposable
+  Postgres on an isolated loopback port -> `prisma migrate deploy` from empty
+  -> real API (`RESTORATION_PROVIDER=mock`, `STORAGE_PROVIDER=mock`,
+  `COMMERCE_E2E_TEST_MODE=true`) -> the mock-local P4B worker -> real Vite web
+  -> a real Playwright browser (no `page.route` mocking of application APIs).
+  Teardown (success or failure) tree-kills every child, stops Postgres, and
+  deletes the disposable data/storage directories.
+- **Windows process-tree note**: `ChildProcess.kill()` on a `.cmd`-launched
+  process (`npx.cmd`) only kills that `cmd.exe` wrapper, not the real
+  `tsx`/`vite` grandchild. Teardown uses `taskkill /PID <pid> /T /F` for a
+  genuine tree-kill. (The originally-reported "repeated visible PowerShell
+  window" symptom was unrelated to this file -- it came from manually
+  reproducing the sequence via `Start-Process` across separate tool-shell
+  invocations, each a new process with no lifetime link to the next.)
+- **CORS**: `cors.middleware.ts`'s default allowlist only covers
+  `localhost:5173`/`localhost:4000`. This harness's disposable, dynamically
+  chosen `127.0.0.1` ports never match it, which silently blocks every
+  browser-side `fetch` ("Failed to fetch", no server-side error at all) if
+  `ALLOWED_ORIGINS` isn't set explicitly to the harness's own web origin --
+  which the harness now does.
+- The `<select>` locator regression that first surfaced this was actually the
+  web process being spawned with the wrong `cwd` (repo root instead of
+  `apps/web`, where `vite.config.ts`/`index.html` live) -- fixed.
+- Network guard hard-fails only on Replicate/RunPod/Bank Alfalah/production-API
+  hosts (all proven `0` in every passing run). Non-critical off-loopback
+  requests (e.g. the app shell's static Facebook Pixel `<script>` in
+  `index.html`, pre-existing and unrelated to commerce) are reported, not
+  fatal.
+- **Test-only checkout seam** (`customer-checkout-test.service.ts` +
+  controller, mounted only when `NODE_ENV != production &&
+  COMMERCE_E2E_TEST_MODE === "true"` -- structurally absent, not just
+  refused, otherwise): mirrors `CustomerCheckoutService.createCheckout`'s real
+  ownership/pricing/idempotency checks but never touches
+  `bankAlfalahMpgs.enabled` or calls Bank Alfalah. `completeTestPayment` is
+  the sole, triple-guarded HTTP-reachable caller of `commerce-e2e-payment.ts`'s
+  `verifyTestPayment`.
+- **Server-authoritative test-mode signal**: `GET /api/e2e/test-mode` (same
+  mount guard) is the only thing `FixedOrderReviewPage` trusts to show the
+  "Complete TEST Payment" button -- never the client's own Vite build env.
+  Production: 404, button absent, production redirect path (`Pay & Restore
+  Photo` -> live Bank Alfalah) unchanged.
+- **FixedOrder restoration status/download**
+  (`fixed-order-restoration-status.service.ts` + controller, GET-only,
+  ownership-gated via `assertOwnership`, uniform not-found for wrong-owner/
+  nonexistent): this flow had zero HTTP surface for checking processing state
+  or getting a download before this packet. A signed download URL is only
+  ever returned once `RestorationMaster.status === "VALIDATED"` with a
+  `storageKey` present; refresh/poll never triggers processing (read-only).
+- **Mock-mode P3A**: `ReplicateExecutionWorker`'s provider guard was widened
+  from `=== "replicate"` to `"replicate" | "mock"` (`replicate-execution.worker.ts`).
+  Production topology is unaffected: `p4b-worker-runner-main.ts` (the only
+  production caller) still refuses to start unless `RESTORATION_PROVIDER ===
+  "replicate"`, so this worker can never be constructed with `"mock"` in a
+  real deployment. `p4b-worker-runner-mock-local.ts` is the only process that
+  ever supplies `"mock"`, and it has its own triple guard
+  (non-production/explicit test flag/`RESTORATION_PROVIDER=mock`).
+- **Mock storage across process boundaries**: `MockStorageProvider` was
+  pure in-memory-per-process (invisible across the API/worker process
+  boundary). `MOCK_STORAGE_DIR`, set only by this harness, additionally
+  persists to disk so multiple mock-mode processes share state; unset (every
+  existing unit test's environment), behavior is unchanged.
+- Full PKR digital proof, this harness, real browser: Home -> upload once ->
+  Preview -> Digital tier select (2x HD, PKR 1,000.00, PriceBook
+  `PB-2026-08-09-TRIAL-V3`) -> Review -> Complete TEST Payment -> real P4A ->
+  real mock P4B worker -> real P3A -> `SUCCEEDED`/`VALIDATED` -> download
+  link. Exactly 1 row each of FixedOrder/PaymentAttempt/
+  RestorationEntitlement/RestorationMaster/ReplicateExecution; duplicate
+  `test-checkout/complete` calls and repeated status polls create zero
+  additional rows.

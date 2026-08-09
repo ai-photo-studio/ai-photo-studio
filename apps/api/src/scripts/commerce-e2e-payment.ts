@@ -11,9 +11,19 @@ export async function verifyTestPayment(attemptId: string, orderId: string, amou
     const attempt = await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
     const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { id: orderId } });
     if (attempt.fixedOrderId !== order.id || attempt.amountMinor.toString() !== amountMinor || attempt.currency !== currency) throw new Error("test payment evidence does not match server order");
+    const providerEventId = `commerce-e2e:${attempt.id}`;
     const providerRef = `commerce-e2e:${attempt.id}`;
     const dedupeHash = `commerce-e2e:${attempt.id}:${amountMinor}:${currency}`;
-    return applyVerifiedPaymentEvidence({ attemptId, orderId, providerRef, provider: "commerce-e2e-test", amountMinor, currency, dedupeHash, verified: true, capturedAt: new Date().toISOString() });
+    return applyVerifiedPaymentEvidence({
+      fixedOrderId: orderId,
+      paymentAttemptId: attemptId,
+      provider: "commerce-e2e-test",
+      providerEventId,
+      providerRef,
+      amountMinor: BigInt(amountMinor),
+      currency,
+      dedupeHash
+    });
   } finally { await prisma.$disconnect(); }
 }
 

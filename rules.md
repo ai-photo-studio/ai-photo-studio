@@ -986,3 +986,80 @@ section is additive; every rule above it remains in force verbatim.
 - No live Bank Alfalah request, APG activation, production deployment, or
   payment success simulation was made anywhere in this packet.
   No RunPod/Replicate/R2 network call.
+
+### R9.5-P4B7-WORKSPACE-RECONCILIATION: canonical workspace protocol (2026-08-09)
+
+Added by the R9.5-P4B7-REAL-LOCAL-MULTIPROCESS-E2E workspace-reconciliation
+step. This section is additive; every rule above it remains in force
+verbatim.
+
+- **Permanent rule — `D:\AI Product Photo Studio on WhatsApp` is the ONLY
+  active project workspace.** All agents and sessions must open, branch,
+  build, and test from this path.
+- **Permanent rule — never create or use `D:\Temp\r95-product-ready-
+  integration` again.** It existed only as a linked `git worktree` of this
+  same repository (same `.git`, same `origin`, same branches — not a
+  separate clone or a fork with independent history). It has been removed
+  from `git worktree list`; a residual on-disk folder may remain (Windows
+  file locks prevented full deletion) but it is no longer a git worktree
+  and carries no authority. Do not resurrect it or treat its presence on
+  disk as meaningful.
+- Branch `setup/project-automation` is retired from active use. Its
+  history is fully pushed to `origin/setup/project-automation`
+  (`156ba266b06406ba0babd15335bde700f352d858`) and its pre-reconciliation
+  uncommitted working tree was additionally snapshotted to local branch
+  `backup/setup-project-automation-dirty-20260809-152222`
+  (`03835d369063b7d8dcff891e23b3f1c354504bb1`) before this workspace was
+  switched — no commit or uncommitted work was lost. Do not check this
+  branch back out as the active branch; if any of its uncommitted content
+  is needed going forward, cherry-pick or diff it from the backup branch
+  explicitly.
+- The active branch for R9.5-P4B7 work is `fix/r9.5-restore-known-good-ui`,
+  verified at HEAD `6395f2b981d8a2906c7cd40c215e44b21b715c0c` immediately
+  after reconciliation, clean working tree.
+- This repository carries dozens of other agent/task worktrees under
+  `.claude/worktrees/`, `.kilo/worktrees/`, and various `D:/Temp/*`
+  directories from prior sessions. This rule does not retire or clean
+  those up — only `D:\Temp\r95-product-ready-integration` is superseded by
+  this entry — and no other worktree may be assumed authoritative for R9.5
+  work without an explicit, separately authorized task.
+
+### R9.5-P4B7B-PKR-LOCAL-E2E-READY (2026-08-09)
+
+Added by the R9.5-P4B7B-FINISH-PKR-BROWSER-E2E-AND-PROCESS-SPAWN-FIX packet.
+This section is additive; every rule above it remains in force verbatim.
+
+- **`PKR_LOCAL_E2E_READY` achieved.** `npm run test:e2e:commerce-local`
+  passed clean end-to-end: real disposable Postgres, real API, real mock
+  P4B worker, real Vite web, and a real (non-`page.route`-mocked) Playwright
+  browser drove Home → upload → Preview → Digital tier select → Review →
+  Complete TEST Payment → real P4A → real mock P4B worker → real P3A →
+  `SUCCEEDED`/`VALIDATED` → download link, with exactly one row each of
+  FixedOrder/PaymentAttempt/RestorationEntitlement/RestorationMaster/
+  ReplicateExecution and zero Replicate/RunPod/Bank/production-host calls.
+  Full detail in `docs/frontend/THANNOW_PRODUCTION_UI_BASELINE.md`'s "Real
+  local multi-process commerce harness" section — read it before touching
+  this harness, the mock P3A/P4B guards, the test-checkout seam, or
+  `MockStorageProvider`'s disk-backed mode.
+- **Permanent rule — `ReplicateExecutionWorker`'s provider guard accepts
+  exactly `"replicate"` or `"mock"`, never anything else.** Production
+  topology is unaffected because `p4b-worker-runner-main.ts` (the only
+  production caller) still refuses to start unless
+  `RESTORATION_PROVIDER === "replicate"`; only the separate, triple-guarded
+  `p4b-worker-runner-mock-local.ts` ever supplies `"mock"`. Do not widen
+  this guard further, and do not remove the outer runner-level guards that
+  make the `"mock"` allowance inert in production.
+  `p3a-replicate-execution-worker.test.ts` proves both the refusal (any
+  other selection) and the `"mock"` authorization.
+- **Permanent rule — the test-only checkout seam
+  (`customer-checkout-test.service.ts`/`customer-checkout-test.controller.ts`,
+  routes `/fixed-orders/:orderNo/test-checkout(/complete)`,
+  `/e2e/test-mode`) may only ever be mounted when `NODE_ENV != "production"
+  && COMMERCE_E2E_TEST_MODE === "true"`, checked at server-startup route
+  registration (`restoration.routes.ts`), not merely inside each handler.**
+  It must never read or set `bankAlfalahMpgs.enabled` and must never call
+  Bank Alfalah. The customer-facing "Complete TEST Payment" button
+  (`FixedOrderReviewPage.tsx`) must only ever appear after a live server
+  response from `GET /api/e2e/test-mode` — never inferred from
+  `import.meta.env`/any client-side value — and must never alter the
+  production "Pay & Restore Photo" → live Bank Alfalah redirect path.
