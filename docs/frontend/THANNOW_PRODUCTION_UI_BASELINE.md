@@ -443,3 +443,28 @@ generic UI and any older home-page composition remain rejected.
   Replicate, RunPod, or Bank call occurred. Evidence-based readiness remains
   frontend 100%, Pakistan funnel 100%, processing 100%, internal print 100%,
   payment integration 50%, full Pakistan readiness 80%.
+
+## GitHub-backed production migration preflight (R9.5-P5F: 2026-08-10)
+
+- Added `.github/workflows/production-migration-preflight.yml`, a
+  `workflow_dispatch`-only workflow using the existing protected `production`
+  environment and `contents: read` permissions. It is not triggered by pull
+  requests or pushes and does not deploy API/frontend code.
+- The preferred resolution uses the existing secret name `NORTHFLANK_API_KEY`
+  to read the runtime environment of project/service `ai-photo-studio`.
+  `DATABASE_URL` is extracted only inside the runner, immediately masked, and
+  exported only for that job. It is never printed, uploaded, or written to
+  repository files. Existing secret names also include `DATABASE_URL`,
+  `NEON_API_KEY`, `NEON_DATABASE_URL`, `NEON_DIRECT_URL`,
+  `NEON_POOLER_URL`, and `NEON_PROJECT_ID`; the Neon fallback is not used when
+  Northflank runtime resolution succeeds.
+- `apply_migrations` defaults to `false`. Read-only mode runs the guarded
+  `npm run db:migrate:status:production`, emits migration names/status only,
+  and accepts either clean status or exactly the two reviewed pending R9.5
+  migrations. Apply mode requires the explicit dispatch input plus
+  `ALLOW_PRODUCTION_MIGRATIONS=true`, then uses the same guarded deploy and
+  final status. The workflow has a 15-minute timeout and no secret artifacts.
+- This mechanism is ready for the next authorized preflight. It has not yet
+  been dispatched from this commit; no production DB query, mutation, API
+  deploy, frontend deploy, payment, Replicate call, or RunPod action occurred
+  in this packet.

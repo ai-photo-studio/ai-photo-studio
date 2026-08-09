@@ -1188,3 +1188,21 @@ This section is additive; every rule above it remains in force verbatim.
   -> second authorized deploy with no pending migrations. Production migration
   remains `AWAITING_CREDENTIAL_AND_AUTHORIZATION`; this packet does not
   authorize database access or deployment.
+
+### R9.5-P5F-GITHUB-SECRET-PRODUCTION-MIGRATION (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- Use `.github/workflows/production-migration-preflight.yml` for the approved
+  production DB status path. It is `workflow_dispatch`-only, uses the existing
+  protected `production` environment, has read-only repository permissions,
+  and defaults `apply_migrations=false`.
+- The workflow may use only the existing secret name `NORTHFLANK_API_KEY` to
+  read the identified `ai-photo-studio` service runtime environment. It must
+  mask `DATABASE_URL` immediately and never print, artifact, persist to source,
+  or expose its value. Neon secret names are fallback metadata only and must
+  not be guessed among multiple projects.
+- Read-only status accepts only clean state or the exact two reviewed R9.5
+  pending migrations. Apply requires explicit workflow input and
+  `ALLOW_PRODUCTION_MIGRATIONS=true`, then runs only the guarded deploy and
+  final status. No deployment is implied by this workflow.
