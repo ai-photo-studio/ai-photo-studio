@@ -129,3 +129,20 @@ generic UI and any older home-page composition remain rejected.
   `PRINT_PARTNER_ASSIGNMENT_REQUIRED` and no tracking/shipped state is faked.
 - International print remains blocked as
   `INTERNATIONAL_PRINT_SHIPPING_REQUIRED` without destination-specific rates.
+
+## Zero-cost local commerce E2E boundary (2026-08-09)
+
+- Restoration mock selection is `RESTORATION_PROVIDER=mock` and is refused by
+  the production P4B worker runner; production remains Replicate-only.
+- The explicit local test payment seam is
+  `apps/api/src/scripts/commerce-e2e-payment.ts`. It requires
+  `COMMERCE_E2E_TEST_MODE=true`, `RESTORATION_PROVIDER=mock`, and refuses
+  `NODE_ENV=production`. It calls the normal P4A verified-evidence contract;
+  it does not create a production route or accept query-string payment state.
+- The seam has no Replicate, RunPod, Bank Alfalah, or Mastercard host and uses
+  no card data. Its safety tests prove production refusal and zero external
+  payment/provider hosts.
+- Existing P4A/P4B/P3A mock-port tests prove the real entitlement, master,
+  execution, claim, validation, and download orchestration without external
+  compute. A full browser/API multi-process E2E remains a separate harness
+  packet; no production bypass is introduced here.
