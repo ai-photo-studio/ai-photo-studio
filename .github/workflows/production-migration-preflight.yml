@@ -91,7 +91,12 @@ jobs:
             DATABASE_URL="$candidate" npm run db:migrate:status:production >"${status_log}" 2>&1
             status_exit=$?
             set -e
-            mapfile -t pending < <(grep -oE '202[0-9]{14}_[A-Za-z0-9_-]+' "${status_log}" | sort -u || true)
+            # R9.5-P5R3: Prisma's migration-folder timestamp prefix is 14
+            # digits total (YYYYMMDDHHMMSS, e.g. 20260810000000) -- the
+            # previous pattern required 17 (literal "202" + {14} more) and
+            # never matched a real migration name, so a genuinely pending
+            # migration was always misclassified as a command failure.
+            mapfile -t pending < <(grep -oE '20[0-9]{12}_[A-Za-z0-9_-]+' "${status_log}" | sort -u || true)
             pending_count=${#pending[@]}
             if (( status_exit == 0 )) && (( pending_count == 0 )); then
               echo 'migration_status=clean'
@@ -166,7 +171,7 @@ jobs:
           fi
 
           DATABASE_URL="${SELECTED_URL}" npm run db:migrate:production >"${apply_log}" 2>&1
-          mapfile -t applied < <(grep -oE '202[0-9]{14}_[A-Za-z0-9_-]+' "${apply_log}" | sort -u || true)
+          mapfile -t applied < <(grep -oE '20[0-9]{12}_[A-Za-z0-9_-]+' "${apply_log}" | sort -u || true)
           rm -f "${apply_log}"
           for migration in "${applied[@]}"; do echo "applied_migration=${migration}"; done
           echo "apply_migrations=true"
