@@ -3284,6 +3284,20 @@ img {
   color: var(--thannow-muted, var(--muted));
 }
 
+.upload-modal .selected-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 14px 0;
+  padding-right: 4px;
+}
+
+.upload-modal .selected-files-list .selected-preview {
+  margin: 0;
+}
+
 .upload-modal .selected-preview {
   margin: 14px 0;
   padding: 10px;

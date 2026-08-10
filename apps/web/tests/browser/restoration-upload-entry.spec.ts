@@ -111,14 +111,16 @@ test.describe("canonical restoration upload entry", () => {
   test("Remove clears the single selected image and re-enables a fresh single selection", async ({ page }) => {
     await page.goto("/?upload=1");
     const input = page.locator("#photoInput");
-    await expect(input).not.toHaveAttribute("multiple", "");
+    // R9.5-P5Q: multi-select is now intentional (1-10 photos); a single
+    // `setInputFiles` selection still behaves exactly as before.
+    await expect(input).toHaveAttribute("multiple", "");
 
     await input.setInputFiles({ name: "first.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-one") });
     await expect(page.getByText("first.jpg")).toBeVisible();
     const continueButton = page.getByRole("button", { name: "Continue to Restoration" });
     await expect(continueButton).toBeEnabled();
 
-    await page.getByRole("button", { name: "Remove selected image" }).click();
+    await page.getByRole("button", { name: "Remove first.jpg" }).click();
     await expect(page.getByText("first.jpg")).toHaveCount(0);
     await expect(continueButton).toBeDisabled();
     await expect(input).toHaveValue("");
@@ -129,5 +131,59 @@ test.describe("canonical restoration upload entry", () => {
     await expect(page.getByText("second.jpg")).toBeVisible();
     await expect(page.getByText("first.jpg")).toHaveCount(0);
     await expect(continueButton).toBeEnabled();
+  });
+
+  test("R9.5-P5Q: selecting 3 photos at once shows all 3, Continue navigates to the cart route", async ({ page }) => {
+    await page.goto("/?upload=1");
+    await page.locator("#photoInput").setInputFiles([
+      { name: "a.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-a") },
+      { name: "b.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-b") },
+      { name: "c.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-c") }
+    ]);
+    await expect(page.getByText("a.jpg")).toBeVisible();
+    await expect(page.getByText("b.jpg")).toBeVisible();
+    await expect(page.getByText("c.jpg")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to Restoration (3 photos)" })).toBeEnabled();
+  });
+
+  test("R9.5-P5Q: Add more photos appends to the existing selection without losing it", async ({ page }) => {
+    await page.goto("/?upload=1");
+    const input = page.locator("#photoInput");
+    await input.setInputFiles([{ name: "one.jpg", mimeType: "image/jpeg", buffer: Buffer.from("1") }, { name: "two.jpg", mimeType: "image/jpeg", buffer: Buffer.from("2") }]);
+    await expect(page.getByText("one.jpg")).toBeVisible();
+    await page.getByRole("button", { name: /Add more photos/ }).click();
+    await input.setInputFiles({ name: "three.jpg", mimeType: "image/jpeg", buffer: Buffer.from("3") });
+    await expect(page.getByText("one.jpg")).toBeVisible();
+    await expect(page.getByText("two.jpg")).toBeVisible();
+    await expect(page.getByText("three.jpg")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to Restoration (3 photos)" })).toBeEnabled();
+
+    // Removing the middle one leaves exactly the other two.
+    await page.getByRole("button", { name: "Remove two.jpg" }).click();
+    await expect(page.getByText("two.jpg")).toHaveCount(0);
+    await expect(page.getByText("one.jpg")).toBeVisible();
+    await expect(page.getByText("three.jpg")).toBeVisible();
+  });
+
+  test("R9.5-P5Q: selecting more than 10 photos is rejected with a clear inline error, no partial accidental submit", async ({ page }) => {
+    await page.goto("/?upload=1");
+    const eleven = Array.from({ length: 11 }, (_, i) => ({ name: `img${i}.jpg`, mimeType: "image/jpeg", buffer: Buffer.from(`img${i}`) }));
+    await page.locator("#photoInput").setInputFiles(eleven);
+    await expect(page.getByText("You can upload up to 10 photos at a time. Remove some to add more.")).toBeVisible();
+    // None of the 11 were accepted -- Continue stays disabled (zero selected).
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
+  });
+
+  test("R9.5-P5Q: removing every photo disables Continue and clears the list", async ({ page }) => {
+    await page.goto("/?upload=1");
+    await page.locator("#photoInput").setInputFiles([
+      { name: "x.jpg", mimeType: "image/jpeg", buffer: Buffer.from("x") },
+      { name: "y.jpg", mimeType: "image/jpeg", buffer: Buffer.from("y") }
+    ]);
+    await page.getByRole("button", { name: "Remove x.jpg" }).click();
+    await page.getByRole("button", { name: "Remove y.jpg" }).click();
+    await expect(page.getByText("x.jpg")).toHaveCount(0);
+    await expect(page.getByText("y.jpg")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
   });
 });

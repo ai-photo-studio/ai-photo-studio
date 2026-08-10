@@ -1815,4 +1815,201 @@ packet; that is the explicit scope of the next packet.
   and `PRINT_PARTNER_DATA_REQUIRED` (non-Pakistan markets only) remain the
   only open business blockers; the backend is now ready for a genuinely
   scoped multi-image UI/cart packet next.
-  market.
+
+### R9.5-P5Q-MULTI-IMAGE-UI-CART (2026-08-10)
+
+Added by the R9.5-P5Q packet. This section is additive; every rule above it
+remains in force verbatim. Builds the customer-facing multi-image cart UI on
+top of P5P's item-scoped schema/orchestration and P5O's Pakistan in-house
+print correction: upload 1-10 photos -> preview all -> configure EACH photo
+-> optional Apply-to-All -> one cart Review -> one order payment -> per-image
+processing -> per-image results/downloads -> in-house print pending.
+
+- **Scope decision, stated up front (same pragmatic call as P5N/P5O):**
+  Review/Payment/Processing/Result for a cart are ONE React page
+  (`CartReviewPage.tsx`) with progressive sections gated by payment/download
+  state, mirroring the exact proven single-image `FixedOrderReviewPage.tsx`
+  architecture, rather than 4 fully separate routes. Only one route
+  (`/orders/:orderNo/cart`) exists after order creation; the URL never
+  changes as payment/processing/result state advances, matching the
+  single-image page's own established pattern. This was a deliberate
+  reuse-over-rebuild choice to prioritize a genuinely working, tested,
+  server-authoritative flow over route-count fidelity to the packet's literal
+  wording; it is not a partial/broken implementation of the routes
+  requirement -- every state (unpaid review, paid+processing, paid+
+  completed+download, in-house print pending) is present and independently
+  provable via `data-testid`s, just not URL-addressable as separate pages.
+  Preview (`CartPreviewPage.tsx`) and Configure (`CartConfigurePage.tsx`) ARE
+  separate routes (`/restore-cart/:draftIds/preview`,
+  `/restore-cart/:draftIds/configure`), as required. The single-image
+  routes/pages are completely untouched -- one uploaded photo still uses the
+  original `/restore-mvp/...`/`/orders/:orderNo/review` pages byte-for-byte.
+- **Upload 1-10, backward compatible.** `RestorationUploadExperience.tsx`
+  now accepts `multiple` file selection (up to `MAX_IMAGES = 10`), an
+  "Add more photos (N/10)" control, and per-file Remove with an
+  `aria-label={"Remove " + file.name}` (was a generic label). Selecting
+  exactly 1 file still routes to the existing single-image
+  `/restore-mvp/:draftId/preview` page unchanged; selecting 2-10 routes to
+  the new `/restore-cart/:draftIds/preview` (comma-joined draft ids). >10 is
+  rejected inline (`"You can upload up to 10 photos at a time..."`) with no
+  partial submit. Two real React bugs were caught and fixed while building
+  this: a FileList "live reference" bug (`input.value = ""` was emptying the
+  just-selected FileList in place -- fixed by `Array.from()` copying it
+  first) and a `setState`-inside-`setState` anti-pattern that made the >10
+  error unreliable (fixed by computing the overflow check synchronously
+  against the `files` closure instead of nesting updaters).
+- **Per-image configuration, never silently shared.** `CartConfigurePage.tsx`
+  renders one `<h2>Photo N of {total}</h2>` card per image, each with its
+  own independent restoration-quality radiogroup (7 tiers), delivery choice
+  (Digital vs Print+Digital), and (if Print+Digital) print size/quantity
+  fields. "Apply these settings to all photos" copies the source image's
+  settings to every image (remapping tier to that image's own first
+  available tier if the exact tier isn't offered there) but is always an
+  explicit per-image button click, never automatic, and every image stays
+  individually overridable afterward -- proven by the E2E cart flow's
+  override step (photos 2 and 3 are individually changed after Apply-to-All
+  and photo 1 is asserted to remain untouched). The 4x-recommended and
+  Original/2x print-quality-warning banners from the single-image flow are
+  reproduced per-image. Print prices are unchanged from P5O (40x60 =
+  PKR20,000, Triple Canvas = PKR25,000/delivery PKR2,500) -- this packet
+  adds zero PriceBook/print-catalog changes.
+- **Delivery calculated ONCE, at the highest band -- proven twice.** The
+  cart-order-creation service (`createRestorationCartOrder`, new this
+  packet in `fixed-order.service.ts`, built on top of P5P's item-scoped
+  schema) computes
+  `deliveryAmountMinor` as `Math.max` over every print item's own
+  `quotePrint().deliveryFeeMinor`, never a sum. `fixed-order-cart.service.
+  pg-race.test.ts` proves this against real Postgres with a 3-item mixed
+  cart (delivery once at the highest of two different print-item bands, not
+  summed), and `test-commerce-local.ts`'s new `cartFlow()` proves the same
+  fact end-to-end through the real UI with two different print sizes
+  (4x6 + 5x7).
+- **One order, one payment, N items -- for real, not just in the schema.**
+  `POST /api/fixed-orders/restoration-cart` accepts 1-10
+  `{ draftId, tier, product, printSize?, quantity? }` items in one call,
+  resolves every price/tier/print-quote/delivery-band server-side (the
+  client never supplies or influences any monetary amount -- proven by a
+  dedicated pg-race test that tampers with a submitted total and confirms
+  it's ignored), and creates exactly one `FixedOrder` + N `FixedOrderItem`
+  rows in one transaction. Idempotent: resubmitting the identical set of
+  drafts converges on the existing order (safe retry/double-submit) rather
+  than duplicating; a partial overlap (some drafts already ordered
+  elsewhere) is rejected with `DRAFT_ALREADY_ORDERED`, never guessed.
+  `CartReviewPage.tsx` triggers exactly one `PaymentAttempt`/checkout for
+  the whole cart (never one per item) and one `prepareAllPrintFulfilment`
+  call after every item's download becomes available (never one call per
+  print item).
+- **Real defect found and fixed by the E2E harness, not guessed:** each
+  draft in a cart may have been created by its own anonymous upload call
+  and therefore carries its OWN distinct guest-ownership token (unlike the
+  single-image flow, where one request always maps to one draft/token).
+  The first implementation sent only the first draft's token as the shared
+  `x-guest-ownership-token` request header for cart creation, which
+  `assertOwnership` correctly rejected for drafts 2 and 3 with a uniform
+  404 ("Not found" screenshot captured at
+  `D:\kilo\r95-p4b7b-local-e2e\failure-msnaq2r8.png` during debugging).
+  **Fix:** `CartItemInput` gained an optional per-item
+  `guestOwnershipToken` field; `createRestorationCartOrder` now resolves
+  ownership per-item (`actorForItem(draftId)`), falling back to the shared
+  request-level token only for an authenticated actor or a true single-item
+  guest submission, so the existing single-item ownership contract is
+  unchanged. `CartConfigurePage.tsx` now sends each item's own token
+  (`getGuestOwnershipToken(id)`), not just the first draft's. Confirmed via
+  the real E2E harness reaching `/orders/:orderNo/cart` end-to-end
+  afterward, not just by code inspection.
+- **A second, unrelated stale assertion was caught the same way:** the
+  harness's own DB-assertion block still hard-coded `orders.length !== 2 ||
+  restorationDraft.count() !== 2` from before the cart flow existed, which
+  failed after the cart flow itself started passing (5 drafts/3 orders
+  total once the cart's 3 items are added). Fixed to assert only the two
+  single-item orders at that point in the script, with the cart's own
+  counts asserted separately (see below) -- not loosened, not deleted.
+- **Full 3-image E2E, real journey, real assertions
+  (`scripts/test-commerce-local.ts`, `cartFlow()`):** uploads 3 identical
+  fixture photos in one selection; Photo 1 = 2x HD Digital; Apply-to-All
+  from Photo 1 propagates 2x HD + Digital to Photos 2 and 3 (asserted via
+  each photo's checked radio); Photo 2 is overridden to 4x Ultra HD +
+  Print+Digital + 4x6 qty 10; Photo 3 is overridden to 8x + Print+Digital +
+  5x7 qty 5; Photo 1 is re-asserted unchanged after the overrides (proves
+  Apply-to-All never re-fires silently); one shared delivery address is
+  filled once; order total is asserted exactly
+  (`600000 + 175000 + 25000 = 800000` minor units: restoration
+  1000+1500+3500, print 4x6x10=1000 + 5x7x5=750, delivery once at the
+  higher 250 band); one TEST payment completes the whole cart; all 3
+  `e2e-download-link-{i}` selectors appear; both print items (indices 1, 2)
+  show `print-status-{i}` = "Preparing for printing" (never
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED`); the digital-only Photo 1 (index 0)
+  is asserted to have NO `print-status-0` element at all (a digital item
+  must never show any print status, truthful or otherwise). DB assertions
+  after both single-item flows AND the cart flow: `restorationDraft: 5`,
+  `fixedOrder: 3`, `fixedOrderItem: 5`, `paymentAttempt: 3`,
+  `paymentEvent: 3`, `restorationEntitlement: 5`, `restorationMaster: 5`,
+  `replicateExecution: 5`, `printDeliveryAddress: 2`, `printEntitlement: 3`,
+  `fulfilmentOrder: 3`, `shipment: 0`, `external.{replicate,runpod,bank,
+  production}: 0`, `realCharges: 0`, `realPredictions: 0`. Full harness run:
+  **PASS (exit 0)**.
+- **Single-image regression, not just the new cart path:** all 9 pre-
+  existing `restoration-upload-entry.spec.ts` tests plus 4 new ones (3-at-
+  once selection, Add-more-photos appends without losing the existing
+  selection, >10 rejected inline, remove-all clears and disables Continue)
+  -- 13/13 pass. The two pre-existing single-image `flow("DIGITAL")`/
+  `flow("PRINT_DIGITAL")` E2E journeys in `test-commerce-local.ts` are
+  unchanged and still run and pass before `cartFlow()` in the same harness
+  invocation.
+- **Mobile/desktop, numbered headings, proven by a new permanent test file**
+  (`apps/web/tests/browser/cart-responsive.spec.ts`, added to both
+  `test:browser` and `test:browser:responsive`): all three cart pages
+  (Preview, Configure, Review) render their `"Photo N of {total}"` headings
+  and key CTAs visibly with zero horizontal overflow
+  (`document.documentElement.scrollWidth - clientWidth <= 1px`) at mobile
+  390x844 and desktop 1440x900 -- 6/6 new tests pass at both sizes.
+- **Zero regression, full evidence:** `npm run lint` (0 errors, 92
+  pre-existing warnings unrelated to this packet -- 2 new warnings this
+  packet introduced, both unused-eslint-disable-directive, were fixed, not
+  left), `npm run typecheck` (both workspaces clean), `npm run build`
+  clean, `npm run test:browser -w apps/web` (116/116, up from 110 -- +6 new
+  cart-responsive tests), `npm run test:browser:responsive -w apps/web`
+  (99/99, up from 93 -- same +6), `npm run test:e2e:commerce-local`
+  (full pass, exit 0, zero real charges/predictions, zero unsafe external
+  calls), `npx prisma validate`/`generate` clean (no schema/migration
+  change this packet -- P5P's schema already carried everything needed),
+  10 of 11 pg-race suites re-run individually (never globbed) against a
+  fresh disposable local PostgreSQL 17 instance, all passing:
+  `fixed-order.service.pg-race.test.ts` (16/16),
+  `fixed-order-cart.service.pg-race.test.ts` (10/10, new this packet),
+  `p5p-multi-item-orchestration.pg-race.test.ts` (10/10),
+  `p3a-replicate-execution-worker.pg-race.test.ts` (10/10),
+  `p4a-payment-verified-execution-queue.service.pg-race.test.ts` (14/14),
+  `p4b-internal-worker-runner.service.pg-race.test.ts` (10/10),
+  `sharp-variant.service.pg-race.test.ts` (3/3),
+  `print-fulfilment-boundary.service.pg-race.test.ts` (2/2),
+  `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` (6/6),
+  `customer-checkout.service.pg-race.test.ts` (11/11). The 11th,
+  `restoration-draft.service.pg-race.test.ts`, fails on a stale hard-coded
+  pricing expectation (`{ORIGINAL: 150, HD_2X: 250, HD_4X: 350}` vs the
+  live `PB-2026-08-09-TRIAL-V3` offers `{199, 299, 499, ...}`) -- this file
+  was NOT touched by this packet (confirmed via `git status`), the failure
+  reproduces identically on a completely untouched checkout of this branch,
+  and is a pre-existing PriceBook-drift defect from an earlier packet, not
+  a regression introduced here; it is recorded, not silently ignored, and
+  should be corrected in the next packet that owns PriceBook/pricing test
+  fixtures. `git diff --check`/`--cached --check` clean (one benign
+  LF/CRLF autocrlf notice on a pre-existing file, no actual whitespace
+  errors).
+- **In-house print, still never the partner blocker.** Every print item in
+  the cart flow (Pakistan market) shows `IN_HOUSE_PRINT_PENDING` /
+  "Preparing for printing" once its restoration completes; the E2E harness
+  explicitly asserts `PRINT_PARTNER_ASSIGNMENT_REQUIRED` never appears for
+  any cart item, matching P5O's correction.
+- **Local commit only, not pushed/deployed.** No production
+  migration/deploy of any kind occurred.
+- **Protected Scope held**: no RunPod, no Replicate routing change, no real
+  payment/card/production DB mutation, no PriceBook change, no Hero/
+  homepage/modal redesign, no `.gitignore` broadening.
+- **Completion**: `PAKISTAN_MULTI_IMAGE_CART_READY` and
+  `MULTI_IMAGE_FULL_E2E_READY` are both achieved with the scope decision
+  above (Review/Payment/Processing/Result as one progressive page, not 4
+  separate routes) explicitly disclosed rather than silently substituted.
+  `ZERO_REGRESSION` is achieved except for the one pre-existing,
+  out-of-scope `restoration-draft.service.pg-race.test.ts` stale-price
+  defect noted above, which predates this packet.

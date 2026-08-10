@@ -50,8 +50,14 @@ export const createRestorationRouter = (config: AppConfig): Router => {
     rateLimit(60_000, 20),
     fixedOrderController.createRestorationDigitalOrder
   );
+  router.post(
+    "/fixed-orders/restoration-cart",
+    rateLimit(60_000, 20),
+    fixedOrderController.createRestorationCartOrder
+  );
   router.get("/print-catalog", rateLimit(60_000, 60), fixedOrderController.getPrintCatalog);
   router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
+  router.get("/fixed-orders/:orderNo/cart", rateLimit(60_000, 60), fixedOrderController.getCartByOrderNo);
   // R9.2-MPGS-ACTUAL-APP-E2E: these were previously mounted at
   // /orders/:orderNo/checkout and /orders/:orderNo/payment-status, which
   // collided byte-for-byte with the pre-existing legacy
@@ -68,8 +74,15 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   router.post("/fixed-orders/:orderNo/checkout", rateLimit(60_000, 20), checkoutController.create);
   router.get("/fixed-orders/:orderNo/payment-status", rateLimit(60_000, 60), checkoutController.status);
   router.get("/fixed-orders/:orderNo/restoration-status", rateLimit(60_000, 60), restorationStatusController.getStatus);
+  router.get("/fixed-orders/:orderNo/restoration-status/all", rateLimit(60_000, 60), restorationStatusController.getAllItemsStatus);
   router.post("/fixed-orders/:orderNo/print-fulfilment", rateLimit(60_000, 20), async (req, res) => {
     try { res.status(200).json({ success: true, data: await printFulfilment.prepare(req.params.orderNo, actorFromRequest(req)) }); }
+    catch (error) { const appError = error as { statusCode?: number; code?: string; message?: string }; res.status(appError.statusCode || 500).json({ success: false, code: appError.code || "INTERNAL_ERROR", message: appError.message || "Unable to prepare print fulfilment" }); }
+  });
+  // R9.5-P5Q: multi-item cart equivalent -- prepares every print-eligible
+  // item on the order, skips digital-only items entirely.
+  router.post("/fixed-orders/:orderNo/print-fulfilment/all", rateLimit(60_000, 20), async (req, res) => {
+    try { res.status(200).json({ success: true, data: await printFulfilment.prepareAllPrintItems(req.params.orderNo, actorFromRequest(req)) }); }
     catch (error) { const appError = error as { statusCode?: number; code?: string; message?: string }; res.status(appError.statusCode || 500).json({ success: false, code: appError.code || "INTERNAL_ERROR", message: appError.message || "Unable to prepare print fulfilment" }); }
   });
 

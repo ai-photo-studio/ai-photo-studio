@@ -336,7 +336,66 @@ export const customerApi = {
       { method: "POST", body: JSON.stringify({}) },
       token,
       guestToken
+    ),
+
+  // R9.5-P5Q: multi-image cart endpoints.
+  createRestorationCartOrder: (
+    token: string | undefined,
+    input: { items: Array<{ draftId: string; tier: string; product: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; guestOwnershipToken?: string }>; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } },
+    guestToken?: string
+  ) =>
+    apiRequest<FixedOrderCartSummary>("/api/fixed-orders/restoration-cart", { method: "POST", body: JSON.stringify(input) }, token, guestToken),
+
+  getRestorationCart: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<FixedOrderCartSummary>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/cart`, {}, token, guestToken),
+
+  getAllItemsRestorationStatus: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<Array<{
+      fixedOrderItemId: string;
+      tier: string | null;
+      isPrint: boolean;
+      entitlementStatus: string | null;
+      masterStatus: string | null;
+      executionStatus: string | null;
+      failureReason: string | null;
+      downloadAvailable: boolean;
+      downloadUrl: string | null;
+      printStatus: "IN_HOUSE_PRINT_PENDING" | null;
+    }>>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/restoration-status/all`, {}, token, guestToken),
+
+  prepareAllPrintFulfilment: (token: string | undefined, orderNo: string, guestToken?: string) =>
+    apiRequest<Array<{ printEntitlementId: string; fulfilmentOrderId: string; status: string; blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" | "IN_HOUSE_PRINT_PENDING"; fixedOrderItemId: string }>>(
+      `/api/fixed-orders/${encodeURIComponent(orderNo)}/print-fulfilment/all`,
+      { method: "POST", body: JSON.stringify({}) },
+      token,
+      guestToken
     )
+};
+
+export type FixedOrderCartItemSummary = {
+  fixedOrderItemId: string;
+  draftId: string;
+  tier: string;
+  product: "DIGITAL" | "PRINT_DIGITAL";
+  digitalAmountMinor: string;
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string };
+  lineTotalMinor: string;
+};
+
+export type FixedOrderCartSummary = {
+  id: string;
+  orderNo: string;
+  status: string;
+  market: "PAKISTAN" | "INTERNATIONAL";
+  currency: "PKR" | "USD";
+  items: FixedOrderCartItemSummary[];
+  restorationTotalMinor: string;
+  printTotalMinor: string;
+  deliveryAmountMinor: string;
+  totalAmountMinor: string;
+  priceBookVersion: string | null;
+  createdAt: string;
+  paymentStatus?: string;
 };
 
 export type RestorationDraftSummary = {

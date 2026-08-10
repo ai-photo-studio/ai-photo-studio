@@ -47,6 +47,45 @@ export class FixedOrderController {
     }
   };
 
+  /**
+   * R9.5-P5Q: POST /api/fixed-orders/restoration-cart -- creates ONE
+   * FixedOrder with 1-10 independently configured items. Body selects
+   * draftId/tier/product/printSize/quantity per item plus one shared
+   * deliveryAddress (only required if any item is Print + Digital). Amount,
+   * currency, PriceBook fields, per-item print quotes, the one order-level
+   * delivery charge, and the grand total are never accepted from the client.
+   */
+  createRestorationCartOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const rawItems = Array.isArray(req.body?.items) ? req.body.items : [];
+      const items = rawItems.map((raw: Record<string, unknown>) => ({
+        draftId: typeof raw?.draftId === "string" ? raw.draftId : "",
+        tier: typeof raw?.tier === "string" ? raw.tier : "",
+        product: raw?.product === "PRINT_DIGITAL" ? "PRINT_DIGITAL" as const : "DIGITAL" as const,
+        printSize: typeof raw?.printSize === "string" ? raw.printSize : undefined,
+        quantity: typeof raw?.quantity === "number" ? raw.quantity : undefined,
+        guestOwnershipToken: typeof raw?.guestOwnershipToken === "string" ? raw.guestOwnershipToken : undefined
+      }));
+      const data = await this.fixedOrders.createRestorationCartOrder(
+        { items, deliveryAddress: req.body?.deliveryAddress },
+        actorFromRequest(req)
+      );
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  /** R9.5-P5Q: GET /api/fixed-orders/:orderNo/cart -- read-only, multi-item view. */
+  getCartByOrderNo = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.fixedOrders.getCartByOrderNo(req.params.orderNo, actorFromRequest(req));
+      res.json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   private handleError(res: Response, error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ success: false, code: error.code, message: error.message });

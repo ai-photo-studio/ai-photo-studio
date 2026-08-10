@@ -21,6 +21,16 @@ export class FixedOrderRestorationStatusController {
     }
   };
 
+  /** R9.5-P5Q: GET /api/fixed-orders/:orderNo/restoration-status/all -- read-only, one entry per item. */
+  getAllItemsStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.service.getMultiItemRestorationStatus(req.params.orderNo, actorFromRequest(req));
+      res.json({ success: true, data });
+    } catch (error) {
+      this.sendError(res, error);
+    }
+  };
+
   private sendError(res: Response, error: unknown): void {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ success: false, code: error.code, message: error.message });

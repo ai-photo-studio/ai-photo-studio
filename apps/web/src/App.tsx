@@ -31,6 +31,9 @@ import { OriginalPreviewPage } from "./pages/OriginalPreviewPage";
 import { DigitalTierSelectPage } from "./pages/DigitalTierSelectPage";
 import { FixedOrderReviewPage } from "./pages/FixedOrderReviewPage";
 import { PaymentReturnPage } from "./pages/PaymentReturnPage";
+import { CartPreviewPage } from "./pages/CartPreviewPage";
+import { CartConfigurePage } from "./pages/CartConfigurePage";
+import { CartReviewPage } from "./pages/CartReviewPage";
 
 export function App() {
   return (
@@ -58,6 +61,9 @@ export function App() {
         <Route path="restore-mvp/:draftId/preview" element={<OriginalPreviewPage />} />
         <Route path="restore-mvp/:draftId/tiers" element={<DigitalTierSelectPage />} />
         <Route path="orders/:orderNo/review" element={<FixedOrderReviewPage />} />
+        <Route path="restore-cart/:draftIds/preview" element={<CartPreviewPage />} />
+        <Route path="restore-cart/:draftIds/configure" element={<CartConfigurePage />} />
+        <Route path="orders/:orderNo/cart" element={<CartReviewPage />} />
         <Route path="payment/return" element={<PaymentReturnPage />} />
       </Route>
       <Route element={<RequireAuth />}>
