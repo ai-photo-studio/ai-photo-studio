@@ -1499,3 +1499,93 @@ This section is additive; every rule above it remains in force verbatim.
   change, no Hero/homepage redesign, no `.gitignore` broadening.
   `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
   only open business blockers.
+
+### R9.5-P5N-PREVIEW-COMMERCE-FLOW-CLOSURE (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **Backend Print+Digital price formula verified correct, no server change
+  needed.** `quotePrint()` (`apps/api/src/domain/pricing/printCatalog.ts`)
+  already computes `totalAmountMinor = digitalAmountMinor +
+  unitPriceMinor*quantity + deliveryFeeMinor` from server-owned inputs only
+  (the approved PriceBook offer amount + the print catalog's own unit/
+  delivery prices); `createFixedOrder`'s input DTO has no field for a
+  client-supplied amount at all, so there is no code path a tampered total
+  could reach. `printCatalog.test.ts` now asserts the task's own worked
+  examples directly: Original+4x6x10 = PKR 1750.00, 2x HD+4x6x10 =
+  PKR 2250.00, 4x Ultra HD+4x6x10 = PKR 2750.00, plus a
+  quantity-change-updates-the-quote check and a structural note that
+  `quotePrint`'s 3-parameter signature has no room for a client total.
+- **One-image + Remove.** `RestorationUploadExperience.tsx` already had no
+  `multiple` attribute (single-selection was already enforced); added a
+  "Remove selected image" action that clears the selected file, resets the
+  native file input's value (so re-selecting the same path still fires
+  `onChange`), and disables Continue -- covered by a new Playwright test.
+- **Preview metadata contract.** `OriginalPreviewPage.tsx` now shows File
+  name, Format, File size, Dimensions, Aspect ratio, and Orientation above
+  the existing expandable "Technical metadata" block, plus the exact
+  explanatory copy the task specified. File name/size are **not** part of
+  any server response (`RestorationDraftSafeView` never carried them) --
+  they are captured client-side from the real browser `File` object at
+  selection time and handed off via `sessionStorage` keyed by draft id;
+  Preview simply omits them (never guesses) when that key is absent, e.g.
+  after a refresh or a direct navigation. Aspect ratio/orientation are pure
+  arithmetic on the server's own real `originalWidth`/`originalHeight` --
+  not invented analysis. No damage/face/quality AI signal was added or
+  implied anywhere pre-payment (asserted by a new test).
+- **Restoration-quality-first flow order.** `DigitalTierSelectPage.tsx` now
+  presents "1. Choose restoration quality" before "2. Choose delivery"
+  (previously delivery/product came first). A 4x Ultra HD recommendation
+  banner appears when Print+Digital + `HD_4X` are both selected; an
+  Original/2x HD print-quality warning banner appears when Print+Digital is
+  selected with either of those two tiers -- neither tier is blocked, per
+  the task's own instruction not to falsely restrict them. The print
+  summary now includes a `Quantity` line and a computed `Estimated Total`
+  (digital + print subtotal + delivery, all server-sourced catalog/offer
+  values -- explicitly labelled estimated; the Review page's server-echoed
+  total remains the sole authority). Switching to Digital clears print-only
+  form state (size/quantity/address) so it cannot leak into a later
+  Print+Digital selection.
+- **CTA renamed** "Review & Checkout" -> "Continue to Review" and "Restore
+  & Download" -> "Digital Download" to match the task's exact page-2/step
+  language; all affected Playwright tests and `scripts/test-commerce-local.ts`
+  were updated to the new accessible names (not left silently broken).
+- **Digital and Print+Digital mock E2E were already passing** going into
+  this packet (the modal-overlay-intercepting-clicks and `role="radio"`
+  query-mismatch root causes named by this task's "current blocker" premise
+  were already found and fixed in R9.5-P5L/P5M). `test:e2e:commerce-local`
+  re-verified clean after this packet's own changes: both orders reach
+  PAID -> GRANTED -> VALIDATED -> SUCCEEDED with exactly one
+  `ReplicateExecution` each (`replicateExecution: 2` total across both
+  flows, one per order -- print never triggers a second restoration job),
+  print correctly `PENDING` / `PRINT_PARTNER_ASSIGNMENT_REQUIRED`.
+- **Deferred, not attempted this packet:** the task's PAGE 4/5/6 -- separate
+  routed Payment, Processing, and Result pages. The existing architecture
+  (Preview page -> Choose-restoration-and-delivery page -> Review page,
+  with payment/processing/result as progressive states *within* the Review
+  page) already gives the functional separation the task is after, but it
+  is not the literal distinct-routes structure requested. Re-architecting
+  navigation into additional routes was judged too large and too
+  regression-risky to attempt safely in this packet alongside everything
+  else that shipped; it is explicitly flagged here rather than silently
+  left undone.
+- **Zero regression, full evidence:** `npm run lint` (0 errors),
+  `npm run typecheck`, `npm run build`, `npm run test:browser -w apps/web`
+  (106/106), `npm run test:browser:responsive -w apps/web` (93/93),
+  `npm run test:e2e:commerce-local` (full pass), `npx prisma validate` /
+  `generate` clean (no schema touched), `git diff --check` /
+  `--cached --check` clean, `printCatalog.test.ts` run directly (exact
+  1750/2250/2750 proof). Local production-build-preview screenshots at
+  1440x900 and 390x844 confirm zero horizontal overflow and visually prove
+  the quality-first order, the Original/2x warning, the 4x recommendation,
+  and the exact PKR 1750.00 / PKR 2750.00 Estimated Total lines live in the
+  UI against the real formula.
+- **Local commit only, not pushed/deployed.** Commit
+  `7fbdca107c5c2f47929d164e752dc3e650fe2bd9` on `release/r9.5-pakistan`
+  ("fix(commerce): complete Pakistan checkout and print journey"), eight
+  files. No production deployment was made or authorized by this packet.
+- **Protected Scope held**: no RunPod, no Replicate routing change, no real
+  payment/card, no invented Bank/print-partner data, no PriceBook price
+  change, no Hero/homepage redesign, no `.gitignore` broadening.
+  `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
+  only open business blockers.
