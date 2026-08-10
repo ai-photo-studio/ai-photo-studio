@@ -28,7 +28,7 @@ async function main() {
   const orders = await prisma.fixedOrder.findMany({
     include: {
       paymentAttempt: { include: { events: true } },
-      restorationEntitlement: true,
+      restorationEntitlements: true,
       items: { include: { printEntitlements: { include: { fulfilmentOrder: { include: { shipment: true } } } } } }
     }
   });
@@ -36,7 +36,9 @@ async function main() {
     const attempt = order.paymentAttempt;
     const paid = attempt?.status === "PAID" || attempt?.events.some((event) => event.verified);
     const fulfilled = order.items.some((item) => item.printEntitlements.some((entitlement) => entitlement.fulfilmentOrder?.status === "SHIPPED" || entitlement.fulfilmentOrder?.shipment?.status === "DISPATCHED"));
-    const granted = Boolean(order.restorationEntitlement && order.restorationEntitlement.status !== "REVOKED");
+    // R9.5-P5P: entitlements are item-scoped -- an order is unsafe to reset
+    // if ANY of its items has a non-revoked entitlement.
+    const granted = order.restorationEntitlements.some((entitlement) => entitlement.status !== "REVOKED");
     return paid || fulfilled || granted;
   });
   if (unsafe.length) fail(`${unsafe.length} order(s) contain paid, verified, granted, or fulfilled evidence; aborting entire reset`);

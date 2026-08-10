@@ -52,6 +52,52 @@ export interface CreateRestorationDigitalOrderInput {
   deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
 
+export interface CartItemInput {
+  draftId: string;
+  tier: string;
+  product: "DIGITAL" | "PRINT_DIGITAL";
+  printSize?: string;
+  quantity?: number;
+  // Each draft in a cart may have been created anonymously in its own
+  // upload call and therefore carry its own distinct guest ownership
+  // token (unlike the single-item flow, where one request always maps to
+  // one draft/token). Optional: an authenticated actor never needs this,
+  // and a guest submitting only one item can still rely on the shared
+  // request-level token for backward compatibility.
+  guestOwnershipToken?: string;
+}
+
+export interface CreateRestorationCartOrderInput {
+  items: CartItemInput[];
+  deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
+}
+
+export interface CartItemSafeView {
+  fixedOrderItemId: string;
+  draftId: string;
+  tier: DigitalTier;
+  product: "DIGITAL" | "PRINT_DIGITAL";
+  digitalAmountMinor: string;
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string };
+  lineTotalMinor: string;
+}
+
+export interface FixedOrderCartSafeView {
+  id: string;
+  orderNo: string;
+  status: string;
+  market: Market;
+  currency: FixedOrderCurrency;
+  items: CartItemSafeView[];
+  restorationTotalMinor: string;
+  printTotalMinor: string;
+  deliveryAmountMinor: string;
+  totalAmountMinor: string;
+  priceBookVersion: string | null;
+  createdAt: string;
+  paymentStatus?: string;
+}
+
 export interface FixedOrderSafeView {
   id: string;
   orderNo: string;
@@ -130,6 +176,57 @@ function toSafeView(order: {
 }
 
 const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const }, select: { tierOrSku: true, pricingSource: true, pricingApproved: true, metadata: true } }, deliveryAddress: true, paymentAttempt: { select: { status: true } } };
+
+const CART_ORDER_INCLUDE = {
+  items: { orderBy: { createdAt: "asc" as const }, select: { id: true, tierOrSku: true, unitAmountMinor: true, totalAmountMinor: true, pricingSource: true, pricingApproved: true, metadata: true, sourceDraftId: true } },
+  deliveryAddress: true,
+  paymentAttempt: { select: { status: true } }
+};
+
+function toCartSafeView(order: {
+  id: string;
+  orderNo: string;
+  status: string;
+  market: string;
+  currency: string;
+  totalAmountMinor: bigint;
+  priceBookVersion: string | null;
+  createdAt: Date;
+  items: Array<{ id: string; tierOrSku: string | null; unitAmountMinor: bigint; totalAmountMinor: bigint; metadata: unknown; sourceDraftId: string | null }>;
+  paymentAttempt?: { status: string } | null;
+}): FixedOrderCartSafeView {
+  const items: CartItemSafeView[] = order.items.map((item) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const printMeta = item.metadata && typeof item.metadata === "object" && "print" in item.metadata ? (item.metadata as any).print : null;
+    return {
+      fixedOrderItemId: item.id,
+      draftId: item.sourceDraftId ?? "",
+      tier: (item.tierOrSku ?? "ORIGINAL") as DigitalTier,
+      product: printMeta ? "PRINT_DIGITAL" : "DIGITAL",
+      digitalAmountMinor: item.unitAmountMinor.toString(),
+      print: printMeta ? { size: String(printMeta.size), quantity: Number(printMeta.quantity), unitAmountMinor: String(printMeta.unitAmountMinor), subtotalMinor: String(printMeta.subtotalMinor), catalogVersion: String(printMeta.catalogVersion) } : undefined,
+      lineTotalMinor: item.totalAmountMinor.toString()
+    };
+  });
+  const restorationTotalMinor = order.items.reduce((sum, item) => sum + item.unitAmountMinor, 0n);
+  const printTotalMinor = order.items.reduce((sum, item) => sum + (item.totalAmountMinor - item.unitAmountMinor), 0n);
+  const deliveryAmountMinor = order.totalAmountMinor - restorationTotalMinor - printTotalMinor;
+  return {
+    id: order.id,
+    orderNo: order.orderNo,
+    status: order.status,
+    market: order.market as Market,
+    currency: order.currency as FixedOrderCurrency,
+    items,
+    restorationTotalMinor: restorationTotalMinor.toString(),
+    printTotalMinor: printTotalMinor.toString(),
+    deliveryAmountMinor: deliveryAmountMinor.toString(),
+    totalAmountMinor: order.totalAmountMinor.toString(),
+    priceBookVersion: order.priceBookVersion,
+    createdAt: order.createdAt.toISOString(),
+    paymentStatus: order.paymentAttempt?.status
+  };
+}
 
 export class FixedOrderService {
   private readonly offerProvider: OfferProvider;
@@ -280,6 +377,197 @@ export class FixedOrderService {
   }
 
   getPrintCatalog() { return publicPrintCatalog(); }
+
+  /** R9.5-P5Q: GET /api/fixed-orders/:orderNo/cart -- read-only, multi-item view. */
+  async getCartByOrderNo(orderNo: string, actor: RequestActor): Promise<FixedOrderCartSafeView> {
+    const order = await prisma.fixedOrder.findUnique({ where: { orderNo }, include: CART_ORDER_INCLUDE });
+    const owned = assertOwnership(order, actor);
+    return toCartSafeView(owned);
+  }
+
+  /**
+   * R9.5-P5Q: creates ONE FixedOrder with 1-10 independently configured
+   * FixedOrderItems -- one cart, one order, one payment lifecycle (P4A,
+   * unchanged, activates every item of whichever order it verifies).
+   * Reuses the exact same trust boundary as the single-item path: the
+   * client supplies only draftId/tier/product/printSize/quantity per item;
+   * every amount, PriceBook field, and the one order-level delivery charge
+   * are always resolved server-side.
+   */
+  async createRestorationCartOrder(input: CreateRestorationCartOrderInput, actor: RequestActor): Promise<FixedOrderCartSafeView> {
+    if (!Array.isArray(input.items) || input.items.length < 1 || input.items.length > 10) {
+      throw new AppError("an order must contain between 1 and 10 items", 422, "INVALID_ITEM_COUNT");
+    }
+    const draftIds = input.items.map((item) => item.draftId);
+    if (new Set(draftIds).size !== draftIds.length) {
+      throw new AppError("each photo may appear only once per order", 422, "DUPLICATE_DRAFT_IN_CART");
+    }
+
+    // Every draft in a cart may carry its own distinct guest ownership
+    // token (each was created by its own anonymous upload call). An
+    // authenticated actor is authoritative for every item regardless; a
+    // guest actor is resolved per-item, falling back to the shared
+    // request-level token so a single-item cart stays backward compatible.
+    const actorForItem = (draftId: string): RequestActor => {
+      if (actor.userId) return actor;
+      const raw = input.items.find((item) => item.draftId === draftId);
+      return { guestToken: raw?.guestOwnershipToken ?? actor.guestToken ?? null };
+    };
+    const primaryActor = actorForItem(draftIds[0]);
+
+    // Idempotency: if every one of these exact drafts already belongs to
+    // one single existing order, converge on it rather than creating a
+    // duplicate (safe retry/double-submit). A partial overlap (some drafts
+    // already ordered elsewhere, some not) is rejected, not guessed.
+    const existingItems = await prisma.fixedOrderItem.findMany({ where: { sourceDraftId: { in: draftIds } }, select: { fixedOrderId: true, sourceDraftId: true } });
+    if (existingItems.length > 0) {
+      const existingOrderIds = new Set(existingItems.map((item) => item.fixedOrderId));
+      const existingDraftIds = new Set(existingItems.map((item) => item.sourceDraftId));
+      if (existingOrderIds.size === 1 && existingDraftIds.size === draftIds.length && draftIds.every((id) => existingDraftIds.has(id))) {
+        const existing = await prisma.fixedOrder.findUniqueOrThrow({ where: { id: [...existingOrderIds][0] }, include: CART_ORDER_INCLUDE });
+        assertOwnership({ ownerUserId: existing.ownerUserId, guestOwnershipTokenHash: existing.guestOwnershipTokenHash }, primaryActor);
+        return toCartSafeView(existing);
+      }
+      throw new AppError("one or more of these photos already belong to a different order", 409, "DRAFT_ALREADY_ORDERED");
+    }
+
+    // Every draft must be owned by this actor, orderable, and share one
+    // market/currency (one order has exactly one currency).
+    const drafts = await prisma.restorationDraft.findMany({ where: { id: { in: draftIds } } });
+    if (drafts.length !== draftIds.length) throw new AppError("one or more photos were not found", 404, "NOT_FOUND");
+    for (const draft of drafts) {
+      assertOwnership(draft, actorForItem(draft.id));
+      if (draft.status === "EXPIRED" || draft.status === "CANCELLED") {
+        throw new AppError(`photo ${draft.id} is ${draft.status.toLowerCase()} and cannot be ordered`, 409, "DRAFT_NOT_ORDERABLE");
+      }
+    }
+    const market = drafts[0].market;
+    const currency = drafts[0].currency;
+    if (!market || !currency) throw new AppError("photo has no resolved market/currency", 422, "INVALID_MARKET");
+    if (drafts.some((d) => d.market !== market || d.currency !== currency)) {
+      throw new AppError("every photo in one order must share the same market and currency", 422, "INVALID_MARKET");
+    }
+    try {
+      validateMarketCurrencyPair(market as Market, currency as FixedOrderCurrency);
+    } catch (err) {
+      if (err instanceof FixedOrderDomainError) throw new AppError(err.message, 422, "INVALID_MARKET");
+      throw err;
+    }
+
+    const offers = this.offerProvider.getDigitalOffers({ market: market as Market });
+    if (!Array.isArray(offers)) throw new AppError(offers.reason, 422, "PRICING_UNAVAILABLE");
+
+    const anyPrint = input.items.some((item) => item.product === "PRINT_DIGITAL");
+    if (anyPrint) {
+      if (currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
+      const address = input.deliveryAddress;
+      if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) {
+        throw new AppError("delivery address is required when any item is Print + Digital", 422, "PRINT_ADDRESS_REQUIRED");
+      }
+    }
+
+    type ResolvedItem = {
+      draftId: string;
+      tier: DigitalTier;
+      offer: ReturnType<typeof findOfferByTier>;
+      isPrint: boolean;
+      printSize?: string;
+      quantity?: number;
+      printQuote?: ReturnType<typeof quotePrint>;
+    };
+    const resolved: ResolvedItem[] = [];
+    for (const raw of input.items) {
+      if (!ALLOWED_DIGITAL_TIERS.includes(raw.tier as DigitalTier)) {
+        throw new AppError(`invalid tier: ${raw.tier}`, 422, "INVALID_TIER");
+      }
+      const tier = raw.tier as DigitalTier;
+      const offer = findOfferByTier(offers, tier);
+      if (!offer) throw new AppError(`no approved offer for tier ${tier} in market ${market}`, 422, "INVALID_TIER");
+      const isPrint = raw.product === "PRINT_DIGITAL";
+      let printQuote: ReturnType<typeof quotePrint> | undefined;
+      if (isPrint) {
+        if (!raw.printSize || !Number.isSafeInteger(raw.quantity)) throw new AppError("valid print size and quantity are required for a Print + Digital item", 422, "INVALID_PRINT_SELECTION");
+        try {
+          printQuote = quotePrint(offer.amountMinor, raw.printSize, raw.quantity!);
+        } catch (error) {
+          throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION");
+        }
+      }
+      resolved.push({ draftId: raw.draftId, tier, offer, isPrint, printSize: raw.printSize, quantity: raw.quantity, printQuote });
+    }
+
+    // ---- Server-authoritative totals: restoration + print subtotals summed
+    // across every item, delivery charged ONCE at the highest applicable
+    // band among the print items selected -- never per item, never client-
+    // supplied. ----
+    const restorationTotalMinor = resolved.reduce((sum, item) => sum + BigInt(item.offer!.amountMinor), 0n);
+    const printTotalMinor = resolved.reduce((sum, item) => sum + BigInt(item.printQuote?.printSubtotalMinor ?? 0), 0n);
+    const deliveryAmountMinor = resolved.reduce((max, item) => {
+      const band = BigInt(item.printQuote?.deliveryFeeMinor ?? 0);
+      return band > max ? band : max;
+    }, 0n);
+    const grandTotalMinor = restorationTotalMinor + printTotalMinor + deliveryAmountMinor;
+
+    const isApproved = resolved.every((item) => item.offer!.source === "approved_pricebook");
+    const firstApproved = resolved.find((item) => item.offer!.source === "approved_pricebook")?.offer;
+
+    try {
+      const created = await prisma.$transaction(async (tx) => {
+        const order = await tx.fixedOrder.create({
+          data: {
+            orderNo: orderNo(),
+            type: anyPrint ? "RESTORATION_WITH_PRINT" : "RESTORATION_DIGITAL",
+            market: market as Market,
+            currency: currency as FixedOrderCurrency,
+            ownerUserId: drafts[0].ownerUserId ?? null,
+            ownerCustomerId: null,
+            guestOwnershipTokenHash: drafts[0].guestOwnershipTokenHash ?? null,
+            // Order-level sourceDraftId retains the existing single-draft
+            // idempotency unique-index behavior for the FIRST item; every
+            // item (including this one) additionally carries its own
+            // sourceDraftId, which is what this packet's multi-item flows
+            // actually key off.
+            sourceDraftId: resolved[0].draftId,
+            totalAmountMinor: grandTotalMinor,
+            priceBookVersion: isApproved ? firstApproved?.priceBookVersion ?? null : null,
+            priceBookApprovalReference: isApproved ? firstApproved?.approvalReference ?? null : null,
+            priceBookEffectiveAt: isApproved && firstApproved?.effectiveAt ? new Date(firstApproved.effectiveAt) : null,
+            items: {
+              create: resolved.map((item) => ({
+                kind: "RESTORATION_DIGITAL_TIER",
+                tierOrSku: item.tier,
+                unitAmountMinor: BigInt(item.offer!.amountMinor),
+                totalAmountMinor: BigInt(item.offer!.amountMinor) + BigInt(item.printQuote?.printSubtotalMinor ?? 0),
+                currency: currency as FixedOrderCurrency,
+                pricingSource: item.offer!.source,
+                pricingApproved: item.offer!.source === "approved_pricebook",
+                sourceDraftId: item.draftId,
+                metadata: item.printQuote && item.printSize
+                  ? { print: { size: item.printSize, quantity: item.quantity, unitAmountMinor: item.printQuote.printSubtotalMinor / (item.quantity ?? 1), subtotalMinor: item.printQuote.printSubtotalMinor, deliveryAmountMinor: item.printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION } }
+                  : undefined
+              }))
+            }
+          },
+          include: CART_ORDER_INCLUDE
+        });
+
+        await tx.restorationDraft.updateMany({ where: { id: { in: draftIds } }, data: { status: "ORDER_SELECTION" } });
+        if (anyPrint && input.deliveryAddress) {
+          await tx.printDeliveryAddress.create({ data: { fixedOrderId: order.id, ...input.deliveryAddress } });
+        }
+        return order;
+      });
+      return toCartSafeView(created);
+    } catch (err) {
+      if (isUniqueConstraintViolation(err)) {
+        const winner = await prisma.fixedOrder.findFirst({ where: { sourceDraftId: resolved[0].draftId }, include: CART_ORDER_INCLUDE });
+        if (!winner) throw err;
+        assertOwnership({ ownerUserId: winner.ownerUserId, guestOwnershipTokenHash: winner.guestOwnershipTokenHash }, primaryActor);
+        return toCartSafeView(winner);
+      }
+      throw err;
+    }
+  }
 }
 
 // Exported only so a test can prove the fixture path is rejected without

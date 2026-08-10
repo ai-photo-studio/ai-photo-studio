@@ -69,6 +69,23 @@ test.describe("P6C upload page never uploads before the explicit button click", 
   });
 });
 
+test.describe("R9.5-P5N Preview metadata", () => {
+  test("Preview shows factual metadata and the explanatory copy, no invented AI analysis", async ({ page }) => {
+    await blockExternalNetwork(page);
+    const draft = draftFixture({ market: "PAKISTAN", currency: "PKR", country: "PK" });
+    await mockGetDraft(page, DRAFT_ID, { ...draft, previewUrl: "http://127.0.0.1/mock-preview.png" });
+
+    await page.goto(`/restore-mvp/${DRAFT_ID}/preview`);
+    await expect(page.getByText("Your original photo is uploaded once and stored securely. Review its details, then choose the restoration quality you need.")).toBeVisible();
+    await expect(page.getByText("PNG", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 × 1 px", { exact: true })).toBeVisible();
+    await expect(page.getByText("1:1", { exact: true })).toBeVisible();
+    await expect(page.getByText("Square", { exact: true })).toBeVisible();
+    // No damage/face/quality AI-analysis language may appear pre-payment.
+    await expect(page.getByText(/damage detected|quality score|face detected/i)).toHaveCount(0);
+  });
+});
+
 test.describe("P6C Pakistan PKR flow end to end", () => {
   test("upload -> preview -> tiers -> order -> review shows PKR ORIGINAL pricing", async ({ page }) => {
     await blockExternalNetwork(page);
@@ -90,7 +107,7 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
     await expect(page.getByText("PKR 500.00")).toBeVisible();
     await page.getByText("Restored Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Review & Checkout" }).click();
+    await page.getByRole("button", { name: "Continue to Review" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
     await expect(page.getByText("PAKISTAN", { exact: true })).toBeVisible();
@@ -128,10 +145,10 @@ test.describe("P6C product choice truthfulness", () => {
     await blockExternalNetwork(page);
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await expect(page.getByRole("radio", { name: /Restore & Download/i })).toBeVisible();
+    await expect(page.getByRole("radio", { name: /Digital Download/i })).toBeVisible();
     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
     await expect(page.locator("select")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
   });
 });
 
@@ -236,7 +253,7 @@ test.describe("P6C mobile usability", () => {
       const draft = draftFixture();
       await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
       await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-      await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Continue to Review" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       void draft;
@@ -268,7 +285,7 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.getByRole("button", { name: "Continue to Restoration" }).click();
     await page.getByRole("button", { name: "Choose Your Restoration" }).click();
     await page.getByText("Restored Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Review & Checkout" }).click();
+    await page.getByRole("button", { name: "Continue to Review" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
 
     expect(externalCompleted).toEqual([]);

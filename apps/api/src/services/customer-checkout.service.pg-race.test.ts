@@ -120,6 +120,20 @@ async function seedRedirectReadyOrder(label: string) {
   });
   createdOrderIds.push(order.id);
 
+  await clientA.fixedOrderItem.create({
+    data: {
+      fixedOrderId: order.id,
+      kind: "RESTORATION_DIGITAL_TIER",
+      tierOrSku: "ORIGINAL",
+      unitAmountMinor: AMOUNT_MINOR,
+      totalAmountMinor: AMOUNT_MINOR,
+      currency: "PKR",
+      pricingSource: "approved_pricebook",
+      pricingApproved: true,
+      sourceDraftId: draft.id
+    }
+  });
+
   // providerRef intentionally left unset -- matches createCheckout's real
   // (post-fix) behavior. The gate for "checkout was initiated" is
   // status === REDIRECT_READY, not providerRef (see the fix note in
@@ -360,6 +374,19 @@ test("(q8) zero external calls when no gateway session exists yet (no providerRe
     }
   });
   createdOrderIds.push(order.id);
+  await clientA.fixedOrderItem.create({
+    data: {
+      fixedOrderId: order.id,
+      kind: "RESTORATION_DIGITAL_TIER",
+      tierOrSku: "ORIGINAL",
+      unitAmountMinor: AMOUNT_MINOR,
+      totalAmountMinor: AMOUNT_MINOR,
+      currency: "PKR",
+      pricingSource: "approved_pricebook",
+      pricingApproved: true,
+      sourceDraftId: draft.id
+    }
+  });
   const attempt = await clientA.paymentAttempt.create({
     data: {
       fixedOrderId: order.id,
