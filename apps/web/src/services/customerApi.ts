@@ -331,7 +331,7 @@ export const customerApi = {
     }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/restoration-status`, {}, token, guestToken),
 
   preparePrintFulfilment: (token: string | undefined, orderNo: string, guestToken?: string) =>
-    apiRequest<{ printEntitlementId: string; fulfilmentOrderId: string; status: string; blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" }>(
+    apiRequest<{ printEntitlementId: string; fulfilmentOrderId: string; status: string; blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" | "IN_HOUSE_PRINT_PENDING" }>(
       `/api/fixed-orders/${encodeURIComponent(orderNo)}/print-fulfilment`,
       { method: "POST", body: JSON.stringify({}) },
       token,

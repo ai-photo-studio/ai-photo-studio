@@ -255,7 +255,16 @@ export function FixedOrderReviewPage() {
           )}
         </div>
       )}
-      {printFulfilment && <div className="state-panel" data-testid="print-fulfilment-status"><p><strong>Print order ready for fulfilment</strong></p><p>Status: {printFulfilment.status}</p><p>{printFulfilment.blocker}</p></div>}
+      {printFulfilment && (
+        <div className="state-panel" data-testid="print-fulfilment-status">
+          <p><strong>Print order ready for fulfilment</strong></p>
+          <p>
+            {printFulfilment.blocker === "IN_HOUSE_PRINT_PENDING"
+              ? "Preparing for printing"
+              : `Status: ${printFulfilment.status}`}
+          </p>
+        </div>
+      )}
     </section>
   );
 }

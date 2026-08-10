@@ -3,6 +3,19 @@ import { AppError } from "../utils/errors";
 import { assertOwnership, type RequestActor } from "../utils/ownership";
 
 export const PRINT_PARTNER_ASSIGNMENT_REQUIRED = "PRINT_PARTNER_ASSIGNMENT_REQUIRED" as const;
+// R9.5-P5O: Pakistan Print+Digital orders are fulfilled by ThanNow's own
+// in-house printing facility -- they were never blocked on a real external
+// partner and must never report PRINT_PARTNER_ASSIGNMENT_REQUIRED, which
+// is untrue for this market. No schema change: `FulfilmentOrder.status`
+// already defaults to the existing `PENDING` enum value, which is exactly
+// "created, not yet printed" -- true regardless of fulfilment model. Only
+// the customer-facing blocker/label differs by market. The partner-blocker
+// path is retained unchanged for any future non-Pakistan print market.
+export const IN_HOUSE_PRINT_PENDING = "IN_HOUSE_PRINT_PENDING" as const;
+
+function blockerForMarket(market: string): typeof PRINT_PARTNER_ASSIGNMENT_REQUIRED | typeof IN_HOUSE_PRINT_PENDING {
+  return market === "PAKISTAN" ? IN_HOUSE_PRINT_PENDING : PRINT_PARTNER_ASSIGNMENT_REQUIRED;
+}
 
 export class PrintFulfilmentBoundaryService {
   async prepare(orderNo: string, actor: RequestActor) {
@@ -15,8 +28,9 @@ export class PrintFulfilmentBoundaryService {
     const item = owned.items[0];
     const snapshot = item?.metadata && typeof item.metadata === "object" && "print" in item.metadata ? item.metadata.print : null;
     if (!snapshot || !item) throw new AppError("valid print snapshot is required", 422, "PRINT_SNAPSHOT_REQUIRED");
+    const blocker = blockerForMarket(owned.market);
     const existing = item.printEntitlements[0];
-    if (existing?.fulfilmentOrder) return { printEntitlementId: existing.id, fulfilmentOrderId: existing.fulfilmentOrder.id, status: existing.fulfilmentOrder.status, blocker: PRINT_PARTNER_ASSIGNMENT_REQUIRED };
+    if (existing?.fulfilmentOrder) return { printEntitlementId: existing.id, fulfilmentOrderId: existing.fulfilmentOrder.id, status: existing.fulfilmentOrder.status, blocker };
     const created = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${owned.id}))`;
       const current = await tx.fixedOrderItem.findUnique({ where: { id: item.id }, include: { printEntitlements: { include: { fulfilmentOrder: true } } } });
@@ -26,6 +40,6 @@ export class PrintFulfilmentBoundaryService {
       const fulfilment = await tx.fulfilmentOrder.create({ data: { printEntitlementId: entitlement.id, status: "PENDING" } });
       return { entitlement, fulfilment };
     });
-    return { printEntitlementId: created.entitlement.id, fulfilmentOrderId: created.fulfilment.id, status: created.fulfilment.status, blocker: PRINT_PARTNER_ASSIGNMENT_REQUIRED };
+    return { printEntitlementId: created.entitlement.id, fulfilmentOrderId: created.fulfilment.id, status: created.fulfilment.status, blocker };
   }
 }

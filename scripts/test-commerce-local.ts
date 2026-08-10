@@ -280,7 +280,13 @@ async function main() {
         const status = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/restoration-status`, { headers });
         if (!status.ok) throw new Error(`${kind}: status refresh ${index + 1} failed`);
       }
-      if (kind === "PRINT_DIGITAL") await page.waitForSelector('[data-testid="print-fulfilment-status"]', { timeout: 15_000 });
+      if (kind === "PRINT_DIGITAL") {
+        const panel = page.locator('[data-testid="print-fulfilment-status"]');
+        await panel.waitFor({ timeout: 15_000 });
+        const text = await panel.innerText();
+        if (!text.includes("Preparing for printing")) throw new Error(`${kind}: expected truthful in-house "Preparing for printing" status, got: ${text}`);
+        if (text.includes("PRINT_PARTNER_ASSIGNMENT_REQUIRED")) throw new Error(`${kind}: Pakistan order must never show the partner-assignment blocker`);
+      }
     };
 
     try {
@@ -341,7 +347,10 @@ async function main() {
         orderNos,
         counts,
         processing: orders.map((order) => ({ orderNo: order.orderNo, paymentAttempt: order.paymentAttempt?.status, paymentEventVerified: order.paymentAttempt?.events[0]?.verified, entitlement: order.restorationEntitlement?.status, master: order.restorationEntitlement?.restorationMaster?.status, execution: order.restorationEntitlement?.restorationMaster?.replicateExecution?.status, workerClaimed: !!order.restorationEntitlement?.restorationMaster?.replicateExecution?.startedAt })),
-        print: { fulfilmentStatus: await prisma.fulfilmentOrder.findFirst().then((row) => row?.status), blocker: "PRINT_PARTNER_ASSIGNMENT_REQUIRED" },
+        // R9.5-P5O: Pakistan is fulfilled in-house -- this harness only
+        // ever exercises Pakistan orders, so the real blocker is always
+        // IN_HOUSE_PRINT_PENDING, never the partner-assignment one.
+        print: { fulfilmentStatus: await prisma.fulfilmentOrder.findFirst().then((row) => row?.status), blocker: "IN_HOUSE_PRINT_PENDING" },
         processStartCounts,
         external,
         realCharges: 0,
