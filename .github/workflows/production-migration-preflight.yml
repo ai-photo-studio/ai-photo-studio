@@ -1,4 +1,4 @@
-name: Production Migration Preflight
+﻿name: Production Migration Preflight
 
 on:
   workflow_dispatch:
@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+      target_ref:
+        description: "Ref to check out for application/migration scripts (workflow definition itself always comes from the dispatch ref)"
+        required: true
+        default: "release/r9.5-pakistan"
+        type: string
 
 permissions:
   contents: read
@@ -25,6 +30,8 @@ jobs:
     steps:
       - name: Check out the selected release ref
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -44,11 +51,11 @@ jobs:
           DATABASE_URL_SECRET: ${{ secrets.DATABASE_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           NEON_POOLER_URL: ${{ secrets.NEON_POOLER_URL }}
+          APPLY_MIGRATIONS: ${{ inputs.apply_migrations }}
+          ALLOW_PRODUCTION_MIGRATIONS: ${{ inputs.apply_migrations == true && 'true' || '' }}
         shell: bash
         run: |
           set -euo pipefail
-          APPLY_MIGRATIONS: ${{ inputs.apply_migrations }}
-          ALLOW_PRODUCTION_MIGRATIONS: ${{ inputs.apply_migrations == true && 'true' || '' }}
           status_log="${RUNNER_TEMP}/production-migration-status.log"
           apply_log="${RUNNER_TEMP}/production-migration-apply.log"
           expected_one='20260808000000_r95_p4b_pricebook_v2_tiers'
@@ -84,6 +91,9 @@ jobs:
             pending_count=${#pending[@]}
             if (( status_exit == 0 )) && (( pending_count == 0 )); then
               echo 'migration_status=clean'
+              echo 'sanitized_command_output_start'
+              cat "${status_log}"
+              echo 'sanitized_command_output_end'
               SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=0
               rm -f "${status_log}"; return 0
             fi
@@ -91,11 +101,19 @@ jobs:
               echo "pending_migration=${pending[0]}"
               echo "pending_migration=${pending[1]}"
               echo 'migration_status=expected_pending'
+              echo 'sanitized_command_output_start'
+              cat "${status_log}"
+              echo 'sanitized_command_output_end'
               SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=2
               rm -f "${status_log}"; return 0
             fi
             classify_failure "${status_log}"
             for migration in "${pending[@]}"; do echo "pending_migration=${migration}"; done
+            echo "status_exit_code=${status_exit}"
+            echo "status_log_bytes=$(wc -c < "${status_log}" 2>/dev/null || echo 0)"
+            echo 'sanitized_command_output_start'
+            cat "${status_log}"
+            echo 'sanitized_command_output_end'
             rm -f "${status_log}"
             return 1
           }
