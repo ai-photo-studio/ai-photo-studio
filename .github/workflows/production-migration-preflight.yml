@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+      target_ref:
+        description: "Ref to check out for application/migration scripts (workflow definition itself always comes from the dispatch ref)"
+        required: true
+        default: "release/r9.5-pakistan"
+        type: string
 
 permissions:
   contents: read
@@ -25,6 +30,8 @@ jobs:
     steps:
       - name: Check out the selected release ref
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -84,6 +91,9 @@ jobs:
             pending_count=${#pending[@]}
             if (( status_exit == 0 )) && (( pending_count == 0 )); then
               echo 'migration_status=clean'
+              echo 'sanitized_command_output_start'
+              cat "${status_log}"
+              echo 'sanitized_command_output_end'
               SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=0
               rm -f "${status_log}"; return 0
             fi
@@ -91,6 +101,9 @@ jobs:
               echo "pending_migration=${pending[0]}"
               echo "pending_migration=${pending[1]}"
               echo 'migration_status=expected_pending'
+              echo 'sanitized_command_output_start'
+              cat "${status_log}"
+              echo 'sanitized_command_output_end'
               SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=2
               rm -f "${status_log}"; return 0
             fi
