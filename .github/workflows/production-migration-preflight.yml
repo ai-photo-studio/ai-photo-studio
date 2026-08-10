@@ -1,4 +1,4 @@
-name: Production Migration Preflight
+﻿name: Production Migration Preflight
 
 on:
   workflow_dispatch:
@@ -96,6 +96,9 @@ jobs:
             fi
             classify_failure "${status_log}"
             for migration in "${pending[@]}"; do echo "pending_migration=${migration}"; done
+            echo 'sanitized_command_output_start'
+            cat "${status_log}"
+            echo 'sanitized_command_output_end'
             rm -f "${status_log}"
             return 1
           }
