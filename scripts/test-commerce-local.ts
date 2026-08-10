@@ -237,7 +237,7 @@ async function main() {
       await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
 
       if (kind === "PRINT_DIGITAL") {
-        await page.getByRole("button", { name: /Print \+ Digital/ }).click();
+        await page.getByRole("radio", { name: /Print \+ Digital/ }).click();
         await page.getByLabel("Print size").selectOption("4x6");
         await page.getByLabel("Quantity").fill("10");
         await page.getByLabel("Recipient name").fill("Local E2E Customer");

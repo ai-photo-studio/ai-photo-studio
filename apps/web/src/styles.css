@@ -896,6 +896,77 @@ img {
   padding: 20px;
 }
 
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.field-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.field-grid input,
+.field-grid select {
+  font-weight: 400;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.order-summary {
+  margin: 16px 0 4px;
+  display: grid;
+  gap: 6px;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.metric-card strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.order-summary div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.order-summary dt {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.order-summary dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
 .export-card strong,
 .export-card span {
   display: block;
@@ -2295,7 +2366,7 @@ img {
 }
 
 /* =========================================================================
-   ThanNow locked public shell (R9.3) — human-memory restore/upscale/print.
+   ThanNow locked public shell (R9.3) ï¿½ human-memory restore/upscale/print.
    Global shell: header/footer/brand/buttons. Homepage sections are scoped
    under .thannow-home so existing customer/admin flow pages are unaffected.
    Design source: UI/DESIGN_LOCK.md + UI/index + UI/styles (canonical).
@@ -2715,12 +2786,12 @@ img {
   border-bottom: 7px solid transparent;
 }
 
-/* left "‹" */
+/* left "ï¿½" */
 .thannow-home .hero-handle::before {
   border-right: 9px solid #fff;
 }
 
-/* right "›" */
+/* right "ï¿½" */
 .thannow-home .hero-handle::after {
   border-left: 9px solid #fff;
 }
@@ -3101,7 +3172,7 @@ img {
   box-shadow: 0 13px 28px rgba(91, 26, 168, 0.3);
 }
 
-.thannow-home .upload-modal {
+.upload-modal {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -3110,41 +3181,43 @@ img {
   padding: 20px;
 }
 
-.thannow-home .upload-modal.open {
+.upload-modal.open {
   display: grid;
 }
 
-.thannow-home .modal-backdrop {
+.upload-modal .modal-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(25, 16, 31, 0.64);
   backdrop-filter: blur(4px);
 }
 
-.thannow-home .modal-panel {
+.upload-modal .modal-panel {
   position: relative;
   z-index: 1;
   width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   background: white;
   border-radius: 20px;
   padding: 30px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
 }
 
-.thannow-home .modal-panel h2 {
+.upload-modal .modal-panel h2 {
   margin: 12px 0 8px;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 34px;
   color: var(--thannow-ink, #18131d);
 }
 
-.thannow-home .modal-panel > p {
+.upload-modal .modal-panel > p {
   margin: 0 0 18px;
   color: var(--thannow-muted, var(--muted));
   line-height: 1.5;
 }
 
-.thannow-home .modal-close {
+.upload-modal .modal-close {
   position: absolute;
   right: 14px;
   top: 14px;
@@ -3158,7 +3231,7 @@ img {
   cursor: pointer;
 }
 
-.thannow-home .drop-zone {
+.upload-modal .drop-zone {
   min-height: 190px;
   display: grid;
   place-items: center;
@@ -3172,11 +3245,11 @@ img {
   cursor: pointer;
 }
 
-.thannow-home .drop-zone input {
+.upload-modal .drop-zone input {
   display: none;
 }
 
-.thannow-home .drop-icon {
+.upload-modal .drop-icon {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -3187,11 +3260,11 @@ img {
   font-size: 30px;
 }
 
-.thannow-home .drop-zone small {
+.upload-modal .drop-zone small {
   color: var(--thannow-muted, var(--muted));
 }
 
-.thannow-home .selected-preview {
+.upload-modal .selected-preview {
   margin: 14px 0;
   padding: 10px;
   display: flex;
@@ -3201,7 +3274,7 @@ img {
   border-radius: 12px;
 }
 
-.thannow-home .selected-fallback {
+.upload-modal .selected-fallback {
   width: 62px;
   height: 62px;
   border-radius: 9px;
@@ -3213,17 +3286,22 @@ img {
   flex: 0 0 auto;
 }
 
-.thannow-home .selected-preview strong,
-.thannow-home .selected-preview small {
+.upload-modal .selected-preview strong,
+.upload-modal .selected-preview small {
   display: block;
 }
 
-.thannow-home .selected-preview small {
+.upload-modal .selected-preview small {
   margin-top: 5px;
   color: var(--thannow-muted, var(--muted));
 }
 
-.thannow-home #continueButton:disabled {
+.upload-modal #continueButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.upload-modal .btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

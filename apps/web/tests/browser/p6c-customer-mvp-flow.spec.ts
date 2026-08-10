@@ -128,8 +128,8 @@ test.describe("P6C product choice truthfulness", () => {
     await blockExternalNetwork(page);
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await expect(page.getByRole("button", { name: /Restore & Download/i })).toBeVisible();
-    await page.getByRole("button", { name: /Print \+ Digital/i }).click();
+    await expect(page.getByRole("radio", { name: /Restore & Download/i })).toBeVisible();
+    await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
     await expect(page.locator("select")).toBeVisible();
     await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeDisabled();
   });
