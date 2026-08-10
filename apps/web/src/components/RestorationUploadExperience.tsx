@@ -11,14 +11,20 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const uploadInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
-    fileInputRef.current?.focus();
+    closeButtonRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -44,6 +50,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         confirmed: true
       });
       if (draft.guestOwnershipToken) setGuestOwnershipToken(draft.id, draft.guestOwnershipToken);
+      onClose();
       navigate(`/restore-mvp/${draft.id}/preview`, { replace: true });
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Unable to upload the image");
@@ -57,7 +64,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
     <div className="upload-modal open" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
       <div className="modal-backdrop" onClick={onClose} />
       <section className="modal-panel">
-        <button className="modal-close" type="button" aria-label="Close" onClick={onClose}>x</button>
+        <button ref={closeButtonRef} className="modal-close" type="button" aria-label="Close" onClick={onClose}>x</button>
         <span className="eyebrow">START RESTORATION</span>
         <h2 id="uploadTitle">Upload Your Photo</h2>
         <p>Choose a human portrait, family photo, wedding photo or another personal memory.</p>

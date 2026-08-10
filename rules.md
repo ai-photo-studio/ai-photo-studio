@@ -1329,3 +1329,112 @@ This section is additive; every rule above remains in force verbatim.
   runtime release lineage and contain only that workflow when based on
   `origin/main`; workflow secrets are consumed inside Actions and never
   exposed in output, artifacts, source, or documentation.
+
+### R9.5-P5L-CUSTOMER-JOURNEY-UX-CLOSURE (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **Live modal root cause (release blocker, repaired).** The canonical
+  "Upload Your Photo" modal (`RestorationUploadExperience.tsx`, mounted
+  globally by `RestorationUploadController` in `PublicLayout.tsx` for the
+  one-upload-authority rule) rendered unstyled at the bottom of every page
+  because its CSS in `styles.css` was scoped under `.thannow-home .upload-modal`
+  etc. -- an ancestor class that only exists on the homepage, left over from
+  before the modal became global. The modal is a DOM sibling of `.site-shell`,
+  never a `.thannow-home` descendant, so no styled selector ever matched in
+  production. Repaired by rescoping every modal rule to `.upload-modal`
+  (the component's own root class) instead of `.thannow-home`, which also
+  fixed a second-order symptom: with the file input correctly `display:none`
+  again, `fileInputRef.current?.focus()` (a no-op on a hidden input) stopped
+  forcing the browser to scroll the page to the bottom. Verified live via a
+  real Playwright browser against `www.thannow.com` before the fix
+  (`scrollY: 2603`, `bodyOverflow: visible`, unstyled DOM) and against a
+  local production build after the fix (`scrollY: 0`, `bodyOverflow: hidden`,
+  centered `520px` card) at 1440 and 390.
+- **Body scroll lock added.** Opening the modal now sets
+  `document.body.style.overflow = "hidden"` and restores the previous value
+  on close/unmount, alongside moving initial focus to the close button
+  (keyboard-reachable; focusing a hidden input is a browser no-op).
+- **One-upload invariant regression found and repaired.** Fixing the modal
+  to be a real fixed-position overlay exposed that `continueFromModal` never
+  called `onClose()` after navigating to the Preview page -- harmless while
+  the modal was invisible/unstyled, but a real full-viewport blocker once
+  correctly positioned (`test:e2e:commerce-local` started failing with the
+  modal backdrop intercepting the next page's clicks). Repaired by closing
+  the modal before navigating.
+- **Tier description defect repaired.** `DigitalTierSelectPage.tsx`'s tier
+  copy was a two-branch ternary that only special-cased `HD_2X`/`HD_4X`;
+  every other tier (`ORIGINAL`, `HD_6X`, `HD_8X`, `HD_10X`, `HD_12X`) fell
+  through to the false "Basic sharing at original resolution" line. Replaced
+  with a `TIER_LABELS`/`TIER_DESCRIPTIONS`/`TIER_BADGES` lookup giving each
+  tier its own truthful copy; no price changed.
+- **Exclusive-choice accessibility added.** The product-choice buttons and
+  quality-tier cards on `DigitalTierSelectPage.tsx` now carry
+  `role="radiogroup"`/`role="radio"`/`aria-checked`, and the quality cards
+  gained keyboard activation (Enter/Space). Selection was already mutually
+  exclusive by construction (single piece of state); this is an
+  accessibility upgrade, not a behavior change. `p6c-customer-mvp-flow.spec.ts`
+  and `scripts/test-commerce-local.ts` were updated to query by the new
+  `radio` role (both previously queried `role="button"`, which no longer
+  matches once an explicit `role` overrides the DOM element's implicit role).
+- **Print form restyled.** All print fields (previously one unstyled inline
+  row plus an unstyled address `field-grid`) now share one responsive
+  `.field-grid` (`repeat(auto-fit, minmax(200px, 1fr))`, stacks under
+  640px) with real input/select styling, plus a new `.order-summary` block
+  showing digital price, print unit price, minimum quantity, an
+  estimated print subtotal, and "Delivery: Calculated by server at order
+  time" -- explicitly labelled estimated/non-authoritative; the server
+  remains the sole source of the final order total at Review. Quantity
+  below the catalog minimum now shows an inline validation message.
+- **Review page label/value concatenation repaired.** `.metric-card` had no
+  rule making its `span`/`strong` children block-level, so
+  `<span>Market</span><strong>PAKISTAN</strong>` rendered as one run-together
+  string ("MarketPAKISTAN"). Added a `.metric-card` flex-column rule; no
+  markup/data change was needed.
+- **Payment-unavailable UX repaired.** `FixedOrderReviewPage.tsx`'s
+  "Pay 100% & Restore Photo" button previously stayed active forever, so a
+  customer could click it repeatedly against a fail-closed provider and get
+  the same failure every time. It now disables itself and relabels to
+  "Payment unavailable" after one real `PAYMENT_PROVIDER_UNAVAILABLE`
+  response -- verified via a real browser against a mocked 503 -- and never
+  disables preemptively (no guessed/invented availability check was added).
+  "Check payment status" was intentionally left always-visible: an existing
+  regression-guard test (`p4e-checkout-ui.spec.ts` "refresh payment status
+  performs GET only") proves a real `PaymentAttempt` can exist even when the
+  `FixedOrder` summary's own `paymentStatus` field is absent, so gating the
+  button on that field would have hidden it in a legitimate case; no
+  reliable client-side signal was available to do this correctly, so it was
+  not attempted.
+- **Deferred, not attempted this packet:** a full Preview & Analysis page
+  redesign (item 5 of the packet), and net-new permanent Playwright coverage
+  files for modal/exclusivity/payment-disabled states (item 13) beyond the
+  existing suites that were updated. These are real, larger, separately
+  scoped follow-ups; production behavior for both was left exactly as
+  previously verified (Preview's existing content, unchanged; existing test
+  files extended in place rather than duplicated).
+- **Zero regression, full evidence:** `npm run lint` (0 errors, only
+  pre-existing warnings, none in changed files), `npm run typecheck`,
+  `npm run build`, `npm run test:browser -w apps/web` (104/104, two
+  intentional role-query updates for the accessibility upgrade),
+  `npm run test:browser:responsive -w apps/web` (92/92, including
+  zero-horizontal-overflow checks at 1440/1280/1024/768/430/390/360),
+  `npm run test:e2e:commerce-local` (full pass after the one-upload-invariant
+  repair above: both Digital and Print+Digital orders reach
+  PAID -> GRANTED -> VALIDATED -> SUCCEEDED, print correctly
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED`, zero Replicate/RunPod/Bank/production
+  calls). This constitutes the non-production, zero-cost, full E2E proof
+  called for by this packet -- the existing disposable-Postgres/mock-P4B/
+  `COMMERCE_E2E_TEST_MODE` harness was reused exactly as instructed, not
+  duplicated.
+- **Local commit only, not pushed/deployed.** Commit
+  `db85edaf8d8d98505c62a502c960e75b92969021` on `release/r9.5-pakistan`
+  ("fix(frontend): complete Pakistan customer journey UX"), six files. No
+  production deployment was made or authorized by this packet -- the live
+  `www.thannow.com` modal defect this section documents is still live in
+  production until a future, separately authorized deploy packet ships this
+  commit.
+- **Protected Scope held**: no RunPod, no Replicate routing change, no real
+  payment, no invented Bank/print-partner data, no PriceBook price change,
+  no Hero/homepage redesign, no `.gitignore` broadening.
+  `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
+  only open business blockers.

@@ -28,6 +28,7 @@ export function FixedOrderReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [paymentProviderUnavailable, setPaymentProviderUnavailable] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   // R9.5-P4B7B: never inferred from Vite/browser env -- true only after the
   // server itself confirms the test-checkout seam is mounted (see
@@ -93,7 +94,12 @@ export function FixedOrderReviewPage() {
     } catch (err) {
       if (mounted.current) {
         const apiError = err as { code?: string; message?: string };
-        setCheckoutError(apiError.code === "PAYMENT_PROVIDER_UNAVAILABLE" ? PAYMENT_UNAVAILABLE_MESSAGE : apiError.message || "Unable to start checkout");
+        const providerUnavailable = apiError.code === "PAYMENT_PROVIDER_UNAVAILABLE";
+        setCheckoutError(providerUnavailable ? PAYMENT_UNAVAILABLE_MESSAGE : apiError.message || "Unable to start checkout");
+        // The provider is fail-closed for every order while unavailable -- a
+        // retry is guaranteed to fail identically, so stop offering it
+        // instead of leaving an active button the customer can click again.
+        if (providerUnavailable) setPaymentProviderUnavailable(true);
       }
     } finally {
       if (mounted.current) setCheckoutBusy(false);
@@ -201,8 +207,14 @@ export function FixedOrderReviewPage() {
        </div>
 
        <div className="button-row" style={{ marginTop: "1rem" }}>
-         <button type="button" className="button" onClick={() => void startCheckout()} disabled={checkoutBusy}>
-            {checkoutBusy ? "Starting checkout..." : "Pay 100% & Restore Photo"}
+         <button
+           type="button"
+           className="button"
+           onClick={() => void startCheckout()}
+           disabled={checkoutBusy || paymentProviderUnavailable}
+           aria-disabled={checkoutBusy || paymentProviderUnavailable}
+         >
+            {checkoutBusy ? "Starting checkout..." : paymentProviderUnavailable ? "Payment unavailable" : "Pay 100% & Restore Photo"}
          </button>
          <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>
            Check payment status
