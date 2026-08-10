@@ -96,6 +96,8 @@ jobs:
             fi
             classify_failure "${status_log}"
             for migration in "${pending[@]}"; do echo "pending_migration=${migration}"; done
+            echo "status_exit_code=${status_exit}"
+            echo "status_log_bytes=$(wc -c < "${status_log}" 2>/dev/null || echo 0)"
             echo 'sanitized_command_output_start'
             cat "${status_log}"
             echo 'sanitized_command_output_end'
