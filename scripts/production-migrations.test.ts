@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { prismaArgs, validateMigrationEnvironment } from "./production-migrations";
+import { hasPendingMigrationsInOutput, prismaArgs, validateMigrationEnvironment } from "./production-migrations";
 
 const validUrl = "postgresql://operator:secret@127.0.0.1:55479/release";
 
@@ -18,6 +18,13 @@ test("missing, malformed, and placeholder URLs fail closed", () => {
   assert.throws(() => validateMigrationEnvironment({ DATABASE_URL: "not-a-url" }, "status"), /valid PostgreSQL URL/);
   assert.throws(() => validateMigrationEnvironment({ DATABASE_URL: "https://example.invalid/db" }, "status"), /postgres/);
   assert.throws(() => validateMigrationEnvironment({ DATABASE_URL: "postgresql://placeholder/db" }, "status"), /configured PostgreSQL host/);
+});
+
+test("pending-migration detection matches Prisma's real singular and plural wording", () => {
+  assert.equal(hasPendingMigrationsInOutput("Following migration have not yet been applied:\n20260810000000_x\n"), true);
+  assert.equal(hasPendingMigrationsInOutput("Following migrations have not yet been applied:\n20260808000000_a\n20260809000000_b\n"), true);
+  assert.equal(hasPendingMigrationsInOutput("Database schema is up to date!"), false);
+  assert.equal(hasPendingMigrationsInOutput(""), false);
 });
 
 test("only status and deploy Prisma commands can be constructed", () => {
