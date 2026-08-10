@@ -1189,6 +1189,39 @@ This section is additive; every rule above it remains in force verbatim.
   remains `AWAITING_CREDENTIAL_AND_AUTHORIZATION`; this packet does not
   authorize database access or deployment.
 
+### R9.5-P5J-PRODUCTION-MIGRATION-HISTORY-VERIFIED (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **Permanent rule — a `workflow_dispatch` run's application/migration code
+  always comes from the ref actually checked out, not from the ref that
+  supplied the workflow YAML.** `production-migration-preflight.yml` on
+  `main` initially had no application source at all (only the workflow file
+  itself was ever merged to `main`), so early dispatches against `main`
+  failed with `npm error Missing script: "db:migrate:status:production"` —
+  misclassified at first as a database-connectivity failure before the
+  actual `npm`/Prisma output was ever surfaced. The workflow now takes an
+  explicit `target_ref` input (default `release/r9.5-pakistan`) and checks
+  that ref out for the application/migration scripts, while the
+  workflow-definition/security logic itself is always whatever is on the
+  dispatch ref. Do not dispatch this workflow against a ref lacking
+  `scripts/production-migrations.ts` and expect a truthful DB-side result.
+- **`PRODUCTION_MIGRATIONS_ALREADY_APPLIED`.** Run `31363421303`
+  (workflow SHA `fba9414868bc8aee72a71e32fb4b41fbd21d51cb` on `main`,
+  `target_ref=release/r9.5-pakistan` resolved to `b8b47ac97123dce8...`)
+  connected using the real production Northflank service's own
+  `DATABASE_URL` (`selected_database_source=northflank_runtime_environment`,
+  not a guessed/fallback secret) and `npm run db:migrate:status:production`
+  reported `23 migrations found in prisma/migrations` / `Database schema is
+  up to date!` with exit code 0 — no pending, no failed, no rolled-back
+  migration reported. This includes both
+  `20260808000000_r95_p4b_pricebook_v2_tiers` and
+  `20260809000000_r95_p4b4_print_delivery_address`, the only two migrations
+  in this release's delta versus the prior production baseline. No
+  `migrate deploy`/apply command was run in this packet — the database was
+  already current. Production migration gate is now `CLOSED/READY`; the
+  next authorized action is API deploy, not another migration attempt.
+
 ### R9.5-P5F-GITHUB-SECRET-PRODUCTION-MIGRATION (2026-08-10)
 
 This section is additive; every rule above it remains in force verbatim.
