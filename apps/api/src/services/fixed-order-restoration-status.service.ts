@@ -39,14 +39,20 @@ export class FixedOrderRestorationStatusService {
     const order = await prisma.fixedOrder.findUnique({
       where: { orderNo },
       include: {
-        restorationEntitlement: {
+        restorationEntitlements: {
+          orderBy: { createdAt: "asc" },
           include: { restorationMaster: { include: { replicateExecution: true } } }
         }
       }
     });
     const owned = assertOwnership(order, actor);
 
-    const entitlement = owned.restorationEntitlement;
+    // R9.5-P5P: entitlement identity moved from order-scoped to item-scoped.
+    // This view is still single-item shaped (unchanged HTTP contract; no
+    // multi-image UI ships in this packet) -- it reports the order's first
+    // (today, only) item's entitlement. A future multi-item status surface
+    // will report one entry per item instead of collapsing to the first.
+    const entitlement = owned.restorationEntitlements[0] ?? null;
     const master = entitlement?.restorationMaster ?? null;
     const execution = master?.replicateExecution ?? null;
 

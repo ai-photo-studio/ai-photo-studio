@@ -88,13 +88,14 @@ const createdOrderIds: string[] = [];
 type SeededOrder = {
   draftId: string;
   orderId: string;
+  itemId: string;
   attemptId: string;
   amountMinor: bigint;
   currency: "PKR";
   providerRef: string;
 };
 
-async function seedUnpaidOrder(label: string): Promise<SeededOrder> {
+async function seedUnpaidOrder(label: string, itemCount = 1): Promise<SeededOrder & { itemIds: string[] }> {
   const tag = `p4a-race-${label}-${randomUUID()}`;
 
   const draft = await clientA.restorationDraft.create({
@@ -108,6 +109,7 @@ async function seedUnpaidOrder(label: string): Promise<SeededOrder> {
   });
   createdDraftIds.push(draft.id);
 
+  const perItemAmount = 150000n;
   const order = await clientA.fixedOrder.create({
     data: {
       orderNo: `${tag}-order`,
@@ -115,17 +117,35 @@ async function seedUnpaidOrder(label: string): Promise<SeededOrder> {
       market: "PAKISTAN",
       currency: "PKR",
       sourceDraftId: draft.id,
-      totalAmountMinor: 150000n,
+      totalAmountMinor: perItemAmount * BigInt(itemCount),
       status: "PAYMENT_PENDING"
     }
   });
   createdOrderIds.push(order.id);
 
+  const itemIds: string[] = [];
+  for (let i = 0; i < itemCount; i++) {
+    const item = await clientA.fixedOrderItem.create({
+      data: {
+        fixedOrderId: order.id,
+        kind: "RESTORATION_DIGITAL_TIER",
+        tierOrSku: "ORIGINAL",
+        unitAmountMinor: perItemAmount,
+        totalAmountMinor: perItemAmount,
+        currency: "PKR",
+        pricingSource: "approved_pricebook",
+        pricingApproved: true,
+        sourceDraftId: draft.id
+      }
+    });
+    itemIds.push(item.id);
+  }
+
   const attempt = await clientA.paymentAttempt.create({
     data: {
       fixedOrderId: order.id,
       provider: "bank_alfalah",
-      amountMinor: 150000n,
+      amountMinor: perItemAmount * BigInt(itemCount),
       currency: "PKR",
       idempotencyKey: `${tag}-pay`,
       status: "CUSTOMER_RETURNED"
@@ -135,8 +155,10 @@ async function seedUnpaidOrder(label: string): Promise<SeededOrder> {
   return {
     draftId: draft.id,
     orderId: order.id,
+    itemId: itemIds[0],
+    itemIds,
     attemptId: attempt.id,
-    amountMinor: 150000n,
+    amountMinor: perItemAmount * BigInt(itemCount),
     currency: "PKR",
     providerRef: `${tag}-provider-ref`
   };
@@ -181,7 +203,7 @@ async function outOfScopeCounts() {
 // Tests
 // ---------------------------------------------------------------------------
 
-let happySeed: SeededOrder;
+let happySeed: SeededOrder & { itemIds: string[] };
 let baselineOutOfScope: Awaited<ReturnType<typeof outOfScopeCounts>>;
 
 test("(q0) the disposable database is reachable and migrated with the P4A chain tables", async () => {
@@ -210,9 +232,10 @@ test("(q1) happy path: verified evidence marks the attempt PAID, locks the order
   assert.equal(order.status, "LOCKED");
   assert.ok(order.lockedAt, "lockedAt is stamped");
 
-  const entitlement = await clientA.restorationEntitlement.findUniqueOrThrow({ where: { fixedOrderId: happySeed.orderId } });
+  const entitlement = await clientA.restorationEntitlement.findUniqueOrThrow({ where: { fixedOrderItemId: happySeed.itemId } });
   assert.equal(entitlement.status, "GRANTED");
   assert.equal(entitlement.draftId, happySeed.draftId);
+  assert.equal(entitlement.fixedOrderId, happySeed.orderId);
 
   const master = await clientA.restorationMaster.findUniqueOrThrow({ where: { restorationEntitlementId: entitlement.id } });
   assert.equal(master.status, "NOT_STARTED");
@@ -241,7 +264,7 @@ test("(q2) replaying the exact same evidence is idempotent: no duplicate Payment
 
   assert.equal(replay1.outcome, "APPLIED");
   assert.equal(replay2.outcome, "APPLIED");
-  assert.equal(replay1.applied?.replicateExecutionId, replay2.applied?.replicateExecutionId);
+  assert.equal(replay1.applied?.items[0]?.replicateExecutionId, replay2.applied?.items[0]?.replicateExecutionId);
 
   const after = {
     events: await clientA.paymentEvent.count({ where: { paymentAttemptId: happySeed.attemptId } }),
@@ -267,14 +290,14 @@ test("(q3) two REAL concurrent calls with identical evidence converge on exactly
 
   assert.equal(r1.outcome, "APPLIED");
   assert.equal(r2.outcome, "APPLIED");
-  assert.equal(r1.applied?.replicateExecutionId, r2.applied?.replicateExecutionId, "both racers converge on the same execution id");
-  assert.equal(r1.applied?.restorationEntitlementId, r2.applied?.restorationEntitlementId);
-  assert.equal(r1.applied?.restorationMasterId, r2.applied?.restorationMasterId);
+  assert.equal(r1.applied?.items[0]?.replicateExecutionId, r2.applied?.items[0]?.replicateExecutionId, "both racers converge on the same execution id");
+  assert.equal(r1.applied?.items[0]?.restorationEntitlementId, r2.applied?.items[0]?.restorationEntitlementId);
+  assert.equal(r1.applied?.items[0]?.restorationMasterId, r2.applied?.items[0]?.restorationMasterId);
   assert.equal(r1.applied?.paymentEventId, r2.applied?.paymentEventId);
 
   const eventCount = await clientB.paymentEvent.count({ where: { paymentAttemptId: seed.attemptId } });
   const entitlementCount = await clientB.restorationEntitlement.count({ where: { fixedOrderId: seed.orderId } });
-  const executionCount = await clientB.replicateExecution.count({ where: { restorationMasterId: r1.applied!.restorationMasterId } });
+  const executionCount = await clientB.replicateExecution.count({ where: { restorationMasterId: r1.applied!.items[0]!.restorationMasterId } });
   assert.equal(eventCount, 1, "exactly one PaymentEvent row");
   assert.equal(entitlementCount, 1, "exactly one RestorationEntitlement row");
   assert.equal(executionCount, 1, "exactly one ReplicateExecution row");

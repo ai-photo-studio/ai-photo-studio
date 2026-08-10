@@ -211,8 +211,22 @@ async function seedEligibleChain(label: string): Promise<SeededChain> {
     }
   });
 
+  const item = await clientA.fixedOrderItem.create({
+    data: {
+      fixedOrderId: order.id,
+      kind: "RESTORATION_DIGITAL_TIER",
+      tierOrSku: "ORIGINAL",
+      unitAmountMinor: 150000n,
+      totalAmountMinor: 150000n,
+      currency: "PKR",
+      pricingSource: "approved_pricebook",
+      pricingApproved: true,
+      sourceDraftId: draft.id
+    }
+  });
+
   const entitlement = await clientA.restorationEntitlement.create({
-    data: { fixedOrderId: order.id, draftId: draft.id, status: "GRANTED" }
+    data: { fixedOrderId: order.id, fixedOrderItemId: item.id, draftId: draft.id, status: "GRANTED" }
   });
 
   const master = await clientA.restorationMaster.create({

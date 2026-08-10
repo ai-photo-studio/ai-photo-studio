@@ -90,18 +90,31 @@ export type PaymentEvidenceOutcome =
   | "ORDER_NOT_ELIGIBLE"
   | "INVALID_EVIDENCE_SHAPE";
 
+/** Per-item result of applying verified payment evidence to one FixedOrderItem. */
+export interface AppliedItemResult {
+  fixedOrderItemId: string;
+  restorationEntitlementId: string;
+  restorationMasterId: string;
+  replicateExecutionId: string;
+}
+
 export interface PaymentEvidenceResult {
   outcome: PaymentEvidenceOutcome;
   /** Non-sensitive explanation; present for every non-APPLIED outcome. */
   reason?: string;
-  /** Present only for APPLIED (including converged-duplicate/converged-race replays). */
+  /**
+   * Present only for APPLIED (including converged-duplicate/converged-race
+   * replays). R9.5-P5P: one order may have 1-10 items, each independently
+   * restored -- `items` holds exactly one entry per eligible
+   * `FixedOrderItem`, in the same order `FixedOrder.items` was read. A
+   * legacy single-item order still produces a one-element array; there is
+   * no longer a singular top-level `restorationEntitlementId`/etc.
+   */
   applied?: {
     fixedOrderId: string;
     paymentAttemptId: string;
     paymentEventId: string;
-    restorationEntitlementId: string;
-    restorationMasterId: string;
-    replicateExecutionId: string;
+    items: AppliedItemResult[];
   };
 }
 
@@ -169,7 +182,7 @@ async function runOnce(evidence: VerifiedPaymentEvidence): Promise<PaymentEviden
   return prisma.$transaction(async (tx) => {
     const order = await tx.fixedOrder.findUnique({
       where: { id: evidence.fixedOrderId },
-      include: { paymentAttempt: true, restorationEntitlement: true }
+      include: { paymentAttempt: true, items: { include: { restorationEntitlement: true }, orderBy: { createdAt: "asc" } } }
     });
     if (!order) {
       return { outcome: "ORDER_NOT_FOUND", reason: "fixed order does not exist" };
@@ -210,13 +223,12 @@ async function runOnce(evidence: VerifiedPaymentEvidence): Promise<PaymentEviden
 
     try {
       validateMarketCurrencyPair(order.market as Market, order.currency as FixedOrderCurrency);
-      assertFirstRestorationExecutionEligible(order.type as FixedOrderType, {
-        existingEntitlementId: order.restorationEntitlement ? order.restorationEntitlement.id : null
-      });
+      // R9.5-P5P: order-type eligibility is still checked once for the whole
+      // order (a type that can never own a restoration cannot own one no
+      // matter how many items it has); per-item existing-entitlement replay
+      // detection now happens inside the loop below, one item at a time.
+      assertFirstRestorationExecutionEligible(order.type as FixedOrderType, { existingEntitlementId: null });
     } catch (err) {
-      // A pre-existing entitlement here is expected/benign on an idempotent
-      // replay (alreadyApplied === true); anything else is a genuine
-      // ineligibility that must block verification entirely.
       if (!alreadyApplied) {
         return {
           outcome: "ORDER_NOT_ELIGIBLE",
@@ -224,8 +236,16 @@ async function runOnce(evidence: VerifiedPaymentEvidence): Promise<PaymentEviden
         };
       }
     }
-    if (!order.sourceDraftId) {
-      return { outcome: "ORDER_NOT_ELIGIBLE", reason: "order has no source draft to restore" };
+    if (order.items.length === 0) {
+      return { outcome: "ORDER_NOT_ELIGIBLE", reason: "order has no items to restore" };
+    }
+    // R9.5-P5P: every item must resolve to a source image before ANY item is
+    // processed -- fail closed on the whole order rather than partially
+    // activate some items and silently skip others.
+    for (const item of order.items) {
+      if (!item.sourceDraftId && !order.sourceDraftId) {
+        return { outcome: "ORDER_NOT_ELIGIBLE", reason: `item ${item.id} has no source draft to restore` };
+      }
     }
 
     // ---- All checks passed. Append the deduplicated PaymentEvent row. ----
@@ -261,27 +281,39 @@ async function runOnce(evidence: VerifiedPaymentEvidence): Promise<PaymentEviden
       }
     });
 
-    // ---- Create-or-reuse exactly one RestorationEntitlement. ----
-    const entitlement = await tx.restorationEntitlement.upsert({
-      where: { fixedOrderId: order.id },
-      create: { fixedOrderId: order.id, draftId: order.sourceDraftId, status: "GRANTED" },
-      update: {}
-    });
-
-    // ---- Create-or-reuse exactly one RestorationMaster. ----
-    const master = await tx.restorationMaster.upsert({
-      where: { restorationEntitlementId: entitlement.id },
-      create: { restorationEntitlementId: entitlement.id, status: "NOT_STARTED" },
-      update: {}
-    });
-
-    // ---- Create-or-reuse exactly one QUEUED ReplicateExecution, deterministic key. ----
-    const idempotencyKey = computeReplicateExecutionIdempotencyKey(master.id);
-    const execution = await tx.replicateExecution.upsert({
-      where: { restorationMasterId: master.id },
-      create: { restorationMasterId: master.id, idempotencyKey, status: "QUEUED" },
-      update: {}
-    });
+    // ---- One order-level verified-PAID event activates EVERY eligible item:
+    // create-or-reuse exactly one RestorationEntitlement/RestorationMaster/
+    // QUEUED ReplicateExecution PER ITEM, never per order. Sequential (not
+    // Promise.all) inside the one transaction -- each item's chain is
+    // independent, so one item's upsert failing never corrupts another's
+    // identity, and the deterministic per-item keys make every upsert here
+    // safe to repeat on retry/duplicate callback/concurrent racer. ----
+    const items: AppliedItemResult[] = [];
+    for (const item of order.items) {
+      const draftId = item.sourceDraftId ?? order.sourceDraftId!;
+      const entitlement = await tx.restorationEntitlement.upsert({
+        where: { fixedOrderItemId: item.id },
+        create: { fixedOrderId: order.id, fixedOrderItemId: item.id, draftId, status: "GRANTED" },
+        update: {}
+      });
+      const master = await tx.restorationMaster.upsert({
+        where: { restorationEntitlementId: entitlement.id },
+        create: { restorationEntitlementId: entitlement.id, status: "NOT_STARTED" },
+        update: {}
+      });
+      const idempotencyKey = computeReplicateExecutionIdempotencyKey(master.id);
+      const execution = await tx.replicateExecution.upsert({
+        where: { restorationMasterId: master.id },
+        create: { restorationMasterId: master.id, idempotencyKey, status: "QUEUED" },
+        update: {}
+      });
+      items.push({
+        fixedOrderItemId: item.id,
+        restorationEntitlementId: entitlement.id,
+        restorationMasterId: master.id,
+        replicateExecutionId: execution.id
+      });
+    }
 
     return {
       outcome: "APPLIED",
@@ -289,9 +321,7 @@ async function runOnce(evidence: VerifiedPaymentEvidence): Promise<PaymentEviden
         fixedOrderId: order.id,
         paymentAttemptId: attempt.id,
         paymentEventId: paymentEvent.id,
-        restorationEntitlementId: entitlement.id,
-        restorationMasterId: master.id,
-        replicateExecutionId: execution.id
+        items
       }
     };
   });
@@ -310,29 +340,49 @@ async function convergeAfterConflict(evidence: VerifiedPaymentEvidence): Promise
     where: { id: evidence.fixedOrderId },
     include: {
       paymentAttempt: true,
-      restorationEntitlement: { include: { restorationMaster: { include: { replicateExecution: true } } } }
+      items: {
+        orderBy: { createdAt: "asc" },
+        include: { restorationEntitlement: { include: { restorationMaster: { include: { replicateExecution: true } } } } }
+      }
     }
   });
 
   const attempt = order?.paymentAttempt;
-  const entitlement = order?.restorationEntitlement;
-  const master = entitlement?.restorationMaster;
-  const execution = master?.replicateExecution;
   const event = await prisma.paymentEvent.findUnique({ where: { dedupeHash: evidence.dedupeHash } });
 
-  const converged =
+  const attemptConverged =
     order &&
     attempt &&
     attempt.id === evidence.paymentAttemptId &&
     attempt.status === "PAID" &&
     attempt.amountMinor === evidence.amountMinor &&
     attempt.currency === evidence.currency &&
-    event &&
-    entitlement &&
-    master &&
-    execution;
+    event;
 
-  if (!converged) {
+  // Every item must have converged its own complete chain -- one item still
+  // missing its entitlement/master/execution means the winning transaction
+  // has not finished, not that this item is exempt.
+  const items: AppliedItemResult[] = [];
+  let allItemsConverged = Boolean(attemptConverged) && order!.items.length > 0;
+  if (attemptConverged) {
+    for (const item of order.items) {
+      const entitlement = item.restorationEntitlement;
+      const master = entitlement?.restorationMaster;
+      const execution = master?.replicateExecution;
+      if (!entitlement || !master || !execution) {
+        allItemsConverged = false;
+        break;
+      }
+      items.push({
+        fixedOrderItemId: item.id,
+        restorationEntitlementId: entitlement.id,
+        restorationMasterId: master.id,
+        replicateExecutionId: execution.id
+      });
+    }
+  }
+
+  if (!attemptConverged || !allItemsConverged) {
     // The conflict was not caused by our own concurrent evidence (e.g. a
     // genuinely different unrelated write raced on some other row) --
     // surface this as a hard failure rather than silently reporting success.
@@ -344,12 +394,10 @@ async function convergeAfterConflict(evidence: VerifiedPaymentEvidence): Promise
   return {
     outcome: "APPLIED",
     applied: {
-      fixedOrderId: order.id,
-      paymentAttemptId: attempt.id,
-      paymentEventId: event.id,
-      restorationEntitlementId: entitlement.id,
-      restorationMasterId: master.id,
-      replicateExecutionId: execution.id
+      fixedOrderId: order!.id,
+      paymentAttemptId: attempt!.id,
+      paymentEventId: event!.id,
+      items
     }
   };
 }

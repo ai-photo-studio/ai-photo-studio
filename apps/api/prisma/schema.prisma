@@ -990,6 +990,7 @@ model RestorationDraft {
   updatedAt               DateTime               @updatedAt
 
   fixedOrders             FixedOrder[]
+  fixedOrderItems         FixedOrderItem[]
   restorationEntitlements RestorationEntitlement[]
 
   @@index([ownerUserId, createdAt])
@@ -1027,11 +1028,17 @@ model FixedOrder {
   createdAt                DateTime           @default(now())
   updatedAt                DateTime           @updatedAt
 
-  sourceDraft            RestorationDraft?       @relation(fields: [sourceDraftId], references: [id])
-  items                  FixedOrderItem[]
-  paymentAttempt         PaymentAttempt?
-  restorationEntitlement RestorationEntitlement?
-  addOnLink              AddOnOrderLink?         @relation("AddOnFixedOrder")
+  sourceDraft             RestorationDraft?        @relation(fields: [sourceDraftId], references: [id])
+  items                   FixedOrderItem[]
+  paymentAttempt          PaymentAttempt?
+  // R9.5-P5P: was a singular 1:1 relation (`RestorationEntitlement?`) when
+  // every order had exactly one item; entitlements are now item-scoped
+  // (see `RestorationEntitlement.fixedOrderItemId`), so an order with
+  // multiple items has multiple entitlements. This plain array relation is
+  // a denormalized convenience for order-scoped queries -- ownership and
+  // uniqueness are still enforced at the item level, never here.
+  restorationEntitlements RestorationEntitlement[]
+  addOnLink               AddOnOrderLink?          @relation("AddOnFixedOrder")
   deliveryAddress        PrintDeliveryAddress?
   originalOfAddOns       AddOnOrderLink[]        @relation("OriginalFixedOrder")
   auditEvents            AuditEvent[]
@@ -1084,12 +1091,22 @@ model FixedOrderItem {
   pricingApproved  Boolean            @default(false)
   metadata         Json?
   createdAt        DateTime           @default(now())
+  // R9.5-P5P: the source image this item restores. Nullable and backfilled
+  // from the parent FixedOrder's own sourceDraftId for every item that
+  // existed before this column -- every order-creation path today still
+  // creates exactly one item per order, so it still equals the order's
+  // draft; a future multi-image create path will set this per item
+  // directly instead of relying on the order-level fallback.
+  sourceDraftId    String?
 
-  fixedOrder          FixedOrder           @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
-  digitalEntitlements DigitalEntitlement[]
-  printEntitlements   PrintEntitlement[]
+  fixedOrder             FixedOrder              @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
+  sourceDraft             RestorationDraft?      @relation(fields: [sourceDraftId], references: [id])
+  digitalEntitlements     DigitalEntitlement[]
+  printEntitlements       PrintEntitlement[]
+  restorationEntitlement  RestorationEntitlement?
 
   @@index([fixedOrderId, createdAt])
+  @@index([sourceDraftId])
 }
 
 model PaymentAttempt {
@@ -1130,18 +1147,28 @@ model PaymentEvent {
 }
 
 model RestorationEntitlement {
-  id           String                       @id @default(cuid())
-  fixedOrderId String                       @unique
-  draftId      String
-  status       RestorationEntitlementStatus @default(GRANTED)
-  grantedAt    DateTime                     @default(now())
-  createdAt    DateTime                     @default(now())
-  updatedAt    DateTime                     @updatedAt
+  id     String                       @id @default(cuid())
+  // R9.5-P5P: identity moved from order-level to item-level -- an order may
+  // now have multiple items, each independently restored, so uniqueness
+  // must live on `fixedOrderItemId`, not `fixedOrderId`. `fixedOrderId` is
+  // kept as a plain (non-unique) denormalized column purely so existing
+  // order-scoped lookups don't all need to join through `FixedOrderItem`;
+  // it is always equal to `fixedOrderItem.fixedOrderId` and never the
+  // source of truth for ownership/uniqueness.
+  fixedOrderId     String
+  fixedOrderItemId String                       @unique
+  draftId          String
+  status           RestorationEntitlementStatus @default(GRANTED)
+  grantedAt        DateTime                     @default(now())
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
 
   fixedOrder        FixedOrder         @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
+  fixedOrderItem     FixedOrderItem    @relation(fields: [fixedOrderItemId], references: [id], onDelete: Cascade)
   draft             RestorationDraft   @relation(fields: [draftId], references: [id])
   restorationMaster RestorationMaster?
 
+  @@index([fixedOrderId])
   @@index([draftId])
   @@index([status, createdAt])
 }

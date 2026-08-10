@@ -678,8 +678,22 @@ export class DisposablePostgresHarness implements CanaryHarness {
       data: { fixedOrderId: order.id, amountMinor: 150000n, currency: "PKR", idempotencyKey: `${tag}-pay`, status: "PAID" }
     });
 
+    const item = await this.client.fixedOrderItem.create({
+      data: {
+        fixedOrderId: order.id,
+        kind: "RESTORATION_DIGITAL_TIER",
+        tierOrSku: "ORIGINAL",
+        unitAmountMinor: 150000n,
+        totalAmountMinor: 150000n,
+        currency: "PKR",
+        pricingSource: "approved_pricebook",
+        pricingApproved: true,
+        sourceDraftId: draft.id
+      }
+    });
+
     const entitlement = await this.client.restorationEntitlement.create({
-      data: { fixedOrderId: order.id, draftId: draft.id, status: "GRANTED" }
+      data: { fixedOrderId: order.id, fixedOrderItemId: item.id, draftId: draft.id, status: "GRANTED" }
     });
 
     const master = await this.client.restorationMaster.create({

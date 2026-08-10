@@ -308,14 +308,18 @@ async function main() {
         include: {
           items: true,
           paymentAttempt: { include: { events: true } },
-          restorationEntitlement: { include: { restorationMaster: { include: { replicateExecution: true } } } },
+          // R9.5-P5P: entitlements are item-scoped now (one per item, not
+          // one per order); this harness still creates exactly one item per
+          // order, so `[0]` is still "the" entitlement for each order here.
+          restorationEntitlements: { include: { restorationMaster: { include: { replicateExecution: true } } } },
           deliveryAddress: true
         }
       });
       if (orders.length !== 2 || await prisma.restorationDraft.count() !== 2) throw new Error("expected exactly two drafts and two orders");
       for (const order of orders) {
-        if (order.items.length !== 1 || !order.paymentAttempt || order.paymentAttempt.events.length !== 1 || !order.restorationEntitlement?.restorationMaster?.replicateExecution) throw new Error(`${order.orderNo}: incomplete or duplicate paid chain`);
-        if (order.paymentAttempt.status !== "PAID" || order.restorationEntitlement.restorationMaster.status !== "VALIDATED" || order.restorationEntitlement.restorationMaster.replicateExecution.status !== "SUCCEEDED") throw new Error(`${order.orderNo}: processing did not complete`);
+        const entitlement = order.restorationEntitlements[0];
+        if (order.items.length !== 1 || !order.paymentAttempt || order.paymentAttempt.events.length !== 1 || !entitlement?.restorationMaster?.replicateExecution) throw new Error(`${order.orderNo}: incomplete or duplicate paid chain`);
+        if (order.paymentAttempt.status !== "PAID" || entitlement.restorationMaster.status !== "VALIDATED" || entitlement.restorationMaster.replicateExecution.status !== "SUCCEEDED") throw new Error(`${order.orderNo}: processing did not complete`);
       }
       const printOrder = orders.find((order) => order.type === "RESTORATION_WITH_PRINT");
       if (!printOrder?.deliveryAddress) throw new Error("print delivery address missing");
@@ -346,7 +350,7 @@ async function main() {
       console.log(JSON.stringify({
         orderNos,
         counts,
-        processing: orders.map((order) => ({ orderNo: order.orderNo, paymentAttempt: order.paymentAttempt?.status, paymentEventVerified: order.paymentAttempt?.events[0]?.verified, entitlement: order.restorationEntitlement?.status, master: order.restorationEntitlement?.restorationMaster?.status, execution: order.restorationEntitlement?.restorationMaster?.replicateExecution?.status, workerClaimed: !!order.restorationEntitlement?.restorationMaster?.replicateExecution?.startedAt })),
+        processing: orders.map((order) => { const entitlement = order.restorationEntitlements[0]; return { orderNo: order.orderNo, paymentAttempt: order.paymentAttempt?.status, paymentEventVerified: order.paymentAttempt?.events[0]?.verified, entitlement: entitlement?.status, master: entitlement?.restorationMaster?.status, execution: entitlement?.restorationMaster?.replicateExecution?.status, workerClaimed: !!entitlement?.restorationMaster?.replicateExecution?.startedAt }; }),
         // R9.5-P5O: Pakistan is fulfilled in-house -- this harness only
         // ever exercises Pakistan orders, so the real blocker is always
         // IN_HOUSE_PRINT_PENDING, never the partner-assignment one.

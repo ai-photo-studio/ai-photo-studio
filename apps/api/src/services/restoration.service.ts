@@ -159,14 +159,18 @@ export class RestorationService {
         status: { in: ["PAYMENT_VERIFIED", "LOCKED"] }
       },
       include: {
-        restorationEntitlement: {
+        restorationEntitlements: {
           include: {
             restorationMaster: true
           }
         }
       }
     });
-    const master = fixedOrder?.restorationEntitlement?.restorationMaster;
+    // Legacy pre-P6C orders (linked via legacyRestorationOrderId) always
+    // have exactly one item/entitlement -- R9.5-P5P moved entitlement
+    // identity from order-scoped to item-scoped, so this reads the first
+    // (only) one from the now-plural relation.
+    const master = fixedOrder?.restorationEntitlements[0]?.restorationMaster;
     if (!master || master.status !== "VALIDATED" || !master.storageKey) {
       throw new AppError("Validated restoration master is unavailable", 400, "RESTORATION_MASTER_NOT_READY");
     }

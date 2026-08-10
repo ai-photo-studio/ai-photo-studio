@@ -1697,4 +1697,122 @@ This section is additive; every rule above it remains in force verbatim.
   `PRINT_PARTNER_ASSIGNMENT_REQUIRED` is now retired for Pakistan
   specifically (replaced by the truthful `IN_HOUSE_PRINT_PENDING`) but the
   constant/mechanism remains available for a future non-Pakistan print
+
+### R9.5-P5P-MULTI-IMAGE-SCHEMA-ORCHESTRATION (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+Backend/data-model only -- no frontend multi-image UI shipped in this
+packet; that is the explicit scope of the next packet.
+
+- **Schema audit result.** `FixedOrderItem` was already a real one-to-many
+  relation on `FixedOrder` (schema headroom for multiple line items already
+  existed); `DigitalEntitlement`/`PrintEntitlement` were already item-scoped
+  (`fixedOrderItemId`). The one true order-level bottleneck was
+  `RestorationEntitlement.fixedOrderId @unique` -- `RestorationMaster` and
+  `ReplicateExecution` become item-scoped automatically once entitlement
+  does, since both chain through `restorationEntitlementId`, needing zero
+  changes of their own.
+- **`PaymentAttempt` unchanged, deliberately.** `fixedOrderId @unique` was
+  kept exactly as-is -- one order, one advance payment, one payment
+  lifecycle, regardless of item count. This was the task's own stated
+  preference and no schema evidence argued against it.
+- **Item-level schema change.** `RestorationEntitlement` gained
+  `fixedOrderItemId String @unique` (its new identity) and a relation to
+  `FixedOrderItem`; `fixedOrderId` is retained as a plain, non-unique,
+  denormalized column for existing order-scoped queries (never the source
+  of truth for uniqueness). `FixedOrderItem` gained `sourceDraftId String?`
+  (the image that item restores) and a relation to `RestorationDraft`.
+  `FixedOrder.restorationEntitlement` (singular) became
+  `restorationEntitlements` (array).
+- **Migration** `20260810000000_r95_p5p_item_level_restoration_entitlement`:
+  additive columns, then a fail-closed backfill -- a `DO` block `RAISE
+  EXCEPTION`s and aborts the entire migration if any existing
+  `RestorationEntitlement` does not map to exactly one `FixedOrderItem`
+  (this repository's order-creation code has never created more than one
+  item per order, so this was proven to affect zero real rows), only then
+  is `fixedOrderItemId` backfilled and made `NOT NULL`+unique. Proven three
+  ways against disposable PostgreSQL 17: (1) fresh `migrate deploy` from
+  empty, second deploy, `migrate status` clean; (2) seeded a representative
+  pre-migration single-image PAID order (draft/order/item/payment/
+  entitlement/master/execution/digital-entitlement) on the pre-P5P schema,
+  applied this migration, and verified identical ownership, `PAID` status,
+  digital entitlement, master/execution state, `fixedOrderItemId` correctly
+  backfilled to the order's one real item, and zero duplicate/lost rows;
+  (3) seeded a genuinely ambiguous case (one entitlement, two items on the
+  same order) and confirmed the migration correctly aborts with a clear
+  `RAISE EXCEPTION` diagnostic rather than guessing.
+- **P4A (`p4a-payment-verified-execution-queue.service.ts`) now iterates
+  every `FixedOrderItem`** on one verified-PAID transaction, creating (or
+  idempotently reusing) one `RestorationEntitlement`/`RestorationMaster`/
+  QUEUED `ReplicateExecution` **per item**, sequentially inside the same
+  `prisma.$transaction`, so one item's chain can never corrupt another's
+  identity. Order-type eligibility (`RESTORATION_DIGITAL`/
+  `RESTORATION_WITH_PRINT`) stays a one-time whole-order check; per-item
+  existing-entitlement replay detection now happens per item. Every item
+  must resolve a source draft (its own `sourceDraftId`, falling back to the
+  order's for pre-P5P-shaped items) before ANY item is processed -- fails
+  the whole evidence application closed rather than partially activating
+  some items. `PaymentEvidenceResult.applied` changed from singular
+  `restorationEntitlementId`/`restorationMasterId`/`replicateExecutionId`
+  fields to an `items: AppliedItemResult[]` array (one entry per item,
+  legacy single-item orders still produce a one-element array). Every
+  caller of this result (`p4c-bank-alfalah-mpgs-gateway.service.ts`,
+  `customer-checkout.service.ts`, `commerce-e2e-payment.ts`/test-checkout)
+  was already result-shape-agnostic (re-reads persisted state or discards
+  the return value entirely) -- verified by reading each call site, not
+  guessed.
+- **P4B/P3A worker unchanged.** The worker discovers `QUEUED`
+  `ReplicateExecution` rows directly and reads context via
+  `master.restorationEntitlement.fixedOrder` (the retained "belongs-to"
+  direction) -- this path never referenced the now-removed order-level
+  uniqueness and required zero code changes, confirmed by a clean
+  typecheck and a full pg-race pass with no edits to
+  `replicate-execution.worker.ts`.
+- **Print fulfilment is item-aware.** `print-fulfilment-boundary.service.ts`
+  now reads each item's OWN entitlement/master (never the order's), so
+  print always reuses THAT item's restored master. The existing single-item
+  HTTP contract (`POST /fixed-orders/:orderNo/print-fulfilment`,
+  `PrintFulfilmentBoundaryService.prepare`) is preserved exactly -- same
+  single-object response shape, since no multi-item UI ships yet. A new
+  `prepareAllPrintItems(orderNo, actor)` method (not wired to any route)
+  processes every print-eligible item on an order and skips digital-only
+  items entirely; it is exercised directly by the new pg-race suite ahead
+  of the next packet's UI.
+- **New pg-race suite**
+  `p5p-multi-item-orchestration.pg-race.test.ts` (10/10 passing) proves,
+  against real disposable PostgreSQL 17, all of: (a) unpaid 3-item order ->
+  0 executions; (b/h) verified PAID 3-item mixed Digital/Print+Digital
+  order -> exactly 3 entitlements/masters/executions under one
+  order-level `PaymentAttempt`; (c) duplicate payment callback -> still 3;
+  (d) 10 real concurrent verified-evidence calls -> still 3, never 1, never
+  30; (e) 10x read-only status polling -> zero new rows; (f/i) print
+  fulfilment creates print records only for the 2 print-eligible items
+  (never the digital-only item), each reusing its own item's master, with
+  zero additional `ReplicateExecution` rows created; (g) a one-item
+  (existing single-image shape) order still activates exactly 1; (j) a
+  non-owning actor cannot reach another order's print items. All five
+  existing pg-race suites that seed a `RestorationEntitlement` directly
+  (`p3a-replicate-execution-worker`, `p4a-payment-verified-execution-queue`,
+  `p4b-internal-worker-runner`, `sharp-variant`, `p4c-bank-alfalah-mpgs-
+  gateway`, `customer-checkout`, `print-fulfilment-boundary`) were updated
+  to create a `FixedOrderItem` first and re-ran individually (never
+  globbed) against the same disposable instance -- full pass, zero
+  regressions.
+- **Zero regression, full evidence:** `npm run lint` (0 errors),
+  `npm run typecheck`, `npm run build`, `npm run test:browser -w apps/web`
+  (106/106), `npm run test:browser:responsive -w apps/web` (93/93),
+  `npm run test:e2e:commerce-local` (full pass -- the harness's own final
+  DB-assertion query needed the same singular-to-array fix as production
+  code, since it directly queried the changed relation), `npx prisma
+  validate`/`generate` clean, `printCatalog.test.ts` reconfirms 40x60/
+  Triple Canvas/1750/2250/2750 untouched, `git diff --check`/
+  `--cached --check` clean.
+- **Local commit only, not pushed/deployed.** No production
+  migration/deploy of any kind occurred.
+- **Protected Scope held**: no RunPod, no Replicate routing change, no real
+  payment/card/production DB mutation, no PriceBook change, no Hero/
+  homepage/modal redesign, no `.gitignore` broadening. `BANK_ACTION_REQUIRED`
+  and `PRINT_PARTNER_DATA_REQUIRED` (non-Pakistan markets only) remain the
+  only open business blockers; the backend is now ready for a genuinely
+  scoped multi-image UI/cart packet next.
   market.

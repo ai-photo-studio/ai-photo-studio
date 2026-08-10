@@ -105,6 +105,20 @@ async function seedUnpaidOrder(label: string) {
   });
   createdOrderIds.push(order.id);
 
+  await clientA.fixedOrderItem.create({
+    data: {
+      fixedOrderId: order.id,
+      kind: "RESTORATION_DIGITAL_TIER",
+      tierOrSku: "ORIGINAL",
+      unitAmountMinor: 150000n,
+      totalAmountMinor: 150000n,
+      currency: "PKR",
+      pricingSource: "approved_pricebook",
+      pricingApproved: true,
+      sourceDraftId: draft.id
+    }
+  });
+
   const attempt = await clientA.paymentAttempt.create({
     data: {
       fixedOrderId: order.id,
@@ -198,7 +212,7 @@ test("duplicate sequential webhook-trigger verification converges to exactly one
   assert.equal(third.applied?.outcome, "APPLIED");
   assert.equal(first.applied?.applied?.paymentEventId, second.applied?.applied?.paymentEventId);
   assert.equal(second.applied?.applied?.paymentEventId, third.applied?.applied?.paymentEventId);
-  assert.equal(first.applied?.applied?.replicateExecutionId, third.applied?.applied?.replicateExecutionId);
+  assert.equal(first.applied?.applied?.items[0]?.replicateExecutionId, third.applied?.applied?.items[0]?.replicateExecutionId);
 
   const events = await clientA.paymentEvent.findMany({ where: { paymentAttemptId: seeded.attemptId } });
   assert.equal(events.length, 1);
@@ -239,7 +253,7 @@ test("concurrent browser-return + webhook-trigger verification racing on one ord
   assert.equal(r1.applied?.outcome, "APPLIED");
   assert.equal(r2.applied?.outcome, "APPLIED");
   assert.equal(r1.applied?.applied?.paymentEventId, r2.applied?.applied?.paymentEventId);
-  assert.equal(r1.applied?.applied?.replicateExecutionId, r2.applied?.applied?.replicateExecutionId);
+  assert.equal(r1.applied?.applied?.items[0]?.replicateExecutionId, r2.applied?.applied?.items[0]?.replicateExecutionId);
 
   const events = await clientA.paymentEvent.findMany({ where: { paymentAttemptId: seeded.attemptId } });
   assert.equal(events.length, 1, "exactly one PaymentEvent must exist after a real race");

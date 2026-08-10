@@ -27,7 +27,8 @@ async function seedMaster(status: "VALIDATED" | "NOT_STARTED" = "VALIDATED") {
   createdOrderIds.push(order.id);
   const attempt = await prisma.paymentAttempt.create({ data: { fixedOrderId: order.id, amountMinor: 100n, currency: "PKR", idempotencyKey: `${tag}-payment`, status: "PAID" } });
   void attempt;
-  const entitlement = await prisma.restorationEntitlement.create({ data: { fixedOrderId: order.id, draftId: draft.id, status: "GRANTED" } });
+  const item = await prisma.fixedOrderItem.create({ data: { fixedOrderId: order.id, kind: "RESTORATION_DIGITAL_TIER", tierOrSku: "ORIGINAL", unitAmountMinor: 100n, totalAmountMinor: 100n, currency: "PKR", pricingSource: "approved_pricebook", pricingApproved: true, sourceDraftId: draft.id } });
+  const entitlement = await prisma.restorationEntitlement.create({ data: { fixedOrderId: order.id, fixedOrderItemId: item.id, draftId: draft.id, status: "GRANTED" } });
   return prisma.restorationMaster.create({ data: { restorationEntitlementId: entitlement.id, status, storageKey: status === "VALIDATED" ? `finals/${tag}.jpg` : null, sha256: status === "VALIDATED" ? "master-sha" : null, width: status === "VALIDATED" ? 256 : null, height: status === "VALIDATED" ? 192 : null, contentType: status === "VALIDATED" ? "image/jpeg" : null } });
 }
 
