@@ -170,7 +170,26 @@ jobs:
             exit 0
           fi
 
+          # R9.5-P5R4: the apply command previously had no error capture --
+          # under `set -e`, a non-zero exit here aborted the whole script
+          # instantly with zero diagnostic output (the failure text was
+          # redirected into apply_log and never printed or classified),
+          # making a real apply failure indistinguishable from a hang.
+          set +e
           DATABASE_URL="${SELECTED_URL}" npm run db:migrate:production >"${apply_log}" 2>&1
+          apply_exit=$?
+          set -e
+          if (( apply_exit != 0 )); then
+            classify_failure "${apply_log}"
+            echo "apply_exit_code=${apply_exit}"
+            echo 'sanitized_command_output_start'
+            cat "${apply_log}"
+            echo 'sanitized_command_output_end'
+            rm -f "${apply_log}"
+            echo 'apply_migrations=failed'
+            unset SELECTED_URL
+            exit 1
+          fi
           mapfile -t applied < <(grep -oE '20[0-9]{12}_[A-Za-z0-9_-]+' "${apply_log}" | sort -u || true)
           rm -f "${apply_log}"
           for migration in "${applied[@]}"; do echo "applied_migration=${migration}"; done
