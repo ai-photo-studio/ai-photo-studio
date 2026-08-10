@@ -1222,6 +1222,78 @@ This section is additive; every rule above it remains in force verbatim.
   already current. Production migration gate is now `CLOSED/READY`; the
   next authorized action is API deploy, not another migration attempt.
 
+### R9.5-P5K-LIVE-CANONICAL-PAKISTAN-FLOW-DEPLOYED (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **Production release SHA: `96314ca3ef7962866c55bd4dc2904466bc58e9b7`** — PR
+  #152 merged `release/r9.5-pakistan` (ancestors `653d240`, `5e0409a`,
+  `b8b47ac` all proven) into `main` via a normal merge commit (no
+  force-push/rebase; `main`'s prior tip `fba9414` is a parent). One
+  add/add conflict (the migration-preflight workflow file, main's version
+  taken; identical after resolution) was the only conflict.
+- Pre-merge gate: `typecheck`/`build` clean; `test:e2e:commerce-local`
+  passed on retry (first attempt hit a transient local cold-start timeout
+  waiting on the disposable API health endpoint — recoverable per Recovery
+  Protocol, not a regression) with both digital and print+digital orders
+  reaching PAID -> GRANTED -> VALIDATED -> SUCCEEDED and print correctly
+  blocked on `PRINT_PARTNER_ASSIGNMENT_REQUIRED`. The `Bank Alfalah MPGS
+  Actual-App E2E` dry-run CI check failed on this PR, but it targets a
+  stale pre-canonical-flow UI (`page.goto("/restore-mvp/new")` expecting a
+  raw checkbox); `/restore-mvp/new` has redirected to the canonical
+  `/?upload=1` modal since R9.5-P4B9 (2026-08-09), and MPGS itself is
+  commercially frozen — this is superseded test staleness, not a
+  regression from this merge. No branch protection made it
+  merge-blocking.
+- **API deploy**: Northflank's existing git-push auto-deploy fired on the
+  `main` merge (`Deploy to Northflank` run `31364695082`, success). Live
+  `GET https://api.thannow.com/api/health` returned
+  `build_sha=96314ca3ef7962866c55bd4dc2904466bc58e9b7`, matching exactly.
+  Live smoke: `POST /api/restoration-drafts` (201) ->
+  `GET /api/restoration-drafts/:id/offers` (with the real
+  `x-guest-ownership-token`, confirming ownership enforcement is live)
+  returned exactly the seven approved PKR V3 tiers (`PB-2026-08-09-TRIAL-V3`):
+  500/1000/1500/2500/3500/4000/5000 -- no stale PKR 250. `GET
+  /api/print-catalog` = 200. `GET
+  /api/fixed-orders/:orderNo/restoration-status` correctly 404s for a
+  nonexistent order (route reachable, ownership/existence enforced).
+  Re-ran the read-only migration preflight one more time directly against
+  `main` (`target_ref=main`, run `31364822478`): still clean, 23
+  migrations, up to date -- confirms the exact deployed SHA's own migration
+  state before the frontend went live.
+- **Frontend deploy**: `npx wrangler pages deploy` (authenticated via
+  existing OAuth session, no credential invented) to project
+  `ai-photo-studio-frontend`, `--branch main`,
+  `--commit-hash 96314ca3ef7962866c55bd4dc2904466bc58e9b7`. Deployment
+  `75fc5644-ef49-4200-af47-31eaa9a183d4`, confirmed **Production**
+  environment, source `96314ca`. `https://www.thannow.com/` returns 200
+  and serves `index-BnteFSiS.js` -- byte-identical bundle hash to this
+  session's local `npm run build` output, so the live bundle is proven
+  identical to the code that passed `test:e2e:commerce-local`, not a
+  separately-built artifact. Static analysis of the live bundle confirms
+  absence of `PKR 250`, `Demo Payment Mode`, and the old `Upload Photos for
+  Restoration` copy, and presence of the canonical `Upload Your Photo`
+  modal copy and the `restore-mvp/new` redirect path.
+- **Live smoke methodology note**: full interactive click-path proof
+  (upload-once, Continue-preserves-draft, no second-upload page, desktop
+  1440 / mobile 390 responsive check) was not re-driven against the live
+  domain with a real browser in this packet -- it relies on (a) the
+  deployed bundle being byte-identical to the one `test:e2e:commerce-local`
+  already exercised end-to-end against the same release commit, and (b)
+  static confirmation the live bundle contains the canonical strings/route
+  and excludes the retired ones. A future packet with live-browser tooling
+  against `www.thannow.com` should still perform the literal click-through
+  before this is treated as fully interactive-proven.
+- Rollback targets recorded for this release: API -> previous production
+  revision `dd8924a78f54487ab9336806b3906b4c585a5860`; Frontend ->
+  deployment `72cdd2d7-7334-4f36-80bb-bb6f5a33226c` (source `4965032`).
+  Neither rollback was exercised -- both gates passed.
+- **Protected Scope held**: no RunPod activation, no Replicate routing
+  change, no real payment/card, no invented Bank/print-partner data, no
+  PriceBook change, no frontend redesign, no `.gitignore` broadening.
+  `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
+  only open business blockers.
+
 ### R9.5-P5F-GITHUB-SECRET-PRODUCTION-MIGRATION (2026-08-10)
 
 This section is additive; every rule above it remains in force verbatim.
