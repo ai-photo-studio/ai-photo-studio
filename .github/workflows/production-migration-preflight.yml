@@ -58,8 +58,12 @@ jobs:
           set -euo pipefail
           status_log="${RUNNER_TEMP}/production-migration-status.log"
           apply_log="${RUNNER_TEMP}/production-migration-apply.log"
-          expected_one='20260808000000_r95_p4b_pricebook_v2_tiers'
-          expected_two='20260809000000_r95_p4b4_print_delivery_address'
+          # R9.5-P5R: the two R9.5-P4B/P4B4 migrations this allowlist used to
+          # name are already applied to production (confirmed by the P5J
+          # packet's clean status run) and are no longer pending anywhere.
+          # The sole currently-pending migration for this release is P5P's
+          # item-level restoration entitlement migration.
+          expected_one='20260810000000_r95_p5p_item_level_restoration_entitlement'
 
           diagnose_url() {
             CHECK_URL="$1" node -e 'const dns=require("node:dns"); const net=require("node:net"); const value=process.env.CHECK_URL||""; let parsed; try { parsed=new URL(value) } catch { parsed=null } const valid=!!parsed; console.log(`schemeValid=${valid&&(parsed.protocol==="postgres:"||parsed.protocol==="postgresql:")}`); console.log(`hostnamePresent=${!!(parsed&&parsed.hostname)}`); console.log(`databaseNamePresent=${!!(parsed&&parsed.pathname&&parsed.pathname.length>1)}`); console.log(`passwordPresent=${!!(parsed&&parsed.password)}`); console.log(`sslConfigured=${!!(parsed&&((parsed.searchParams.get("sslmode")||"")!=="disable"||parsed.searchParams.has("ssl")))}`); console.log(`urlParseValid=${valid}`); if(!valid||!parsed.hostname){console.log("dnsResolvable=NO"); console.log("tcpReachable=NO"); process.exit(0)} dns.lookup(parsed.hostname,{all:false},(dnsError)=>{ console.log(`dnsResolvable=${dnsError?"NO":"YES"}`); if(dnsError){console.log("tcpReachable=NO"); return} const socket=net.createConnection({host:parsed.hostname,port:Number(parsed.port||5432)}); let done=false; const finish=(ok)=>{if(done)return;done=true;socket.destroy();console.log(`tcpReachable=${ok?"YES":"NO"}`)}; socket.setTimeout(5000); socket.once("connect",()=>finish(true)); socket.once("timeout",()=>finish(false)); socket.once("error",()=>finish(false)); });' 2>/dev/null
@@ -97,14 +101,13 @@ jobs:
               SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=0
               rm -f "${status_log}"; return 0
             fi
-            if (( pending_count == 2 )) && [[ "${pending[0]}" == "${expected_one}" && "${pending[1]}" == "${expected_two}" ]]; then
+            if (( pending_count == 1 )) && [[ "${pending[0]}" == "${expected_one}" ]]; then
               echo "pending_migration=${pending[0]}"
-              echo "pending_migration=${pending[1]}"
               echo 'migration_status=expected_pending'
               echo 'sanitized_command_output_start'
               cat "${status_log}"
               echo 'sanitized_command_output_end'
-              SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=2
+              SELECTED_URL="$candidate"; SELECTED_SOURCE="$source"; PENDING_COUNT=1
               rm -f "${status_log}"; return 0
             fi
             classify_failure "${status_log}"
@@ -156,7 +159,7 @@ jobs:
             exit 0
           fi
 
-          if (( PENDING_COUNT != 2 )); then
+          if (( PENDING_COUNT != 1 )); then
             echo "apply_migrations=not_needed"
             unset SELECTED_URL
             exit 0
