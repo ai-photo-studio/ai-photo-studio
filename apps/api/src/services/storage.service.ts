@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -105,16 +106,44 @@ const bodyToBuffer = async (body: unknown): Promise<Buffer> => {
 class MockStorageProvider implements StorageProvider {
   private static readonly sharedStore = new Map<string, Buffer>();
 
+  /**
+   * R9.5-P4B7: `sharedStore` above is a plain in-process `Map`, so by design
+   * it is invisible across process boundaries -- fine for the many existing
+   * single-process unit tests that construct `MockStorageProvider` directly,
+   * but it means a disposable local E2E harness that runs the API and the
+   * mock P4B worker as SEPARATE `tsx` processes (matching the real,
+   * production-shaped multi-process topology) could never see across them:
+   * the worker's own in-memory store would always be empty for a file the
+   * API process just uploaded.
+   *
+   * `MOCK_STORAGE_DIR`, when explicitly set, additionally persists every
+   * write to disk under that directory and reads from disk on a same-process
+   * miss, so multiple mock-mode processes pointed at the same directory share
+   * state. Unset (the default, and every existing test's environment), this
+   * class's behavior is byte-for-byte unchanged: pure in-memory, per-process.
+   */
+  private static readonly diskDir = process.env.MOCK_STORAGE_DIR?.trim() || null;
+
   constructor(private readonly config: AppConfig) {}
+
+  private diskPath(key: string): string | null {
+    if (!MockStorageProvider.diskDir) return null;
+    // Storage keys are always server-generated (`buildStorageKey` below) and
+    // never taken from client input, so a plain path join is safe here --
+    // this is disposable local test infrastructure, not a public API.
+    return join(MockStorageProvider.diskDir, key);
+  }
 
   async uploadFile(params: UploadFileInput): Promise<UploadFileResult> {
     const key = buildStorageKey(params, this.config.restorationDryRun ? "test" : "");
     const url = this.getPublicUrl(key);
     const expiresAt = buildRetentionDate(params.keyPrefix);
-    if (typeof params.body === "string") {
-      MockStorageProvider.sharedStore.set(key, Buffer.from(params.body));
-    } else {
-      MockStorageProvider.sharedStore.set(key, params.body);
+    const body = typeof params.body === "string" ? Buffer.from(params.body) : params.body;
+    MockStorageProvider.sharedStore.set(key, body);
+    const diskPath = this.diskPath(key);
+    if (diskPath) {
+      mkdirSync(diskPath.slice(0, diskPath.length - basename(diskPath).length), { recursive: true });
+      writeFileSync(diskPath, body);
     }
     logger.info("Mock storage upload", { keyPrefix: params.keyPrefix, key });
     return { key, url, expiresAt };
@@ -126,20 +155,28 @@ class MockStorageProvider implements StorageProvider {
 
   async deleteFile(key: string): Promise<void> {
     MockStorageProvider.sharedStore.delete(key);
+    const diskPath = this.diskPath(key);
+    if (diskPath && existsSync(diskPath)) unlinkSync(diskPath);
     logger.info("Mock storage delete", { key });
   }
 
   async deleteExpiredFiles(): Promise<{ deleted: number }> {
+    // Unchanged no-op, disk mode included: nothing in this repo calls this
+    // automatically, and bulk disk cleanup is the E2E harness's own teardown
+    // responsibility (it deletes the whole MOCK_STORAGE_DIR itself), not this
+    // method's.
     logger.info("Mock storage cleanup executed");
     return { deleted: 0 };
   }
 
   async downloadFile(key: string): Promise<DownloadFileResult> {
-    const body = MockStorageProvider.sharedStore.get(key);
-    if (!body) {
-      throw new AppError(`Mock storage: file not found: ${key}`, 404, "STORAGE_FILE_NOT_FOUND");
+    const inMemory = MockStorageProvider.sharedStore.get(key);
+    if (inMemory) return { body: inMemory, contentType: "image/png" };
+    const diskPath = this.diskPath(key);
+    if (diskPath && existsSync(diskPath)) {
+      return { body: readFileSync(diskPath), contentType: "image/png" };
     }
-    return { body, contentType: "image/png" };
+    throw new AppError(`Mock storage: file not found: ${key}`, 404, "STORAGE_FILE_NOT_FOUND");
   }
 
   uploadOriginal(params: { fileName: string; body: Buffer | string; contentType?: string }): Promise<UploadFileResult> {

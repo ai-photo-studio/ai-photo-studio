@@ -20,6 +20,9 @@ import { createRestorationDraftRouter } from "./routes/restoration-draft.routes"
 import { createBankAlfalahApgRouter } from "./routes/bank-alfalah-apg.routes";
 import { AuthController } from "./controllers/auth.controller";
 import { PackageController } from "./controllers/package.controller";
+import { PUBLIC_MEMORY_PACKAGES } from "./domain/pricing/memoryPackages";
+import { ApprovedOfferProvider } from "./domain/pricing/approvedOfferProvider";
+import { PRINT_CATALOG_VERSION, publicPrintCatalog } from "./domain/pricing/printCatalog";
 import { MonitoringController } from "./controllers/monitoring.controller";
 import { requireAuth } from "./middleware/auth.middleware";
 import { createCorsMiddleware } from "./middleware/cors.middleware";
@@ -168,6 +171,12 @@ const bootstrap = async () => {
   // Direct registrations keep the production route surface explicit even if a router mount changes.
   app.get("/api/auth/me", requireAuth(config), authController.me);
   app.get("/api/packages", packageController.listPackages);
+  app.get("/api/memory-packages", (_req, res) => res.json({ success: true, data: PUBLIC_MEMORY_PACKAGES }));
+  app.get("/api/digital-catalog", (req, res) => {
+    const market = req.query.market === "INTERNATIONAL" ? "INTERNATIONAL" : "PAKISTAN";
+    const offers = new ApprovedOfferProvider().getDigitalOffers({ market });
+    res.json({ success: true, data: { market, offers, printCatalogVersion: PRINT_CATALOG_VERSION, printCatalog: publicPrintCatalog() } });
+  });
   app.get("/api/monitoring/health", monitoringController.health);
   app.get("/api/monitoring/queue", monitoringController.queue);
   app.get("/api/monitoring/worker", monitoringController.worker);

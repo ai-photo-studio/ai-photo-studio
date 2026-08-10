@@ -24,7 +24,11 @@ const EXCLUDED_DIR_NAMES = new Set(["node_modules", ".git", "dist", "build", ".n
 const RETIREMENT_MARKER = /retired|forbidden|must never|superseded/i;
 // This test file itself intentionally names the retired identifiers as
 // literal strings; it must not flag itself.
-const EXCLUDED_FILES = new Set<string>([relative(REPO_ROOT, __filename).replace(/\\/g, "/")]);
+const EXCLUDED_FILES = new Set<string>([
+  relative(REPO_ROOT, __filename).replace(/\\/g, "/"),
+  // Explicitly ignored historical audit evidence may quote retired protocols.
+  "AI_code_audit_report_RI.md"
+]);
 // The evidence directory documents the retirement itself and is expected to
 // name the retired identifiers in prose explaining what was removed.
 const EXCLUDED_DIR_PREFIXES = ["docs/payments/bank-alfalah-mastercard"];

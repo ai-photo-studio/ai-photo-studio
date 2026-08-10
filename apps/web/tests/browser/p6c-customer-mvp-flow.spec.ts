@@ -19,7 +19,38 @@ import {
 } from "./fixtures/mvp";
 
 test.describe("P6C upload page never uploads before the explicit button click", () => {
-  test("selecting a file and confirming market does not upload until the button is clicked", async ({ page }) => {
+  test("homepage modal uploads exactly once and continues to the persisted preview", async ({ page }) => {
+    await blockExternalNetwork(page);
+    let createCalls = 0;
+    await page.route("**/api/restoration-drafts", async (route) => {
+      if (route.request().method() === "POST") createCalls++;
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: draftFixture() }) });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Upload Your Photo" }).first().click();
+    await page.setInputFiles('#photoInput', tinyPngPath());
+    expect(createCalls).toBe(0);
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
+    await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
+    expect(createCalls).toBe(1);
+  });
+
+  test("double Continue creates exactly one persisted draft", async ({ page }) => {
+    await blockExternalNetwork(page);
+    let createCalls = 0;
+    await page.route("**/api/restoration-drafts", async (route) => {
+      createCalls++;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: draftFixture() }) });
+    });
+    await page.goto("/?upload=1");
+    await page.setInputFiles("#photoInput", tinyPngPath());
+    await page.getByRole("button", { name: "Continue to Restoration" }).evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
+    await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
+    expect(createCalls).toBe(1);
+  });
+
+  test("direct former upload route resolves to the modal and uploads only on Continue", async ({ page }) => {
     await blockExternalNetwork(page);
     let createCalls = 0;
     await page.route("**/api/restoration-drafts", async (route) => {
@@ -27,12 +58,12 @@ test.describe("P6C upload page never uploads before the explicit button click", 
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: draftFixture() }) });
     });
     await page.goto("/restore-mvp/new");
-    await page.setInputFiles('input[type="file"]', tinyPngPath());
-    await page.getByRole("checkbox").check();
+    await expect(page).toHaveURL(/\/?upload=1/);
+    await page.setInputFiles("#photoInput", tinyPngPath());
     await page.waitForTimeout(300);
     expect(createCalls).toBe(0);
 
-    await page.getByRole("button", { name: "Upload photo" }).click();
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     expect(createCalls).toBe(1);
   });
@@ -45,27 +76,26 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await mockCreateDraft(page, draft);
     await mockGetDraft(page, DRAFT_ID, { ...draft, previewUrl: "http://127.0.0.1/mock-preview.png" });
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-    const order = orderFixture({ market: "PAKISTAN", currency: "PKR", tier: "ORIGINAL", amount: "25000" });
+    const order = orderFixture({ market: "PAKISTAN", currency: "PKR", tier: "ORIGINAL", amount: "50000" });
     await mockCreateOrder(page, order);
     await mockGetOrder(page, ORDER_NO, order);
 
-    await page.goto("/restore-mvp/new");
-    await page.setInputFiles('input[type="file"]', tinyPngPath());
-    await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "Upload photo" }).click();
+    await page.goto("/?upload=1");
+    await page.setInputFiles("#photoInput", tinyPngPath());
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
-    await page.getByRole("button", { name: "Choose resolution" }).click();
+    await page.getByRole("button", { name: "Choose Your Restoration" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
-    await expect(page.getByText("PKR 250.00")).toBeVisible();
-    await page.getByText("Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Create order" }).click();
+    await expect(page.getByText("PKR 500.00")).toBeVisible();
+    await page.getByText("Restored Original", { exact: true }).click();
+    await page.getByRole("button", { name: "Review & Checkout" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
     await expect(page.getByText("PAKISTAN", { exact: true })).toBeVisible();
-    await expect(page.getByText("PKR 250.00")).toBeVisible();
-    await expect(page.getByText("PB-2026-08-03-v1")).toBeVisible();
+    await expect(page.getByText("PKR 500.00")).toBeVisible();
+    await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toBeVisible();
     await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   });
 });
@@ -78,20 +108,41 @@ test.describe("P6C International USD flow", () => {
     await mockOffers(page, DRAFT_ID, offersFixture("USD"));
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await expect(page.getByText("USD 1.50")).toBeVisible();
-    await expect(page.getByText("USD 2.50")).toBeVisible();
-    await expect(page.getByText("USD 3.50")).toBeVisible();
+    await expect(page.getByText("USD 1.99")).toBeVisible();
+    await expect(page.getByText("USD 2.99")).toBeVisible();
+    await expect(page.getByText("USD 4.99")).toBeVisible();
   });
 
   test("International order review shows correct USD amount and market", async ({ page }) => {
     await blockExternalNetwork(page);
-    const order = orderFixture({ market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amount: "350" });
+    const order = orderFixture({ market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amount: "499" });
     await mockGetOrder(page, ORDER_NO, order);
     await page.goto(`/orders/${ORDER_NO}/review`);
     await expect(page.getByText("INTERNATIONAL")).toBeVisible();
-    await expect(page.getByText("USD 3.50")).toBeVisible();
-    await expect(page.getByText("4HD")).toBeVisible();
+    await expect(page.getByText("USD 4.99")).toBeVisible();
   });
+});
+
+test.describe("P6C product choice truthfulness", () => {
+  test("digital and Print + Digital are visible while print checkout remains blocked", async ({ page }) => {
+    await blockExternalNetwork(page);
+    await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+    await expect(page.getByRole("button", { name: /Restore & Download/i })).toBeVisible();
+    await page.getByRole("button", { name: /Print \+ Digital/i }).click();
+    await expect(page.locator("select")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeDisabled();
+  });
+});
+
+test("P4B11 Pakistan offer page exposes all seven V3 tiers and no stale 250 price", async ({ page }) => {
+  await blockExternalNetwork(page);
+  await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+  await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+  await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
+  for (const label of ["2x HD", "4x Ultra HD", "6x", "8x", "10x", "12x"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
+  await expect(page.getByText(/PKR 250\.00|PKR 350\.00/)).toHaveCount(0);
+  await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toHaveCount(0);
 });
 
 test.describe("P6C ownership: forged/wrong guest token is rejected", () => {
@@ -185,7 +236,7 @@ test.describe("P6C mobile usability", () => {
       const draft = draftFixture();
       await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
       await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-      await expect(page.getByRole("button", { name: "Create order" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review & Checkout" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       void draft;
@@ -212,13 +263,12 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await mockCreateOrder(page, order);
     await mockGetOrder(page, ORDER_NO, order);
 
-    await page.goto("/restore-mvp/new");
-    await page.setInputFiles('input[type="file"]', tinyPngPath());
-    await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "Upload photo" }).click();
-    await page.getByRole("button", { name: "Choose resolution" }).click();
-    await page.getByText("Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Create order" }).click();
+    await page.goto("/?upload=1");
+    await page.setInputFiles("#photoInput", tinyPngPath());
+    await page.getByRole("button", { name: "Continue to Restoration" }).click();
+    await page.getByRole("button", { name: "Choose Your Restoration" }).click();
+    await page.getByText("Restored Original", { exact: true }).click();
+    await page.getByRole("button", { name: "Review & Checkout" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
 
     expect(externalCompleted).toEqual([]);

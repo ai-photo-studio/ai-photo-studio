@@ -38,9 +38,9 @@
 // `pricingApproved`); it must not be used as a live/production provider.
 import type { FixedOrderCurrency, Market } from "../fixedOrder/fixedOrderGuards";
 
-export type DigitalTier = "ORIGINAL" | "HD_2X" | "HD_4X";
+export type DigitalTier = "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
 
-export const ALLOWED_DIGITAL_TIERS: readonly DigitalTier[] = ["ORIGINAL", "HD_2X", "HD_4X"];
+export const ALLOWED_DIGITAL_TIERS: readonly DigitalTier[] = ["ORIGINAL", "HD_2X", "HD_4X", "HD_6X", "HD_8X", "HD_10X", "HD_12X"];
 
 export interface DigitalOffer {
   tier: DigitalTier;

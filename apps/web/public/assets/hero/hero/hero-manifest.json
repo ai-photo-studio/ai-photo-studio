@@ -1,0 +1,122 @@
+[
+  {
+    "id": "hero-01-affluent-parents",
+    "title": "Affluent Parents Portrait",
+    "caption": "Bring your parents' most precious portrait back with dignity.",
+    "alt": "Restored vintage Pakistani parents portrait in an elegant drawing room",
+    "damage_style": "faded sepia, fine cracks, worn print",
+    "then": "/assets/hero/hero/hero-01-affluent-parents-then.jpg",
+    "now": "/assets/hero/hero/hero-01-affluent-parents-now.jpg",
+    "width": 1200,
+    "height": 2555,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-02-grandparents-legacy",
+    "title": "Grandparents Legacy",
+    "caption": "Preserve a lifetime of love for the next generation.",
+    "alt": "Restored portrait of elderly Pakistani grandparents",
+    "damage_style": "black and white, dim exposure, aged paper",
+    "then": "/assets/hero/hero/hero-02-grandparents-legacy-then.jpg",
+    "now": "/assets/hero/hero/hero-02-grandparents-legacy-now.jpg",
+    "width": 1200,
+    "height": 1437,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-03-wedding-memory",
+    "title": "Classic Pakistani Wedding",
+    "caption": "Relive the day your family story began.",
+    "alt": "Restored classic Pakistani wedding portrait",
+    "damage_style": "folds, stains, torn corner, faded highlights",
+    "then": "/assets/hero/hero/hero-03-wedding-memory-then.jpg",
+    "now": "/assets/hero/hero/hero-03-wedding-memory-now.jpg",
+    "width": 1200,
+    "height": 2555,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-04-childhood-siblings",
+    "title": "Childhood Siblings",
+    "caption": "Bring childhood memories back with every little detail.",
+    "alt": "Restored childhood siblings portrait in a Pakistani family home",
+    "damage_style": "faded colour, water stain, emulsion loss",
+    "then": "/assets/hero/hero/hero-04-childhood-siblings-then.jpg",
+    "now": "/assets/hero/hero/hero-04-childhood-siblings-now.jpg",
+    "width": 1200,
+    "height": 2555,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-05-three-generation-family",
+    "title": "Three Generation Family",
+    "caption": "Bring generations together in one clear family memory.",
+    "alt": "Restored three generation Pakistani family portrait in an elegant home",
+    "damage_style": "low contrast, dust, uneven fading, age spots",
+    "then": "/assets/hero/hero/hero-05-three-generation-family-then.jpg",
+    "now": "/assets/hero/hero/hero-05-three-generation-family-now.jpg",
+    "width": 1200,
+    "height": 2555,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-06-graduation-pride",
+    "title": "Graduation Pride",
+    "caption": "Preserve the proud day your family worked toward together.",
+    "alt": "Restored Pakistani graduation portrait with parents",
+    "damage_style": "black and white, creases, faded academic portrait",
+    "then": "/assets/hero/hero/hero-06-graduation-pride-then.jpg",
+    "now": "/assets/hero/hero/hero-06-graduation-pride-now.jpg",
+    "width": 1200,
+    "height": 2555,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-07-service-honour",
+    "title": "Service and Honour",
+    "caption": "Honor a lifetime of service with a portrait worth preserving.",
+    "alt": "Restored vintage Pakistani military officer portrait",
+    "damage_style": "black and white, strong scratches, cracked emulsion",
+    "then": "/assets/hero/hero/hero-07-service-honour-then.jpg",
+    "now": "/assets/hero/hero/hero-07-service-honour-now.jpg",
+    "width": 1200,
+    "height": 1437,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-08-old-city-family",
+    "title": "Old City Family Memory",
+    "caption": "Restore the family memories tied to the streets you still remember.",
+    "alt": "Restored Pakistani family portrait in a historic old city street",
+    "damage_style": "aged black and white, grain, dark exposure, scratches",
+    "then": "/assets/hero/hero/hero-08-old-city-family-then.jpg",
+    "now": "/assets/hero/hero/hero-08-old-city-family-now.jpg",
+    "width": 1200,
+    "height": 2555,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-09-railway-migration",
+    "title": "Railway and Migration Memory",
+    "caption": "Keep your family's journey alive for generations.",
+    "alt": "Restored Pakistani family railway journey and migration memory",
+    "damage_style": "severe ageing, multiple tears, stains, missing emulsion",
+    "then": "/assets/hero/hero/hero-09-railway-migration-then.jpg",
+    "now": "/assets/hero/hero/hero-09-railway-migration-now.jpg",
+    "width": 1200,
+    "height": 1437,
+    "rotationSeconds": 7
+  },
+  {
+    "id": "hero-10-loved-one-memorial",
+    "title": "Loved One Memorial",
+    "caption": "Keep their memory close, clear and respectfully preserved.",
+    "alt": "Restored memorial portrait of a Pakistani gentleman",
+    "damage_style": "dim portrait, silvering, scratches, partial fading",
+    "then": "/assets/hero/hero/hero-10-loved-one-memorial-then.jpg",
+    "now": "/assets/hero/hero/hero-10-loved-one-memorial-now.jpg",
+    "width": 1200,
+    "height": 1916,
+    "rotationSeconds": 7
+  }
+]

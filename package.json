@@ -35,7 +35,10 @@
     "gh:verify": "scripts/gh-verify.sh",
     "snapshot:create": "node scripts/create-snapshot.js",
     "rollback": "node scripts/rollback.js",
-    "rollback:exec": "node scripts/rollback.js --execute"
+    "rollback:exec": "node scripts/rollback.js --execute",
+    "test:e2e:commerce-local": "tsx scripts/test-commerce-local.ts",
+    "db:migrate:status:production": "tsx scripts/production-migrations.ts status",
+    "db:migrate:production": "tsx scripts/production-migrations.ts apply"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

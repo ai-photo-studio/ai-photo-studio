@@ -6,6 +6,11 @@
 // - mockRestorationStatus / mockRestorationDownload install page.route
 //   handlers that satisfy the narrow customer DTO contract used by
 //   RestorationStatusPage, without ever touching a real backend.
+//
+// The `test` export additionally installs automatic per-test collectors for
+// blocked external requests, console/page errors, and failed first-party
+// requests (Premium Hero V2 slider tests assert on these). Existing helpers
+// are unchanged and additive; no collector asserts on its own.
 import { test as base, expect, type Page, type Route } from "@playwright/test";
 
 export const ORDER_ID = "order-p5a-test-0001";
@@ -156,5 +161,104 @@ export async function mockRestorationDownload(
   });
 }
 
-export const test = base;
+export type BlockedRequest = { url: string; method: string };
+
+type Fixtures = {
+  blockedRequests: BlockedRequest[];
+  consoleErrors: string[];
+  pageErrors: string[];
+  failedFirstPartyRequests: string[];
+};
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+// apps/web/src/main.tsx injects a Facebook Pixel bootstrap script (and a GA
+// gtag stub) with placeholder IDs on every page load -- pre-existing and
+// unrelated to this suite. It is aborted here (never reaches the real network)
+// but is deliberately not counted as a test-failing violation, matching the
+// established fixture behavior. Any OTHER non-local host IS counted and fails
+// via expectCleanNetwork().
+const KNOWN_BOOTSTRAP_TRACKERS = [
+  /(^|\.)facebook\.com$/,
+  /(^|\.)facebook\.net$/,
+  /(^|\.)googletagmanager\.com$/,
+  /(^|\.)google-analytics\.com$/
+];
+
+export const test = base.extend<Fixtures>({
+  blockedRequests: async ({ page }, provide) => {
+    const blocked: BlockedRequest[] = [];
+    await page.route("**/*", async (route) => {
+      let hostname: string;
+      try {
+        hostname = new URL(route.request().url()).hostname;
+      } catch {
+        await route.continue();
+        return;
+      }
+      if (LOCAL_HOSTS.has(hostname)) {
+        await route.continue();
+        return;
+      }
+      if (!KNOWN_BOOTSTRAP_TRACKERS.some((pattern) => pattern.test(hostname))) {
+        blocked.push({ url: route.request().url(), method: route.request().method() });
+      }
+      await route.abort("blockedbyclient");
+    });
+    await provide(blocked);
+  },
+
+  consoleErrors: async ({ page }, provide) => {
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() !== "error") return;
+      if (message.text().includes("ERR_BLOCKED_BY_CLIENT")) return;
+      errors.push(message.text());
+    });
+    await provide(errors);
+  },
+
+  pageErrors: async ({ page }, provide) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await provide(errors);
+  },
+
+  failedFirstPartyRequests: async ({ page }, provide) => {
+    const failed: string[] = [];
+    page.on("requestfailed", (request) => {
+      let hostname: string;
+      try {
+        hostname = new URL(request.url()).hostname;
+      } catch {
+        return;
+      }
+      if (LOCAL_HOSTS.has(hostname)) {
+        failed.push(`${request.url()} (${request.failure()?.errorText ?? "unknown error"})`);
+      }
+    });
+    await provide(failed);
+  }
+});
+
 export { expect };
+
+export function expectCleanNetwork(blockedRequests: BlockedRequest[]) {
+  expect(blockedRequests, `Unexpected external network requests were blocked: ${JSON.stringify(blockedRequests)}`).toEqual([]);
+}
+
+export function expectNoPageErrors(consoleErrors: string[], pageErrors: string[]) {
+  expect(pageErrors, `Uncaught page errors: ${pageErrors.join("; ")}`).toEqual([]);
+  expect(consoleErrors, `Unexpected console errors: ${consoleErrors.join("; ")}`).toEqual([]);
+}
+
+export function expectNoFailedFirstPartyRequests(failedFirstPartyRequests: string[]) {
+  expect(failedFirstPartyRequests, `Failed first-party requests: ${failedFirstPartyRequests.join("; ")}`).toEqual([]);
+}
+
+export async function expectNoHorizontalOverflow(page: Page) {
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+  );
+  expect(overflow, `Horizontal viewport overflow detected: ${overflow}px`).toBeLessThanOrEqual(1);
+}

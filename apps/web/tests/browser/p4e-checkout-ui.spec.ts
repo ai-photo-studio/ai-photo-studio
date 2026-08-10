@@ -37,7 +37,7 @@ async function setup(page: Parameters<typeof test>[0]["page"], checkoutStatus = 
 test("blocked provider is truthful and Pay is explicit", async ({ page }) => {
   const calls = await setup(page);
   expect(calls).toEqual([]);
-  await page.getByRole("button", { name: "Pay securely" }).click();
+  await page.getByRole("button", { name: "Pay 100% & Restore Photo" }).click();
   await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   expect(calls).toEqual(["POST checkout"]);
   await expect(page.getByText(/PAID/i)).not.toBeVisible();
@@ -52,8 +52,23 @@ test("refresh payment status performs GET only", async ({ page }) => {
 
 test("mocked-ready session redirects only after explicit Pay and duplicate clicks are disabled", async ({ page }) => {
   const calls = await setup(page, 200);
-  await page.getByRole("button", { name: "Pay securely" }).click();
+  await page.getByRole("button", { name: "Pay 100% & Restore Photo" }).click();
   expect(calls).toEqual(["POST checkout"]);
+});
+
+test("hard refresh recovers persisted PAID processing and completed download", async ({ page }) => {
+  let statusReads = 0;
+  await page.route("**/api/fixed-orders/FO-P4E-0001", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { ...order, paymentStatus: "PAID" } }) }));
+  await page.route("**/api/fixed-orders/FO-P4E-0001/restoration-status", (route) => {
+    statusReads++;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { orderNo: order.orderNo, entitlementStatus: "GRANTED", masterStatus: "VALIDATED", executionStatus: "SUCCEEDED", failureReason: null, downloadAvailable: true, downloadUrl: "http://127.0.0.1/download.jpg" } }) });
+  });
+  await page.goto("/orders/FO-P4E-0001/review");
+  await expect(page.getByText("Completed")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Completed")).toBeVisible();
+  expect(statusReads).toBeGreaterThanOrEqual(2);
 });
 
 for (const width of [360, 390, 430]) {
@@ -61,6 +76,6 @@ for (const width of [360, 390, 430]) {
     await page.setViewportSize({ width, height: 800 });
     await setup(page);
     await expect(page.getByText("PKR 2500.00")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Pay securely" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pay 100% & Restore Photo" })).toBeVisible();
   });
 }

@@ -440,14 +440,26 @@ test("(h2) when compensation also fails, the execution lands in an explicit orph
 });
 
 // Provider isolation
-test("a non-replicate provider selection fails closed before any claim or dispatch", async () => {
-  for (const selection of ["runpod", "mock"] as const) {
+test("a provider selection outside replicate/mock fails closed before any claim or dispatch", async () => {
+  for (const selection of ["runpod"] as const) {
     const { worker, provider, repository } = buildWorker({ selection });
     const result = await worker.processReplicateExecution("exec-1");
     assert.equal(result.outcome, "PROVIDER_NOT_AUTHORIZED");
     assert.equal(provider.calls, 0);
     assert.equal(repository.claimAttempts, 0);
   }
+});
+
+// R9.5-P4B7: "mock" is the one non-"replicate" selection this worker accepts
+// -- see the `providerSelection` doc comment on `ReplicateExecutionWorkerDeps`
+// for why this is safe in production (only a non-production, triple-guarded
+// runner can ever construct this worker with "mock").
+test("a mock provider selection is authorized and reaches claim/dispatch", async () => {
+  const { worker, repository, provider } = buildWorker({ selection: "mock" });
+  const result = await worker.processReplicateExecution("exec-1");
+  assert.notEqual(result.outcome, "PROVIDER_NOT_AUTHORIZED");
+  assert.equal(repository.claimAttempts, 1);
+  assert.equal(provider.calls, 1);
 });
 
 // (k) no public/admin route can dispatch an execution

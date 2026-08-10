@@ -17,7 +17,9 @@
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts",
-    "worker:p4b": "tsx src/scripts/p4b-worker-runner-main.ts"
+    "worker:p4b": "tsx src/scripts/p4b-worker-runner-main.ts",
+    "worker:p4b:mock-local": "tsx src/scripts/p4b-worker-runner-mock-local.ts",
+    "test:p4b-mock-worker-guards": "tsx --test src/scripts/p4b-worker-runner-mock-local.guards.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.882.0",

@@ -1,66 +1,26 @@
-// R9.2-P1C-B: typed, versioned, owner-approved PriceBook.
-//
-// This module holds exactly one owner-approved record, entered verbatim from
-// the owner's explicit PRICEBOOK_APPROVAL block (chat approval, not invented
-// or auto-approved by any code in this repository):
-//
-//   version: PB-2026-08-03-v1
-//   effectiveAt: 2026-08-03T00:00:00Z, expiresAt: NONE
-//   approvedBy: Muhammad Nazim Saeed
-//   approvalReference: OWNER-CHAT-2026-08-03-P1C-B-01
-//   PKR: ORIGINAL 25000 / 2HD 35000 / 4HD 50000 (minor units)
-//   USD: ORIGINAL 150 / 2HD 250 / 4HD 350 (minor units)
-//   pricesIncludeTax: false, printingIncluded: false, automaticFxAllowed: false
-//
-// No code path in this repository may construct a PriceBook with
-// approvalStatus other than "APPROVED" from real (non-test) data, and no
-// code path may set automaticFxAllowed to anything but false -- USD entries
-// above are independently owner-set values, never FX-derived from PKR.
 import type { FixedOrderCurrency, Market } from "../fixedOrder/fixedOrderGuards";
 import type { DigitalTier } from "./offerProvider";
 
-export interface PriceBookEntry {
-  market: Market;
-  currency: FixedOrderCurrency;
-  tier: DigitalTier;
-  /** Integer minor-unit price. Never a float/major-unit value. */
-  amountMinor: number;
-}
+export interface PriceBookEntry { market: Market; currency: FixedOrderCurrency; tier: DigitalTier; amountMinor: number; }
+export interface PriceBook { version: string; approvalStatus: "APPROVED"; approvedBy: string; approvalReference: string; effectiveStartsAt: string; effectiveEndsAt: string | null; pricesIncludeTax: boolean; printingIncluded: boolean; automaticFxAllowed: false; entries: readonly PriceBookEntry[]; }
 
-export interface PriceBook {
-  version: string;
-  approvalStatus: "APPROVED";
-  approvedBy: string;
-  approvalReference: string;
-  /** UTC ISO-8601. Inactive before this instant. */
-  effectiveStartsAt: string;
-  /** UTC ISO-8601, or null for no expiry. Inactive at/after this instant when set. */
-  effectiveEndsAt: string | null;
-  pricesIncludeTax: boolean;
-  printingIncluded: boolean;
-  /** Always false in this repository -- USD entries are independently owner-set, never FX-derived. */
-  automaticFxAllowed: false;
-  entries: readonly PriceBookEntry[];
-}
-
-export const APPROVED_PRICE_BOOKS: readonly PriceBook[] = [
-  {
-    version: "PB-2026-08-03-v1",
-    approvalStatus: "APPROVED",
-    approvedBy: "Muhammad Nazim Saeed",
-    approvalReference: "OWNER-CHAT-2026-08-03-P1C-B-01",
-    effectiveStartsAt: "2026-08-03T00:00:00Z",
-    effectiveEndsAt: null,
-    pricesIncludeTax: false,
-    printingIncluded: false,
-    automaticFxAllowed: false,
-    entries: [
-      { market: "PAKISTAN", currency: "PKR", tier: "ORIGINAL", amountMinor: 25000 },
-      { market: "PAKISTAN", currency: "PKR", tier: "HD_2X", amountMinor: 35000 },
-      { market: "PAKISTAN", currency: "PKR", tier: "HD_4X", amountMinor: 50000 },
-      { market: "INTERNATIONAL", currency: "USD", tier: "ORIGINAL", amountMinor: 150 },
-      { market: "INTERNATIONAL", currency: "USD", tier: "HD_2X", amountMinor: 250 },
-      { market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amountMinor: 350 }
-    ]
-  }
-];
+export const CURRENT_PRICE_BOOK_VERSION = "PB-2026-08-09-TRIAL-V3";
+const tiers: readonly DigitalTier[] = ["ORIGINAL", "HD_2X", "HD_4X", "HD_6X", "HD_8X", "HD_10X", "HD_12X"];
+const pkr = [50000, 100000, 150000, 250000, 350000, 400000, 500000];
+const usd = [199, 299, 499, 699, 899, 1099, 1299];
+export const CURRENT_PRICE_BOOK: PriceBook = {
+  version: CURRENT_PRICE_BOOK_VERSION,
+  approvalStatus: "APPROVED",
+  approvedBy: "Owner pre-production price reset",
+  approvalReference: "OWNER-P4B4-2026-08-09",
+  effectiveStartsAt: "2026-08-08T00:00:00Z",
+  effectiveEndsAt: null,
+  pricesIncludeTax: false,
+  printingIncluded: false,
+  automaticFxAllowed: false,
+  entries: [
+    ...tiers.map((tier, index) => ({ market: "PAKISTAN" as const, currency: "PKR" as const, tier, amountMinor: pkr[index] })),
+    ...tiers.map((tier, index) => ({ market: "INTERNATIONAL" as const, currency: "USD" as const, tier, amountMinor: usd[index] }))
+  ]
+};
+export const APPROVED_PRICE_BOOKS: readonly PriceBook[] = [CURRENT_PRICE_BOOK];

@@ -335,15 +335,16 @@ test("(q7) order not found and attempt not found are rejected and write nothing"
   assert.equal(badAttempt.outcome, "ATTEMPT_NOT_FOUND");
 });
 
-test("(q8) attempt already in a disallowed terminal state rejects new evidence", async () => {
+test("(q8) failed, cancelled, expired, and refunded attempts reject new evidence without execution", async () => {
   const { applyVerifiedPaymentEvidence } = await loadServiceModule();
-  const seed = await seedUnpaidOrder("terminal");
-  await clientA.paymentAttempt.update({ where: { id: seed.attemptId }, data: { status: "REFUNDED" } });
-
-  const result = await applyVerifiedPaymentEvidence(evidenceFor(seed));
-  assert.equal(result.outcome, "ATTEMPT_STATE_NOT_PERMITTED");
-  const entitlementCount = await clientA.restorationEntitlement.count({ where: { fixedOrderId: seed.orderId } });
-  assert.equal(entitlementCount, 0);
+  for (const status of ["FAILED", "CANCELLED", "CANCELLED_BY_CUSTOMER", "EXPIRED", "REFUNDED"] as const) {
+    const seed = await seedUnpaidOrder(`terminal-${status.toLowerCase()}`);
+    await clientA.paymentAttempt.update({ where: { id: seed.attemptId }, data: { status } });
+    const result = await applyVerifiedPaymentEvidence(evidenceFor(seed));
+    assert.equal(result.outcome, "ATTEMPT_STATE_NOT_PERMITTED");
+    assert.equal(await clientA.restorationEntitlement.count({ where: { fixedOrderId: seed.orderId } }), 0);
+    assert.equal(await clientA.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: seed.orderId } } } }), 0);
+  }
 });
 
 test("(q9) malformed / manual-input-shaped evidence (missing fields, wrong types) is rejected before any DB read of business state", async () => {
