@@ -2084,3 +2084,112 @@ P5R/P5R2/P5R3/P5R4/P5R5.
   `p4c-bank-alfalah-mpgs-gateway.service` 6/6,
   `customer-checkout.service` 11/11. `npx prisma validate`/`generate`
   clean. `git diff --check`/`--cached --check` clean.
+
+### R9.5-P5S-LIVE-DEPLOY-WITH-EXTERNAL-DRY-RUN (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`LIVE_PAKISTAN_MULTI_IMAGE_COMMERCE_DEPLOYED` + `PRODUCTION_MIGRATION_CURRENT`
++ `ZERO_REGRESSION` achieved.**
+
+- **Production release SHA: `05ddcd8353e6947a85b40f137d9d9fd289ba7f9a`** --
+  PR #158 (`release/r9.5-pakistan` -> `main`) merged normally, full lineage
+  (`42383d1`, `34113f7`, `7fbdca1`, `db85eda`, `5e0409a`, `653d240` and this
+  release's own multi-image-cart/migration-fix commits) proven as ancestors.
+- **API deploy**: Northflank's git-push auto-deploy fired on the merge (run
+  `31421203164`, success). Live `GET https://api.thannow.com/api/health`
+  returns `build_sha=05ddcd8353e6947a85b40f137d9d9fd289ba7f9a`, matching
+  exactly. Live smoke, all real: `POST /api/restoration-drafts` (201),
+  `GET .../offers` returns all 7 approved V3 tiers, `GET /api/print-catalog`
+  confirms **40x60 = PKR 20,000.00, Triple Canvas = PKR 25,000.00, Triple
+  Canvas delivery = PKR 2,500.00** live, `POST
+  /api/fixed-orders/restoration-cart` creates a real 2-item order with a
+  correct server-authoritative total (100000+50000=150000 minor), unpaid
+  order's `restoration-status/all` shows every entitlement/master/execution
+  status `null` (zero processing before payment), and `GET
+  /api/e2e/test-mode` / `POST .../test-checkout` are both unreachable in
+  production (confirms no public test-payment bypass is exposed, per this
+  packet's explicit constraint).
+- **Frontend deploy**: `npx wrangler pages deploy apps/web/dist
+  --branch main --commit-hash 05ddcd8...`. Deployment
+  `f422d5c8-051d-4157-b45d-f009ab471edb`, confirmed **Production**
+  environment, source `05ddcd8`. `https://www.thannow.com/` returns 200 and
+  serves `index-CqxcXj6m.js` -- byte-identical to this session's local
+  `npm run build` output. Rollback target recorded: prior Production
+  deployment `9f17d6ad-2139-468e-9ad1-f7101844792d` (source `4de67f8`).
+  Neither API nor frontend rollback was exercised -- both smoke gates
+  passed.
+- **Live single-image smoke** (real Playwright against `www.thannow.com`,
+  1440x900 and 390x844): upload -> Preview correctly shows full metadata
+  (file name/format/size/dimensions/aspect ratio/orientation) -> zero
+  horizontal overflow at either size -> zero image 404s -> zero failed
+  requests.
+- **Live 3-image cart smoke** (same real-browser methodology, both
+  viewports): 3 photos uploaded in one selection -> Preview -> Configure;
+  Photo 1 set to 2x HD/Digital, Apply-to-All propagated it to Photos 2/3
+  (verified); Photo 2 overridden to 4x Ultra HD/Print+Digital/4x6/qty10,
+  Photo 3 overridden to 8x/Print+Digital/5x7/qty5; Photo 1 re-verified
+  unchanged after both overrides. One shared delivery address filled once.
+  "Continue to Review" created one real `FixedOrder` via
+  `POST /api/fixed-orders/restoration-cart` (201) and loaded it via
+  `GET .../cart` (200). **Live review page body, captured verbatim,
+  confirms every required invariant exactly:** Photo 1 line total PKR
+  1000.00, Photo 2 line total PKR 2500.00 (1500 restoration + 1000 print),
+  Photo 3 line total PKR 4250.00 (3500 restoration + 750 print);
+  Restoration total PKR 6000.00 (1000+1500+3500); Print total PKR 1750.00
+  (1000+750); **Delivery PKR 250.00 -- the single highest print band, never
+  summed** (2 print items' own delivery bands were equal here, but the
+  order-level field is proven singular/server-computed, matching the
+  pg-race proof of the highest-only rule for differing bands); **TOTAL PKR
+  8000.00 = 6000+1750+250 exactly**; `PriceBook: PB-2026-08-09-TRIAL-V3`;
+  payment panel truthfully reads "Online payment is temporarily
+  unavailable." (Bank Alfalah production integration incomplete -- fail-
+  closed, not fabricated); "Pay 100% & Restore Photos" button visible, only
+  one Payment CTA for the whole order (never per-item). Back-navigation
+  from the Review page returns to Configure with Photo 2's Print+Digital/
+  4x6/qty10 settings still intact (state preserved, not reset). Zero
+  horizontal overflow at every step (home, cart preview, configure, review)
+  at both viewport sizes.
+- **Live 10-image safe check**: 10 files accepted (Continue button reads
+  "Continue to Restoration (10 photos)"), an 11th selection via "Add more
+  photos" is rejected inline, zero horizontal overflow at both viewports.
+  No paid order was created for this check (not required).
+- **Zero-charge dry-run proof (non-production, per this packet's explicit
+  "do not expose a public production test-payment bypass" constraint):**
+  `npm run test:e2e:commerce-local` (disposable local stack, mock
+  restoration provider, zero external calls) is the existing protected
+  seam for full post-payment proof and was already re-run clean in this
+  release cycle: exactly 1 `FixedOrder`/1 `PaymentAttempt`/3
+  `FixedOrderItem`/3 `RestorationEntitlement`/3 `RestorationMaster`/3
+  `ReplicateExecution` for the 3-item cart flow, `realCharges: 0`,
+  `realPredictions: 0`, `external.{replicate,runpod,bank,production}: 0`,
+  in-house print (`IN_HOUSE_PRINT_PENDING`, never
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED`). No new public production
+  test-payment/mock-processing route was added or exposed -- confirmed live
+  above (`/api/e2e/test-mode` and `/test-checkout` both unreachable on
+  `api.thannow.com`).
+- **Two transient console 404s observed during the full multi-page live run
+  were investigated and not reproduced** in three separate isolated
+  re-runs (plain homepage load, single-image flow alone); `image404s` was
+  empty in every run (no first-party image ever 404'd) and no functional
+  step was affected. Recorded as an unreproduced, non-blocking observation,
+  not silently dropped.
+- **No source code changed in this packet** (deploy-only; temporary local
+  Playwright smoke scripts were created outside the repo/deleted before
+  finishing, never committed) -- `git status` clean throughout, `main` at
+  `05ddcd8` before and after. The zero-regression gate for this exact SHA
+  (lint/typecheck/build clean, `test:browser` 116/116, `test:browser:
+  responsive` 99/99, `test:e2e:commerce-local` full pass, all 11 pg-race
+  suites individually green) was already completed and recorded in the
+  R9.5-P5R section immediately above, against this identical commit, prior
+  to merge.
+- **Protected Scope held**: no RunPod activation, no Replicate routing
+  change, no real Bank/card payment, no real Replicate prediction, no
+  public production test-payment/mock-processing bypass, no PriceBook
+  change, no homepage/Hero redesign, no `.gitignore` broadening.
+- **Remaining Pakistan blocker: `BANK_ALFALAH_FINAL_PRODUCTION_INTEGRATION`**
+  (owner-supplied production Merchant ID/credentials/enablement) -- this is
+  the only thing standing between the current truthful "Online payment is
+  temporarily unavailable" fail-closed state and a real live charge. Print
+  is in-house and unblocked; Replicate paid activation is intentionally
+  deferred to occur together with verified live payment readiness, not
+  before.
