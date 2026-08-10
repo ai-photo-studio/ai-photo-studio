@@ -59,11 +59,22 @@ function runPrisma(mode: "status" | "deploy", databaseUrl: string): { status: nu
   return { status: result.status ?? 1, output };
 }
 
+// R9.5-P5R4: Prisma singularizes this message when exactly one migration is
+// pending ("Following migration have not yet been applied:", no "s") and
+// pluralizes it otherwise. The previous hardcoded-plural regex never matched
+// the single-pending case, so `apply` treated `migrate status`'s normal
+// exit-1-because-pending result as a hard failure and aborted before ever
+// running `migrate deploy` -- exported as a pure function so this exact
+// wording contract is unit-testable without mocking spawnSync.
+export function hasPendingMigrationsInOutput(output: string): boolean {
+  return /Following migrations? have not yet been applied:/i.test(output);
+}
+
 export function runMigrationCommand(mode: MigrationMode, env: NodeJS.ProcessEnv = process.env): void {
   const { databaseUrl } = validateMigrationEnvironment(env, mode);
   console.log(`Production migration ${mode}: schema=${SCHEMA_PATH}`);
   const before = runPrisma("status", databaseUrl);
-  const hasPendingMigrations = /Following migrations have not yet been applied:/i.test(before.output);
+  const hasPendingMigrations = hasPendingMigrationsInOutput(before.output);
   if (before.status !== 0 && !(mode === "apply" && hasPendingMigrations)) {
     throw new Error(`Prisma migrate status failed with exit code ${before.status}`);
   }
