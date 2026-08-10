@@ -2013,3 +2013,74 @@ processing -> per-image results/downloads -> in-house print pending.
   `ZERO_REGRESSION` is achieved except for the one pre-existing,
   out-of-scope `restoration-draft.service.pg-race.test.ts` stale-price
   defect noted above, which predates this packet.
+
+### R9.5-P5R-AUTHORIZED-MULTI-IMAGE-PRODUCTION-RELEASE (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+Owner-authorized production migration + release. Spanned packets
+P5R/P5R2/P5R3/P5R4/P5R5.
+
+- **Migration preflight/apply tooling had three real, independent bugs, all
+  found via live dispatch against the real production DB, not guessed:**
+  1. `production-migration-preflight.yml`'s `expected_one`/`expected_two`
+     allowlist still named the two already-applied R9.5-P4B/P4B4
+     migrations, so the genuinely-pending
+     `20260810000000_r95_p5p_item_level_restoration_entitlement` was
+     misclassified as a command failure (PR #154).
+  2. The same workflow's pending-migration extraction regex
+     (`202[0-9]{14}_...`) required 17 digits before the underscore; a real
+     Prisma migration-folder timestamp is 14 digits total
+     (`20260810000000`), so it never matched anything (PR #155).
+  3. The apply step had zero error capture -- a non-zero exit under
+     `set -e` aborted the whole job silently with no diagnostic (PR #156).
+  4. The deeper root cause of the apply itself failing:
+     `scripts/production-migrations.ts`'s `hasPendingMigrations` check
+     hardcoded Prisma's *plural* wording ("Following migrations have not
+     yet been applied:"); Prisma singularizes that message to "Following
+     migration have not yet been applied:" when exactly one migration is
+     pending, so `apply` mode treated the initial, expected non-zero
+     `migrate status` exit as fatal and aborted before ever running
+     `migrate deploy` (PR #157, plus a new exported
+     `hasPendingMigrationsInOutput` pure function and 2 new unit tests
+     covering both wordings in `scripts/production-migrations.test.ts`).
+  All four fixes are minimal, mechanical, credential/business-logic-free,
+  and were landed on `main` via small isolated PRs based on `origin/main`
+  (never touching unrelated release commits), per the established P5G
+  workflow-isolation rule. Each PR merge required explicit owner action
+  after this session's own tool-permission classifier blocked the agent
+  from merging PRs directly -- diffs and manual commands were handed to
+  the owner each time rather than the agent attempting to bypass the
+  block.
+- **Production migration applied.** Read-only preflight (run
+  `31413244230`) confirmed `migration_status=expected_pending`,
+  `pending_migration=20260810000000_r95_p5p_item_level_restoration_entitlement`,
+  source `northflank_runtime_environment`. Apply (run `31413426637`)
+  reported `applied_migration=20260810000000_r95_p5p_item_level_restoration_entitlement`,
+  `apply_migrations=true`. A final confirmation read-only run (`31413642995`)
+  reported `migration_status=clean`, `24 migrations found in
+  prisma/migrations`, `Database schema is up to date!` -- the exact
+  required terminal state. **`PRODUCTION_MIGRATION_CURRENT`.**
+- **Release synced with `main`** via a conflict-free `git merge
+  origin/main` (merge commit `3f2ca3f`) that pulled in only the four
+  workflow-fix PRs; every prior verified lineage commit (`42383d1`,
+  `34113f7`, `7fbdca1`, `db85eda`, `5e0409a`, `653d240`, and this release's
+  own multi-image-cart/migration-fix commits) remained ancestors, proven by
+  `git merge-base --is-ancestor` for each.
+- **Zero-regression gate, full evidence post-migration:** `npm run lint`
+  (0 errors), `typecheck`, `build` all clean; `test:browser -w apps/web`
+  116/116; `test:browser:responsive -w apps/web` 99/99;
+  `test:e2e:commerce-local` full pass (zero real charges/predictions, zero
+  unsafe external calls, in-house print confirmed); all 11 pg-race suites
+  re-run individually against a fresh disposable PostgreSQL 17 instance,
+  all green -- **`restoration-draft.service.pg-race.test.ts` now passes
+  9/9** (the P5Q packet's fixture repair, confirmed still correct),
+  `fixed-order.service.pg-race.test.ts` 16/16,
+  `fixed-order-cart.service.pg-race.test.ts` 10/10,
+  `p5p-multi-item-orchestration.pg-race.test.ts` 10/10,
+  `p3a-replicate-execution-worker` 10/10,
+  `p4a-payment-verified-execution-queue.service` 14/14,
+  `p4b-internal-worker-runner.service` 10/10, `sharp-variant.service` 3/3,
+  `print-fulfilment-boundary.service` 2/2,
+  `p4c-bank-alfalah-mpgs-gateway.service` 6/6,
+  `customer-checkout.service` 11/11. `npx prisma validate`/`generate`
+  clean. `git diff --check`/`--cached --check` clean.
