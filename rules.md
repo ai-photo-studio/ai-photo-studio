@@ -1438,3 +1438,64 @@ This section is additive; every rule above it remains in force verbatim.
   no Hero/homepage redesign, no `.gitignore` broadening.
   `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
   only open business blockers.
+
+### R9.5-P5M-LIVE-UX-FIX-DEPLOYED (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **`LIVE_PAKISTAN_UX_FIX_DEPLOYED`.** PR #153 merged `release/r9.5-pakistan`
+  (`db85eda`, `bc1d390`, both ancestors proven) into `main`: merge commit
+  `4de67f8459eafea69972f8ff67378bdd144fc03e`. Diff versus the previously
+  deployed API SHA (`96314ca`) was confirmed limited to `apps/web/**`,
+  `rules.md`, and `scripts/test-commerce-local.ts` before merge -- no
+  `apps/api/**`, schema, RunPod, Replicate, or payment-backend file was
+  touched, so `API_DEPLOY_REQUIRED=NO`. Northflank's existing git-push
+  webhook still auto-rebuilt the API on this merge (unconditional, no path
+  filter, unchanged pre-existing pipeline behavior) -- re-verified healthy
+  at `build_sha=4de67f8...` with no functional change.
+- **Frontend deployed**: `npx wrangler pages deploy`, project
+  `ai-photo-studio-frontend`, deployment
+  `9f17d6ad-2139-468e-9ad1-f7101844792d`, confirmed Production, source
+  `4de67f8`.
+- **Live desktop smoke (1440x900, real Playwright browser against
+  `www.thannow.com`, real click-through, one real test-image upload, zero
+  real payment)**: modal centered (`520px` panel), `scrollY:0`,
+  `bodyOverflow:hidden`, closes correctly after Continue (`modalOpenAfterNav:
+  false`), reached `/restore-mvp/:id/preview` with exactly one
+  `POST /api/restoration-drafts`; 17/17 homepage images loaded, zero
+  first-party 404, zero console errors; product/quality radios exactly one
+  `aria-checked=true` each; seven V3 tiers exactly
+  500/1000/1500/2500/3500/4000/5000 with the corrected per-tier copy live;
+  Print+Digital form styled, zero horizontal overflow, order-summary block
+  present; Review page cards render as separate label/value lines (no
+  concatenation); Pay button truthfully became "Payment unavailable"
+  (disabled) after one real `PAYMENT_PROVIDER_UNAVAILABLE` response, and no
+  `restoration-processing-status` panel ever appeared (zero pre-payment
+  execution). Real orders created during this smoke:
+  `FO-MSMYXYP0-A6648D4C` (desktop).
+- **Live mobile smoke (390x844)**: identical proof -- modal correct
+  (`350px` panel), scroll-locked, one-upload proven, print form no
+  horizontal overflow, Payment-unavailable state identical. The initial
+  automated image-completeness check flagged 8 below-the-fold images as
+  "broken" before they were scrolled into view (lazy-loading, not a
+  defect) -- a follow-up check that scrolled the full page first confirmed
+  17/17 images complete with zero 404s. Real order created:
+  `FO-MSMYZEBE-192E205E`.
+- **Rollback targets reconfirmed, not exercised**: API ->
+  `dd8924a78f54487ab9336806b3906b4c585a5860`; Frontend ->
+  `72cdd2d7-7334-4f36-80bb-bb6f5a33226c` (source `4965032`). Both live
+  gates passed; no rollback was needed.
+- **Zero regression proof before deploy**: `npm run lint` (0 errors),
+  `npm run typecheck`, `npm run build`, `npm run test:browser -w apps/web`
+  (104/104), `npm run test:browser:responsive -w apps/web` (92/92),
+  `npm run test:e2e:commerce-local` (full pass) -- all re-run fresh on the
+  exact commit that was deployed.
+- **Deferred to next packet (R9.5-P5N), not attempted here**: Preview &
+  Analysis page enhancement, and permanent (committed, not throwaway)
+  live-flow regression coverage for the modal/exclusivity/payment-disabled
+  states this packet proved manually. No unrelated polish was added.
+- **Protected Scope held**: no RunPod, no Replicate routing change, no real
+  payment/card, no invented Bank/print-partner data, no PriceBook price
+  change, no Hero/homepage redesign, no `.gitignore` broadening.
+  `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
+  only open business blockers.
