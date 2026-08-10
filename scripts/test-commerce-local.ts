@@ -249,7 +249,7 @@ async function main() {
         await page.getByText("2x HD", { exact: true }).click();
       }
 
-      await step(`${kind}: review`, () => page.getByRole("button", { name: "Review & Checkout" }).click());
+      await step(`${kind}: review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
       await step(`${kind}: review route`, () => page.waitForURL(/\/orders\/.+\/review/, { timeout: 15_000 }));
       const orderNo = page.url().match(/\/orders\/([^/]+)\/review/)?.[1];
       if (!orderNo) throw new Error(`${kind}: could not read orderNo`);

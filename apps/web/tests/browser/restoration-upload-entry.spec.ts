@@ -107,4 +107,27 @@ test.describe("canonical restoration upload entry", () => {
     await expect(page.getByText("Image must be 10 MB or smaller.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
   });
+
+  test("Remove clears the single selected image and re-enables a fresh single selection", async ({ page }) => {
+    await page.goto("/?upload=1");
+    const input = page.locator("#photoInput");
+    await expect(input).not.toHaveAttribute("multiple", "");
+
+    await input.setInputFiles({ name: "first.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-one") });
+    await expect(page.getByText("first.jpg")).toBeVisible();
+    const continueButton = page.getByRole("button", { name: "Continue to Restoration" });
+    await expect(continueButton).toBeEnabled();
+
+    await page.getByRole("button", { name: "Remove selected image" }).click();
+    await expect(page.getByText("first.jpg")).toHaveCount(0);
+    await expect(continueButton).toBeDisabled();
+    await expect(input).toHaveValue("");
+
+    // Selecting a new single image after Remove works exactly like a first
+    // selection -- the old file is fully gone, not merged/appended.
+    await input.setInputFiles({ name: "second.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-two") });
+    await expect(page.getByText("second.jpg")).toBeVisible();
+    await expect(page.getByText("first.jpg")).toHaveCount(0);
+    await expect(continueButton).toBeEnabled();
+  });
 });

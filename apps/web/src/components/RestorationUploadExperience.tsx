@@ -50,6 +50,18 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         confirmed: true
       });
       if (draft.guestOwnershipToken) setGuestOwnershipToken(draft.id, draft.guestOwnershipToken);
+      // Client-observed facts only (never sent to or trusted from any
+      // server field) so Preview can show a real file name/size -- neither
+      // is persisted server-side. Best-effort only; Preview tolerates its
+      // absence (e.g. after a refresh/direct navigation).
+      try {
+        window.sessionStorage.setItem(
+          `restoration-draft-source-file:${draft.id}`,
+          JSON.stringify({ name: file.name, size: file.size, type: file.type })
+        );
+      } catch {
+        // sessionStorage unavailable -- Preview simply omits these fields.
+      }
       onClose();
       navigate(`/restore-mvp/${draft.id}/preview`, { replace: true });
     } catch (error) {
@@ -95,7 +107,24 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
             }}
           />
         </label>
-        {file && <div className="selected-preview"><div className="selected-fallback" aria-hidden="true">IMG</div><div><strong>{file.name}</strong><small>Ready for restoration</small></div></div>}
+        {file && (
+          <div className="selected-preview">
+            <div className="selected-fallback" aria-hidden="true">IMG</div>
+            <div><strong>{file.name}</strong><small>Ready for restoration</small></div>
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-label="Remove selected image"
+              onClick={() => {
+                setFile(null);
+                setUploadError(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        )}
         {uploadError && <div className="state-panel state-panel-error"><p>{uploadError}</p></div>}
         <button className="btn btn-primary btn-full" type="button" disabled={!file || uploading} onClick={() => void continueFromModal()}>
           {uploading ? "Uploading..." : "Continue to Restoration"}
