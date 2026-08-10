@@ -133,7 +133,7 @@ test("(q2) International upload creates an INTERNATIONAL/USD draft", async () =>
   assert.equal(created.currency, "USD");
 });
 
-test("(q3) Pakistan draft's offers are the exact approved PKR ORIGINAL/2HD/4HD prices", async () => {
+test("(q3) Pakistan draft's offers are the exact approved PKR prices for all seven V3 tiers", async () => {
   const { RestorationDraftService } = await loadServiceModule();
   const storage = fakeStorage();
   const service = new RestorationDraftService(storage.port);
@@ -147,10 +147,15 @@ test("(q3) Pakistan draft's offers are the exact approved PKR ORIGINAL/2HD/4HD p
   const offers = await service.getOffers(created.id, { guestToken: created.guestOwnershipToken });
   assert.ok(Array.isArray(offers));
   const byTier = Object.fromEntries((offers as Array<{ tier: string; amountMinor: number }>).map((o) => [o.tier, o.amountMinor]));
-  assert.deepEqual(byTier, { ORIGINAL: 25000, HD_2X: 35000, HD_4X: 50000 });
+  // R9.5-P5R: PB-2026-08-09-TRIAL-V3 (apps/api/src/domain/pricing/priceBook.ts,
+  // the same values ApprovedOfferProvider serves in production) is the sole
+  // source of truth -- this fixture was stale from an earlier 3-tier
+  // PriceBook version. Test-fixture-only repair; no pricing/business logic
+  // changed.
+  assert.deepEqual(byTier, { ORIGINAL: 50000, HD_2X: 100000, HD_4X: 150000, HD_6X: 250000, HD_8X: 350000, HD_10X: 400000, HD_12X: 500000 });
 });
 
-test("(q4) International draft's offers are the exact approved USD ORIGINAL/2HD/4HD prices", async () => {
+test("(q4) International draft's offers are the exact approved USD prices for all seven V3 tiers", async () => {
   const { RestorationDraftService } = await loadServiceModule();
   const storage = fakeStorage();
   const service = new RestorationDraftService(storage.port);
@@ -164,7 +169,8 @@ test("(q4) International draft's offers are the exact approved USD ORIGINAL/2HD/
   const offers = await service.getOffers(created.id, { guestToken: created.guestOwnershipToken });
   assert.ok(Array.isArray(offers));
   const byTier = Object.fromEntries((offers as Array<{ tier: string; amountMinor: number }>).map((o) => [o.tier, o.amountMinor]));
-  assert.deepEqual(byTier, { ORIGINAL: 150, HD_2X: 250, HD_4X: 350 });
+  // R9.5-P5R: same PB-2026-08-09-TRIAL-V3 source-of-truth repair as (q3).
+  assert.deepEqual(byTier, { ORIGINAL: 199, HD_2X: 299, HD_4X: 499, HD_6X: 699, HD_8X: 899, HD_10X: 1099, HD_12X: 1299 });
 });
 
 test("(q5) wrong-owner and nonexistent draft both fail with an identical, enumeration-safe 404", async () => {
