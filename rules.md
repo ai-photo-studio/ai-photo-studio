@@ -1589,3 +1589,112 @@ This section is additive; every rule above it remains in force verbatim.
   change, no Hero/homepage redesign, no `.gitignore` broadening.
   `BANK_ACTION_REQUIRED` and `PRINT_PARTNER_ASSIGNMENT_REQUIRED` remain the
   only open business blockers.
+
+### R9.5-P5O-PRICEBOOK-CORRECTION-AND-IN-HOUSE-PRINT (2026-08-10)
+
+This section is additive; every rule above it remains in force verbatim.
+
+- **PriceBook audit against `price book/prices.xlsx` (Sheet1, "photo
+  printing + home delivery" table), read directly with `openpyxl`.** Found
+  and fixed one real defect: the runtime print catalog's `40x60` entry was
+  an erroneous duplicate of `30x40`'s price (PKR 15000 minor-unit array
+  value shared between both indices) -- the workbook's actual value is
+  **PKR 20000**, now corrected. Also added **Triple Canvas** (absent from
+  the runtime catalog entirely): **PKR 25000 unit, minimum quantity 1,
+  PKR 2500 delivery**, confirmed by two independent, consistent listings in
+  the workbook (the main size table and the "Premium Triple Canvas"
+  bulk-package block). Triple Canvas is PKR-only -- the workbook has no
+  USD price for it and international print is fail-closed regardless
+  (`INTERNATIONAL_PRINT_SHIPPING_REQUIRED`), so no price was invented for
+  a currency the source doesn't cover. `PRINT_CATALOG_VERSION` bumped
+  `PRINT-CATALOG-2026-08-09-TRIAL-V2` -> `PRINT-CATALOG-2026-08-10-TRIAL-V3`.
+  `TRIPLE_CANVAS_PRICE_SOURCE_REQUIRED` was **not** needed -- the price was
+  provable, not fabricated.
+- **Pakistan print fulfilment is in-house, not partner-dependent.**
+  `print-fulfilment-boundary.service.ts` previously returned the constant
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED` for every market unconditionally --
+  untrue for Pakistan, which has never depended on a real external partner.
+  Added a second exported constant, `IN_HOUSE_PRINT_PENDING`, selected by
+  `owned.market === "PAKISTAN"`; every other market keeps the original
+  partner-blocker behavior unchanged (retained for a possible future
+  non-Pakistan print market). **Zero schema/migration change** -- the
+  existing `FulfilmentOrder.status` enum default (`PENDING`) is already the
+  truthful "created, not yet printed" state regardless of fulfilment model;
+  only the customer-facing blocker/label differs by market now. No
+  `partnerId` was invented; no printed/dispatched/tracking/delivered state
+  was fabricated. The Review page now shows the truthful "Preparing for
+  printing" copy for the in-house case instead of the raw constant string
+  (which is what it was literally rendering before -- another small
+  pre-existing rawness this packet fixed as a direct consequence).
+  `test-commerce-local.ts`'s Print+Digital flow (Pakistan-only) now asserts
+  the browser genuinely shows "Preparing for printing" and never shows
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED` -- previously it only hardcoded the
+  old constant into its own summary output without reading the real value
+  at all. `print-fulfilment-boundary.service.pg-race.test.ts` (run
+  individually against a disposable PostgreSQL 17 instance, not globbed)
+  updated its Pakistan-market assertion to `IN_HOUSE_PRINT_PENDING` and
+  gained a second, lighter test proving the two blocker constants are
+  distinct exports (a full non-Pakistan print order was judged out of
+  scope -- no non-Pakistan print market is active).
+- **Multi-image Pakistan cart commerce was investigated and explicitly NOT
+  attempted this packet -- a genuine architectural blocker, not a scope
+  choice made for convenience.** `FixedOrderItem` is already a real
+  one-to-many relation on `FixedOrder` (schema headroom for multiple line
+  items already exists), but the rest of the paid pipeline is hard-wired
+  to exactly one item per order: `RestorationEntitlement.fixedOrderId` and
+  `PaymentAttempt.fixedOrderId` are both `@unique` (one entitlement, one
+  payment, per order, full stop), `print-fulfilment-boundary.service.ts`
+  reads `items[0]` explicitly, and the entire P4A -> P4B -> P3A verified-
+  payment -> execution pipeline this repository has spent many packets
+  proving safe (see the R9.2-P4A/P4B/P3A sections above) assumes that same
+  one-order-one-entitlement shape throughout. Building real multi-image
+  support (one order, N images, each independently configured, N
+  restorations, N executions, one payment, one delivery charge) requires a
+  genuine schema migration moving entitlement/master ownership from
+  order-level to item-level and reworking the worker loop and print
+  boundary to iterate items -- not a frontend-only or additive backend
+  change. Attempting that migration inside this same low-context packet,
+  alongside everything else, was judged too high-risk to the payment gate
+  to do safely and was not attempted. None of items 3-21 of this packet's
+  instructions (multi-upload UI, per-image configuration, Apply-to-all,
+  mixed print-size calculation, cart Review/Payment/Processing/Result
+  routes, multi-image mock E2E, the associated permanent test coverage) were
+  implemented. The existing single-image flow (already covered by R9.5-P5L
+  -P5N) is untouched and still the only supported customer journey.
+- **Recommended path for a real multi-image packet**: (1) design and land
+  the schema migration first, in its own reviewed packet, moving
+  `RestorationEntitlement`/`RestorationMaster` to key off `FixedOrderItemId`
+  instead of `FixedOrderId` (with a compatibility read-path or backfill for
+  existing single-item orders), before any frontend work begins; (2) update
+  P4A/P4B/P3A and `print-fulfilment-boundary.service.ts` to loop over items,
+  proving the exact-one-execution-per-restoration-item and
+  no-second-execution-for-print invariants hold via new pg-race coverage;
+  only then (3) build the multi-image upload/configure/review UI on top of
+  a already-proven-safe backend.
+- **Zero regression, full evidence:** `npm run lint` (0 errors),
+  `npm run typecheck`, `npm run build`, `npm run test:browser -w apps/web`
+  (106/106), `npm run test:browser:responsive -w apps/web` (93/93),
+  `npm run test:e2e:commerce-local` (full pass, now asserting the real
+  in-house print copy), `print-fulfilment-boundary.service.pg-race.test.ts`
+  run individually against a fresh disposable PostgreSQL 17 (2/2 passed,
+  cluster torn down afterward, port confirmed unreachable),
+  `printCatalog.test.ts` run directly (exact 40x60/Triple Canvas/1750/2250
+  /2750 proof), `npx prisma validate`/`generate` clean (no schema touched,
+  so no migration cycle was needed), `git diff --check`/`--cached --check`
+  clean.
+- **Local commit only, not pushed/deployed.** Commit
+  `34113f7a4784fba9501f82922d698b03c14e2e10` on `release/r9.5-pakistan`
+  ("fix(commerce): correct print PriceBook and make Pakistan printing
+  in-house" -- deliberately not the packet's suggested
+  "feat(commerce): support multi-image Pakistan in-house orders" message,
+  since that would misrepresent a diff that does not add multi-image
+  support), seven files.
+- **Protected Scope held**: no RunPod, no Replicate routing change, no real
+  payment/card, no invented print-partner data, no PriceBook price
+  invented (only corrected/added from the actual source workbook), no
+  Hero/homepage redesign, no `.gitignore` broadening, no schema/migration
+  change. `BANK_ACTION_REQUIRED` remains open;
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED` is now retired for Pakistan
+  specifically (replaced by the truthful `IN_HOUSE_PRINT_PENDING`) but the
+  constant/mechanism remains available for a future non-Pakistan print
+  market.
