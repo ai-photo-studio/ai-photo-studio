@@ -31,3 +31,11 @@ export function requiredTierSurcharge(currentTier: DigitalTier, requiredTier: Di
   if (!requiredTier || tierOrder.indexOf(currentTier) >= tierOrder.indexOf(requiredTier)) return 0;
   return offers.find((offer) => offer.tier === requiredTier)?.amountMinor ?? 0;
 }
+
+export function highestRequiredTier(tiers: Array<DigitalTier | null>): DigitalTier | null {
+  return tiers.filter((tier): tier is DigitalTier => Boolean(tier)).sort((a, b) => tierOrder.indexOf(b) - tierOrder.indexOf(a))[0] ?? null;
+}
+
+export function qualitySurchargeForLines(currentTier: DigitalTier, requiredTiers: Array<DigitalTier | null>, offers: Array<{ tier: DigitalTier; amountMinor: number }>): number {
+  return requiredTierSurcharge(currentTier, highestRequiredTier(requiredTiers), offers);
+}

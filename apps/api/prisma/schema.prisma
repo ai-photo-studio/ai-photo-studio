@@ -1040,6 +1040,7 @@ model FixedOrder {
   restorationEntitlements RestorationEntitlement[]
   addOnLink               AddOnOrderLink?          @relation("AddOnFixedOrder")
   deliveryAddress        PrintDeliveryAddress?
+  printOrderLines        PrintOrderLine[]
   originalOfAddOns       AddOnOrderLink[]        @relation("OriginalFixedOrder")
   auditEvents            AuditEvent[]
 
@@ -1103,6 +1104,7 @@ model FixedOrderItem {
   sourceDraft             RestorationDraft?      @relation(fields: [sourceDraftId], references: [id])
   digitalEntitlements     DigitalEntitlement[]
   printEntitlements       PrintEntitlement[]
+  printOrderLines         PrintOrderLine[]
   restorationEntitlement  RestorationEntitlement?
 
   @@index([fixedOrderId, createdAt])
@@ -1261,6 +1263,7 @@ model PrintEntitlement {
   restorationMasterId String
   printSku            String
   imageVariantId      String?
+  printOrderLineId    String? @unique
   status              PrintEntitlementStatus @default(PREPAID)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
@@ -1269,9 +1272,31 @@ model PrintEntitlement {
   restorationMaster RestorationMaster @relation(fields: [restorationMasterId], references: [id])
   imageVariant      ImageVariant?     @relation(fields: [imageVariantId], references: [id])
   fulfilmentOrder   FulfilmentOrder?
+  printOrderLine    PrintOrderLine? @relation(fields: [printOrderLineId], references: [id])
 
   @@index([restorationMasterId, status])
   @@index([printSku, status])
+}
+
+model PrintOrderLine {
+  id                    String   @id @default(cuid())
+  fixedOrderId          String
+  fixedOrderItemId      String
+  printProduct          String
+  quantity              Int
+  currency              FixedOrderCurrency
+  unitPriceMinor        BigInt
+  subtotalMinor         BigInt
+  requiredTier          String?
+  qualitySurchargeMinor BigInt   @default(0)
+  createdAt             DateTime @default(now())
+
+  fixedOrder     FixedOrder     @relation(fields: [fixedOrderId], references: [id], onDelete: Cascade)
+  fixedOrderItem FixedOrderItem @relation(fields: [fixedOrderItemId], references: [id], onDelete: Cascade)
+  printEntitlement PrintEntitlement?
+
+  @@index([fixedOrderId, createdAt])
+  @@index([fixedOrderItemId, createdAt])
 }
 
 model AddOnOrderLink {

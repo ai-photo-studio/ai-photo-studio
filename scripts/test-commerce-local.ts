@@ -162,6 +162,8 @@ async function main() {
 
   // ---- 2. Migrate from empty. ----
   await runOnce("migrate", npx, ["prisma", "migrate", "deploy"], apiDir, { ...process.env, DATABASE_URL: databaseUrl });
+  await runOnce("migrate-noop", npx, ["prisma", "migrate", "deploy"], apiDir, { ...process.env, DATABASE_URL: databaseUrl });
+  await runOnce("migrate-status", npx, ["prisma", "migrate", "status"], apiDir, { ...process.env, DATABASE_URL: databaseUrl });
 
   const sharedEnv = {
     ...process.env,
@@ -323,8 +325,11 @@ async function main() {
       await photoCard(2).getByText("Print + Digital", { exact: true }).click();
       await photoCard(2).getByText("Small Print", { exact: true }).click();
       await photoCard(2).getByText("4x Ultra HD", { exact: true }).click();
-      await photoCard(2).getByLabel("Print size").selectOption("4x6");
-      await photoCard(2).getByLabel("Quantity").fill("10");
+      await photoCard(2).getByLabel("Print size").nth(0).selectOption("4x6");
+      await photoCard(2).getByLabel("Quantity").nth(0).fill("10");
+      await photoCard(2).getByRole("button", { name: "Add another print size" }).click();
+      await photoCard(2).getByLabel("Print size").nth(1).selectOption("8x10");
+      await photoCard(2).getByLabel("Quantity").nth(1).fill("3");
 
       // Override photo 3: 8x, Print+Digital, a different valid print size/qty.
       await photoCard(3).getByText("Print + Digital", { exact: true }).click();
@@ -354,8 +359,8 @@ async function main() {
       if (order.items.length !== 3) throw new Error(`${kind}: expected 3 items, got ${order.items.length}`);
       if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
       // restoration: 1000 (2x) + 1500 (4x) + 3500 (8x) = 6000
-      // print: 4x6x10 (1000) + 8x12x5 (2750) = 3750; delivery: highest band (250) once
-      const expectedTotal = 600000n + 375000n + 25000n;
+      // print: 4x6x10 (1000) + 8x10x3 (1500) + 8x12x5 (2750) = 5250; delivery once
+      const expectedTotal = 600000n + 525000n + 25000n;
       if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected total ${expectedTotal}, got ${order.totalAmountMinor}`);
       if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid cart queued processing`);
 
@@ -437,7 +442,9 @@ async function main() {
       const cartExecutions = cartMasters.map((m) => m!.replicateExecution).filter(Boolean);
       if (cartExecutions.length !== 3 || cartExecutions.some((x) => x!.status !== "SUCCEEDED")) throw new Error("cart: expected exactly 3 SUCCEEDED ReplicateExecutions, never 1 and never 9");
       const cartPrintEntitlements = await prisma.printEntitlement.count({ where: { fixedOrderItemId: { in: cartOrder.items.map((i) => i.id) } } });
-      if (cartPrintEntitlements !== 2) throw new Error(`cart: expected print records for exactly the 2 print items, got ${cartPrintEntitlements}`);
+      const cartPrintLines = await prisma.printOrderLine.findMany({ where: { fixedOrderId: cartOrder.id }, orderBy: { createdAt: "asc" } });
+      if (cartPrintEntitlements !== 3 || cartPrintLines.length !== 3) throw new Error(`cart: expected 3 print records/lines for 2 print items, got ${cartPrintEntitlements}/${cartPrintLines.length}`);
+      if (cartPrintLines.filter((line) => line.fixedOrderItemId === cartOrder.items[1]!.id).length !== 2) throw new Error("cart: multiple print lines were not attached to one source item");
 
       const counts = {
         restorationDraft: await prisma.restorationDraft.count(),
@@ -454,7 +461,7 @@ async function main() {
         shipment: await prisma.shipment.count()
       };
       // Single-item flows (2 orders, 1 item each) + cart flow (1 order, 3 items).
-      const expected = { restorationDraft: 5, fixedOrder: 3, fixedOrderItem: 5, paymentAttempt: 3, paymentEvent: 3, restorationEntitlement: 5, restorationMaster: 5, replicateExecution: 5, printDeliveryAddress: 2, printEntitlement: 3, fulfilmentOrder: 3, shipment: 0 };
+      const expected = { restorationDraft: 5, fixedOrder: 3, fixedOrderItem: 5, paymentAttempt: 3, paymentEvent: 3, restorationEntitlement: 5, restorationMaster: 5, replicateExecution: 5, printDeliveryAddress: 2, printEntitlement: 4, fulfilmentOrder: 4, shipment: 0 };
       for (const [key, value] of Object.entries(expected)) if (counts[key as keyof typeof counts] !== value) throw new Error(`expected ${value} ${key}, got ${counts[key as keyof typeof counts]}`);
       // Only Replicate/RunPod/Bank Alfalah/production-API are safety-critical
       // for a zero-cost harness -- those must be exactly 0. "other" catches

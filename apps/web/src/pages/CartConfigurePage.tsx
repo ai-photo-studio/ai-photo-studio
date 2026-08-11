@@ -28,6 +28,7 @@ type ItemConfig = {
   useCaseId: CustomerUseCaseId | null;
   printSize: string;
   quantity: number;
+  printLines?: Array<{ printSize: string; quantity: number }>;
 };
 
 type SavedConfigureState = { configs: Record<string, ItemConfig>; address: { recipientName: string; phone: string; addressLine1: string; city: string; countryCode: string } };
@@ -91,7 +92,7 @@ export function CartConfigurePage() {
           const savedTierStillOffered = savedConfig && offers.some((o) => o.tier === savedConfig.tier);
           initialConfigs[id] = savedTierStillOffered
             ? savedConfig
-             : { tier: offers[0]?.tier ?? "ORIGINAL", product: null, useCaseId: null, printSize: "", quantity: 1 };
+             : { tier: offers[0]?.tier ?? "ORIGINAL", product: null, useCaseId: null, printSize: "", quantity: 1, printLines: [] };
         }
       }
       setOffersByDraft(byDraft);
@@ -154,8 +155,9 @@ export function CartConfigurePage() {
           draftId: id,
           tier: c.tier,
           product: c.product,
-          printSize: c.product === "PRINT_DIGITAL" ? c.printSize : undefined,
-          quantity: c.product === "PRINT_DIGITAL" ? c.quantity : undefined,
+           printSize: c.product === "PRINT_DIGITAL" ? c.printSize : undefined,
+           quantity: c.product === "PRINT_DIGITAL" ? c.quantity : undefined,
+           printLines: c.product === "PRINT_DIGITAL" ? (c.printLines?.length ? c.printLines : [{ printSize: c.printSize, quantity: c.quantity }]) : undefined,
           // Each draft was uploaded anonymously in its own call and may
           // carry its own distinct guest ownership token -- send every
           // item's own token, not just the first draft's.
@@ -200,9 +202,6 @@ export function CartConfigurePage() {
         const offers = offersByDraft[id] || [];
         const config = configs[id];
         if (!config) return null;
-        const printItem = printCatalog.find((entry) => entry.size === config.printSize);
-        const minimumQuantity = printItem?.minimumQuantity ?? 1;
-        const belowMinimum = config.product === "PRINT_DIGITAL" && Number.isSafeInteger(config.quantity) && config.quantity < minimumQuantity;
         return (
           <div className="card" key={id} style={{ marginBottom: "1.25rem" }}>
             <h2 className="section-subheading">Photo {index + 1} of {draftIds.length}</h2>
@@ -212,7 +211,7 @@ export function CartConfigurePage() {
               <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL", useCaseId: null })}>
                 <h3 style={{ fontSize: "1rem" }}>Digital Download</h3>
               </button>
-              <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", useCaseId: null, printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 })}>
+              <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", useCaseId: null, printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1, printLines: config.printLines?.length ? config.printLines : [{ printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 }] })}>
                 <h3 style={{ fontSize: "1rem" }}>Print + Digital</h3>
               </button>
             </div>
@@ -256,19 +255,20 @@ export function CartConfigurePage() {
             )}
 
             {config.product === "PRINT_DIGITAL" && (
-              <div className="field-grid">
-                <label>
-                  Print size
-                  <select value={config.printSize} onChange={(e) => { const item = printCatalog.find((entry) => entry.size === e.target.value); updateConfig(id, { printSize: e.target.value, quantity: item?.minimumQuantity ?? 1 }); }}>
-                    {printCatalog.filter((item) => !config.useCaseId || CUSTOMER_USE_CASES.find((useCase) => useCase.id === config.useCaseId)?.sizes.includes(item.size)).map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Quantity
-                   <input type="number" min={minimumQuantity} max={10} value={config.quantity} onChange={(e) => updateConfig(id, { quantity: Number(e.target.value) })} />
-                  {belowMinimum && <small className="field-error">Minimum quantity for this size is {minimumQuantity}.</small>}
-                </label>
-              </div>
+               <div className="stack">
+                 {(config.printLines?.length ? config.printLines : [{ printSize: config.printSize, quantity: config.quantity }]).map((line, lineIndex) => {
+                   const lineItem = printCatalog.find((entry) => entry.size === line.printSize);
+                   const lineMinimum = lineItem?.minimumQuantity ?? 1;
+                   return <div className="field-grid" key={`${id}-${lineIndex}`}>
+                     <label>Print size<select value={line.printSize} onChange={(e) => { const item = printCatalog.find((entry) => entry.size === e.target.value); const lines = [...(config.printLines?.length ? config.printLines : [{ printSize: config.printSize, quantity: config.quantity }])]; lines[lineIndex] = { printSize: e.target.value, quantity: item?.minimumQuantity ?? 1 }; updateConfig(id, { printLines: lines, printSize: lines[0].printSize, quantity: lines[0].quantity }); }}>
+                       {printCatalog.map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}</option>)}
+                     </select></label>
+                     <label>Quantity<input type="number" min={lineMinimum} max={10} value={line.quantity} onChange={(e) => { const lines = [...(config.printLines?.length ? config.printLines : [{ printSize: config.printSize, quantity: config.quantity }])]; lines[lineIndex] = { ...lines[lineIndex], quantity: Number(e.target.value) }; updateConfig(id, { printLines: lines, printSize: lines[0].printSize, quantity: lines[0].quantity }); }} />{line.quantity < lineMinimum && <small className="field-error">Minimum quantity is {lineMinimum}.</small>}</label>
+                     {lineIndex > 0 && <button type="button" className="button button-ghost" onClick={() => { const lines = [...(config.printLines || [])]; lines.splice(lineIndex, 1); updateConfig(id, { printLines: lines }); }}>Remove line</button>}
+                   </div>;
+                 })}
+                 {(config.printLines?.length ?? 1) < 10 && <button type="button" className="button button-secondary" onClick={() => updateConfig(id, { printLines: [...(config.printLines?.length ? config.printLines : [{ printSize: config.printSize, quantity: config.quantity }]), { printSize: printCatalog[0]?.size || config.printSize, quantity: printCatalog[0]?.minimumQuantity || 1 }] })}>Add another print size</button>}
+               </div>
             )}
             <button type="button" className="button button-ghost" onClick={() => updateConfig(id, { useCaseId: null })}>Back to Use Case</button>
             </>}

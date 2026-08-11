@@ -49,6 +49,7 @@ export interface CreateRestorationDigitalOrderInput {
   product?: "DIGITAL" | "PRINT_DIGITAL";
   printSize?: string;
   quantity?: number;
+  printLines?: Array<{ printSize: string; quantity: number }>;
   deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
 
@@ -58,6 +59,7 @@ export interface CartItemInput {
   product: "DIGITAL" | "PRINT_DIGITAL";
   printSize?: string;
   quantity?: number;
+  printLines?: Array<{ printSize: string; quantity: number }>;
   // Each draft in a cart may have been created anonymously in its own
   // upload call and therefore carry its own distinct guest ownership
   // token (unlike the single-item flow, where one request always maps to
@@ -79,6 +81,7 @@ export interface CartItemSafeView {
   product: "DIGITAL" | "PRINT_DIGITAL";
   digitalAmountMinor: string;
   print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string };
+  prints?: Array<{ size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string; requiredTier?: string; qualitySurchargeMinor: string }>;
   lineTotalMinor: string;
 }
 
@@ -175,10 +178,10 @@ function toSafeView(order: {
   };
 }
 
-const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const }, select: { tierOrSku: true, pricingSource: true, pricingApproved: true, metadata: true } }, deliveryAddress: true, paymentAttempt: { select: { status: true } } };
+const ORDER_INCLUDE = { items: { take: 1, orderBy: { createdAt: "asc" as const }, select: { id: true, tierOrSku: true, pricingSource: true, pricingApproved: true, metadata: true } }, deliveryAddress: true, paymentAttempt: { select: { status: true } } };
 
 const CART_ORDER_INCLUDE = {
-  items: { orderBy: { createdAt: "asc" as const }, select: { id: true, tierOrSku: true, unitAmountMinor: true, totalAmountMinor: true, pricingSource: true, pricingApproved: true, metadata: true, sourceDraftId: true } },
+  items: { orderBy: { createdAt: "asc" as const }, select: { id: true, tierOrSku: true, unitAmountMinor: true, totalAmountMinor: true, pricingSource: true, pricingApproved: true, metadata: true, sourceDraftId: true, printOrderLines: { orderBy: { createdAt: "asc" as const } } } },
   deliveryAddress: true,
   paymentAttempt: { select: { status: true } }
 };
@@ -192,19 +195,22 @@ function toCartSafeView(order: {
   totalAmountMinor: bigint;
   priceBookVersion: string | null;
   createdAt: Date;
-  items: Array<{ id: string; tierOrSku: string | null; unitAmountMinor: bigint; totalAmountMinor: bigint; metadata: unknown; sourceDraftId: string | null }>;
+  items: Array<{ id: string; tierOrSku: string | null; unitAmountMinor: bigint; totalAmountMinor: bigint; metadata: unknown; sourceDraftId: string | null; printOrderLines: Array<{ printProduct: string; quantity: number; unitPriceMinor: bigint; subtotalMinor: bigint; requiredTier: string | null; qualitySurchargeMinor: bigint }> }>;
   paymentAttempt?: { status: string } | null;
 }): FixedOrderCartSafeView {
   const items: CartItemSafeView[] = order.items.map((item) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const printMeta = item.metadata && typeof item.metadata === "object" && "print" in item.metadata ? (item.metadata as any).print : null;
+    const linePrints = item.printOrderLines.map((line) => ({ size: line.printProduct, quantity: line.quantity, unitAmountMinor: line.unitPriceMinor.toString(), subtotalMinor: line.subtotalMinor.toString(), catalogVersion: PRINT_CATALOG_VERSION, ...(line.requiredTier ? { requiredTier: line.requiredTier } : {}), qualitySurchargeMinor: line.qualitySurchargeMinor.toString() }));
+    const legacyPrint = printMeta ? { size: String(printMeta.size), quantity: Number(printMeta.quantity), unitAmountMinor: String(printMeta.unitAmountMinor), subtotalMinor: String(printMeta.subtotalMinor), catalogVersion: String(printMeta.catalogVersion) } : undefined;
     return {
       fixedOrderItemId: item.id,
       draftId: item.sourceDraftId ?? "",
       tier: (item.tierOrSku ?? "ORIGINAL") as DigitalTier,
       product: printMeta ? "PRINT_DIGITAL" : "DIGITAL",
       digitalAmountMinor: item.unitAmountMinor.toString(),
-      print: printMeta ? { size: String(printMeta.size), quantity: Number(printMeta.quantity), unitAmountMinor: String(printMeta.unitAmountMinor), subtotalMinor: String(printMeta.subtotalMinor), catalogVersion: String(printMeta.catalogVersion) } : undefined,
+      print: linePrints[0] ? { size: linePrints[0].size, quantity: linePrints[0].quantity, unitAmountMinor: linePrints[0].unitAmountMinor, subtotalMinor: linePrints[0].subtotalMinor, catalogVersion: linePrints[0].catalogVersion } : legacyPrint,
+      prints: linePrints.length > 0 ? linePrints : (legacyPrint ? [{ ...legacyPrint, qualitySurchargeMinor: "0" }] : []),
       lineTotalMinor: item.totalAmountMinor.toString()
     };
   });
@@ -304,12 +310,15 @@ export class FixedOrderService {
     const isApproved = offer.source === "approved_pricebook";
     const isPrint = input.product === "PRINT_DIGITAL";
     let printQuote: ReturnType<typeof quotePrint> | undefined;
+    let printLines: Array<{ printSize: string; quantity: number; quote: ReturnType<typeof quotePrint> }> = [];
     if (isPrint) {
       if (owned.currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
       if (owned.currency !== "PKR" || !input.printSize || !Number.isSafeInteger(input.quantity)) throw new AppError("valid PKR print size and quantity are required", 422, "INVALID_PRINT_SELECTION");
       const address = input.deliveryAddress;
       if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");
-      try { printQuote = quotePrint(offer.amountMinor, input.printSize, input.quantity); } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
+      const requestedLines = input.printLines?.length ? input.printLines : [{ printSize: input.printSize, quantity: input.quantity }];
+      if (requestedLines.length > 10) throw new AppError("too many print lines", 422, "INVALID_PRINT_LINES");
+      try { printLines = requestedLines.map((line) => ({ printSize: line.printSize, quantity: line.quantity, quote: quotePrint(offer.amountMinor, line.printSize, line.quantity) })); printQuote = printLines[0]?.quote; } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
     }
 
     try {
@@ -324,7 +333,7 @@ export class FixedOrderService {
             ownerCustomerId: null,
             guestOwnershipTokenHash: owned.guestOwnershipTokenHash ?? null,
             sourceDraftId: owned.id,
-            totalAmountMinor: BigInt(printQuote?.totalAmountMinor ?? offer.amountMinor),
+            totalAmountMinor: BigInt(offer.amountMinor) + printLines.reduce((sum, line) => sum + BigInt(line.quote.printSubtotalMinor), 0n) + printLines.reduce((max, line) => { const fee = BigInt(line.quote.deliveryFeeMinor); return fee > max ? fee : max; }, 0n),
             priceBookVersion: isApproved ? offer.priceBookVersion ?? null : null,
             priceBookApprovalReference: isApproved ? offer.approvalReference ?? null : null,
             priceBookEffectiveAt: isApproved && offer.effectiveAt ? new Date(offer.effectiveAt) : null,
@@ -333,17 +342,19 @@ export class FixedOrderService {
                 kind: "RESTORATION_DIGITAL_TIER",
                 tierOrSku: tier,
                 unitAmountMinor: BigInt(offer.amountMinor),
-                totalAmountMinor: BigInt(printQuote?.totalAmountMinor ?? offer.amountMinor),
+                totalAmountMinor: BigInt(offer.amountMinor) + printLines.reduce((sum, line) => sum + BigInt(line.quote.printSubtotalMinor), 0n),
                 currency: owned.currency as FixedOrderCurrency,
                 pricingSource: offer.source,
                 pricingApproved: isApproved,
-                metadata: printQuote && input.printSize ? { print: { size: input.printSize, quantity: input.quantity, unitAmountMinor: printQuote.printSubtotalMinor / (input.quantity ?? 1), subtotalMinor: printQuote.printSubtotalMinor, deliveryAmountMinor: printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION } } : undefined
+                metadata: printQuote && input.printSize ? { print: { size: input.printSize, quantity: input.quantity, unitAmountMinor: printQuote.printSubtotalMinor / (input.quantity ?? 1), subtotalMinor: printQuote.printSubtotalMinor, deliveryAmountMinor: printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION }, printLines: printLines.map((line) => ({ size: line.printSize, quantity: line.quantity, unitAmountMinor: line.quote.printSubtotalMinor / line.quantity, subtotalMinor: line.quote.printSubtotalMinor, deliveryAmountMinor: line.quote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION })) } : undefined
               }
             }
           },
           include: ORDER_INCLUDE
         });
 
+        const createdItem = order.items[0];
+        if (createdItem && printLines.length > 0) await tx.printOrderLine.createMany({ data: printLines.map((line) => ({ fixedOrderId: order.id, fixedOrderItemId: createdItem.id, printProduct: line.printSize, quantity: line.quantity, currency: owned.currency as FixedOrderCurrency, unitPriceMinor: BigInt(line.quote.printSubtotalMinor / line.quantity), subtotalMinor: BigInt(line.quote.printSubtotalMinor), requiredTier: tier, qualitySurchargeMinor: 0n })) });
         await tx.restorationDraft.update({
           where: { id: owned.id },
           data: { status: "ORDER_SELECTION" }
@@ -471,9 +482,7 @@ export class FixedOrderService {
       tier: DigitalTier;
       offer: ReturnType<typeof findOfferByTier>;
       isPrint: boolean;
-      printSize?: string;
-      quantity?: number;
-      printQuote?: ReturnType<typeof quotePrint>;
+      printLines: Array<{ printSize: string; quantity: number; printQuote: ReturnType<typeof quotePrint> }>;
     };
     const resolved: ResolvedItem[] = [];
     for (const raw of input.items) {
@@ -484,16 +493,17 @@ export class FixedOrderService {
       const offer = findOfferByTier(offers, tier);
       if (!offer) throw new AppError(`no approved offer for tier ${tier} in market ${market}`, 422, "INVALID_TIER");
       const isPrint = raw.product === "PRINT_DIGITAL";
-      let printQuote: ReturnType<typeof quotePrint> | undefined;
+      const requestedLines = isPrint ? (raw.printLines?.length ? raw.printLines : (raw.printSize ? [{ printSize: raw.printSize, quantity: raw.quantity ?? 0 }] : [])) : [];
+      if (isPrint && (requestedLines.length < 1 || requestedLines.length > 10)) throw new AppError("one to ten print lines are required", 422, "INVALID_PRINT_LINES");
+      const printLines: Array<{ printSize: string; quantity: number; printQuote: ReturnType<typeof quotePrint> }> = [];
       if (isPrint) {
-        if (!raw.printSize || !Number.isSafeInteger(raw.quantity)) throw new AppError("valid print size and quantity are required for a Print + Digital item", 422, "INVALID_PRINT_SELECTION");
-        try {
-          printQuote = quotePrint(offer.amountMinor, raw.printSize, raw.quantity!);
-        } catch (error) {
-          throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION");
+        for (const line of requestedLines) {
+          if (!line.printSize || !Number.isSafeInteger(line.quantity)) throw new AppError("valid print size and quantity are required for a Print + Digital item", 422, "INVALID_PRINT_SELECTION");
+          try { printLines.push({ printSize: line.printSize, quantity: line.quantity, printQuote: quotePrint(offer.amountMinor, line.printSize, line.quantity) }); }
+          catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
         }
       }
-      resolved.push({ draftId: raw.draftId, tier, offer, isPrint, printSize: raw.printSize, quantity: raw.quantity, printQuote });
+      resolved.push({ draftId: raw.draftId, tier, offer, isPrint, printLines });
     }
 
     // ---- Server-authoritative totals: restoration + print subtotals summed
@@ -501,9 +511,9 @@ export class FixedOrderService {
     // band among the print items selected -- never per item, never client-
     // supplied. ----
     const restorationTotalMinor = resolved.reduce((sum, item) => sum + BigInt(item.offer!.amountMinor), 0n);
-    const printTotalMinor = resolved.reduce((sum, item) => sum + BigInt(item.printQuote?.printSubtotalMinor ?? 0), 0n);
+    const printTotalMinor = resolved.reduce((sum, item) => sum + item.printLines.reduce((lineSum, line) => lineSum + BigInt(line.printQuote.printSubtotalMinor), 0n), 0n);
     const deliveryAmountMinor = resolved.reduce((max, item) => {
-      const band = BigInt(item.printQuote?.deliveryFeeMinor ?? 0);
+      const band = item.printLines.reduce((lineMax, line) => { const fee = BigInt(line.printQuote.deliveryFeeMinor ?? 0); return fee > lineMax ? fee : lineMax; }, 0n);
       return band > max ? band : max;
     }, 0n);
     const grandTotalMinor = restorationTotalMinor + printTotalMinor + deliveryAmountMinor;
@@ -537,13 +547,13 @@ export class FixedOrderService {
                 kind: "RESTORATION_DIGITAL_TIER",
                 tierOrSku: item.tier,
                 unitAmountMinor: BigInt(item.offer!.amountMinor),
-                totalAmountMinor: BigInt(item.offer!.amountMinor) + BigInt(item.printQuote?.printSubtotalMinor ?? 0),
+                totalAmountMinor: BigInt(item.offer!.amountMinor) + item.printLines.reduce((sum, line) => sum + BigInt(line.printQuote.printSubtotalMinor), 0n),
                 currency: currency as FixedOrderCurrency,
                 pricingSource: item.offer!.source,
                 pricingApproved: item.offer!.source === "approved_pricebook",
                 sourceDraftId: item.draftId,
-                metadata: item.printQuote && item.printSize
-                  ? { print: { size: item.printSize, quantity: item.quantity, unitAmountMinor: item.printQuote.printSubtotalMinor / (item.quantity ?? 1), subtotalMinor: item.printQuote.printSubtotalMinor, deliveryAmountMinor: item.printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION } }
+                metadata: item.printLines.length > 0
+                  ? { print: { size: item.printLines[0].printSize, quantity: item.printLines[0].quantity, unitAmountMinor: item.printLines[0].printQuote.printSubtotalMinor / item.printLines[0].quantity, subtotalMinor: item.printLines[0].printQuote.printSubtotalMinor, deliveryAmountMinor: item.printLines[0].printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION }, printLines: item.printLines.map((line) => ({ size: line.printSize, quantity: line.quantity, unitAmountMinor: line.printQuote.printSubtotalMinor / line.quantity, subtotalMinor: line.printQuote.printSubtotalMinor, deliveryAmountMinor: line.printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION })) }
                   : undefined
               }))
             }
@@ -551,13 +561,18 @@ export class FixedOrderService {
           include: CART_ORDER_INCLUDE
         });
 
+        for (const item of resolved) {
+          const createdItem = order.items.find((candidate) => candidate.sourceDraftId === item.draftId);
+          if (!createdItem) throw new Error("created print item could not be resolved");
+          if (item.printLines.length > 0) await tx.printOrderLine.createMany({ data: item.printLines.map((line) => ({ fixedOrderId: order.id, fixedOrderItemId: createdItem.id, printProduct: line.printSize, quantity: line.quantity, currency: currency as FixedOrderCurrency, unitPriceMinor: BigInt(line.printQuote.printSubtotalMinor / line.quantity), subtotalMinor: BigInt(line.printQuote.printSubtotalMinor), requiredTier: item.tier, qualitySurchargeMinor: 0n })) });
+        }
         await tx.restorationDraft.updateMany({ where: { id: { in: draftIds } }, data: { status: "ORDER_SELECTION" } });
         if (anyPrint && input.deliveryAddress) {
           await tx.printDeliveryAddress.create({ data: { fixedOrderId: order.id, ...input.deliveryAddress } });
         }
         return order;
       });
-      return toCartSafeView(created);
+      return this.getCartByOrderNo(created.orderNo, primaryActor);
     } catch (err) {
       if (isUniqueConstraintViolation(err)) {
         const winner = await prisma.fixedOrder.findFirst({ where: { sourceDraftId: resolved[0].draftId }, include: CART_ORDER_INCLUDE });

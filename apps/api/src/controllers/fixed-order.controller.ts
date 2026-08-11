@@ -26,7 +26,7 @@ export class FixedOrderController {
       const tier = typeof req.body?.tier === "string" ? req.body.tier : "";
       const product = req.body?.product === "PRINT_DIGITAL" ? "PRINT_DIGITAL" : "DIGITAL";
       const data = await this.fixedOrders.createRestorationDigitalOrder(
-        { draftId, tier, product, printSize: req.body?.printSize, quantity: req.body?.quantity, deliveryAddress: req.body?.deliveryAddress },
+        { draftId, tier, product, printSize: req.body?.printSize, quantity: req.body?.quantity, printLines: Array.isArray(req.body?.printLines) ? req.body.printLines : undefined, deliveryAddress: req.body?.deliveryAddress },
         actorFromRequest(req)
       );
       res.status(201).json({ success: true, data });
@@ -64,6 +64,11 @@ export class FixedOrderController {
         product: raw?.product === "PRINT_DIGITAL" ? "PRINT_DIGITAL" as const : "DIGITAL" as const,
         printSize: typeof raw?.printSize === "string" ? raw.printSize : undefined,
         quantity: typeof raw?.quantity === "number" ? raw.quantity : undefined,
+        printLines: Array.isArray(raw?.printLines) ? raw.printLines.flatMap((line) => {
+          if (!line || typeof line !== "object") return [];
+          const candidate = line as Record<string, unknown>;
+          return typeof candidate.printSize === "string" && typeof candidate.quantity === "number" ? [{ printSize: candidate.printSize, quantity: candidate.quantity }] : [];
+        }) : undefined,
         guestOwnershipToken: typeof raw?.guestOwnershipToken === "string" ? raw.guestOwnershipToken : undefined
       }));
       const data = await this.fixedOrders.createRestorationCartOrder(

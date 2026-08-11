@@ -24,7 +24,8 @@ const ORDER_INCLUDE_FOR_PRINT = {
     orderBy: { createdAt: "asc" as const },
     include: {
       restorationEntitlement: { include: { restorationMaster: true } },
-      printEntitlements: { include: { fulfilmentOrder: true } }
+      printEntitlements: { include: { fulfilmentOrder: true } },
+      printOrderLines: { orderBy: { createdAt: "asc" as const } }
     }
   }
 };
@@ -42,29 +43,34 @@ function printSnapshotFor(item: ItemWithEntitlement): { size: string } | null {
 }
 
 async function prepareOneItem(order: OrderWithItems, item: ItemWithEntitlement, blocker: ReturnType<typeof blockerForMarket>) {
-  const snapshot = printSnapshotFor(item);
-  if (!snapshot) throw new AppError("valid print snapshot is required", 422, "PRINT_SNAPSHOT_REQUIRED");
+  const lineInputs = item.printOrderLines.length > 0 ? item.printOrderLines.map((line) => ({ id: line.id, size: line.printProduct })) : (() => { const snapshot = printSnapshotFor(item); return snapshot ? [{ id: null, size: snapshot.size }] : []; })();
+  if (lineInputs.length === 0) throw new AppError("valid print snapshot is required", 422, "PRINT_SNAPSHOT_REQUIRED");
   // R9.5-P5P: reuses THIS item's own restoration master, never the order's
   // -- each item is restored independently, so print must never borrow
   // another item's master.
   if (item.restorationEntitlement?.restorationMaster?.status !== "VALIDATED") {
     throw new AppError("validated restoration is required", 409, "RESTORATION_NOT_READY");
   }
-  const existing = item.printEntitlements[0];
-  if (existing?.fulfilmentOrder) {
-    return { printEntitlementId: existing.id, fulfilmentOrderId: existing.fulfilmentOrder.id, status: existing.fulfilmentOrder.status, blocker, fixedOrderItemId: item.id };
+  const existing = lineInputs.map((line) => item.printEntitlements.find((candidate) => candidate.printOrderLineId === line.id || (!line.id && candidate.printSku === line.size))).filter((candidate) => candidate?.fulfilmentOrder);
+  if (existing.length === lineInputs.length) {
+    return { printEntitlementId: existing[0]!.id, fulfilmentOrderId: existing[0]!.fulfilmentOrder!.id, status: existing[0]!.fulfilmentOrder!.status, blocker, fixedOrderItemId: item.id, printEntitlementIds: existing.map((candidate) => candidate!.id) };
   }
   const masterId = item.restorationEntitlement.restorationMaster.id;
   const created = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${item.id}))`;
     const current = await tx.fixedOrderItem.findUnique({ where: { id: item.id }, include: { printEntitlements: { include: { fulfilmentOrder: true } } } });
-    const winner = current?.printEntitlements.find((candidate) => candidate.fulfilmentOrder);
-    if (winner?.fulfilmentOrder) return { entitlement: winner, fulfilment: winner.fulfilmentOrder };
-    const entitlement = await tx.printEntitlement.create({ data: { fixedOrderItemId: item.id, restorationMasterId: masterId, printSku: String(snapshot.size), status: "PREPAID" } });
-    const fulfilment = await tx.fulfilmentOrder.create({ data: { printEntitlementId: entitlement.id, status: "PENDING" } });
-    return { entitlement, fulfilment };
+    const createdLines = [];
+    for (const line of lineInputs) {
+      const winner = current?.printEntitlements.find((candidate) => candidate.printOrderLineId === line.id && candidate.fulfilmentOrder);
+      if (winner?.fulfilmentOrder) { createdLines.push({ entitlement: winner, fulfilment: winner.fulfilmentOrder }); continue; }
+      const entitlement = await tx.printEntitlement.create({ data: { fixedOrderItemId: item.id, restorationMasterId: masterId, printSku: String(line.size), printOrderLineId: line.id, status: "PREPAID" } });
+      const fulfilment = await tx.fulfilmentOrder.create({ data: { printEntitlementId: entitlement.id, status: "PENDING" } });
+      createdLines.push({ entitlement, fulfilment });
+    }
+    return createdLines;
   });
-  return { printEntitlementId: created.entitlement.id, fulfilmentOrderId: created.fulfilment.id, status: created.fulfilment.status, blocker, fixedOrderItemId: item.id };
+  const first = created[0];
+  return { printEntitlementId: first.entitlement.id, fulfilmentOrderId: first.fulfilment.id, status: first.fulfilment.status, blocker, fixedOrderItemId: item.id, printEntitlementIds: created.map((line) => line.entitlement.id) };
 }
 
 export class PrintFulfilmentBoundaryService {

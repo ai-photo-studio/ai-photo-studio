@@ -3031,3 +3031,54 @@ changes were needed; the integration was already credential-ready.**
   Remaining blockers only: `PRINT_ADDON_AND_MULTI_LINE_SCHEMA_REQUIRED`,
   undocumented Triple Canvas physical dimensions, and tomorrow's ThanNow APG
   sandbox credentials/hash/IPN confirmation.
+
+### R9.5-P6F — Multi-Print Lines and Storage Policy (2026-08-11)
+
+- New developer/runtime installations use `D:` by preference and `E:` as
+  fallback for AI tools, configurable CLI tools, Node/npm caches, Python
+  environments/caches, disposable PostgreSQL/test instances, browser and
+  Chrome DevTools profiles, temporary build/test directories, large caches,
+  downloaded models, local databases, and workspace clones/worktrees. Never
+  intentionally install new large tooling/data on `C:`. Existing `C:` tools
+  require an audit and classification: `SAFE_TO_RELOCATE`,
+  `REINSTALL_TO_D_OR_E`, `SYSTEM_MANAGED_DO_NOT_MOVE`, or
+  `UNKNOWN_DO_NOT_TOUCH`. Only officially supported relocation is allowed;
+  Windows, services, arbitrary Program Files installs, and critical AppData
+  runtime dependencies are never raw-moved. No unrelated mass migration is
+  part of this packet.
+- C-drive audit covered Node.js, npm user paths, cache/config paths, and D:/E:
+  tool/temp roots. No tools were moved or reinstalled; protected system items
+  remain untouched and existing Chrome DevTools tooling remains on D:.
+- Additive `PrintOrderLine` stores fixed order/item linkage, product/size,
+  quantity, currency, unit/subtotal snapshots, required tier, quality
+  surcharge snapshot, and creation time. Existing print entitlements and
+  fulfilment orders remain valid through a nullable line link; historical
+  single-print metadata remains the compatibility fallback. New lines share
+  one source item and one paid restoration master.
+- Cart and single-image request paths accept multiple print lines per image.
+  The UI starts with one line and exposes `Add another print size`; each line
+  is catalog-priced and quantity-validated from its catalog minimum through
+  ten. Digital items still have no quantity or copy control. Review lists all
+  lines while delivery remains one server-owned order charge.
+- `qualitySurchargeForLines` reduces all line requirements to the highest
+  tier, charges that full PriceBook tier once when the current paid master is
+  insufficient, and charges zero when sufficient. It never stacks same-image
+  lines or charges a price difference. Initial restoration orders select their
+  required master tier, so their line surcharge snapshots are zero.
+- Verified-payment orchestration remains item/master scoped: at most one
+  restoration entitlement, master, and Replicate execution per source image.
+  Sharp generates deterministic, idempotent print variants for all lines;
+  copies, sizes, and fulfilment lines do not create AI executions. Unpaid
+  orders still create zero restoration or print processing work.
+- P6F protected commerce E2E passed with one multi-image order, one payment,
+  three source items, two print lines on one item, three print entitlements,
+  one delivery rule, and three masters/executions total. APG remains disabled
+  and Bank/Replicate/RunPod production calls remain zero.
+- Triple Canvas remains PKR 25,000 with PKR 2,500 delivery, but required
+  quality is `TRIPLE_CANVAS_DIMENSIONS_REQUIRED` until approved dimensions
+  exist. Album remains hidden with `ALBUM_PRODUCT_DETAILS_REQUIRED`.
+- P6F readiness: frontend 100%, Pakistan funnel 100%, print-commerce 90%,
+  payment-code readiness 65%, Bank activation 0%, full Pakistan readiness
+  85%. Remaining blockers only: approved Triple Canvas dimensions, complete
+  Album product/fulfilment details, and tomorrow's ThanNow APG sandbox
+  credentials/hash/IPN confirmation. No production deployment is authorized.

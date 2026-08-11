@@ -178,9 +178,7 @@ export function CartReviewPage() {
               <div><dt>Image quality</dt><dd>{TIER_LABELS[item.tier] || item.tier}</dd></div>
               <div><dt>Delivery</dt><dd>{item.product === "PRINT_DIGITAL" ? "Print + Digital" : "Digital Download"}</dd></div>
               <div><dt>Restoration price</dt><dd>{order.currency} {(Number(item.digitalAmountMinor) / 100).toFixed(2)}</dd></div>
-              {item.print && <div><dt>Print size</dt><dd>{item.print.size}</dd></div>}
-              {item.print && <div><dt>Quantity</dt><dd>{item.print.quantity}</dd></div>}
-              {item.print && <div><dt>Print subtotal</dt><dd>{order.currency} {(Number(item.print.subtotalMinor) / 100).toFixed(2)}</dd></div>}
+               {(item.prints || (item.print ? [item.print] : [])).map((print, printIndex) => <div key={`${item.fixedOrderItemId}-print-${printIndex}`}><dt>Print {printIndex + 1}</dt><dd>{print.size} × {print.quantity} · {order.currency} {(Number(print.subtotalMinor) / 100).toFixed(2)}</dd></div>)}
               <div><dt><strong>Line total</strong></dt><dd><strong>{order.currency} {(Number(item.lineTotalMinor) / 100).toFixed(2)}</strong></dd></div>
             </dl>
 

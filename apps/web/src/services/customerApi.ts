@@ -341,7 +341,7 @@ export const customerApi = {
   // R9.5-P5Q: multi-image cart endpoints.
   createRestorationCartOrder: (
     token: string | undefined,
-    input: { items: Array<{ draftId: string; tier: string; product: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; guestOwnershipToken?: string }>; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } },
+    input: { items: Array<{ draftId: string; tier: string; product: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; printLines?: Array<{ printSize: string; quantity: number }>; guestOwnershipToken?: string }>; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } },
     guestToken?: string
   ) =>
     apiRequest<FixedOrderCartSummary>("/api/fixed-orders/restoration-cart", { method: "POST", body: JSON.stringify(input) }, token, guestToken),
@@ -379,6 +379,7 @@ export type FixedOrderCartItemSummary = {
   product: "DIGITAL" | "PRINT_DIGITAL";
   digitalAmountMinor: string;
   print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string };
+  prints?: Array<{ size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string; requiredTier?: string; qualitySurchargeMinor: string }>;
   lineTotalMinor: string;
 };
 
