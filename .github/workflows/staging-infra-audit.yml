@@ -23,14 +23,14 @@ jobs:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           echo "::add-mask::${NORTHFLANK_API_KEY}"
-          echo "--- projects ---"
-          curl --fail --silent -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
-            "https://api.northflank.com/v1/projects" | jq -r '.data.projects[]? // .data[]? | {id, name}' || echo "projects call failed"
-          echo "--- services in ai-photo-studio project ---"
-          curl --fail --silent -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
-            "https://api.northflank.com/v1/projects/ai-photo-studio/services" | jq -r '.data.services[]? // .data[]? | {id, name}' || echo "services call failed"
+          echo "--- projects (raw, status appended) ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects"
+          echo "--- services in ai-photo-studio project (raw, status appended) ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/ai-photo-studio/services"
 
       - name: List Neon branches (read-only)
         env:
@@ -38,9 +38,9 @@ jobs:
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           echo "::add-mask::${NEON_API_KEY}"
           echo "::add-mask::${NEON_PROJECT_ID}"
-          curl --fail --silent -H "Authorization: Bearer ${NEON_API_KEY}" \
-            "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches" \
-            | jq -r '.branches[] | {id, name, primary, created_at, parent_id}'
+          echo "--- neon branches (raw, status appended) ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NEON_API_KEY}" \
+            "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches"
