@@ -2518,3 +2518,90 @@ This section is additive; every rule above it remains in force verbatim.
 - Remaining external blockers unchanged:
   `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
   (P5U).
+
+### R9.5-P5X-LIVE-DEVTOOLS-FULL-WEBSITE-AUDIT (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`LIVE_FULL_WEBSITE_DEVTOOLS_AUDITED` + `LIVE_SINGLE_MULTI_IMAGE_FLOW_
+VERIFIED` + `ZERO_REGRESSION`. No defects found -- no code commit.**
+
+- **Tooling note**: no Chrome DevTools MCP tool is registered in this
+  environment (checked via tool search, no match). Used Playwright driving
+  real Chromium via CDP against `www.thannow.com`/`api.thannow.com`
+  instead -- genuinely live navigation, DOM, console, network, and
+  screenshots (the same underlying protocol), not static-bundle/source
+  inspection. Disclosed rather than silently substituted, per this
+  packet's own instruction.
+- **9 public pages/routes audited** against real hrefs (not guessed
+  paths): Home (`/`), Pricing (`/pricing`), Restorations (`/restore`),
+  Login (`/login`), Sign Up (`/signup`) are real routes, all 200; Restoration/
+  Upscaling/Printing/How It Works are same-page anchors (`#memories`/
+  `#upscale`/`#printing`/`#how`) by design, all present on the homepage --
+  zero dead routes, zero broken links. Every upload/restore CTA checked
+  ("Upload Your Photo", "Get Started", "Upload Photo") opens the same
+  canonical upload modal.
+- **Home page**: zero image 404s, zero console errors, zero horizontal
+  overflow at 1440x900/768x1024/390x844 (screenshots captured at all
+  three). Login/Sign Up pages confirmed to render real forms.
+- **Single-image live flow** (real click-through, `www.thannow.com`):
+  modal centered, Remove + reselect works (no duplicate upload), Preview
+  shows correct landscape aspect ratio with zero overflow, all 6 metadata
+  fields present once (file name/format/dimensions/aspect ratio/
+  orientation), product-first order confirmed live ("1. Choose product"
+  precedes "2. Choose image quality"), all 7 V3 tiers with correct prices
+  (PKR 500/1000/1500/...) present, print fields correctly hidden until
+  Print+Digital selected, Back to Preview works AND correctly preserves
+  the selected quality (re-verified with a properly-scoped locator after
+  an initial script-only false negative), Review shows the correct tier/
+  total, payment truthfully fail-closed, no TEST-payment control present.
+- **3-image live flow**: 3 thumbnails, individual Remove works, per-image
+  metadata present (behind an intentionally-collapsed "Photo details"
+  toggle -- verified by expanding it, not a defect), Apply-to-All and
+  override-afterward both confirmed live, mixed print sizes (4x6/5x7) stay
+  independent, one cart Review, each photo individually summarized, one
+  delivery charge (PKR 250.00, the single highest band), server total
+  PKR 8000.00 (matches restoration 6000 + print 1750 + delivery 250
+  exactly), exactly one Pay button (never per-item), Back to Configure
+  correctly retains the full configuration, zero overflow.
+- **10-image check**: 10 accepted, 11th rejected, Remove and Add-after-
+  Remove both work, zero overflow -- desktop and mobile.
+- **Pricing/print catalog, live API**: all 13 PKR print sizes present;
+  **40x60 = PKR 20,000.00**, **Triple Canvas = PKR 25,000.00** / delivery
+  **PKR 2,500.00** -- confirmed unchanged.
+- **Console/network audit, consolidated across every page/flow tested:**
+  zero real console errors, zero unexpected first-party 4xx/5xx, zero
+  image 404s. Two recurring, pre-existing, non-defect items recorded (not
+  hidden): (a) `GET https://api.thannow.com/api/e2e/test-mode` correctly
+  404s on every review-page load -- this IS the expected, required
+  fail-closed production behavior (no TEST-payment control ever renders
+  because of it), not a bug; (b) `[Meta Pixel] - Invalid PixelID: null`
+  console warning, pre-existing tracker-bootstrap noise unrelated to
+  commerce, documented in earlier packets.
+- **Performance quick check** (informational only, no optimization work
+  performed per this packet's explicit scope limit): LCP ~3036ms ("needs
+  improvement" by Core Web Vitals' <2500ms "good" threshold), CLS = 0
+  (no layout shift). Not treated as a defect to fix this packet; worth a
+  future dedicated performance packet if prioritized.
+- **Defects found: none requiring a code change.** Several apparent
+  failures during audit-script development were investigated to ground
+  truth (screenshots, expanded DOM state, correctly-scoped locators) and
+  in every case traced to the audit script itself -- a CSS `text-
+  transform: uppercase` on eyebrow-style headings making `innerText()`
+  return uppercase text against lowercase-string checks, an unscoped
+  `.first()` checked-radio locator picking the wrong radiogroup (the same
+  known class of issue already fixed once in the E2E harness after the
+  P5V product-first reorder), and metadata being behind an intentionally-
+  collapsed toggle. None were product defects; none required a repair.
+- **Regression**: no source code was changed, so no regression suite was
+  re-run (per this packet's own "no unnecessary repetition when audit is
+  clean and code unchanged" instruction). Most recently completed full
+  gate (P5W, same unchanged commit) already stands: lint/typecheck/build
+  clean, `test:browser` 116/116, `test:browser:responsive` 99/99, full
+  `test:e2e:commerce-local` pass.
+- **Protected Scope held**: no RunPod, no Bank integration, no real
+  Replicate, no production deploy/change, no PriceBook change, no
+  homepage/Hero redesign, no `.gitignore` broadening. `git status` clean
+  throughout; zero files changed; no commit.
+- Remaining external blockers unchanged:
+  `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
+  (P5U).
