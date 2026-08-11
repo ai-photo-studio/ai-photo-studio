@@ -161,7 +161,13 @@ check("applyVerifiedPaymentEvidence has exactly one caller module (no provider c
       callers.add(path.relative(repoRoot, f).replace(/\\/g, "/"));
     }
   }
-  const allowed = new Set(["apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts"]);
+  const allowed = new Set([
+    "apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts",
+    // Protected local commerce E2E is the only non-provider caller. Its
+    // startup guards require test mode + mock restoration and it never exists
+    // in production.
+    "apps/api/src/scripts/commerce-e2e-payment.ts"
+  ]);
   const unexpected = [...callers].filter((f) => !allowed.has(f));
   if (unexpected.length > 0) {
     throw new Error(`applyVerifiedPaymentEvidence is called from unexpected file(s): ${unexpected.join(", ")} -- only the verified MPGS gateway module may call it`);

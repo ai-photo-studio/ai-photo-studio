@@ -6,6 +6,34 @@ frozen (`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`). No live bank request, APG
 activation, production deployment, or payment success simulation was made
 by this packet.
 
+## R9.5-P6B BAF/APG reconciliation (2026-08-11)
+
+The owner-supplied `BAF/APG Merchant Integration Guide V1.1` is an Alfa
+Payment Gateway (APG) redirection protocol, not Mastercard MPGS. It documents
+the APG sandbox host `sandbox.bankalfalah.com`, production host
+`payments.bankalfalah.com`, a form POST to `/HS/HS/HS`, an `auth_token` handoff
+to `/SSO/SSO/SSO`, merchant/store credentials (`MerchantId`, `StoreId`,
+`MerchantHash`, `MerchantUsername`, `MerchantPassword`), and status inquiry at
+`/HS/api/IPN/OrderStatus/{MerchantId}/{StoreId}/{OrderId}`. It also documents a
+POST IPN listener receiving a `url` parameter and requiring a subsequent GET
+status inquiry. These facts are recorded only; no APG handshake, status fetch,
+IPN acknowledgement, or payment mutation has been implemented.
+
+This differs from the current ThanNow MPGS adapter, which uses the Mastercard
+gateway REST v100 Hosted Checkout flow and `Retrieve Order`. The APG
+foundation routes remain deliberately fail-closed until the Bank confirms the
+complete ThanNow merchant/store, authentication, callback, acknowledgement,
+and status contract.
+
+The Get Free Seeds screenshot says “Generate integration credentials for live
+account” and supplies `getfreeseeds.com` Return/Listener URLs. Those
+credentials are classified `LIVE_OR_STORE_SPECIFIC_UNTIL_PROVEN_OTHERWISE` and
+are **not safe for ThanNow sandbox testing**. The guide’s sandbox procedure
+requires entering the APG sandbox through the merchant portal and generating
+credentials there; it does not state that another store’s live credentials can
+be reused against sandbox. ThanNow must use its own Bank-approved sandbox
+merchant/store credentials and its own URLs above.
+
 ## 1. Exact URLs
 
 | Purpose | URL |

@@ -2888,3 +2888,41 @@ changes were needed; the integration was already credential-ready.**
   50%, Bank activation 0%, full Pakistan readiness 80%. Remaining external
   blocker only: `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`. No production
   deployment is part of this packet.
+
+### R9.5-P6B — BAF/APG Credential Audit (2026-08-11)
+
+- The owner-supplied `BAF/APG Merchant Integration Guide V1.1` is an Alfa
+  Payment Gateway redirection protocol, distinct from the current Mastercard
+  MPGS REST v100 adapter. BAF documents sandbox `sandbox.bankalfalah.com`,
+  production `payments.bankalfalah.com`, `/HS/HS/HS` handshake, `/SSO/SSO/SSO`
+  token handoff, Merchant ID/Store ID/hash/username/password fields, and IPN
+  OrderStatus inquiry. This is documented evidence only; no APG code path has
+  been activated or mixed into MPGS.
+- Get Free Seeds credentials are classified
+  `LIVE_OR_STORE_SPECIFIC_UNTIL_PROVEN_OTHERWISE` because the owner screenshot
+  says “Generate integration credentials for live account” and names
+  `getfreeseeds.com` callbacks. `OTHER_STORE_CREDENTIALS_SAFE_FOR_SANDBOX =
+  BANK_CONFIRMATION_REQUIRED`; do not use, copy, or commit them for ThanNow.
+- ThanNow’s exact APG URLs remain
+  `https://api.thannow.com/api/payments/bank-alfalah/return` and
+  `https://api.thannow.com/api/payments/bank-alfalah/ipn`; the frontend landing
+  page is `https://thannow.com/payment/return`. The routes are publicly mounted,
+  but return is non-authoritative and IPN is disabled/fail-closed with no status
+  fetch or payment mutation. Current MPGS payment status remains
+  `/api/fixed-orders/:orderNo/payment-status` and is not an APG status route.
+- Safest zero-charge path: obtain ThanNow-specific APG sandbox credentials via
+  `Go Live -> Access Sandbox -> credential generation`, confirm callback
+  allowlisting/authentication/acknowledgement/status details with Bank, then
+  test only against the sandbox host with mock restoration processing. Until
+  then use `npm run commerce:dryrun`; never use live store credentials to
+  simulate sandbox.
+- Required Bank confirmation: “Can credentials generated for the Get Free
+  Seeds live store be used against the Bank Alfalah APG sandbox/UAT Hosted
+  Checkout endpoint for ThanNow integration testing, or must ThanNow receive
+  separate sandbox merchant/store credentials?” Also confirm sandbox host,
+  ThanNow Merchant ID/Store ID, API version/path, return URL, listener URL,
+  listener authentication/acknowledgement, status inquiry authentication, and
+  Hosted Checkout enablement.
+- P6B completion: payment-code readiness remains 50%, Bank activation 0%, full
+  Pakistan readiness 80%. Protected Scope remains: no live credentials, Bank
+  call, charge, Replicate paid call, RunPod action, or production deploy.
