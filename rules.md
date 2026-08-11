@@ -2303,3 +2303,131 @@ against the unchanged `main` (`c84ceab`/`05ddcd8`). No commit was created.
   packet can deploy and smoke-test it the same way production is deployed.
   Otherwise, the remaining Pakistan blocker is unchanged:
   `BANK_ALFALAH_FINAL_PRODUCTION_INTEGRATION`.
+
+### R9.5-P5U-PERSISTENT-REMOTE-STAGING (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`REMOTE_STAGING_INFRA_BLOCKED`.** No infrastructure was created; no
+product code was touched.
+
+- A read-only audit workflow (`.github/workflows/staging-infra-audit.yml`,
+  `workflow_dispatch`-only, `contents: read`, never mutates anything) was
+  added and dispatched to check for reusable existing staging
+  infrastructure before creating anything new, per this packet's own
+  "do not duplicate infrastructure" rule.
+- **Northflank**: exactly one project (`ai-photo-studio`) and one service
+  (`ai-photo-studio`, `serviceType: combined`) exist -- that is production.
+  No staging service exists to reuse.
+- **Neon**: the `NEON_API_KEY` GitHub secret returns real HTTP 401
+  (`"supplied credentials do not pass authentication"`) against the real
+  Neon API -- it cannot create or manage a staging branch. (This repo's
+  existing migration workflows never previously exercised this key; they
+  only ever used `NEON_DIRECT_URL`/`NEON_DATABASE_URL`/`NEON_POOLER_URL` as
+  raw connection strings, so this is the first time it was actually
+  tested.)
+- Creating a brand-new billable Northflank service by improvising
+  image/port/domain/plan configuration against an unverified-for-writes API
+  key was judged too consequential/hard-to-reverse to attempt without
+  explicit owner sign-off on the specific shape and cost -- stopped and
+  reported rather than guessed, per this packet's own STOP protocol.
+- **Owner action needed to unblock**: either supply a working
+  `NEON_API_KEY` with branch-create permission (or a pre-created staging
+  branch's connection string as a new secret), and/or explicitly authorize
+  creating a new Northflank staging service (plan/size/budget).
+
+### R9.5-P5V-PAKISTAN-COMMERCE-UX-CLOSURE (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`PAKISTAN_CUSTOMER_UX_READY` + `LOCAL_FULL_TEST_PAYMENT_JOURNEY_READY` +
+`ZERO_REGRESSION`.** Branch `release/r9.5-pakistan-ux`, no production
+deploy this packet.
+
+- **Image aspect ratio, root cause and fix.** `OriginalPreviewPage.tsx`'s
+  `<img>` had no `object-fit`/`max-height` at all (`FixedOrderReviewPage`
+  and `CartPreviewPage` already had the correct pattern, but the primary
+  single-image Preview page -- the very first thing a customer sees after
+  upload -- did not). A very tall portrait image forced an oversized,
+  mostly-empty card; nothing was actually stretched/squashed (no fixed
+  width+height together), but layout was still wrong. Fixed to
+  `maxWidth: 100%, maxHeight: 480px, objectFit: contain, margin: 0 auto`,
+  matching the already-proven pattern elsewhere. Verified with real
+  generated 3000×800 (landscape) and 800×3000 (portrait) PNGs at 1440×900
+  and 390×844: zero horizontal overflow in all 4 combinations, portrait no
+  longer forces empty vertical space, landscape fills card width with
+  correct proportions, no distortion in either case (screenshots captured
+  during this packet).
+- **Metadata deduplication.** The "Technical metadata" expandable panel
+  used to repeat dimensions/format already shown in the main list; now
+  shows only genuinely additional detail (market/currency).
+- **Final customer wording.** Every customer-facing "restoration
+  quality"/"choose restoration" reference is now **"image quality"**/
+  "Choose image quality", applied consistently: `DigitalTierSelectPage`
+  (single-image) and `CartConfigurePage` (multi-image) headings, radiogroup
+  `aria-label`s, review-page summary labels (`FixedOrderReviewPage`,
+  `CartReviewPage`), and the Preview page's CTA button
+  ("Choose Product & Image Quality", was "Choose Your Restoration"). Tier
+  enum names/prices/PriceBook are unchanged.
+- **Product-first flow**, both single-image and multi-image configure
+  pages: Step 1 is now "Choose product" (Digital Download vs Print +
+  Digital — Home Delivery), Step 2 is "Choose image quality" (all 7 tiers)
+  -- swapped from the previous quality-first order. Print-only fields
+  (size/quantity/recipient/phone/address/city) still only render when
+  Print + Digital is selected; the 4x-recommended and Original/2x warning
+  banners are unchanged in logic, only reordered beneath the new step 2.
+- **Back navigation added on every step that lacked it:** Preview
+  page-level "Back to Upload" (renamed from "Choose a different photo" for
+  wording consistency with the multi-image flow's existing button of the
+  same name); `DigitalTierSelectPage` gained a new "Back to Preview" button
+  (previously had no back action at all); `FixedOrderReviewPage` and
+  `CartReviewPage` each gained a "Back to Configure" button, shown only
+  while `paymentStatus !== "PAID"` (order is immutable after verified PAID,
+  so the button is hidden then, not merely disabled). `CartConfigurePage`
+  already had "Back to Preview" (P5Q) -- unchanged. No step forces
+  re-upload; going back to Configure/Preview reuses the already-created
+  drafts/order, never creates a duplicate.
+- **Multi-image regression proof, real E2E (not inspection):**
+  `test:e2e:commerce-local`'s 3-image mixed cart flow (Photo 1: 2x
+  HD/Digital; Photo 2: 4x Ultra HD/Print+Digital/4x6/qty10; Photo 3:
+  8x/Print+Digital/5x7/qty5) still passes end-to-end after the reorder --
+  Apply-to-All still propagates, the individual override on Photos 2/3
+  afterward still works, Photo 1 stays untouched, one order/one payment/one
+  delivery charge/3 item-level executions all hold. One test-script defect
+  was found and fixed in the process: the harness's "first checked radio"
+  assertion assumed quality-radiogroup-first DOM order; since product now
+  renders first, it was scoped to the specific `radiogroup` by
+  `aria-label` instead of grabbing whichever radiogroup happens to be
+  first -- a test-only fix, not a product behavior change.
+- **Local protected TEST-payment journey re-confirmed** (single-image
+  DIGITAL and PRINT_DIGITAL flows) through the full new product-first UI:
+  both reach `PAID` -> `Completed` -> download, unchanged. Production
+  continues to correctly refuse the test-payment seam (unaffected by this
+  packet -- no backend files were touched, so no live re-check was needed
+  or performed).
+- **A real, unrelated encoding bug was introduced and fixed within this
+  same packet**: a PowerShell `Get-Content -replace | Set-Content -Encoding
+  utf8` command (used to bulk-rename a button label in a spec file) mis-
+  decoded a pre-existing UTF-8 "×" character elsewhere in the same file as
+  CP1252, corrupting it to literal "Ã—" on write. Caught immediately by a
+  real test failure (not assumed away), root-caused via byte-level
+  inspection, and fixed with a direct, encoding-safe edit; confirmed no
+  other occurrence in the file. **Permanent lesson: never use
+  `Get-Content`/`Set-Content` for text substitution in a file that may
+  contain non-ASCII characters on this Windows/PowerShell 5.1 environment
+  -- use the dedicated file-edit tool instead**, which does not round-trip
+  through the console's codepage.
+- **Zero regression, full evidence:** `npm run lint` (0 errors), `typecheck`,
+  `build` all clean; `test:browser -w apps/web` 116/116 (two apparent
+  failures were reproduced in isolation and passed cleanly -- both were
+  load-related flakes from heavy parallel execution, not real, and the
+  suite was re-run clean end-to-end afterward); `test:browser:responsive`
+  99/99 (one similar isolated-clean flake, same treatment); full
+  `test:e2e:commerce-local` pass after the one test-script fix described
+  above. No backend/commerce logic was changed, so pg-race suites were not
+  re-run (per this packet's own instruction to skip them when only
+  frontend UX changes).
+- **Protected Scope held**: no RunPod, no Bank integration work, no real
+  Replicate, no production deploy, no PriceBook change (40x60/Triple
+  Canvas/delivery all unchanged), no `.gitignore` broadening.
+- Remaining external blockers unchanged:
+  `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
+  (P5U).

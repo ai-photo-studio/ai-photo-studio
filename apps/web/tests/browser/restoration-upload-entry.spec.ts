@@ -78,7 +78,7 @@ test.describe("canonical restoration upload entry", () => {
     await page.getByRole("button", { name: "Close" }).click();
     await mockGetDraft(page, DRAFT_ID, { ...draftFixture(), previewUrl: "http://127.0.0.1/preview.png" });
     await page.goto(`/restore-mvp/${DRAFT_ID}/preview`);
-    await page.getByRole("button", { name: "Choose a different photo" }).click();
+    await page.getByRole("button", { name: "Back to Upload" }).click();
     await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
     await expect(page.locator("input[type=file]")).toHaveCount(1);
   });

@@ -142,8 +142,8 @@ export function CartConfigurePage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Configure photos</p>
-        <h1>Choose restoration and delivery for each photo</h1>
-        <p>Each photo can have a different restoration quality and delivery option. Prices are server-owned.</p>
+        <h1>Choose product and image quality for each photo</h1>
+        <p>Each photo can have a different product and image quality. Prices are server-owned.</p>
       </div>
 
       {error && <div className="state-panel state-panel-error"><p>{error}</p></div>}
@@ -159,8 +159,18 @@ export function CartConfigurePage() {
           <div className="card" key={id} style={{ marginBottom: "1.25rem" }}>
             <h2 className="section-subheading">Photo {index + 1} of {draftIds.length}</h2>
 
-            <p className="helper-text">1. Restoration quality</p>
-            <div role="radiogroup" aria-label={`Restoration quality for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+            <p className="helper-text">1. Choose product</p>
+            <div role="radiogroup" aria-label={`Product for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+              <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL" })}>
+                <h3 style={{ fontSize: "1rem" }}>Digital Download</h3>
+              </button>
+              <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 })}>
+                <h3 style={{ fontSize: "1rem" }}>Print + Digital</h3>
+              </button>
+            </div>
+
+            <p className="helper-text" style={{ marginTop: "1rem" }}>2. Choose image quality</p>
+            <div role="radiogroup" aria-label={`Image quality for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
               {offers.map((offer) => (
                 <article
                   key={offer.tier}
@@ -183,18 +193,8 @@ export function CartConfigurePage() {
               <div className="state-panel state-panel-info"><p>4x Ultra HD is recommended for most prints.</p></div>
             )}
             {config.product === "PRINT_DIGITAL" && (config.tier === "ORIGINAL" || config.tier === "HD_2X") && (
-              <div className="state-panel state-panel-warning"><p>Lower restoration resolution may reduce print quality, especially for larger prints. You can continue with this setting at your own choice.</p></div>
+              <div className="state-panel state-panel-warning"><p>Lower image quality may reduce print quality, especially for larger prints. You can continue with this setting at your own choice.</p></div>
             )}
-
-            <p className="helper-text" style={{ marginTop: "1rem" }}>2. Delivery</p>
-            <div role="radiogroup" aria-label={`Delivery for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-              <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL" })}>
-                <h3 style={{ fontSize: "1rem" }}>Digital Download</h3>
-              </button>
-              <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 })}>
-                <h3 style={{ fontSize: "1rem" }}>Print + Digital</h3>
-              </button>
-            </div>
 
             {config.product === "PRINT_DIGITAL" && (
               <div className="field-grid">
