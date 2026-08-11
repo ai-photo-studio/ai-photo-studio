@@ -28,6 +28,32 @@ type ItemConfig = {
   quantity: number;
 };
 
+type SavedConfigureState = { configs: Record<string, ItemConfig>; address: { recipientName: string; phone: string; addressLine1: string; city: string; countryCode: string } };
+
+// Back navigation (Review -> Configure) remounts this page fresh -- React
+// state alone does not survive that. Session-only, browser-local, never
+// sent anywhere: purely so a customer's own in-progress per-image choices
+// on THIS device survive going back to adjust something, exactly like the
+// single-upload flow's existing sessionStorage use for file metadata.
+const storageKey = (draftIds: string[]): string => `restoration-cart-configure:${[...draftIds].sort().join(",")}`;
+
+function readSavedState(draftIds: string[]): SavedConfigureState | null {
+  try {
+    const raw = window.sessionStorage.getItem(storageKey(draftIds));
+    return raw ? (JSON.parse(raw) as SavedConfigureState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedState(draftIds: string[], state: SavedConfigureState): void {
+  try {
+    window.sessionStorage.setItem(storageKey(draftIds), JSON.stringify(state));
+  } catch {
+    // Best-effort only -- never blocks the flow if storage is unavailable.
+  }
+}
+
 export function CartConfigurePage() {
   const { draftIds: draftIdsParam } = useParams<{ draftIds: string }>();
   const draftIds = (draftIdsParam || "").split(",").filter(Boolean);
@@ -51,16 +77,22 @@ export function CartConfigurePage() {
         customerApi.getPrintCatalog()
       ]);
       if (!mounted.current) return;
+      const saved = readSavedState(draftIds);
       const byDraft: Record<string, DigitalOfferSummary[]> = {};
       const initialConfigs: Record<string, ItemConfig> = {};
       for (const [id, offers] of offerResults) {
         if (Array.isArray(offers)) {
           byDraft[id] = offers;
-          initialConfigs[id] = { tier: offers[0]?.tier ?? "ORIGINAL", product: "DIGITAL", printSize: "", quantity: 1 };
+          const savedConfig = saved?.configs[id];
+          const savedTierStillOffered = savedConfig && offers.some((o) => o.tier === savedConfig.tier);
+          initialConfigs[id] = savedTierStillOffered
+            ? savedConfig
+            : { tier: offers[0]?.tier ?? "ORIGINAL", product: "DIGITAL", printSize: "", quantity: 1 };
         }
       }
       setOffersByDraft(byDraft);
       setConfigs(initialConfigs);
+      if (saved?.address) setAddress(saved.address);
       setPrintCatalog(catalog.filter((item) => item.currency === "PKR"));
     } catch (err) {
       if (!mounted.current) return;
@@ -75,6 +107,16 @@ export function CartConfigurePage() {
     void load();
     return () => { mounted.current = false; };
   }, [load]);
+
+  // Persist on every change (after the initial load has populated configs)
+  // so Back-navigation from Review, or an accidental reload, restores
+  // exactly what the customer had chosen -- never re-sent to the server,
+  // purely a same-device convenience the server-authoritative submit still
+  // re-validates in full.
+  useEffect(() => {
+    if (loading || Object.keys(configs).length === 0) return;
+    writeSavedState(draftIds, { configs, address });
+  }, [configs, address, loading, draftIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateConfig = (draftId: string, patch: Partial<ItemConfig>) => {
     setConfigs((prev) => ({ ...prev, [draftId]: { ...prev[draftId], ...patch } }));
