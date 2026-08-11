@@ -2705,3 +2705,151 @@ This section is additive; every rule above it remains in force verbatim.
 - Remaining external blockers unchanged:
   `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
   (P5U).
+
+### R9.5-P5Z-BANK-ALFALAH-INTEGRATION-HANDOFF-READY (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`BANK_ALFALAH_INTEGRATION_HANDOFF_READY` + `PAYMENT_TRUST_BOUNDARY_
+VERIFIED` + `ZERO_REGRESSION`. Audit + documentation only -- zero code
+changes were needed; the integration was already credential-ready.**
+
+- **Which integration this packet covers**: the code-complete Bank
+  Alfalah **MPGS (Mastercard Gateway)** integration -- the one this
+  packet's own "Create Session -> Hosted Checkout -> callback/status"
+  terminology and the live `PAYMENT_PROVIDER_UNAVAILABLE` failure both
+  describe. `BANK_ALFALAH_MPGS_ENABLED` defaults `false` and stays `false`
+  in production by owner decision (`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`,
+  enforced by `scripts/verify-payment-freeze.mjs`) -- this packet makes the
+  code ready for sandbox credentials, it does **not** reverse that hold or
+  authorize reactivation. Separately, the newer **local APG** path
+  (`bank-alfalah-apg.controller.ts`/`routes.ts`) is URL-ingress foundation
+  only (`/api/payments/bank-alfalah/return`, `/api/payments/bank-alfalah/
+  ipn`) -- no session/checkout/status-inquiry protocol exists for it yet,
+  `AWAITING_BANK_CONFIRMATION`, out of scope for this packet.
+- **Component map** (all pre-existing, verified against source, nothing
+  invented):
+
+  | Component | Route/Service | Status |
+  |---|---|---|
+  | Checkout initiation | `POST /api/fixed-orders/:orderNo/checkout` -> `CustomerCheckoutController.create` -> `CustomerCheckoutService.createCheckout` | READY (code); blocked only on credentials |
+  | Create Session | `BankAlfalahMpgsGateway.initiateHostedCheckout` (`POST .../session`, MPGS v100 `INITIATE_CHECKOUT`) | READY |
+  | Hosted Checkout redirect | Frontend `window.location.assign` to the returned session's hosted-checkout URL | READY |
+  | Return URL | `BANK_ALFALAH_MPGS_RETURN_URL` (server-owned, never client-supplied) | Code READY; value must be set once the bank confirms the exact return-URL registration requirement |
+  | Listener/webhook | `handleMpgsWebhookTrigger` exists, fully implemented, but intentionally **not routed anywhere** -- webhook signature/auth format is still undocumented (`MPGS_INTEGRATION_EVIDENCE.md` §9) | Code READY, deliberately unwired |
+  | Status inquiry | `GET /api/fixed-orders/:orderNo/payment-status` -> `CustomerCheckoutService.getStatus` -> `handleMpgsBrowserReturn` -> `retrieveOrder` (MPGS Retrieve Order) | READY |
+  | Auth | HTTP Basic, `merchant.<Merchant ID>` / API Password, built by `buildMpgsAuthHeader` -- never logged | READY |
+  | `PaymentAttempt` | Created in `createCheckout`, one per `FixedOrder` (`idempotencyKey = payment-attempt:<orderId>`, DB-unique) | READY |
+  | `PaymentEvent` | Written inside `applyVerifiedPaymentEvidence` (P4A), never anywhere else | READY |
+  | PAID verification | `matchRetrievedOrderToAttempt` -- exact merchant/order id/amount/currency/status match against a **fresh** Retrieve Order call; any mismatch or non-PAID status leaves the stored attempt untouched | READY |
+  | P4A trigger | `applyVerifiedPaymentEvidence`, called only after an exact match -- never imported directly by any controller/route (statically proven by its own pg-race test) | READY |
+
+- **Exact environment variable names** (repository-actual, none invented;
+  never print values): `BANK_ALFALAH_MPGS_ENABLED` (required, kill switch,
+  sandbox+production, `config/env.ts`), `BANK_ALFALAH_MPGS_BASE_URL`
+  (required when enabled, defaults to the sandbox host
+  `https://test-bankalfalah.gateway.mastercard.com`, must be overridden
+  for production), `BANK_ALFALAH_MPGS_API_VERSION` (required, defaults
+  `"100"`, bank-confirmed for this merchant profile),
+  `BANK_ALFALAH_MPGS_MERCHANT_ID` (required when enabled, sandbox+
+  production, REST Basic Auth username), `BANK_ALFALAH_MPGS_API_PASSWORD`
+  (required when enabled, sandbox+production, secret, REST Basic Auth
+  password), `BANK_ALFALAH_MPGS_OPERATOR_ID` (optional, portal-login
+  metadata only, never used for REST auth), `BANK_ALFALAH_MPGS_RETURN_URL`
+  (required when enabled, server-owned, never client-supplied),
+  `BANK_ALFALAH_MPGS_MERCHANT_NAME` (required when enabled, 1-40 chars,
+  `interaction.merchant.name`), `BANK_ALFALAH_MPGS_CHECKOUT_MODE`
+  (required, only `"hosted_checkout"` is supported). All are consumed
+  exclusively in `apps/api/src/config/env.ts` (zod-validated, fail-closed
+  at config-load time if `ENABLED=true` and any required field is
+  missing/malformed) and `p4c-bank-alfalah-mpgs-gateway.service.ts`.
+  **Configuration is already 100% environment-driven -- no source-code
+  edit is needed to switch sandbox<->production values**; confirmed by
+  reading every reference, no hardcoded merchant ID/password/host exists
+  anywhere in the codebase.
+- **Exact URLs**: checkout initiation `POST /api/fixed-orders/:orderNo/
+  checkout`; status inquiry `GET /api/fixed-orders/:orderNo/payment-
+  status`; browser return page `https://www.thannow.com/payment/return`
+  (`PaymentReturnPage.tsx` -- reads zero query parameters, always shows
+  one truthful fail-closed message, this is the local-APG return page;
+  MPGS's own return URL is the separate `BANK_ALFALAH_MPGS_RETURN_URL`
+  env value). **Browser return is never trusted payment evidence** by
+  construction: no route in this codebase marks a `PaymentAttempt` PAID
+  from a GET request, a redirect, or any query parameter -- the only path
+  to PAID is `getStatus`'s server-initiated Retrieve Order call.
+- **Payment trust boundary, verified with fresh pg-race evidence this
+  packet** (not carried over from memory): re-ran
+  `p4c-bank-alfalah-mpgs-gateway.service.pg-race.test.ts` (6/6),
+  `customer-checkout.service.pg-race.test.ts` (11/11), and
+  `p5p-multi-item-orchestration.pg-race.test.ts` (10/10) against a fresh
+  disposable PostgreSQL 17 instance. Confirmed live: forged amount
+  rejected and mutates nothing (q3), forged merchant/order id rejected
+  (q4), non-owning actor gets an identical not-found error with zero
+  gateway calls (q5), duplicate/concurrent `getStatus` converges on
+  exactly one paid transition (q6), query-string/body fabrication has
+  zero effect on the result (q7), zero external calls when no session
+  exists or once already PAID (q8/q9), a forged browser return against a
+  PENDING gateway order is never applied, valid matched evidence applies
+  PAID exactly once, duplicate verified evidence converges (never a
+  second `PaymentEvent`/execution), and a 3-item cart's 10 concurrent
+  verified-evidence calls converge on exactly 3 entitlements/masters/
+  executions under **one** `PaymentAttempt` (never one per item), with an
+  unpaid 3-item order at exactly 0.
+- **Current live failure, exact and unchanged since P5Y**: the real Pay
+  button's `POST /checkout` returns HTTP 503
+  `PAYMENT_PROVIDER_UNAVAILABLE` because `BANK_ALFALAH_MPGS_ENABLED` is
+  `false` -- `CustomerCheckoutService.createCheckout` checks this before
+  creating any `PaymentAttempt` row or making any network call, so an
+  unpaid checkout attempt leaves zero trace. This is the fail-closed
+  behavior this packet confirms is correct and ready, not a defect.
+- **Dry-run proof**: `npm run commerce:dryrun` (P5Y) already proved the
+  full owner-clickable journey -- Digital single-image (1 PaymentAttempt
+  PAID, 1 entitlement, 1 master VALIDATED, 1 execution SUCCEEDED) and a
+  3-image mixed cart (1 `FixedOrder`, 1 `PaymentAttempt`, 3 items/
+  entitlements/masters/executions) -- against the protected mock stack.
+  Not re-run this packet since no runtime code changed; the fresh
+  pg-race evidence above is the payment-specific re-confirmation.
+- **Production safety re-verified live**: `api.thannow.com` `build_sha`
+  matches the current deployed commit (`8958527`, from P5Y's dev-tooling
+  push -- no functional/payment code changed by it), `GET /api/e2e/
+  test-mode` = 404, `POST /test-checkout` = 404. No test mode was
+  deployed. Bank real calls this packet: 0. Replicate real calls: 0.
+- **Bank Alfalah handoff checklist** (only what code/docs actually
+  require, nothing invented): (1) sandbox **Merchant ID**, (2) sandbox
+  **API (REST) Password**, (3) confirmed sandbox **host/region** (default
+  assumed is `test-bankalfalah.gateway.mastercard.com` -- bank must
+  confirm or correct), (4) **Hosted Checkout** enablement on that merchant
+  profile, (5) confirmed **API version/path** (currently `100`,
+  bank-confirmed per `P4D_BANK_CONFIRMED_MERCHANT_PROFILE_2026-08-05.md`
+  -- reconfirm still current), (6) the exact **return-URL registration**
+  requirement, if any, on the bank's side, (7) webhook/callback
+  authentication format, if the owner wants the webhook path wired
+  (currently deliberately unwired; browser-return + status-poll alone is
+  sufficient and already fully server-verified). Full historical evidence
+  lives in `docs/payments/bank-alfalah-mastercard/` and
+  `docs/payments/R9_2_*` -- this section is the concise index, not a
+  replacement.
+- **When sandbox credentials arrive, the next packet is exactly**: (A)
+  load `BANK_ALFALAH_MPGS_MERCHANT_ID`/`_API_PASSWORD`/`_MERCHANT_NAME`/
+  `_RETURN_URL` as process-only secrets, never written to source or
+  `.env`; (B) verify presence via the existing zod config validation
+  (fails closed with a named field if anything is missing -- never print
+  values); (C) run a config/preflight check (`BANK_ALFALAH_MPGS_ENABLED=
+  true` in a disposable/local context only, confirm no zod error); (D)
+  create one safe sandbox `FixedOrder`; (E) `initiateHostedCheckout`
+  against the real sandbox; (F) open the real Hosted Checkout page; (G)
+  verify the browser return lands correctly (still untrusted); (H) call
+  `getStatus` to perform the real, server-side Retrieve Order
+  verification; (I) confirm `PaymentAttempt.status = PAID`; (J) let the
+  existing mock-provider dry-run stack (`RESTORATION_PROVIDER=mock`, this
+  packet's `commerce:dryrun` or `test:e2e:commerce-local`) handle
+  zero-charge processing -- **no real Replicate call** until the Bank
+  flow itself is trusted end-to-end; (K) confirm Result/Download. No
+  production activation is implied by any of the above without a
+  separate, explicit owner authorization.
+- **Protected Scope held**: no RunPod, no real Bank/Replicate call, no
+  credential guessed or invented, no PriceBook change, no new UX, no
+  staging infrastructure work, no `.gitignore` broadening, no production
+  deploy.
+- Remaining external blocker: `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`.
+  Per this packet's own instruction: **stop coding until Bank sandbox
+  credentials arrive.**
