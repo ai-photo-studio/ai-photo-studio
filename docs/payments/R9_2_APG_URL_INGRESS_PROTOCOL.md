@@ -34,6 +34,43 @@ credentials there; it does not state that another store’s live credentials can
 be reused against sandbox. ThanNow must use its own Bank-approved sandbox
 merchant/store credentials and its own URLs above.
 
+## R9.5-P6C implementation boundary
+
+The separate `BankAlfalahApgGateway` uses explicit provider selection through
+`BANK_ALFALAH_PROVIDER=apg` plus `BANK_ALFALAH_APG_ENABLED=true`; the default
+provider is `none`. MPGS remains selected only by
+`BANK_ALFALAH_PROVIDER=mpgs` and its existing adapter is not replaced or used
+as a fallback.
+
+The APG adapter implements fixture-tested, server-owned API-channel 1002
+payloads and endpoints from `BAF/API/API.txt`:
+
+- Handshake: `POST /HS/api/HSAPI/HSAPI`
+- Transaction payload: `POST /HS/api/Tran/DoTran`
+- SSO redirect form: `POST /SSO/SSO/SSO`
+- OrderStatus: `GET /HS/api/IPN/OrderStatus/{MerchantId}/{StoreId}/{OrderId}`
+
+The adapter rejects disabled/missing/malformed configuration, takes order
+number/amount/currency from server-side arguments, validates exact merchant,
+store, reference, amount, currency, response code `00`, and `TransactionStatus
+= Paid`, then hands only normalized evidence to the existing P4A idempotency
+boundary. It never trusts browser success parameters. The Return route remains
+non-authoritative and the IPN route remains fail-closed because the supplied
+guide does not define inbound IPN authentication/signature or acknowledgement
+requirements. The supplied guide also refers to request-hash sample code that
+is not present, so the adapter refuses real handshake generation with
+`BANK_CONFIRMATION_REQUIRED` until Bank confirms that algorithm.
+
+## R9.5-P6C sandbox result
+
+ThanNow APG credentials were absent from the process environment. The
+credential-shaped values in `BAF/API/API.txt` were not copied, printed, or
+used because the file does not establish ThanNow ownership or its Return URL.
+Classification: `THANNOW_APG_SANDBOX_CREDENTIALS_REQUIRED`. No Bank request or
+charge was made. The zero-charge path remains fixture tests plus
+`npm run commerce:dryrun` until Bank supplies/authorizes ThanNow sandbox
+credentials and confirms request-hash/encryption and IPN authentication.
+
 ## 1. Exact URLs
 
 | Purpose | URL |

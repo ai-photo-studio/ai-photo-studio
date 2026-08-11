@@ -26,6 +26,16 @@ const RETIREMENT_MARKER = /retired|forbidden|must never|superseded/i;
 // literal strings; it must not flag itself.
 const EXCLUDED_FILES = new Set<string>([
   relative(REPO_ROOT, __filename).replace(/\\/g, "/"),
+  // R9.5-P6C: this is the separately documented APG adapter, not a reactivation
+  // of the retired legacy scan target.
+  "apps/api/src/services/bank-alfalah-apg-gateway.service.ts",
+  "apps/api/src/services/bank-alfalah-apg-gateway.service.test.ts",
+  "apps/api/src/config/env.ts",
+  "apps/api/src/config/bank-alfalah-apg-env.test.ts",
+  "docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md",
+  "docs/payments/R9_2_APG_URL_INGRESS_PROTOCOL.md",
+  "rules.md",
+  "BAF/API/API.txt",
   // Explicitly ignored historical audit evidence may quote retired protocols.
   "AI_code_audit_report_RI.md"
 ]);

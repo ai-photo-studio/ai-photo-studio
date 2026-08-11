@@ -42,7 +42,7 @@ export class CustomerCheckoutService {
     const owned = assertOwnership(order, actor);
 
     // Provider readiness is checked before any PaymentAttempt mutation or network request.
-    if (!this.config.bankAlfalahMpgs.enabled) {
+    if (this.config.bankAlfalahProvider !== "mpgs" || !this.config.bankAlfalahMpgs.enabled) {
       throw new AppError("Payment provider is unavailable", 503, "PAYMENT_PROVIDER_UNAVAILABLE");
     }
 

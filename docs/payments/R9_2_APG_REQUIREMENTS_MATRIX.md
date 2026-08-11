@@ -41,3 +41,9 @@ explicitly resolved by a URL-foundation packet remains
   distinct documented protocol. No APG implementation or credential was
   activated; the Get Free Seeds live-store credentials remain unsafe for
   ThanNow sandbox testing.
+- 2026-08-11 (R9.5-P6C): added a separate disabled-by-default APG adapter for
+  the API-channel 1002 material in `BAF/API/API.txt`. The adapter builds the
+  server-owned handshake, transaction, SSO, and OrderStatus contracts and can
+  emit P4A evidence only after exact status/identity/amount/currency matching.
+  The request-hash algorithm and inbound IPN authentication remain
+  `BANK_CONFIRMATION_REQUIRED`; no sandbox call was made.

@@ -93,7 +93,15 @@ const envSchema = z
      // the IPN listener validates a documented `url` parameter against this
      // allowlist but NEVER fetches it -- no network call is made from this
      // listener under any configuration.
-     BANK_ALFALAH_APG_ENABLED: z.string().optional().default("false"),
+      BANK_ALFALAH_PROVIDER: z.enum(["none", "mpgs", "apg"]).default("none"),
+      BANK_ALFALAH_APG_ENABLED: z.string().optional().default("false"),
+      BANK_ALFALAH_APG_BASE_URL: z.string().optional().default("https://sandbox.bankalfalah.com"),
+      BANK_ALFALAH_APG_MERCHANT_ID: z.string().optional().default(""),
+      BANK_ALFALAH_APG_STORE_ID: z.string().optional().default(""),
+      BANK_ALFALAH_APG_MERCHANT_HASH: z.string().optional().default(""),
+      BANK_ALFALAH_APG_USERNAME: z.string().optional().default(""),
+      BANK_ALFALAH_APG_PASSWORD: z.string().optional().default(""),
+      BANK_ALFALAH_APG_RETURN_URL: z.string().optional().default("https://api.thannow.com/api/payments/bank-alfalah/return"),
      // Comma-separated exact hostnames (e.g. "ipn.bankalfalah.com"), owned by
      // the environment, never hardcoded here and never defaulting to any
      // legacy or guessed host. Empty by default -- fail-closed (rejects
@@ -184,6 +192,29 @@ const envSchema = z
     }
 
     const mpgsEnabled = cfg.BANK_ALFALAH_MPGS_ENABLED.trim().toLowerCase() === "true";
+    const apgEnabled = cfg.BANK_ALFALAH_APG_ENABLED.trim().toLowerCase() === "true";
+    if (apgEnabled && cfg.BANK_ALFALAH_PROVIDER !== "apg") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_PROVIDER"], message: "BANK_ALFALAH_PROVIDER must be apg when BANK_ALFALAH_APG_ENABLED=true" });
+    }
+    if (cfg.BANK_ALFALAH_PROVIDER === "apg" && !apgEnabled) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_APG_ENABLED"], message: "BANK_ALFALAH_APG_ENABLED must be true when BANK_ALFALAH_PROVIDER=apg" });
+    }
+    if (apgEnabled && cfg.NODE_ENV === "production") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_APG_ENABLED"], message: "Bank Alfalah APG sandbox adapter cannot be enabled in production" });
+    }
+    if (apgEnabled) {
+      for (const [name, value] of Object.entries({
+        BANK_ALFALAH_APG_MERCHANT_ID: cfg.BANK_ALFALAH_APG_MERCHANT_ID,
+        BANK_ALFALAH_APG_STORE_ID: cfg.BANK_ALFALAH_APG_STORE_ID,
+        BANK_ALFALAH_APG_MERCHANT_HASH: cfg.BANK_ALFALAH_APG_MERCHANT_HASH,
+        BANK_ALFALAH_APG_USERNAME: cfg.BANK_ALFALAH_APG_USERNAME,
+        BANK_ALFALAH_APG_PASSWORD: cfg.BANK_ALFALAH_APG_PASSWORD
+      })) {
+        if (!value) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [name], message: `${name} is required when BANK_ALFALAH_APG_ENABLED=true` });
+      }
+      try { new URL(cfg.BANK_ALFALAH_APG_BASE_URL); } catch { ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_APG_BASE_URL"], message: "BANK_ALFALAH_APG_BASE_URL must be a valid URL" }); }
+      try { new URL(cfg.BANK_ALFALAH_APG_RETURN_URL); } catch { ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_APG_RETURN_URL"], message: "BANK_ALFALAH_APG_RETURN_URL must be a valid URL" }); }
+    }
     if (mpgsEnabled) {
       if (!cfg.BANK_ALFALAH_MPGS_MERCHANT_ID) {
         ctx.addIssue({
@@ -332,6 +363,17 @@ export type AppConfig = z.infer<typeof envSchema> & {
     merchantName: string;
     checkoutMode: string;
   };
+  bankAlfalahApg: {
+    enabled: boolean;
+    baseUrl: string;
+    merchantId: string;
+    storeId: string;
+    merchantHash: string;
+    username: string;
+    password: string;
+    returnUrl: string;
+  };
+  bankAlfalahProvider: "none" | "mpgs" | "apg";
 };
 
 // Helper to create a partial AppConfig with defaults for scripts/benchmarks
@@ -406,11 +448,22 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
     merchantName: "",
     checkoutMode: "hosted_checkout"
   },
+  bankAlfalahApg: {
+    enabled: false,
+    baseUrl: "https://sandbox.bankalfalah.com",
+    merchantId: "",
+    storeId: "",
+    merchantHash: "",
+    username: "",
+    password: "",
+    returnUrl: "https://api.thannow.com/api/payments/bank-alfalah/return"
+  },
+  bankAlfalahProvider: "none",
   ...(overrides || {}),
 }) as AppConfig;
 
 const toSafePreview = (key: string, value: string | number | boolean) => {
-  if (/secret|token|key|password/i.test(key)) return "[hidden]";
+  if (/secret|token|key|password|hash/i.test(key)) return "[hidden]";
   return String(value);
 };
 
@@ -463,7 +516,18 @@ export const loadConfig = (): AppConfig => {
       returnUrl: cfg.BANK_ALFALAH_MPGS_RETURN_URL.trim(),
       merchantName: cfg.BANK_ALFALAH_MPGS_MERCHANT_NAME.trim(),
       checkoutMode: cfg.BANK_ALFALAH_MPGS_CHECKOUT_MODE.trim()
-    }
+    },
+    bankAlfalahApg: {
+      enabled: cfg.BANK_ALFALAH_APG_ENABLED.trim().toLowerCase() === "true",
+      baseUrl: cfg.BANK_ALFALAH_APG_BASE_URL.trim(),
+      merchantId: cfg.BANK_ALFALAH_APG_MERCHANT_ID.trim(),
+      storeId: cfg.BANK_ALFALAH_APG_STORE_ID.trim(),
+      merchantHash: cfg.BANK_ALFALAH_APG_MERCHANT_HASH,
+      username: cfg.BANK_ALFALAH_APG_USERNAME.trim(),
+      password: cfg.BANK_ALFALAH_APG_PASSWORD,
+      returnUrl: cfg.BANK_ALFALAH_APG_RETURN_URL.trim()
+    },
+    bankAlfalahProvider: cfg.BANK_ALFALAH_PROVIDER
   };
 };
 

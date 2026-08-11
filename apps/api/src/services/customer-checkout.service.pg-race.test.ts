@@ -209,6 +209,7 @@ function mpgsForgedAmountStub(gatewayOrderId: string) {
 async function buildService(fetchImpl: typeof globalThis.fetch) {
   const { CustomerCheckoutService, BankAlfalahMpgsGateway, createMockConfig } = await loadModules();
   const config = createMockConfig({
+    bankAlfalahProvider: "mpgs",
     bankAlfalahMpgs: {
       enabled: true,
       baseUrl: "https://test-bankalfalah.gateway.mastercard.com",

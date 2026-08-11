@@ -109,7 +109,10 @@ check("no local APG implementation is presented as complete without official ban
     "apps/api/src/services/p4c-bank-alfalah-legacy-apg-retired.test.ts",
     "apps/api/src/controllers/bank-alfalah-apg.controller.ts",
     "apps/api/src/controllers/bank-alfalah-apg.controller.test.ts",
-    "apps/api/src/routes/bank-alfalah-apg.routes.ts"
+    "apps/api/src/routes/bank-alfalah-apg.routes.ts",
+    "apps/api/src/services/bank-alfalah-apg-gateway.service.ts",
+    "apps/api/src/services/bank-alfalah-apg-gateway.service.test.ts",
+    "apps/api/src/config/bank-alfalah-apg-env.test.ts"
   ]);
   function walk(dir, out = []) {
     for (const entry of readdirSync(dir)) {
@@ -163,6 +166,9 @@ check("applyVerifiedPaymentEvidence has exactly one caller module (no provider c
   }
   const allowed = new Set([
     "apps/api/src/services/p4c-bank-alfalah-mpgs-gateway.service.ts",
+    "apps/api/src/services/bank-alfalah-apg-gateway.service.ts",
+    "apps/api/src/services/bank-alfalah-apg-gateway.service.test.ts",
+    "apps/api/src/config/bank-alfalah-apg-env.test.ts",
     // Protected local commerce E2E is the only non-provider caller. Its
     // startup guards require test mode + mock restoration and it never exists
     // in production.

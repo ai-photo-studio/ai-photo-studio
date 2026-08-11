@@ -2926,3 +2926,32 @@ changes were needed; the integration was already credential-ready.**
 - P6B completion: payment-code readiness remains 50%, Bank activation 0%, full
   Pakistan readiness 80%. Protected Scope remains: no live credentials, Bank
   call, charge, Replicate paid call, RunPod action, or production deploy.
+
+### R9.5-P6C — APG Sandbox Integration (2026-08-11)
+
+- APG is separate from MPGS. `BankAlfalahApgGateway` is selected only by
+  `BANK_ALFALAH_PROVIDER=apg` with `BANK_ALFALAH_APG_ENABLED=true`; default
+  provider is `none`. MPGS remains unchanged and has no silent APG fallback.
+- APG env names are `BANK_ALFALAH_APG_ENABLED`,
+  `BANK_ALFALAH_APG_BASE_URL`, `BANK_ALFALAH_APG_MERCHANT_ID`,
+  `BANK_ALFALAH_APG_STORE_ID`, `BANK_ALFALAH_APG_MERCHANT_HASH`,
+  `BANK_ALFALAH_APG_USERNAME`, `BANK_ALFALAH_APG_PASSWORD`, and
+  `BANK_ALFALAH_APG_RETURN_URL`. Credential values are environment-only and
+  never committed.
+- Fixture-tested APG code covers API channel 1002 handshake
+  `/HS/api/HSAPI/HSAPI`, transaction `/HS/api/Tran/DoTran`, SSO
+  `/SSO/SSO/SSO`, and OrderStatus `/HS/api/IPN/OrderStatus/...`. Amount,
+  currency, order, merchant, and store are server-owned. Exact PAID evidence
+  is handed to P4A only after response-code/status/identity/amount/currency
+  verification; replay remains idempotent.
+- Request-hash/encryption algorithm and inbound IPN authentication/
+  acknowledgement are not documented by the supplied material. The adapter
+  fails closed with `BANK_CONFIRMATION_REQUIRED`; Return never marks PAID and
+  IPN remains disabled/fail-closed.
+- ThanNow APG sandbox credentials are absent from the process environment.
+  Values in `BAF/API/API.txt` were not used because ThanNow ownership is not
+  established. Status: `THANNOW_APG_SANDBOX_CREDENTIALS_REQUIRED`.
+- P6C completion: payment-code readiness 65%, APG sandbox readiness 70%, Bank
+  activation 0%, full Pakistan readiness 80%. Protected Scope remains: no
+  real Bank charge, no live credential activation, no Replicate paid call, no
+  RunPod, and no production deployment.
