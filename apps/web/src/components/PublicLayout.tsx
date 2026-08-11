@@ -47,6 +47,13 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
           <Link to="/register" className="btn btn-ghost">Sign Up</Link>
           <button type="button" className="btn btn-primary upload-trigger" onClick={openRestorationUpload}>Get Started</button>
         </div>
+        <nav className="mobile-nav" aria-label="Mobile navigation">
+          <NavLink to="/" end>Home</NavLink>
+          <a href={hrefFor("#memories")}>Restoration</a>
+          <a href={hrefFor("#printing")}>Printing</a>
+          <NavLink to="/pricing">Pricing</NavLink>
+          <NavLink to="/restore">Restorations</NavLink>
+        </nav>
       </header>
 
       <main className="site-main">

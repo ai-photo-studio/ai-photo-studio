@@ -35,6 +35,7 @@ type SavedTierState = {
   useCaseId: CustomerUseCaseId | null;
   printSize: string;
   quantity: number;
+  printLines?: Array<{ printSize: string; quantity: number }>;
   address: { recipientName: string; phone: string; addressLine1: string; city: string; countryCode: string };
 };
 
@@ -75,6 +76,7 @@ export function DigitalTierSelectPage() {
   const [printCatalog, setPrintCatalog] = useState<Awaited<ReturnType<typeof customerApi.getPrintCatalog>>>([]);
   const [printSize, setPrintSize] = useState(saved?.printSize ?? "");
   const [quantity, setQuantity] = useState(saved?.quantity ?? 1);
+  const [printLines, setPrintLines] = useState<Array<{ printSize: string; quantity: number }>>(saved?.printLines ?? []);
   const [address, setAddress] = useState(saved?.address ?? { recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
   const [sourceDimensions, setSourceDimensions] = useState<{ width: number | null; height: number | null }>({ width: null, height: null });
   const [loading, setLoading] = useState(true);
@@ -119,10 +121,10 @@ export function DigitalTierSelectPage() {
   // CartConfigurePage's identical pattern for the multi-image flow.
   useEffect(() => {
     if (!draftId || !selected) return;
-    writeSavedState(draftId, { selected, product, useCaseId, printSize, quantity, address });
-  }, [draftId, selected, product, useCaseId, printSize, quantity, address]);
+    writeSavedState(draftId, { selected, product, useCaseId, printSize, quantity, printLines, address });
+  }, [draftId, selected, product, useCaseId, printSize, quantity, printLines, address]);
 
-  useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
+  useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); setPrintLines([{ printSize: marketItems[0].size, quantity: marketItems[0].minimumQuantity }]); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
   useEffect(() => { if (!draftId) return; void customerApi.getRestorationDraft(token || undefined, draftId, getGuestOwnershipToken(draftId) || undefined).then((draft) => setSourceDimensions({ width: draft.originalWidth, height: draft.originalHeight })).catch(() => setSourceDimensions({ width: null, height: null })); }, [draftId, token]);
 
   // Switching back to Digital-only clears print-only selection state so a
@@ -133,6 +135,7 @@ export function DigitalTierSelectPage() {
     if (product !== "DIGITAL") return;
     setPrintSize("");
     setQuantity(1);
+    setPrintLines([]);
     setAddress({ recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
   }, [product]);
 
@@ -143,7 +146,7 @@ export function DigitalTierSelectPage() {
     try {
       const guestToken = getGuestOwnershipToken(draftId);
       if (!product) return;
-      const order = await customerApi.createFixedOrder(token || undefined, { draftId, tier: selected, product, printSize: product === "PRINT_DIGITAL" ? printSize : undefined, quantity: product === "PRINT_DIGITAL" ? quantity : undefined, deliveryAddress: product === "PRINT_DIGITAL" ? address : undefined }, guestToken || undefined);
+       const order = await customerApi.createFixedOrder(token || undefined, { draftId, tier: selected, product, printSize: product === "PRINT_DIGITAL" ? printSize : undefined, quantity: product === "PRINT_DIGITAL" ? quantity : undefined, printLines: product === "PRINT_DIGITAL" ? (printLines.length ? printLines : [{ printSize, quantity }]) : undefined, deliveryAddress: product === "PRINT_DIGITAL" ? address : undefined }, guestToken || undefined);
       if (guestToken) setGuestOwnershipToken(order.orderNo, guestToken);
       navigate(`/orders/${order.orderNo}/review`);
     } catch (err) {
@@ -217,34 +220,37 @@ export function DigitalTierSelectPage() {
             <div className="state-panel state-panel-warning"><p>Lower image quality may reduce print quality, especially at larger print sizes. Continue with this quality at your own choice.</p></div>
           )}
 
-           {product === "PRINT_DIGITAL" && (() => {
-            const printItem = printCatalog.find((entry) => entry.size === printSize);
-            const minimumQuantity = printItem?.minimumQuantity ?? 1;
-            const belowMinimum = Number.isSafeInteger(quantity) && quantity < minimumQuantity;
-            const digitalOffer = offers?.find((offer) => offer.tier === selected);
-            const validQuantity = Number.isSafeInteger(quantity) && quantity >= minimumQuantity;
-            const printSubtotalMinor = printItem && validQuantity ? printItem.unitAmountMinor * quantity : null;
+            {product === "PRINT_DIGITAL" && (() => {
+             const lines = printLines.length ? printLines : [{ printSize, quantity }];
+             const printItem = printCatalog.find((entry) => entry.size === lines[0]?.printSize);
+             const digitalOffer = offers?.find((offer) => offer.tier === selected);
+             const printSubtotals = lines.map((line) => { const item = printCatalog.find((entry) => entry.size === line.printSize); return item && Number.isSafeInteger(line.quantity) && line.quantity >= item.minimumQuantity ? item.unitAmountMinor * line.quantity : null; });
+             const printSubtotalMinor = printSubtotals.every((value) => value !== null) ? printSubtotals.reduce((sum, value) => sum + (value ?? 0), 0) : null;
             // Estimated only: the server (quotePrint / FixedOrder creation)
             // is the sole authority on the final total, computed fresh from
             // its own PriceBook + print catalog, never from this value.
-            const estimatedTotalMinor =
-              printSubtotalMinor !== null && printItem?.deliveryAmountMinor != null && digitalOffer
-                ? digitalOffer.amountMinor + printSubtotalMinor + printItem.deliveryAmountMinor
+             const deliveryAmountMinor = Math.max(...lines.map((line) => printCatalog.find((entry) => entry.size === line.printSize)?.deliveryAmountMinor ?? 0));
+             const estimatedTotalMinor =
+               printSubtotalMinor !== null && digitalOffer
+                 ? digitalOffer.amountMinor + printSubtotalMinor + deliveryAmountMinor
                 : null;
             return (
               <div className="state-panel">
-                <div className="field-grid">
-                  <label>
-                    Print size
-                     <select value={printSize} onChange={(event) => { const item = printCatalog.find((entry) => entry.size === event.target.value); setPrintSize(event.target.value); if (item) setQuantity(item.minimumQuantity); }}>
-                       {printCatalog.filter((item) => !useCaseId || CUSTOMER_USE_CASES.find((useCase) => useCase.id === useCaseId)?.sizes.includes(item.size)).map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}{item.blocker ? ` (${item.blocker})` : ""}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    Quantity
-                    <input type="number" min={minimumQuantity} max={10} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} />
-                    {belowMinimum && <small className="field-error">Minimum quantity for this size is {minimumQuantity}.</small>}
-                  </label>
+                 <div className="stack">
+                   {lines.map((line, lineIndex) => {
+                     const lineItem = printCatalog.find((entry) => entry.size === line.printSize);
+                     const lineMinimum = lineItem?.minimumQuantity ?? 1;
+                     return <div className="field-grid" key={`${line.printSize}-${lineIndex}`}>
+                       <label>Print size<select value={line.printSize} onChange={(event) => { const item = printCatalog.find((entry) => entry.size === event.target.value); const next = [...lines]; next[lineIndex] = { printSize: event.target.value, quantity: item?.minimumQuantity ?? 1 }; setPrintLines(next); setPrintSize(next[0].printSize); setQuantity(next[0].quantity); }}>
+                         {printCatalog.map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}{item.blocker ? ` (${item.blocker})` : ""}</option>)}
+                       </select></label>
+                       <label>Quantity<input type="number" min={lineMinimum} max={10} value={line.quantity} onChange={(event) => { const next = [...lines]; next[lineIndex] = { ...next[lineIndex], quantity: Number(event.target.value) }; setPrintLines(next); setPrintSize(next[0].printSize); setQuantity(next[0].quantity); }} />{line.quantity < lineMinimum && <small className="field-error">Minimum quantity for this size is {lineMinimum}.</small>}</label>
+                       {lineIndex > 0 && <button type="button" className="button button-ghost" onClick={() => { const next = lines.filter((_, index) => index !== lineIndex); setPrintLines(next); }}>Remove line</button>}
+                     </div>;
+                   })}
+                   {lines.length < 10 && <button type="button" className="button button-secondary" onClick={() => setPrintLines([...lines, { printSize: printCatalog[0]?.size || printSize, quantity: printCatalog[0]?.minimumQuantity || 1 }])}>Add another print size</button>}
+                 </div>
+                 <div className="field-grid">
                   <label>Recipient name<input value={address.recipientName} onChange={(e) => setAddress({ ...address, recipientName: e.target.value })} /></label>
                   <label>Phone<input value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} /></label>
                   <label>Address<input value={address.addressLine1} onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })} /></label>
@@ -253,10 +259,9 @@ export function DigitalTierSelectPage() {
                 {(printItem || digitalOffer) && (
                   <dl className="order-summary">
                     {digitalOffer && <div><dt>Image quality ({TIER_LABELS[digitalOffer.tier] ?? digitalOffer.label})</dt><dd>{digitalOffer.currency} {(digitalOffer.amountMinor / 100).toFixed(2)}</dd></div>}
-                    {printItem && <div><dt>Print unit price</dt><dd>{printItem.currency} {(printItem.unitAmountMinor / 100).toFixed(2)}</dd></div>}
-                    {printItem && <div><dt>Quantity</dt><dd>{quantity}</dd></div>}
+                     {lines.map((line, lineIndex) => { const item = printCatalog.find((entry) => entry.size === line.printSize); return item ? <div key={`${line.printSize}-summary-${lineIndex}`}><dt>Print {lineIndex + 1} · {line.printSize} × {line.quantity}</dt><dd>{item.currency} {((item.unitAmountMinor * line.quantity) / 100).toFixed(2)}</dd></div> : null; })}
                     {printSubtotalMinor !== null && <div><dt>Print subtotal</dt><dd>{printItem?.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div>}
-                    <div><dt>Delivery</dt><dd>{printItem?.deliveryAmountMinor != null ? `${printItem.currency} ${(printItem.deliveryAmountMinor / 100).toFixed(2)}` : "Calculated by server"}</dd></div>
+                     <div><dt>Delivery</dt><dd>{printItem ? `${printItem.currency} ${(deliveryAmountMinor / 100).toFixed(2)}` : "Calculated by server"}</dd></div>
                     {estimatedTotalMinor !== null && <div><dt><strong>Estimated Total</strong></dt><dd><strong>{digitalOffer?.currency} {(estimatedTotalMinor / 100).toFixed(2)}</strong></dd></div>}
                   </dl>
                 )}
@@ -274,7 +279,7 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-          disabled={!selected || !product || !useCaseId || creating || !offers || (product === "PRINT_DIGITAL" && (!printSize || !Number.isSafeInteger(quantity) || quantity > 10 || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+          disabled={!selected || !product || !useCaseId || creating || !offers || (product === "PRINT_DIGITAL" && (printLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity > 10) || !printSize || !Number.isSafeInteger(quantity) || quantity > 10 || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}

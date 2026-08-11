@@ -261,7 +261,7 @@ export const customerApi = {
       guestToken
     ),
 
-  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string; product?: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } }, guestToken?: string) =>
+  createFixedOrder: (token: string | undefined, input: { draftId: string; tier: string; product?: "DIGITAL" | "PRINT_DIGITAL"; printSize?: string; quantity?: number; printLines?: Array<{ printSize: string; quantity: number }>; deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string } }, guestToken?: string) =>
     apiRequest<FixedOrderSummary>(
       "/api/fixed-orders/restoration-digital",
       { method: "POST", body: JSON.stringify(input) },

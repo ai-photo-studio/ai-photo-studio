@@ -3082,3 +3082,45 @@ changes were needed; the integration was already credential-ready.**
   85%. Remaining blockers only: approved Triple Canvas dimensions, complete
   Album product/fulfilment details, and tomorrow's ThanNow APG sandbox
   credentials/hash/IPN confirmation. No production deployment is authorized.
+
+### R9.5-P6G — DevTools Mobile UX Forensic Audit (2026-08-12)
+
+- Audit method: official Chrome DevTools CLI v1.7.0 through the dedicated
+  `D:\AI-Tools\ChromeDevToolsProfile`, using rendered DOM/CSS evaluation,
+  accessibility snapshots, network/console inspection, viewport emulation,
+  and a quick performance trace. Production was not modified or accessed for
+  writes; the protected local dry-run used disposable PostgreSQL and mock
+  storage/provider behavior.
+- Audited viewports: 360x800, 390x844, 430x932, 768x1024, 1024x768, and
+  1440x900. Deepest audit was 390x844 across home, upload modal, preview,
+  product/use-case/quality selection, print configuration, multi-print review,
+  auth/payment surfaces, and result/status coverage through protected tests.
+- Proven defects fixed: the single-image print flow now supports multiple
+  print lines with per-line size, quantity, removal, subtotal, and one-image
+  summary; the upload-modal close control increased from 34x34 to 44x44; core
+  buttons and print form controls use a 44px minimum; mobile public navigation
+  now exposes Home, Restoration, Printing, Pricing, and Restorations; mobile
+  footer links receive practical touch areas. Desktop visual language remains
+  unchanged.
+- Mobile evidence: no horizontal overflow at any audited viewport; modal body
+  scroll locks correctly; multi-image review showed three photos and two print
+  lines on one image with one delivery total; Digital showed no quantity or
+  copy control; Print fields stacked naturally; logo remained undistorted in
+  header/footer/customer shells. Header and footer CTAs remained reachable.
+- Performance quick trace on local home at 390px: LCP 901ms and CLS 0.00.
+  Console findings were expected React Router future warnings, the configured
+  null local Meta Pixel warning, and mock-storage DNS failure; no first-party
+  image 404 occurred. The mock storage DNS failure is test-environment-only,
+  not a frontend production asset defect.
+- Regression evidence: browser `116/116`, responsive `99/99`, lint passed
+  with existing warnings only, typecheck passed, build passed, protected
+  commerce E2E passed with one payment/three masters/zero real provider calls,
+  and final interactive dry-run modal smoke passed with 390px overflow zero,
+  body scroll lock, and 44x44 close control. APG stayed disabled and no Bank,
+  Replicate, RunPod, or production calls occurred.
+- P6G readiness: frontend 100%, Pakistan funnel 100%, print-commerce 90%,
+  payment-code readiness 65%, Bank activation 0%, full Pakistan readiness
+  85%. Remaining blockers only: approved Triple Canvas dimensions, complete
+  Album product/fulfilment details, paid-restoration add-on activation flow,
+  and ThanNow APG sandbox credentials/hash/IPN confirmation. No deployment is
+  authorized by this packet.
