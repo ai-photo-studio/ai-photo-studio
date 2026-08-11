@@ -58,3 +58,9 @@ No secrets are committed in repository files.
 - Phase 1 background remover service: complete locally under `services/background-remover`.
 - Phase 2 WhatsApp image intake: implemented locally with image download, storage upload, queue handoff, background-remover call, and image reply.
 - Runtime features (webhooks, orders, payments, workers): in progress.
+
+## APG Website Compliance
+
+The public website exposes `/faq`, `/terms`, `/privacy-policy`, `/payment-policy`, `/refund-exchange-policy`, `/delivery-policy`, and `/contact` through the shared ThanNow footer. Pakistan customer catalog and checkout amounts remain server-sourced and are displayed in PKR. Checkout links to the applicable terms, privacy, payment, and refund policies without changing order or Bank Alfalah processing logic. No cryptocurrency payment method is displayed or offered.
+
+KYC contact information is shown on `/contact` only: ThanNow, operated by BioTech, the supplied Pakistan phone, support email, and office address. The physical address is intentionally not rendered in the global footer or other public pages. Compliance validation includes source searches for placeholders, prohibited payment methods, address exposure, and a production web build; browser/mobile route review remains part of release validation.

@@ -2463,6 +2463,50 @@ img {
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22);
 }
 
+.compliance-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.compliance-content {
+  max-width: 780px;
+}
+
+.compliance-section {
+  margin: 0 0 30px;
+}
+
+.compliance-section h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+
+.compliance-section p,
+.compliance-section li {
+  line-height: 1.7;
+}
+
+.compliance-section ul {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.contact-card {
+  max-width: 560px;
+}
+
+.contact-card p {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+
+.checkout-policies {
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .mobile-nav {
   display: none;
 }

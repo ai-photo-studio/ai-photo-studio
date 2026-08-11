@@ -6,7 +6,7 @@
 // single-image page/route is completely untouched.
 const PAYMENT_UNAVAILABLE_MESSAGE = "Online payment is temporarily unavailable.";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type FixedOrderCartSummary } from "../services/customerApi";
@@ -210,6 +210,8 @@ export function CartReviewPage() {
         </dl>
         <p className="helper-text">PriceBook: {order.priceBookVersion || "-"}</p>
       </div>
+
+      <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 
       <div className="state-panel" style={{ marginTop: "1rem" }}>
         <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : PAYMENT_UNAVAILABLE_MESSAGE)}</p>

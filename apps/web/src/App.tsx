@@ -34,6 +34,7 @@ import { PaymentReturnPage } from "./pages/PaymentReturnPage";
 import { CartPreviewPage } from "./pages/CartPreviewPage";
 import { CartConfigurePage } from "./pages/CartConfigurePage";
 import { CartReviewPage } from "./pages/CartReviewPage";
+import { ContactPage, DeliveryPolicyPage, FaqPage, PaymentPolicyPage, PrivacyPolicyPage, RefundExchangePolicyPage, TermsPage } from "./pages/CompliancePages";
 
 export function App() {
   return (
@@ -47,6 +48,13 @@ export function App() {
         <Route path="virtual-model" element={<FeaturePage feature="virtual-model" />} />
         <Route path="videos" element={<FeaturePage feature="videos" />} />
         <Route path="pricing" element={<PricingPage />} />
+        <Route path="faq" element={<FaqPage />} />
+        <Route path="terms" element={<TermsPage />} />
+        <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="payment-policy" element={<PaymentPolicyPage />} />
+        <Route path="refund-exchange-policy" element={<RefundExchangePolicyPage />} />
+        <Route path="delivery-policy" element={<DeliveryPolicyPage />} />
+        <Route path="contact" element={<ContactPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<SignupPage />} />
         <Route path="signup" element={<SignupPage />} />

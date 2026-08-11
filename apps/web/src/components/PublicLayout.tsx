@@ -75,10 +75,19 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
             <a href={hrefFor("#printing")}>Printing</a>
           </div>
           <div>
-            <h4>Company</h4>
+            <h4>Customer Help</h4>
             <a href={hrefFor("#how")}>Our Process</a>
+            <Link to="/faq">FAQ</Link>
+            <Link to="/contact">Contact Us</Link>
             <Link to="/pricing">Pricing</Link>
-            <Link to="/orders">My Orders</Link>
+          </div>
+          <div>
+            <h4>Policies</h4>
+            <Link to="/terms">Terms and Conditions</Link>
+            <Link to="/privacy-policy">Privacy Policy</Link>
+            <Link to="/payment-policy">Payment Policy</Link>
+            <Link to="/refund-exchange-policy">Refund and Exchange</Link>
+            <Link to="/delivery-policy">Delivery Policy</Link>
           </div>
           <div className="footer-cta">
             <h4>Start Restoring</h4>
@@ -88,7 +97,7 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
         </div>
         <div className="footer-bottom section-shell">
           <span>Copyright ThanNow. All rights reserved.</span>
-          <span>Serving customers across Pakistan</span>
+          <span>ThanNow · Operated by BioTech · <a href="mailto:gisupp@gmail.com">gisupp@gmail.com</a> · <a href="tel:+923354299783">+923354299783</a></span>
         </div>
       </footer>
     </div>

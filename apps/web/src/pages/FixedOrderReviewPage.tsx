@@ -12,7 +12,7 @@
 // until a real provider is implemented and enabled.
 const PAYMENT_UNAVAILABLE_MESSAGE = "Online payment is temporarily unavailable.";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type FixedOrderSummary } from "../services/customerApi";
@@ -202,6 +202,8 @@ export function FixedOrderReviewPage() {
       {thumbnailUrl && <div className="card" style={{ marginTop: "1rem" }}><img src={thumbnailUrl} alt="Original photo thumbnail" style={{ display: "block", maxHeight: "220px", maxWidth: "100%", margin: "0 auto", objectFit: "contain" }} /></div>}
 
       {order.print && <div className="state-panel" style={{ marginTop: "1rem" }}><p><strong>{order.print.size}, quantity {order.print.quantity}</strong></p><p>Digital: {order.currency} {(digitalAmountMinor / 100).toFixed(2)} · Print: {order.currency} {(printSubtotalMinor / 100).toFixed(2)} · Delivery: {order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</p>{order.deliveryAddress && <p>Deliver to: {order.deliveryAddress.recipientName}, {order.deliveryAddress.addressLine1}, {order.deliveryAddress.city}</p>}</div>}
+
+      <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 
        <div className="state-panel" style={{ marginTop: "1rem" }}>
          <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
