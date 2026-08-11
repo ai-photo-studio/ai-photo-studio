@@ -7,12 +7,8 @@ export function CustomerLayout() {
   return (
     <div className="site-shell customer-shell customer-page">
       <header className="site-header customer-header">
-        <Link to="/" className="brand">
-          <span className="brand-mark">TN</span>
-          <span>
-            <strong>ThanNow</strong>
-            <small>Customer workspace</small>
-          </span>
+        <Link to="/" className="brand" aria-label="ThanNow home">
+          <img src="/assets/thannow-logo.png" alt="ThanNow" className="brand-logo" />
         </Link>
         <nav className="site-nav" aria-label="Customer">
           <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>

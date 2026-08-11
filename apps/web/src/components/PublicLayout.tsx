@@ -31,11 +31,7 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
     <div className="site-shell">
       <header className="site-header">
         <Link to="/" className="brand" aria-label="ThanNow home">
-          <span className="brand-mark">TN</span>
-          <span>
-            <strong>ThanNow</strong>
-            <small>Memories Worth Saving</small>
-          </span>
+          <img src="/assets/thannow-logo.png" alt="ThanNow" className="brand-logo" />
         </Link>
 
         <nav className="desktop-nav" aria-label="Primary navigation">
@@ -61,11 +57,7 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
         <div className="section-shell footer-grid">
           <div className="footer-brand">
             <Link to="/" className="brand" aria-label="ThanNow home">
-              <span className="brand-mark">TN</span>
-              <span>
-                <strong>ThanNow</strong>
-                <small>Memories Worth Saving</small>
-              </span>
+              <img src="/assets/thannow-logo.png" alt="ThanNow" className="brand-logo" />
             </Link>
             <p>Restore, upscale and preserve the human memories that matter most.</p>
           </div>

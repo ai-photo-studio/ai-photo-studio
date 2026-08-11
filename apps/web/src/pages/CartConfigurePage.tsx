@@ -9,6 +9,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
+import { bestUseCaseResult, CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
 
 const TIER_LABELS: Record<string, string> = { ORIGINAL: "Restored Original", HD_2X: "2x HD", HD_4X: "4x Ultra HD" };
 const TIER_DESCRIPTIONS: Record<string, string> = {
@@ -24,6 +25,7 @@ const TIER_DESCRIPTIONS: Record<string, string> = {
 type ItemConfig = {
   tier: string;
   product: "DIGITAL" | "PRINT_DIGITAL" | null;
+  useCaseId: CustomerUseCaseId | null;
   printSize: string;
   quantity: number;
 };
@@ -62,6 +64,7 @@ export function CartConfigurePage() {
   const [offersByDraft, setOffersByDraft] = useState<Record<string, DigitalOfferSummary[]>>({});
   const [printCatalog, setPrintCatalog] = useState<Awaited<ReturnType<typeof customerApi.getPrintCatalog>>>([]);
   const [configs, setConfigs] = useState<Record<string, ItemConfig>>({});
+  const [dimensionsByDraft, setDimensionsByDraft] = useState<Record<string, { width: number | null; height: number | null }>>({});
   const [address, setAddress] = useState({ recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -72,9 +75,10 @@ export function CartConfigurePage() {
     setLoading(true);
     setError(null);
     try {
-      const [offerResults, catalog] = await Promise.all([
+      const [offerResults, catalog, draftResults] = await Promise.all([
         Promise.all(draftIds.map((id) => customerApi.getRestorationDraftOffers(token || undefined, id, getGuestOwnershipToken(id) || undefined).then((data) => [id, data] as const))),
-        customerApi.getPrintCatalog()
+        customerApi.getPrintCatalog(),
+        Promise.all(draftIds.map((id) => customerApi.getRestorationDraft(token || undefined, id, getGuestOwnershipToken(id) || undefined).then((draft) => [id, { width: draft.originalWidth, height: draft.originalHeight }] as const)))
       ]);
       if (!mounted.current) return;
       const saved = readSavedState(draftIds);
@@ -87,11 +91,12 @@ export function CartConfigurePage() {
           const savedTierStillOffered = savedConfig && offers.some((o) => o.tier === savedConfig.tier);
           initialConfigs[id] = savedTierStillOffered
             ? savedConfig
-            : { tier: offers[0]?.tier ?? "ORIGINAL", product: null, printSize: "", quantity: 1 };
+             : { tier: offers[0]?.tier ?? "ORIGINAL", product: null, useCaseId: null, printSize: "", quantity: 1 };
         }
       }
       setOffersByDraft(byDraft);
       setConfigs(initialConfigs);
+      setDimensionsByDraft(Object.fromEntries(draftResults));
       if (saved?.address) setAddress(saved.address);
       setPrintCatalog(catalog.filter((item) => item.currency === "PKR"));
     } catch (err) {
@@ -175,9 +180,9 @@ export function CartConfigurePage() {
   const allConfigured = draftIds.every((id) => {
     const c = configs[id];
     if (!c) return false;
-    if (c.product === "DIGITAL") return true;
+    if (c.product === "DIGITAL") return Boolean(c.useCaseId);
     if (c.product !== "PRINT_DIGITAL") return false;
-    return Boolean(c.printSize) && Number.isSafeInteger(c.quantity) && c.quantity > 0;
+    return Boolean(c.useCaseId) && Boolean(c.printSize) && Number.isSafeInteger(c.quantity) && c.quantity > 0 && c.quantity <= 10;
   });
   const addressReady = !anyPrint || (address.recipientName.trim() && address.phone.trim() && address.addressLine1.trim() && address.city.trim());
 
@@ -204,15 +209,25 @@ export function CartConfigurePage() {
 
             <p className="helper-text">1. Choose product</p>
             <div role="radiogroup" aria-label={`Product for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-              <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL" })}>
+              <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL", useCaseId: null })}>
                 <h3 style={{ fontSize: "1rem" }}>Digital Download</h3>
               </button>
-              <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 })}>
+              <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", useCaseId: null, printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 })}>
                 <h3 style={{ fontSize: "1rem" }}>Print + Digital</h3>
               </button>
             </div>
 
             {!config.product ? <p className="helper-text" style={{ marginTop: "1rem" }}>Select a product to continue configuring this photo.</p> : <>
+            <p className="helper-text" style={{ marginTop: "1rem" }}>2. Where would you like to use this photo?</p>
+            <div role="radiogroup" aria-label={`Photo use case for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
+              {CUSTOMER_USE_CASES.filter((useCase) => config.product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
+                <button key={useCase.id} type="button" role="radio" aria-checked={config.useCaseId === useCase.id} className={`card product-choice ${config.useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => updateConfig(id, { useCaseId: useCase.id, printSize: useCase.sizes[0] || config.printSize })}>
+                  <h3 style={{ fontSize: "1rem" }}>{useCase.label}</h3><p className="helper-text">{useCase.copy}</p><small>{useCase.sizes.length ? useCase.sizes.join(", ") : "Digital sharing"}</small>
+                  {(() => { const dimensions = dimensionsByDraft[id]; const suitability = bestUseCaseResult(useCase, dimensions?.width ?? null, dimensions?.height ?? null); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
+                </button>
+              ))}
+            </div>
+            {!config.useCaseId ? <p className="helper-text">Choose a use case to continue configuring this photo.</p> : <>
             <p className="helper-text" style={{ marginTop: "1rem" }}>2. Choose image quality</p>
             <div role="radiogroup" aria-label={`Image quality for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
               {offers.map((offer) => (
@@ -245,17 +260,18 @@ export function CartConfigurePage() {
                 <label>
                   Print size
                   <select value={config.printSize} onChange={(e) => { const item = printCatalog.find((entry) => entry.size === e.target.value); updateConfig(id, { printSize: e.target.value, quantity: item?.minimumQuantity ?? 1 }); }}>
-                    {printCatalog.map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}</option>)}
+                    {printCatalog.filter((item) => !config.useCaseId || CUSTOMER_USE_CASES.find((useCase) => useCase.id === config.useCaseId)?.sizes.includes(item.size)).map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}</option>)}
                   </select>
                 </label>
                 <label>
                   Quantity
-                  <input type="number" min={minimumQuantity} value={config.quantity} onChange={(e) => updateConfig(id, { quantity: Number(e.target.value) })} />
+                   <input type="number" min={minimumQuantity} max={10} value={config.quantity} onChange={(e) => updateConfig(id, { quantity: Number(e.target.value) })} />
                   {belowMinimum && <small className="field-error">Minimum quantity for this size is {minimumQuantity}.</small>}
                 </label>
               </div>
             )}
-            <button type="button" className="button button-ghost" onClick={() => updateConfig(id, { product: null })}>Back to Product</button>
+            <button type="button" className="button button-ghost" onClick={() => updateConfig(id, { useCaseId: null })}>Back to Use Case</button>
+            </>}
             </>}
 
             <div className="button-row" style={{ marginTop: "0.75rem" }}>

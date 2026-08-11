@@ -30,6 +30,7 @@ export function quotePrint(digitalAmountMinor: number, size: string, quantity: n
   const entry = [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].find((item) => item.size === size && item.currency === currency);
   if (!entry) throw new Error("unknown print size");
   if (!Number.isSafeInteger(quantity) || quantity < entry.minQuantity) throw new Error("quantity below catalog minimum");
+  if (quantity > 10) throw new Error("quantity exceeds maximum of 10");
   if (entry.deliveryFeeMinor === null) throw new Error("INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
   return { digitalAmountMinor, printSubtotalMinor: entry.unitPriceMinor * quantity, deliveryFeeMinor: entry.deliveryFeeMinor, totalAmountMinor: digitalAmountMinor + entry.unitPriceMinor * quantity + entry.deliveryFeeMinor };
 }

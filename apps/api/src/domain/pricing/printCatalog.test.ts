@@ -38,8 +38,8 @@ if (hd4xQuote.totalAmountMinor !== 275000) throw new Error(`4x Ultra HD 4x6x10 t
 
 // Quantity change updates the quote (server recomputes from scratch every
 // call; there is no cached/stale total to accidentally reuse).
-const qty11 = quotePrint(50000, "4x6", 11);
-if (qty11.printSubtotalMinor !== 110000 || qty11.totalAmountMinor !== 185000) throw new Error("quantity change did not update the quote");
+const qty6 = quotePrint(50000, "5x7", 6);
+if (qty6.printSubtotalMinor !== 90000 || qty6.totalAmountMinor !== 165000) throw new Error("quantity change did not update the quote");
 
 // The quote function's signature has no parameter for a client-supplied
 // total/amount at all -- there is nothing for a tampered client value to
@@ -56,5 +56,6 @@ if (q40x60.printSubtotalMinor !== 2000000 || q40x60.totalAmountMinor !== 2150000
 // Triple Canvas: PKR 25000 unit, min 1, PKR 2500 delivery.
 const qTripleCanvas = quotePrint(150000, "Triple Canvas", 1);
 if (qTripleCanvas.printSubtotalMinor !== 2500000 || qTripleCanvas.deliveryFeeMinor !== 250000 || qTripleCanvas.totalAmountMinor !== 2900000) throw new Error(`Triple Canvas quote mismatch: ${qTripleCanvas.totalAmountMinor}`);
+try { quotePrint(50000, "4x6", 11); throw new Error("quantity 11 was accepted"); } catch (error) { if (!(error instanceof Error) || !error.message.includes("maximum of 10")) throw error; }
 
 console.log("printCatalog.test.ts: exact catalog (including corrected 40x60 and new Triple Canvas), minimums, delivery, PKR 1750/2250/2750 examples, and quote arithmetic passed");

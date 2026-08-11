@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
+import { bestUseCaseResult, CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
 
 const TIER_LABELS: Record<string, string> = {
   ORIGINAL: "Restored Original",
@@ -31,6 +32,7 @@ const TIER_BADGES: Record<string, string> = {
 type SavedTierState = {
   selected: string;
   product: "DIGITAL" | "PRINT_DIGITAL" | null;
+  useCaseId: CustomerUseCaseId | null;
   printSize: string;
   quantity: number;
   address: { recipientName: string; phone: string; addressLine1: string; city: string; countryCode: string };
@@ -69,10 +71,12 @@ export function DigitalTierSelectPage() {
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(saved?.selected ?? null);
   const [product, setProduct] = useState<"DIGITAL" | "PRINT_DIGITAL" | null>(saved?.product ?? null);
+  const [useCaseId, setUseCaseId] = useState<CustomerUseCaseId | null>(saved?.useCaseId ?? null);
   const [printCatalog, setPrintCatalog] = useState<Awaited<ReturnType<typeof customerApi.getPrintCatalog>>>([]);
   const [printSize, setPrintSize] = useState(saved?.printSize ?? "");
   const [quantity, setQuantity] = useState(saved?.quantity ?? 1);
   const [address, setAddress] = useState(saved?.address ?? { recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
+  const [sourceDimensions, setSourceDimensions] = useState<{ width: number | null; height: number | null }>({ width: null, height: null });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,10 +119,11 @@ export function DigitalTierSelectPage() {
   // CartConfigurePage's identical pattern for the multi-image flow.
   useEffect(() => {
     if (!draftId || !selected) return;
-    writeSavedState(draftId, { selected, product, printSize, quantity, address });
-  }, [draftId, selected, product, printSize, quantity, address]);
+    writeSavedState(draftId, { selected, product, useCaseId, printSize, quantity, address });
+  }, [draftId, selected, product, useCaseId, printSize, quantity, address]);
 
   useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
+  useEffect(() => { if (!draftId) return; void customerApi.getRestorationDraft(token || undefined, draftId, getGuestOwnershipToken(draftId) || undefined).then((draft) => setSourceDimensions({ width: draft.originalWidth, height: draft.originalHeight })).catch(() => setSourceDimensions({ width: null, height: null })); }, [draftId, token]);
 
   // Switching back to Digital-only clears print-only selection state so a
   // stale size/quantity/address never leaks into a later Print+Digital
@@ -165,16 +170,26 @@ export function DigitalTierSelectPage() {
         <>
           <h2 className="section-subheading">1. Choose product</h2>
           <div role="radiogroup" aria-label="Product" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("DIGITAL")}>
+             <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("DIGITAL"); setUseCaseId(null); }}>
               <h3>Digital Download</h3><p>Restore or upscale your photo and download it when ready.</p>
             </button>
-            <button type="button" role="radio" aria-checked={product === "PRINT_DIGITAL"} className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("PRINT_DIGITAL")}>
+             <button type="button" role="radio" aria-checked={product === "PRINT_DIGITAL"} className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("PRINT_DIGITAL"); setUseCaseId(null); }}>
               <h3>Print + Digital — Home Delivery</h3><p>Restore your photo once, receive the digital copy, and order home delivery.</p>
             </button>
           </div>
 
-          {!product ? <p className="helper-text">Continue by selecting Digital Download or Print + Digital.</p> : <>
-          <h2 className="section-subheading">2. Choose image quality</h2>
+           {!product ? <p className="helper-text">Continue by selecting Digital Download or Print + Digital.</p> : <>
+           <h2 className="section-subheading">2. Where would you like to use this photo?</h2>
+           <div role="radiogroup" aria-label="Photo use case" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+             {CUSTOMER_USE_CASES.filter((useCase) => product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
+               <button key={useCase.id} type="button" role="radio" aria-checked={useCaseId === useCase.id} className={`card product-choice ${useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => { setUseCaseId(useCase.id); if (useCase.sizes[0]) setPrintSize(useCase.sizes[0]); }}>
+                 <h3>{useCase.label}</h3><p>{useCase.copy}</p><small>{useCase.sizes.length ? `Suggested sizes: ${useCase.sizes.join(", ")}` : "Digital sharing"}</small>
+                 {(() => { const suitability = bestUseCaseResult(useCase, sourceDimensions.width, sourceDimensions.height); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
+               </button>
+             ))}
+           </div>
+           {!useCaseId ? <p className="helper-text">Choose a use case to continue.</p> : <>
+           <h2 className="section-subheading">2. Choose image quality</h2>
           <div role="radiogroup" aria-label="Image quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {offers.map((offer) => (
               <article
@@ -202,7 +217,7 @@ export function DigitalTierSelectPage() {
             <div className="state-panel state-panel-warning"><p>Lower image quality may reduce print quality, especially at larger print sizes. Continue with this quality at your own choice.</p></div>
           )}
 
-          {product === "PRINT_DIGITAL" && (() => {
+           {product === "PRINT_DIGITAL" && (() => {
             const printItem = printCatalog.find((entry) => entry.size === printSize);
             const minimumQuantity = printItem?.minimumQuantity ?? 1;
             const belowMinimum = Number.isSafeInteger(quantity) && quantity < minimumQuantity;
@@ -221,13 +236,13 @@ export function DigitalTierSelectPage() {
                 <div className="field-grid">
                   <label>
                     Print size
-                    <select value={printSize} onChange={(event) => { const item = printCatalog.find((entry) => entry.size === event.target.value); setPrintSize(event.target.value); if (item) setQuantity(item.minimumQuantity); }}>
-                      {printCatalog.map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}{item.blocker ? ` (${item.blocker})` : ""}</option>)}
+                     <select value={printSize} onChange={(event) => { const item = printCatalog.find((entry) => entry.size === event.target.value); setPrintSize(event.target.value); if (item) setQuantity(item.minimumQuantity); }}>
+                       {printCatalog.filter((item) => !useCaseId || CUSTOMER_USE_CASES.find((useCase) => useCase.id === useCaseId)?.sizes.includes(item.size)).map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}{item.blocker ? ` (${item.blocker})` : ""}</option>)}
                     </select>
                   </label>
                   <label>
                     Quantity
-                    <input type="number" min={minimumQuantity} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} />
+                    <input type="number" min={minimumQuantity} max={10} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} />
                     {belowMinimum && <small className="field-error">Minimum quantity for this size is {minimumQuantity}.</small>}
                   </label>
                   <label>Recipient name<input value={address.recipientName} onChange={(e) => setAddress({ ...address, recipientName: e.target.value })} /></label>
@@ -249,8 +264,9 @@ export function DigitalTierSelectPage() {
               </div>
             );
           })()}
-          <button type="button" className="button button-ghost" onClick={() => setProduct(null)}>Back to Product</button>
-          </>}
+           <button type="button" className="button button-ghost" onClick={() => setUseCaseId(null)}>Back to Use Case</button>
+           </>}
+           </>}
         </>
       )}
 
@@ -258,7 +274,7 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-          disabled={!selected || !product || creating || !offers || (product === "PRINT_DIGITAL" && (!printSize || !Number.isSafeInteger(quantity) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+          disabled={!selected || !product || !useCaseId || creating || !offers || (product === "PRINT_DIGITAL" && (!printSize || !Number.isSafeInteger(quantity) || quantity > 10 || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}

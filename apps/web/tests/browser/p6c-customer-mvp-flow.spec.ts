@@ -104,8 +104,9 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
     await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
 
-    await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
-    await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
+     await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
     await expect(page.getByText("PKR 500.00")).toBeVisible();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
@@ -125,8 +126,9 @@ test.describe("P6C International USD flow", () => {
     await mockGetDraft(page, DRAFT_ID, { ...draft, previewUrl: "http://127.0.0.1/mock-preview.png" });
     await mockOffers(page, DRAFT_ID, offersFixture("USD"));
 
-    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+     await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
     await expect(page.getByText("USD 1.99")).toBeVisible();
     await expect(page.getByText("USD 2.99")).toBeVisible();
     await expect(page.getByText("USD 4.99")).toBeVisible();
@@ -145,11 +147,19 @@ test.describe("P6C International USD flow", () => {
 test.describe("P6C product choice truthfulness", () => {
   test("digital and Print + Digital are visible while print checkout remains blocked", async ({ page }) => {
     await blockExternalNetwork(page);
-    await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await expect(page.getByRole("radio", { name: /Digital Download/i })).toBeVisible();
-    await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
-    await expect(page.locator("select")).toBeVisible();
+     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+     await expect(page.getByRole("radio", { name: /Digital Download/i })).toBeVisible();
+     await expect(page.getByText("Restored Original", { exact: true })).toHaveCount(0);
+     await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await expect(page.getByRole("radio", { name: /Mobile & Social/i })).toBeVisible();
+     await expect(page.locator("input[type=number]")).toHaveCount(0);
+     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
+     await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
+     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
+     await page.getByRole("radio", { name: /Small Print/i }).click();
+     await expect(page.locator("select")).toBeVisible();
+     await expect(page.locator("input[type=number]")).toHaveAttribute("max", "10");
     await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
   });
 });
@@ -157,8 +167,9 @@ test.describe("P6C product choice truthfulness", () => {
 test("P4B11 Pakistan offer page exposes all seven V3 tiers and no stale 250 price", async ({ page }) => {
   await blockExternalNetwork(page);
   await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-    await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+     await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
     await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
   for (const label of ["2x HD", "4x Ultra HD", "6x", "8x", "10x", "12x"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
   await expect(page.getByText(/PKR 250\.00|PKR 350\.00/)).toHaveCount(0);
@@ -286,8 +297,9 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.goto("/?upload=1");
     await page.setInputFiles("#photoInput", tinyPngPath());
     await page.getByRole("button", { name: "Continue to Restoration" }).click();
-    await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
-    await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
+     await page.getByRole("radio", { name: /Digital Download/i }).click();
+     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));

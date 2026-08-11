@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { PrismaClient } from "@prisma/client";
 
-export type SharpVariantSpec = "original" | "2hd" | "4hd";
+export type SharpVariantSpec = "original" | "2hd" | "4hd" | `print:${string}`;
 
 export type SharpVariantValidation = {
   body: Buffer;
@@ -54,9 +54,16 @@ export type SharpVariantStorage = {
   delete(storageKey: string): Promise<void>;
 };
 
-const SERVER_VARIANTS: Record<Exclude<SharpVariantSpec, "original">, { width: number }> = {
+const SERVER_VARIANTS: Record<"2hd" | "4hd", { width: number }> = {
   "2hd": { width: 2048 },
   "4hd": { width: 4096 }
+};
+
+const PRINT_VARIANTS: Record<string, { width: number; height: number }> = {
+  "4x6": { width: 1200, height: 1800 }, "5x7": { width: 1500, height: 2100 }, "6x8": { width: 1800, height: 2400 },
+  "8x10": { width: 2400, height: 3000 }, "8x12": { width: 2400, height: 3600 }, "10x12": { width: 3000, height: 3600 },
+  "12x18": { width: 3600, height: 5400 }, "16x24": { width: 4800, height: 7200 }, "20x30": { width: 6000, height: 9000 },
+  "24x36": { width: 7200, height: 10800 }, "30x40": { width: 9000, height: 12000 }, "40x60": { width: 12000, height: 18000 }
 };
 
 export class SharpVariantService {
@@ -76,14 +83,23 @@ export class SharpVariantService {
       return this.persistValidatedVariant(master, variantSpecId, master.sha256, sourceBytes, master.contentType, master.width, master.height);
     }
 
-    const target = SERVER_VARIANTS[variantSpecId];
+    const printSize = variantSpecId.startsWith("print:") ? variantSpecId.slice("print:".length) : null;
+    const printTarget = printSize ? PRINT_VARIANTS[printSize] : null;
+    const target = printTarget || SERVER_VARIANTS[variantSpecId as "2hd" | "4hd"];
     let rendered;
     try {
-      rendered = await sharp(sourceBytes, { sequentialRead: true }).rotate().resize({ width: target.width, withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer({ resolveWithObject: true });
+      rendered = printTarget
+        ? await sharp(sourceBytes, { sequentialRead: true }).rotate().resize({ width: printTarget.width, height: printTarget.height, fit: "cover", position: "centre" }).jpeg({ quality: 90 }).toBuffer({ resolveWithObject: true })
+        : await sharp(sourceBytes, { sequentialRead: true }).rotate().resize({ width: target.width, withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer({ resolveWithObject: true });
     } catch {
       throw new Error("variant output could not be decoded");
     }
     return this.persistValidatedVariant(master, variantSpecId, master.sha256, rendered.data, "image/jpeg", rendered.info.width ?? null, rendered.info.height ?? null);
+  }
+
+  async getOrCreatePrintVariant(restorationMasterId: string, printSize: string): Promise<SharpVariantResult> {
+    if (!PRINT_VARIANTS[printSize]) throw new Error("print dimensions are not documented for this product");
+    return this.getOrCreateVariant(restorationMasterId, `print:${printSize}`);
   }
 
   private async persistValidatedVariant(
@@ -122,7 +138,7 @@ export class SharpVariantService {
 }
 
 export function isSharpVariantSpec(value: string): value is SharpVariantSpec {
-  return value === "original" || value === "2hd" || value === "4hd";
+  return value === "original" || value === "2hd" || value === "4hd" || value.startsWith("print:");
 }
 
 export const sharpVariantSpecIds = ["original", "2hd", "4hd"] as const;

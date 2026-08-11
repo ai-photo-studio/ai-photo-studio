@@ -56,3 +56,16 @@ test("SharpVariantService generates original, 2hd, and 4hd variants with server-
   assert.equal(fourHd.variantSpecId, "4hd");
   assert.ok(uploads.every((entry) => entry.contentType === "image/jpeg"));
 });
+
+test("SharpVariantService creates print variants locally from a validated master", async () => {
+  const uploaded: string[] = [];
+  const service = new SharpVariantService(
+    { findValidatedMaster: async () => ({ id: "master-print", storageKey: "master.jpg", sha256: "sha", width: 256, height: 192, contentType: "image/jpeg", status: "VALIDATED" }), findVariant: async () => null, createVariant: async (input) => ({ id: "variant-print", ...input, status: "AVAILABLE" }) },
+    { download: async () => image(), upload: async (key) => { uploaded.push(key); }, delete: async () => {} }
+  );
+  const result = await service.getOrCreatePrintVariant("master-print", "4x6");
+  assert.equal(result.variantSpecId, "print:4x6");
+  assert.equal(result.width, 1200);
+  assert.equal(result.height, 1800);
+  assert.equal(uploaded.length, 1);
+});

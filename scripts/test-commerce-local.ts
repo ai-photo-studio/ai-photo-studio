@@ -238,6 +238,7 @@ async function main() {
 
       if (kind === "PRINT_DIGITAL") {
         await page.getByRole("radio", { name: /Print \+ Digital/ }).click();
+        await page.getByText("Small Print", { exact: true }).click();
         await page.getByText("4x Ultra HD", { exact: true }).click();
         await page.getByLabel("Print size").selectOption("4x6");
         await page.getByLabel("Quantity").fill("10");
@@ -247,6 +248,7 @@ async function main() {
         await page.getByLabel("City").fill("Lahore");
       } else {
         await page.getByRole("radio", { name: /Digital Download/ }).click();
+        await page.getByText("Mobile & Social", { exact: true }).click();
         await page.getByText("2x HD", { exact: true }).click();
       }
 
@@ -305,6 +307,7 @@ async function main() {
 
       // Photo 1: Digital, 2x HD.
       await photoCard(1).getByText("Digital Download", { exact: true }).click();
+      await photoCard(1).getByText("Mobile & Social", { exact: true }).click();
       await photoCard(1).getByText("2x HD", { exact: true }).click();
 
       // Apply-to-all from photo 1 propagates 2x HD + Digital to all 3.
@@ -318,14 +321,16 @@ async function main() {
 
       // Override photo 2: 4x Ultra HD, Print+Digital, 4x6 qty 10.
       await photoCard(2).getByText("Print + Digital", { exact: true }).click();
+      await photoCard(2).getByText("Small Print", { exact: true }).click();
       await photoCard(2).getByText("4x Ultra HD", { exact: true }).click();
       await photoCard(2).getByLabel("Print size").selectOption("4x6");
       await photoCard(2).getByLabel("Quantity").fill("10");
 
       // Override photo 3: 8x, Print+Digital, a different valid print size/qty.
       await photoCard(3).getByText("Print + Digital", { exact: true }).click();
+      await photoCard(3).getByText("Wall Frame", { exact: true }).click();
       await photoCard(3).getByText("8x", { exact: true }).click();
-      await photoCard(3).getByLabel("Print size").selectOption("5x7");
+      await photoCard(3).getByLabel("Print size").selectOption("8x12");
       await photoCard(3).getByLabel("Quantity").fill("5");
 
       // Photo 2/3 are individually overridden after Apply-to-all -- prove
@@ -349,8 +354,8 @@ async function main() {
       if (order.items.length !== 3) throw new Error(`${kind}: expected 3 items, got ${order.items.length}`);
       if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
       // restoration: 1000 (2x) + 1500 (4x) + 3500 (8x) = 6000
-      // print: 4x6x10 (1000) + 5x7x5 (750) = 1750; delivery: highest band (250) once
-      const expectedTotal = 600000n + 175000n + 25000n;
+      // print: 4x6x10 (1000) + 8x12x5 (2750) = 3750; delivery: highest band (250) once
+      const expectedTotal = 600000n + 375000n + 25000n;
       if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected total ${expectedTotal}, got ${order.totalAmountMinor}`);
       if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid cart queued processing`);
 

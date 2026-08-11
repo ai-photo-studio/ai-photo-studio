@@ -16,7 +16,7 @@ async function assertHomepageImages(page: Page, screenshotPath: string) {
   });
   await page.goto("/", { waitUntil: "networkidle" });
   const images = page.locator('img[src^="/assets/"]');
-  await expect(images).toHaveCount(17);
+  await expect(images).toHaveCount(19);
   for (let index = 0; index < await images.count(); index++) {
     const image = images.nth(index);
     await image.scrollIntoViewIfNeeded();

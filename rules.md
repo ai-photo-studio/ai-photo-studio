@@ -2955,3 +2955,79 @@ changes were needed; the integration was already credential-ready.**
   activation 0%, full Pakistan readiness 80%. Protected Scope remains: no
   real Bank charge, no live credential activation, no Replicate paid call, no
   RunPod, and no production deployment.
+
+### R9.5-P6D — Simple Product Journey Live-Readiness (2026-08-11)
+
+- Source verification on current `main` (`b166585`) confirms P6A's product-first
+  journey: Preview -> Product-only choices -> product-specific quality/print
+  configuration. Digital exposes the seven quality tiers without print
+  controls; Print + Digital exposes print size, quantity, and delivery fields
+  only after product selection. Back controls and session-persisted selections
+  remain present; multi-image independent configuration and Apply-to-All remain
+  unchanged.
+- Live Chrome DevTools verification against `https://www.thannow.com` found
+  the old combined tiers screen: quality cards were visible before a product
+  click, with Digital preselected. Live Preview still showed the old raw ratio
+  and no print-suitability section. Classification:
+  `P6A_IMPLEMENTED_NOT_DEPLOYED`.
+- Live API reports build SHA `8958527c12aa2b7b654b8f85a045d1104cb4130e`.
+  Live frontend serves `/assets/index-DY0EN4_y.js`, SHA-256
+  `208ff1b858e10e91f9085a9789d3c8267e4e1ea683d96a506699c57004f1574c`, which
+  does not contain the P6A product-only, print-suitability, or raw-ratio marker
+  strings. Deploying current main would deliver P6A plus the P6C APG code;
+  APG remains disabled by default and production-guarded.
+- No deployment was authorized or performed. Required release SHA:
+  `b166585a058417001f776c078b8237aa5d767a43`. Status:
+  `AUTHORIZED_DEPLOYMENT_REQUIRED`.
+- P6D regression evidence: browser `116/116`, responsive `99/99`, protected
+  commerce E2E passed, payment-freeze `9/9`, APG contract `12/12`, and price
+  catalog regression passed. No Bank, Replicate, or RunPod calls occurred.
+  APG status remains `THANNOW_APG_SANDBOX_CREDENTIALS_REQUIRED` for tomorrow.
+- P6D completion: frontend source 100%, Pakistan funnel source 100%, payment
+  code readiness 65%, APG sandbox readiness 70%, Bank activation 0%, full
+  Pakistan readiness 80%. Remaining blockers are deployment authorization and
+  tomorrow's ThanNow APG sandbox credentials/hash/IPN confirmation.
+
+### R9.5-P6E — Customer Use Cases, Print Reuse, and Logo (2026-08-11)
+
+- Customer configuration now leads with “Where would you like to use this
+  photo?” cards: Mobile & Social, Small Print, Table Frame, Wall Frame, Large
+  Wall Art, and Canvas. Cards use only catalog sizes: 4x6, 5x7, 8x10, 8x12,
+  10x12, 12x18, 16x24, 20x30, 24x36, 30x40, 40x60, and Triple Canvas. No
+  unsupported 18x24 or Album product is exposed. Triple Canvas remains
+  explicitly specification-limited because no physical dimensions are defined
+  in the approved catalog.
+- Technical tiers and PriceBook prices remain server-authoritative. Dynamic
+  minimum-tier helpers calculate fitted effective PPI from source pixels,
+  target dimensions, orientation/crop fit, and tier scale. A higher required
+  tier uses its full PriceBook amount in the tested pricing helper; no price
+  difference is charged.
+- Physical quantities are server-capped at 10 and retain catalog minimums;
+  digital products expose no quantity control. Existing cart delivery remains
+  one order-level highest-band delivery charge.
+- Validated RestorationMasters can generate documented print variants locally
+  through Sharp (`print:4x6` through `print:40x60`), with deterministic crop/
+  resize and ImageVariant idempotency. No ReplicateExecution is created per
+  print size, copy, or canvas copy. Existing P4A/P5P payment and fulfilment
+  boundaries remain unchanged and unpaid orders still perform zero work.
+- The current fixed-order schema supports one print snapshot per image line.
+  Multiple print sizes for one image and paid-restoration print add-on
+  surcharges are not faked: they require an additive print-line model and a
+  server flow that accepts an already-paid RestorationMaster, calculates the
+  full required-tier charge, and links each line to the same master. Status:
+  `PRINT_ADDON_AND_MULTI_LINE_SCHEMA_REQUIRED`.
+- Owner-provided `logo/logo1.png` is copied unchanged to the tracked web asset
+  `/assets/thannow-logo.png` and is used by public and customer header/footer
+  shells with meaningful `ThanNow` alt text. No invoice, receipt, email, or
+  print-document logo template exists in the current repository; none was
+  invented. `logo2.png` remains owner source material and unrelated third-party
+  or bank marks were not changed.
+- P6E evidence: print catalog `8/8` focused tests, Sharp reuse tests, use-case
+  browser coverage `23/23`, browser `116/116`, responsive `99/99`, protected
+  commerce E2E passed, cart `10/10`, P4A `14/14`, print fulfilment `2/2`, and
+  Sharp race `3/3`. APG stayed disabled; Bank/Replicate/RunPod calls were zero.
+- P6E completion: frontend 100%, Pakistan funnel 100%, print-commerce 75%,
+  payment-code readiness 65%, Bank activation 0%, full Pakistan readiness 80%.
+  Remaining blockers only: `PRINT_ADDON_AND_MULTI_LINE_SCHEMA_REQUIRED`,
+  undocumented Triple Canvas physical dimensions, and tomorrow's ThanNow APG
+  sandbox credentials/hash/IPN confirmation.
