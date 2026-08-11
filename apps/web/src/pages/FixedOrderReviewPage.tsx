@@ -12,7 +12,7 @@
 // until a real provider is implemented and enabled.
 const PAYMENT_UNAVAILABLE_MESSAGE = "Online payment is temporarily unavailable.";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type FixedOrderSummary } from "../services/customerApi";
@@ -22,6 +22,7 @@ const TIER_LABELS: Record<string, string> = { ORIGINAL: "Restored Original", HD_
 export function FixedOrderReviewPage() {
   const { orderNo } = useParams<{ orderNo: string }>();
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<FixedOrderSummary | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,6 +223,11 @@ export function FixedOrderReviewPage() {
          <button type="button" aria-label="Refresh order" className="button button-secondary" onClick={() => void load()}>
            Refresh
          </button>
+         {paymentStatus !== "PAID" && order.sourceDraftId && (
+           <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${order.sourceDraftId}/tiers`)}>
+             Back to Configure
+           </button>
+         )}
       </div>
 
       {testModeEnabled && (

@@ -6,7 +6,7 @@
 // single-image page/route is completely untouched.
 const PAYMENT_UNAVAILABLE_MESSAGE = "Online payment is temporarily unavailable.";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type FixedOrderCartSummary } from "../services/customerApi";
@@ -26,6 +26,7 @@ type ItemStatus = {
 export function CartReviewPage() {
   const { orderNo } = useParams<{ orderNo: string }>();
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<FixedOrderCartSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +175,7 @@ export function CartReviewPage() {
           <div className="card" key={item.fixedOrderItemId} style={{ marginBottom: "1rem" }}>
             <p className="eyebrow">Photo {index + 1} of {order.items.length}</p>
             <dl className="order-summary">
-              <div><dt>Restoration quality</dt><dd>{TIER_LABELS[item.tier] || item.tier}</dd></div>
+              <div><dt>Image quality</dt><dd>{TIER_LABELS[item.tier] || item.tier}</dd></div>
               <div><dt>Delivery</dt><dd>{item.product === "PRINT_DIGITAL" ? "Print + Digital" : "Digital Download"}</dd></div>
               <div><dt>Restoration price</dt><dd>{order.currency} {(Number(item.digitalAmountMinor) / 100).toFixed(2)}</dd></div>
               {item.print && <div><dt>Print size</dt><dd>{item.print.size}</dd></div>}
@@ -228,6 +229,11 @@ export function CartReviewPage() {
         </button>
         <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>Check payment status</button>
         <button type="button" aria-label="Refresh order" className="button button-secondary" onClick={() => void load()}>Refresh</button>
+        {paymentStatus !== "PAID" && (
+          <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-cart/${order.items.map((item) => item.draftId).join(",")}/configure`)}>
+            Back to Configure
+          </button>
+        )}
       </div>
 
       {testModeEnabled && (

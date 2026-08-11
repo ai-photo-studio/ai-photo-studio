@@ -233,7 +233,7 @@ async function main() {
       await step(`${kind}: select image once`, () => page.setInputFiles("#photoInput", fixturePath));
       await step(`${kind}: persist draft`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
       await step(`${kind}: preview`, () => page.waitForURL(/\/restore-mvp\/.+\/preview/, { timeout: 15_000 }));
-      await step(`${kind}: choose restoration`, () => page.getByRole("button", { name: "Choose Your Restoration" }).click());
+      await step(`${kind}: choose product & quality`, () => page.getByRole("button", { name: "Choose Product & Image Quality" }).click());
       await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
 
       if (kind === "PRINT_DIGITAL") {
@@ -309,7 +309,7 @@ async function main() {
       await photoCard(1).getByRole("button", { name: "Apply these settings to all photos" }).click();
       await step(`${kind}: apply-to-all propagated`, async () => {
         for (const n of [2, 3]) {
-          const applied = await photoCard(n).getByRole("radio", { checked: true }).first().textContent();
+          const applied = await photoCard(n).getByRole("radiogroup", { name: `Image quality for photo ${n}` }).getByRole("radio", { checked: true }).textContent();
           if (!applied || !applied.includes("2x HD")) throw new Error(`${kind}: Apply-to-all did not propagate to photo ${n}`);
         }
       });

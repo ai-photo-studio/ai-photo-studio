@@ -1,4 +1,4 @@
-// R9.2-P6C-CUSTOMER-MVP-FLOW minimal browser harness.
+﻿// R9.2-P6C-CUSTOMER-MVP-FLOW minimal browser harness.
 //
 // Every test blocks all non-local network traffic and mocks only the exact
 // endpoints it exercises. No real API server, MPGS, Replicate, R2, RunPod,
@@ -102,7 +102,7 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await page.getByRole("button", { name: "Continue to Restoration" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/preview$`));
-    await page.getByRole("button", { name: "Choose Your Restoration" }).click();
+    await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
     await expect(page.getByText("PKR 500.00")).toBeVisible();
@@ -283,7 +283,7 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.goto("/?upload=1");
     await page.setInputFiles("#photoInput", tinyPngPath());
     await page.getByRole("button", { name: "Continue to Restoration" }).click();
-    await page.getByRole("button", { name: "Choose Your Restoration" }).click();
+    await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));

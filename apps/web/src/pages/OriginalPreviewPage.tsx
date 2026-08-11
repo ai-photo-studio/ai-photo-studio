@@ -78,7 +78,11 @@ export function OriginalPreviewPage() {
       </div>
 
       <div className="card">
-        <img src={draft.previewUrl} alt="Uploaded original" style={{ maxWidth: "100%", borderRadius: "var(--radius)" }} />
+        <img
+          src={draft.previewUrl}
+          alt="Uploaded original"
+          style={{ display: "block", maxWidth: "100%", maxHeight: "480px", width: "auto", height: "auto", objectFit: "contain", margin: "0 auto", borderRadius: "var(--radius)" }}
+        />
         <div className="stack" style={{ marginTop: "1rem" }}>
           <strong>Uploaded original</strong>
           <dl className="order-summary">
@@ -89,9 +93,12 @@ export function OriginalPreviewPage() {
             {aspectRatioLabel && <div><dt>Aspect ratio</dt><dd>{aspectRatioLabel}</dd></div>}
             {orientationLabel && <div><dt>Orientation</dt><dd>{orientationLabel}</dd></div>}
           </dl>
+          {/* Only genuinely additional detail here (market/currency) -- never
+              repeats the file name/format/size/dimensions/aspect ratio/
+              orientation already shown once above. */}
           <details>
             <summary>Technical metadata</summary>
-            <p className="helper-text">{width && height ? `${width} × ${height} pixels · ` : ""}{draft.originalMimeType || "Image"} · Market: {draft.market} · Currency: {draft.currency}</p>
+            <p className="helper-text">Market: {draft.market} · Currency: {draft.currency}</p>
           </details>
         </div>
       </div>
@@ -102,12 +109,12 @@ export function OriginalPreviewPage() {
           className="button"
           onClick={() => navigate(`/restore-mvp/${draft.id}/tiers`)}
         >
-          Choose Your Restoration
+          Choose Product &amp; Image Quality
         </button>
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh
         </button>
-        <button type="button" className="button button-ghost" onClick={() => navigate("/?upload=1")}>Choose a different photo</button>
+        <button type="button" className="button button-ghost" onClick={() => navigate("/?upload=1")}>Back to Upload</button>
       </div>
     </section>
   );

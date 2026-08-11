@@ -111,9 +111,9 @@ export function DigitalTierSelectPage() {
   return (
     <section className="page-stack">
       <div className="section-heading">
-        <p className="eyebrow">Choose restoration and delivery</p>
-        <h1>Choose your restoration</h1>
-        <p>Digital prices and print totals are server-owned. Choose one restoration quality, then one delivery option.</p>
+        <p className="eyebrow">Choose product &amp; image quality</p>
+        <h1>Choose your product and image quality</h1>
+        <p>Image quality and print totals are server-owned. Choose one product, then one image quality.</p>
       </div>
 
       {unavailableReason && <div className="state-panel state-panel-error"><p>{unavailableReason}</p></div>}
@@ -121,8 +121,18 @@ export function DigitalTierSelectPage() {
 
       {offers && (
         <>
-          <h2 className="section-subheading">1. Choose restoration quality</h2>
-          <div role="radiogroup" aria-label="Quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+          <h2 className="section-subheading">1. Choose product</h2>
+          <div role="radiogroup" aria-label="Product" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("DIGITAL")}>
+              <h3>Digital Download</h3><p>Restore or upscale your photo and download it when ready.</p>
+            </button>
+            <button type="button" role="radio" aria-checked={product === "PRINT_DIGITAL"} className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("PRINT_DIGITAL")}>
+              <h3>Print + Digital — Home Delivery</h3><p>Restore your photo once, receive the digital copy, and order home delivery.</p>
+            </button>
+          </div>
+
+          <h2 className="section-subheading">2. Choose image quality</h2>
+          <div role="radiogroup" aria-label="Image quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {offers.map((offer) => (
               <article
                 key={offer.tier}
@@ -146,18 +156,8 @@ export function DigitalTierSelectPage() {
             <div className="state-panel state-panel-info"><p>4x Ultra HD is recommended for most prints.</p></div>
           )}
           {product === "PRINT_DIGITAL" && (selected === "ORIGINAL" || selected === "HD_2X") && (
-            <div className="state-panel state-panel-warning"><p>Lower restoration resolution may reduce print quality, especially at larger print sizes. Continue with this quality at your own choice.</p></div>
+            <div className="state-panel state-panel-warning"><p>Lower image quality may reduce print quality, especially at larger print sizes. Continue with this quality at your own choice.</p></div>
           )}
-
-          <h2 className="section-subheading">2. Choose delivery</h2>
-          <div role="radiogroup" aria-label="Delivery" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("DIGITAL")}>
-              <h3>Digital Download</h3><p>Restore or upscale your photo and download it when ready.</p>
-            </button>
-            <button type="button" role="radio" aria-checked={product === "PRINT_DIGITAL"} className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => setProduct("PRINT_DIGITAL")}>
-              <h3>Print + Digital — Home Delivery</h3><p>Restore your photo once, receive the digital copy, and order home delivery.</p>
-            </button>
-          </div>
 
           {product === "PRINT_DIGITAL" && (() => {
             const printItem = printCatalog.find((entry) => entry.size === printSize);
@@ -194,7 +194,7 @@ export function DigitalTierSelectPage() {
                 </div>
                 {(printItem || digitalOffer) && (
                   <dl className="order-summary">
-                    {digitalOffer && <div><dt>Restoration quality ({TIER_LABELS[digitalOffer.tier] ?? digitalOffer.label})</dt><dd>{digitalOffer.currency} {(digitalOffer.amountMinor / 100).toFixed(2)}</dd></div>}
+                    {digitalOffer && <div><dt>Image quality ({TIER_LABELS[digitalOffer.tier] ?? digitalOffer.label})</dt><dd>{digitalOffer.currency} {(digitalOffer.amountMinor / 100).toFixed(2)}</dd></div>}
                     {printItem && <div><dt>Print unit price</dt><dd>{printItem.currency} {(printItem.unitAmountMinor / 100).toFixed(2)}</dd></div>}
                     {printItem && <div><dt>Quantity</dt><dd>{quantity}</dd></div>}
                     {printSubtotalMinor !== null && <div><dt>Print subtotal</dt><dd>{printItem?.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div>}
@@ -220,6 +220,9 @@ export function DigitalTierSelectPage() {
         </button>
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh
+        </button>
+        <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${draftId}/preview`)}>
+          Back to Preview
         </button>
       </div>
     </section>
