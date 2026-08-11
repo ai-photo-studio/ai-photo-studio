@@ -79,7 +79,7 @@ test.describe("R9.5-P5N Preview metadata", () => {
     await expect(page.getByText("Your original photo is uploaded once and stored securely. Review its details, then choose the restoration quality you need.")).toBeVisible();
     await expect(page.getByText("PNG", { exact: true })).toBeVisible();
     await expect(page.getByText("1 × 1 px", { exact: true })).toBeVisible();
-    await expect(page.getByText("1:1", { exact: true })).toBeVisible();
+    await expect(page.getByText("1.00:1", { exact: true })).toBeVisible();
     await expect(page.getByText("Square", { exact: true })).toBeVisible();
     // No damage/face/quality AI-analysis language may appear pre-payment.
     await expect(page.getByText(/damage detected|quality score|face detected/i)).toHaveCount(0);
@@ -105,6 +105,7 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
     await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
+    await page.getByRole("radio", { name: /Digital Download/i }).click();
     await expect(page.getByText("PKR 500.00")).toBeVisible();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
@@ -125,6 +126,7 @@ test.describe("P6C International USD flow", () => {
     await mockOffers(page, DRAFT_ID, offersFixture("USD"));
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+    await page.getByRole("radio", { name: /Digital Download/i }).click();
     await expect(page.getByText("USD 1.99")).toBeVisible();
     await expect(page.getByText("USD 2.99")).toBeVisible();
     await expect(page.getByText("USD 4.99")).toBeVisible();
@@ -155,8 +157,9 @@ test.describe("P6C product choice truthfulness", () => {
 test("P4B11 Pakistan offer page exposes all seven V3 tiers and no stale 250 price", async ({ page }) => {
   await blockExternalNetwork(page);
   await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-  await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-  await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
+    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+    await page.getByRole("radio", { name: /Digital Download/i }).click();
+    await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
   for (const label of ["2x HD", "4x Ultra HD", "6x", "8x", "10x", "12x"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
   await expect(page.getByText(/PKR 250\.00|PKR 350\.00/)).toHaveCount(0);
   await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toHaveCount(0);
@@ -284,6 +287,7 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.setInputFiles("#photoInput", tinyPngPath());
     await page.getByRole("button", { name: "Continue to Restoration" }).click();
     await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
+    await page.getByRole("radio", { name: /Digital Download/i }).click();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));

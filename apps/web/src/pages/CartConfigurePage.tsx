@@ -23,7 +23,7 @@ const TIER_DESCRIPTIONS: Record<string, string> = {
 
 type ItemConfig = {
   tier: string;
-  product: "DIGITAL" | "PRINT_DIGITAL";
+  product: "DIGITAL" | "PRINT_DIGITAL" | null;
   printSize: string;
   quantity: number;
 };
@@ -87,7 +87,7 @@ export function CartConfigurePage() {
           const savedTierStillOffered = savedConfig && offers.some((o) => o.tier === savedConfig.tier);
           initialConfigs[id] = savedTierStillOffered
             ? savedConfig
-            : { tier: offers[0]?.tier ?? "ORIGINAL", product: "DIGITAL", printSize: "", quantity: 1 };
+            : { tier: offers[0]?.tier ?? "ORIGINAL", product: null, printSize: "", quantity: 1 };
         }
       }
       setOffersByDraft(byDraft);
@@ -116,7 +116,7 @@ export function CartConfigurePage() {
   useEffect(() => {
     if (loading || Object.keys(configs).length === 0) return;
     writeSavedState(draftIds, { configs, address });
-  }, [configs, address, loading, draftIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [configs, address, loading, draftIds.join(",")]);
 
   const updateConfig = (draftId: string, patch: Partial<ItemConfig>) => {
     setConfigs((prev) => ({ ...prev, [draftId]: { ...prev[draftId], ...patch } }));
@@ -176,6 +176,7 @@ export function CartConfigurePage() {
     const c = configs[id];
     if (!c) return false;
     if (c.product === "DIGITAL") return true;
+    if (c.product !== "PRINT_DIGITAL") return false;
     return Boolean(c.printSize) && Number.isSafeInteger(c.quantity) && c.quantity > 0;
   });
   const addressReady = !anyPrint || (address.recipientName.trim() && address.phone.trim() && address.addressLine1.trim() && address.city.trim());
@@ -211,6 +212,7 @@ export function CartConfigurePage() {
               </button>
             </div>
 
+            {!config.product ? <p className="helper-text" style={{ marginTop: "1rem" }}>Select a product to continue configuring this photo.</p> : <>
             <p className="helper-text" style={{ marginTop: "1rem" }}>2. Choose image quality</p>
             <div role="radiogroup" aria-label={`Image quality for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
               {offers.map((offer) => (
@@ -253,6 +255,8 @@ export function CartConfigurePage() {
                 </label>
               </div>
             )}
+            <button type="button" className="button button-ghost" onClick={() => updateConfig(id, { product: null })}>Back to Product</button>
+            </>}
 
             <div className="button-row" style={{ marginTop: "0.75rem" }}>
               <button type="button" className="button button-secondary" onClick={() => applyToAll(id)}>Apply these settings to all photos</button>

@@ -2853,3 +2853,38 @@ changes were needed; the integration was already credential-ready.**
 - Remaining external blocker: `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`.
   Per this packet's own instruction: **stop coding until Bank sandbox
   credentials arrive.**
+
+### R9.5-P6A — Simple Product Journey and Print Suitability (2026-08-11)
+
+- Customer-facing aspect ratio is decimal and concise: `width / height` to two
+  decimals, with `(≈ 3:2)` when close to 3:2. Exact reduced/raw ratios belong
+  only in Technical metadata. Orientation remains Landscape, Portrait, or
+  Square; image display preserves the source aspect ratio with `object-fit:
+  contain` and no stretch.
+- Print suitability is deterministic and client-visible: for each canonical
+  Pakistan print size, use the smaller fitted pixel-per-inch value after
+  considering both orientations. Categories are Excellent (>=300), Very Good
+  (240-299), Good (200-239), Upscaling Recommended (150-199), and Upscaling
+  Strongly Recommended (<150). Aspect mismatch is shown as a crop notice; no
+  AI, Replicate, or inferred quality score is used.
+- The customer journey is staged: Upload -> Preview & Print Suitability ->
+  Choose Product (Digital Download or Print + Digital - Home Delivery) ->
+  product configuration -> Review & Checkout -> Payment -> Processing/Result.
+  Digital configuration has quality only. Print + Digital adds print size,
+  quantity, and delivery information, with 4x recommended for most prints and
+  truthful Original/2x warnings. Multi-image carts retain independent choices
+  per image and optional Apply-to-All.
+- Every pre-payment step has explicit Back navigation and session-only
+  selections survive returning from Review. Paid orders remain immutable.
+- Live payment remains fail-closed: the verified stopping point is
+  `POST /api/fixed-orders/:orderNo/checkout` -> `503
+  PAYMENT_PROVIDER_UNAVAILABLE` while Bank onboarding/provider enablement is
+  unavailable. No PaymentAttempt, PAID evidence, P4A entitlement, or execution
+  is created, so Processing/Result cannot begin. `npm run commerce:dryrun`
+  remains the protected owner-clickable test-payment proof; its seam is never
+  public production behavior (`/api/e2e/test-mode` and test-checkout refuse in
+  production).
+- P6A completion: frontend 100%, Pakistan funnel 100%, payment-code readiness
+  50%, Bank activation 0%, full Pakistan readiness 80%. Remaining external
+  blocker only: `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`. No production
+  deployment is part of this packet.

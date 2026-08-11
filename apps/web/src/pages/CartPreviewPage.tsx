@@ -7,6 +7,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type RestorationDraftSummary } from "../services/customerApi";
+import { aspectRatioOrientation, calculateAllPrintSuitability, displayAspectRatio } from "../lib/printSuitability";
 
 type DraftWithPreview = RestorationDraftSummary & { previewUrl: string };
 
@@ -49,8 +50,6 @@ export function CartPreviewPage() {
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading your photos...</p></div></section>;
   if (error) return <section className="page-stack"><div className="state-panel state-panel-error"><p>{error}</p></div></section>;
 
-  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-
   return (
     <section className="page-stack">
       <div className="section-heading">
@@ -68,9 +67,8 @@ export function CartPreviewPage() {
           let aspectRatioLabel: string | null = null;
           let orientationLabel: string | null = null;
           if (width && height) {
-            const divisor = gcd(width, height) || 1;
-            aspectRatioLabel = `${width / divisor}:${height / divisor}`;
-            orientationLabel = width === height ? "Square" : width > height ? "Landscape" : "Portrait";
+            aspectRatioLabel = displayAspectRatio(width, height);
+            orientationLabel = aspectRatioOrientation(width, height);
           }
           const formatLabel = draft.originalMimeType ? draft.originalMimeType.replace("image/", "").toUpperCase() : null;
           return (
@@ -86,6 +84,15 @@ export function CartPreviewPage() {
                   {orientationLabel && <div><dt>Orientation</dt><dd>{orientationLabel}</dd></div>}
                 </dl>
               </details>
+              {width && height && <div style={{ marginTop: "0.75rem" }}>
+                <h3 style={{ fontSize: "1rem" }}>Print suitability</h3>
+                <p className="helper-text">Deterministic PPI from pixels and print dimensions.</p>
+                <dl className="order-summary">
+                  {calculateAllPrintSuitability(width, height).slice(0, 6).map((result) => (
+                    <div key={result.size}><dt>{result.size}</dt><dd>{result.category} ({result.effectivePpi} PPI){result.cropRequired ? " · crop may be required" : ""}</dd></div>
+                  ))}
+                </dl>
+              </div>}
             </article>
           );
         })}

@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type RestorationDraftSummary } from "../services/customerApi";
+import { aspectRatioOrientation, calculateAllPrintSuitability, displayAspectRatio } from "../lib/printSuitability";
 
 export function OriginalPreviewPage() {
   const { draftId } = useParams<{ draftId: string }>();
@@ -58,13 +59,11 @@ export function OriginalPreviewPage() {
 
   const width = draft.originalWidth;
   const height = draft.originalHeight;
-  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
   let aspectRatioLabel: string | null = null;
   let orientationLabel: string | null = null;
   if (width && height) {
-    const divisor = gcd(width, height) || 1;
-    aspectRatioLabel = `${width / divisor}:${height / divisor}`;
-    orientationLabel = width === height ? "Square" : width > height ? "Landscape" : "Portrait";
+    aspectRatioLabel = displayAspectRatio(width, height);
+    orientationLabel = aspectRatioOrientation(width, height);
   }
   const formatLabel = draft.originalMimeType ? draft.originalMimeType.replace("image/", "").toUpperCase() : null;
   const fileSizeLabel = sourceFile ? `${(sourceFile.size / 1024).toFixed(0)} KB` : null;
@@ -93,12 +92,20 @@ export function OriginalPreviewPage() {
             {aspectRatioLabel && <div><dt>Aspect ratio</dt><dd>{aspectRatioLabel}</dd></div>}
             {orientationLabel && <div><dt>Orientation</dt><dd>{orientationLabel}</dd></div>}
           </dl>
-          {/* Only genuinely additional detail here (market/currency) -- never
-              repeats the file name/format/size/dimensions/aspect ratio/
-              orientation already shown once above. */}
+          {width && height && <div style={{ marginTop: "1rem" }}>
+            <h2 className="section-subheading">Print suitability</h2>
+            <p className="helper-text">Calculated from these pixels, print dimensions, and effective PPI. No AI quality estimate is used.</p>
+            <div className="order-summary">
+              {calculateAllPrintSuitability(width, height).map((result) => (
+                <div key={result.size}><dt>{result.size}</dt><dd>{result.category} ({result.effectivePpi} PPI){result.cropRequired ? " · crop may be required" : ""}</dd></div>
+              ))}
+            </div>
+            <p className="helper-text"><strong>Recommended without upscaling:</strong> {calculateAllPrintSuitability(width, height).filter((result) => result.effectivePpi >= 200).map((result) => result.size).join(", ") || "None"}. For larger prints, choose higher image quality/upscaling.</p>
+          </div>}
+          {/* Only genuinely additional detail here -- never repeat customer metadata. */}
           <details>
             <summary>Technical metadata</summary>
-            <p className="helper-text">Market: {draft.market} · Currency: {draft.currency}</p>
+            <p className="helper-text">Market: {draft.market} · Currency: {draft.currency}{width && height ? ` · Raw ratio: ${width}:${height}` : ""}</p>
           </details>
         </div>
       </div>

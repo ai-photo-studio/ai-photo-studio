@@ -30,7 +30,7 @@ const TIER_BADGES: Record<string, string> = {
 
 type SavedTierState = {
   selected: string;
-  product: "DIGITAL" | "PRINT_DIGITAL";
+  product: "DIGITAL" | "PRINT_DIGITAL" | null;
   printSize: string;
   quantity: number;
   address: { recipientName: string; phone: string; addressLine1: string; city: string; countryCode: string };
@@ -68,7 +68,7 @@ export function DigitalTierSelectPage() {
   const [offers, setOffers] = useState<DigitalOfferSummary[] | null>(null);
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(saved?.selected ?? null);
-  const [product, setProduct] = useState<"DIGITAL" | "PRINT_DIGITAL">(saved?.product ?? "DIGITAL");
+  const [product, setProduct] = useState<"DIGITAL" | "PRINT_DIGITAL" | null>(saved?.product ?? null);
   const [printCatalog, setPrintCatalog] = useState<Awaited<ReturnType<typeof customerApi.getPrintCatalog>>>([]);
   const [printSize, setPrintSize] = useState(saved?.printSize ?? "");
   const [quantity, setQuantity] = useState(saved?.quantity ?? 1);
@@ -137,6 +137,7 @@ export function DigitalTierSelectPage() {
     setError(null);
     try {
       const guestToken = getGuestOwnershipToken(draftId);
+      if (!product) return;
       const order = await customerApi.createFixedOrder(token || undefined, { draftId, tier: selected, product, printSize: product === "PRINT_DIGITAL" ? printSize : undefined, quantity: product === "PRINT_DIGITAL" ? quantity : undefined, deliveryAddress: product === "PRINT_DIGITAL" ? address : undefined }, guestToken || undefined);
       if (guestToken) setGuestOwnershipToken(order.orderNo, guestToken);
       navigate(`/orders/${order.orderNo}/review`);
@@ -154,7 +155,7 @@ export function DigitalTierSelectPage() {
       <div className="section-heading">
         <p className="eyebrow">Choose product &amp; image quality</p>
         <h1>Choose your product and image quality</h1>
-        <p>Image quality and print totals are server-owned. Choose one product, then one image quality.</p>
+        <p>Choose one product first. Image quality and print totals are server-owned.</p>
       </div>
 
       {unavailableReason && <div className="state-panel state-panel-error"><p>{unavailableReason}</p></div>}
@@ -172,6 +173,7 @@ export function DigitalTierSelectPage() {
             </button>
           </div>
 
+          {!product ? <p className="helper-text">Continue by selecting Digital Download or Print + Digital.</p> : <>
           <h2 className="section-subheading">2. Choose image quality</h2>
           <div role="radiogroup" aria-label="Image quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {offers.map((offer) => (
@@ -247,6 +249,8 @@ export function DigitalTierSelectPage() {
               </div>
             );
           })()}
+          <button type="button" className="button button-ghost" onClick={() => setProduct(null)}>Back to Product</button>
+          </>}
         </>
       )}
 
@@ -254,7 +258,7 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-          disabled={!selected || creating || !offers || (product === "PRINT_DIGITAL" && (!printSize || !Number.isSafeInteger(quantity) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+          disabled={!selected || !product || creating || !offers || (product === "PRINT_DIGITAL" && (!printSize || !Number.isSafeInteger(quantity) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}

@@ -238,14 +238,15 @@ async function main() {
 
       if (kind === "PRINT_DIGITAL") {
         await page.getByRole("radio", { name: /Print \+ Digital/ }).click();
+        await page.getByText("4x Ultra HD", { exact: true }).click();
         await page.getByLabel("Print size").selectOption("4x6");
         await page.getByLabel("Quantity").fill("10");
         await page.getByLabel("Recipient name").fill("Local E2E Customer");
         await page.getByLabel("Phone").fill("03001234567");
         await page.getByLabel("Address").fill("1 Test Street");
         await page.getByLabel("City").fill("Lahore");
-        await page.getByText("4x Ultra HD", { exact: true }).click();
       } else {
+        await page.getByRole("radio", { name: /Digital Download/ }).click();
         await page.getByText("2x HD", { exact: true }).click();
       }
 
@@ -302,7 +303,8 @@ async function main() {
 
       const photoCard = (n: number) => page.locator(".card").filter({ has: page.getByText(`Photo ${n} of 3`, { exact: true }) });
 
-      // Photo 1: 2x HD, Digital only (default delivery already Digital).
+      // Photo 1: Digital, 2x HD.
+      await photoCard(1).getByText("Digital Download", { exact: true }).click();
       await photoCard(1).getByText("2x HD", { exact: true }).click();
 
       // Apply-to-all from photo 1 propagates 2x HD + Digital to all 3.
@@ -315,14 +317,14 @@ async function main() {
       });
 
       // Override photo 2: 4x Ultra HD, Print+Digital, 4x6 qty 10.
-      await photoCard(2).getByText("4x Ultra HD", { exact: true }).click();
       await photoCard(2).getByText("Print + Digital", { exact: true }).click();
+      await photoCard(2).getByText("4x Ultra HD", { exact: true }).click();
       await photoCard(2).getByLabel("Print size").selectOption("4x6");
       await photoCard(2).getByLabel("Quantity").fill("10");
 
       // Override photo 3: 8x, Print+Digital, a different valid print size/qty.
-      await photoCard(3).getByText("8x", { exact: true }).click();
       await photoCard(3).getByText("Print + Digital", { exact: true }).click();
+      await photoCard(3).getByText("8x", { exact: true }).click();
       await photoCard(3).getByLabel("Print size").selectOption("5x7");
       await photoCard(3).getByLabel("Quantity").fill("5");
 
