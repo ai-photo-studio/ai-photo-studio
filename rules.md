@@ -2431,3 +2431,90 @@ deploy this packet.
 - Remaining external blockers unchanged:
   `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
   (P5U).
+
+### R9.5-P5W-AUTHORIZED-UX-PRODUCTION-DEPLOY (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`LIVE_PAKISTAN_CUSTOMER_UX_READY` + `ZERO_REGRESSION`.**
+
+- **Diff audit before merge**: `git diff origin/main..d1a4e2b` touched only
+  5 customer-facing page files, 2 test specs, 1 E2E harness script, and
+  `rules.md` -- zero files under `apps/api/**`, zero Prisma/migration
+  files. **`API_DEPLOY_REQUIRED=NO`** by actual runtime diff, decided
+  before merging, not guessed.
+- **Merged**: PR #159 (`release/r9.5-pakistan-ux` -> `main`), merge commit
+  `288ebc295b05c14c7e37d9c4318f3b58cbc0a3ca`.
+- **API**: Northflank's git-push auto-deploy fires on every `main` push
+  regardless of diff content (platform behavior, not an intentional
+  redeploy this packet chose to make) -- confirmed healthy afterward,
+  `build_sha` matching exactly, `40x60=PKR 20,000.00`,
+  `Triple Canvas=PKR 25,000.00`/delivery `PKR 2,500.00` live-verified
+  unchanged, a real 2-item cart order created with correct server total,
+  unpaid-order zero-processing reconfirmed.
+- **Frontend deploy**: `wrangler pages deploy` to `ai-photo-studio-frontend`,
+  deployment `799f9787-9d9e-4ca8-bf79-6e9f30839e58`, Production, source
+  `288ebc2`. Rollback target: prior Production deployment `f422d5c8-051d-
+  4157-b45d-f009ab471edb` (source `05ddcd8`).
+- **Live desktop (1440x900) + mobile (390x844) smoke, real Chromium against
+  `www.thannow.com`, both single-image and 3-image journeys, all
+  confirmed live (not inferred):** upload modal open/close, Remove +
+  reselect, single-Continue (no duplicate upload); landscape (2400x900)
+  and portrait (900x2400) generated test images both render at the correct
+  aspect ratio with zero horizontal overflow at both viewports; metadata
+  (dimensions) shown correctly; product-first order confirmed
+  (`"1. Choose product"` renders before `"2. Choose image quality"` in DOM
+  order); "Choose image quality" wording confirmed; print fields correctly
+  hidden by default and shown only after selecting Print+Digital; Back to
+  Preview and Back to Upload both present and functional; Review page
+  shows the correct tier/total; payment panel truthfully reads "temporarily
+  unavailable" (fail-closed, Bank onboarding still pending); **no TEST-
+  payment control present on production** (confirms isolation); zero
+  first-party image 404s; zero real console errors (one unrelated,
+  unreproducible tracker-style 404 observed once, not an image, not
+  functional-path-blocking, consistent with the same non-blocking
+  observation recorded in P5S).
+- **3-image live regression**: Preview shows all 3, per-image product/
+  quality configuration, Apply-to-All propagation, individual override
+  after Apply-to-All (Photo 1 stays untouched), two different print sizes
+  (4x6/5x7) remain independent, one Review cart, one delivery charge
+  (PKR 250.00, the single highest band), zero overflow at both viewports.
+- **10-image live check**: 10 accepted, 11th rejected (via a fresh
+  11-at-once selection -- the "Add more photos" control only renders below
+  the 10-image cap by design, not a defect), Remove and Add-after-Remove
+  both confirmed working, zero overflow.
+- **Real regression found live and fixed in this same packet (not deferred,
+  not silently accepted):** "Back to Configure" from Review remounted
+  `CartConfigurePage`/`DigitalTierSelectPage` fresh, resetting every
+  per-image product/quality/print-size/quantity/address selection to
+  defaults -- directly violating the explicit Back-preserves-state
+  requirement (P5V had only tested that the Back *button* worked/
+  navigated, not that state survived it). Root-caused (component state is
+  local to the page, nothing rehydrates it on remount), fixed with
+  same-device-only `sessionStorage` persistence (write on every config/
+  address change, restore via lazy `useState` initializers on mount,
+  keyed by draft id(s); never sent to the server -- `createFixedOrder`/
+  `createRestorationCartOrder` remain fully server-authoritative and
+  re-validate everything regardless of what was restored). Verified
+  locally (typecheck clean, `test:browser` 116/116, full
+  `test:e2e:commerce-local` pass -- one run hit a benign Windows `EBUSY`
+  on post-test temp-directory cleanup, unrelated to the fix, with the
+  actual flow/DB-assertion JSON already printed successfully both times),
+  landed via PR #160 (merge commit
+  `d1b818034cf6416b5011b11743f399883fab82ad`), and **redeployed**:
+  frontend deployment `0740144d-83d3-43c0-8d3b-2c9d0c403b04` (source
+  `d1b8180`), API auto-redeployed to the same SHA and reconfirmed healthy.
+  Re-verified live against `www.thannow.com` after redeploy: Back to
+  Configure now correctly restores Photo 2 (4x Ultra HD/Print+Digital/
+  4x6/qty10), Photo 3 (8x/Print+Digital/5x7/qty5), and the delivery
+  address exactly as entered.
+- **Final production state**: API `build_sha=d1b818034cf6416b5011b11743f
+  399883fab82ad`; frontend deployment `0740144d-83d3-43c0-8d3b-
+  2c9d0c403b04` (source `d1b8180`); `www.thannow.com` serving
+  `index-DY0EN4_y.js`. Rollback targets recorded above; neither rollback
+  was exercised.
+- **Protected Scope held**: no RunPod, no Bank integration, no real
+  Replicate, no staging infrastructure work, no PriceBook change, no
+  homepage/Hero redesign, no `.gitignore` broadening.
+- Remaining external blockers unchanged:
+  `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
+  (P5U).
