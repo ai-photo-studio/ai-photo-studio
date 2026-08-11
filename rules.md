@@ -2193,3 +2193,113 @@ This section is additive; every rule above it remains in force verbatim.
   is in-house and unblocked; Replicate paid activation is intentionally
   deferred to occur together with verified live payment readiness, not
   before.
+
+### R9.5-P5T-STAGING-TEST-PAYMENT-FULL-JOURNEY (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**No source code was changed by this packet** -- pure investigation/proof
+against the unchanged `main` (`c84ceab`/`05ddcd8`). No commit was created.
+
+- **Test-payment root cause: `OTHER_PROVEN` -- not a code defect.** The
+  test-payment seam itself (`testCheckoutSeamAllowed()` in
+  `restoration.routes.ts`, gated on
+  `NODE_ENV !== "production" && COMMERCE_E2E_TEST_MODE === "true"`, route
+  mount itself conditional -- not just an inner guard) is correctly
+  implemented and was proven fully functional end-to-end via a real
+  Chromium browser in this packet (see below). "Test payment does not
+  work" was never a code bug; it is that **no persistent,
+  human-reachable, non-production deployment currently exists** where
+  those two conditions both hold -- only the ephemeral, auto-torn-down
+  disposable-per-run local harness (`scripts/test-commerce-local.ts`) and
+  production (which correctly refuses) existed before this packet.
+- **Infrastructure limitation, disclosed rather than worked around:**
+  provisioning a real, persistent, owner-reachable staging environment
+  (separate Cloudflare Pages preview + separate Northflank service +
+  separate staging Postgres/Neon database) requires credentials this
+  session does not have (no Northflank CLI/API key available locally --
+  `NORTHFLANK_API_KEY` is a GitHub-Actions-only secret). Instead, this
+  packet stood up the same protected pattern the codebase already defines
+  for non-production use -- a disposable local PostgreSQL 17 instance
+  (port 55461, `staging_commerce` database, torn down at the end of this
+  packet), a persistent (not auto-killed) local API process
+  (`NODE_ENV=test`, `COMMERCE_E2E_TEST_MODE=true`,
+  `RESTORATION_PROVIDER=mock`, `STORAGE_PROVIDER=mock`, port 4531) and web
+  process (port 4231) -- and drove it with a real, non-headless-equivalent
+  Chromium browser (Playwright) exactly as a human clicking through would.
+  This is real proof the seam works, but it is **not** a persistent remote
+  URL the owner can open personally later; that remains the exact next
+  action if a standing staging environment is wanted (see below).
+- **`TEST_PAYMENT_SEAM: READY`** (proven, non-production only).
+  **`BANK_SANDBOX: not exercised this packet`** (owner-supplied Bank
+  Alfalah sandbox credential status unchanged from prior packets --
+  `BANK_ACTION_REQUIRED` remains; per this packet's own instruction, sandbox
+  unavailability does not block the full journey since the guarded TEST
+  seam is the designated fallback).
+- **Digital single-image full journey, real browser, real click path:**
+  Upload -> Preview (metadata visible) -> tier select (2x HD) -> Review ->
+  clicked the real "Complete TEST Payment" button (not a URL/localStorage
+  trick) -> page showed `Payment status: PAID` -> `Completed` -> a working
+  `Download` link. DB (queried directly, not inferred): exactly 1
+  `FixedOrder`, 1 `PaymentAttempt` (status `PAID`), 1 `FixedOrderItem`, 1
+  `RestorationEntitlement`, 1 `RestorationMaster` (`VALIDATED`), 1
+  `ReplicateExecution` (`SUCCEEDED`). A second, independent run reloaded
+  the same review page after payment: download link still present, exactly
+  1 `PaymentAttempt` before and after (refresh created zero duplicate
+  work).
+- **Multi-image full journey, real browser, real click path:** 3 photos in
+  one upload -> Preview -> Configure (Photo 1: 2x HD/Digital; Photo 2: 4x
+  Ultra HD/Print+Digital/4x6/qty10; Photo 3: 8x/Print+Digital/5x7/qty5) ->
+  Review -> one real "Complete TEST Payment" click for the whole cart ->
+  all 3 items independently show `Completed`/`Download`, both print items
+  show **`Preparing for printing`** (never
+  `PRINT_PARTNER_ASSIGNMENT_REQUIRED`). Totals verified verbatim on the
+  live-rendered page: Restoration PKR 6000.00, Print PKR 1750.00, Delivery
+  PKR 250.00 (single highest band), **TOTAL PKR 8000.00**. DB: exactly 1
+  `FixedOrder`, 1 `PaymentAttempt` (never one per item), 3
+  `FixedOrderItem`, 3 `RestorationEntitlement`, 3 `RestorationMaster`
+  (all `VALIDATED`), 3 `ReplicateExecution` (all `SUCCEEDED`, never 1,
+  never 9), 2 `PrintEntitlement` (only the 2 print items, never the
+  digital-only one).
+- **Zero-charge proof, this packet:** Bank real charges = 0, Bank
+  production calls = 0, Replicate real predictions = 0 (mock provider only,
+  proven by the mock worker successfully starting under
+  `RESTORATION_PROVIDER=mock` -- the real production worker refuses that
+  exact value, see below), RunPod = 0.
+- **Production-isolation guards re-verified with real command executions,
+  not just code reading:** (a) `p4b-worker-runner-mock-local.ts` run
+  directly with `NODE_ENV=production` printed `P4B mock worker runner
+  refuses to start: NODE_ENV=production` and exited 1; (b)
+  `p4b-worker-runner-main.ts` (the real production runner) run directly
+  with `RESTORATION_PROVIDER=mock` (all other required config present)
+  printed `P4B worker runner refuses to start: RESTORATION_PROVIDER must
+  be "replicate" (got "mock")` and exited 1 -- the two entrypoints are
+  proven mutually exclusive by construction, not merely by inspection; (c)
+  live `GET https://api.thannow.com/api/e2e/test-mode` = 404 and `POST
+  .../test-checkout` = 404, reconfirming no public production test-payment
+  bypass exists. Production `GET /api/health` and `https://www.thannow.com/`
+  both re-checked healthy and unchanged (`build_sha=05ddcd8...`) after this
+  packet's local-only work.
+- **No route-splitting change was made.** `CartReviewPage`'s single
+  progressive-state page was proven sufficient for a fully realistic,
+  literal click-through test (Review -> Payment -> Processing -> Result all
+  render correctly in place); the packet's own instruction only required a
+  route split "if it prevents realistic testing," which it did not.
+- **Regression:** no source changed, so `npm run lint`/`typecheck`/`build`
+  were re-run clean (0 errors) as a fast confirmation; `test:browser`
+  (116/116), `test:browser:responsive` (99/99), `test:e2e:commerce-local`,
+  and all 11 pg-race suites were already re-proven clean against this
+  identical commit earlier in this release cycle (R9.5-P5R/P5S sections
+  above) and were not re-run wastefully against unchanged code.
+- **Protected Scope held**: no RunPod, no Replicate production routing
+  change, no real Bank/card payment, no PriceBook change, no homepage/Hero
+  redesign, no `.gitignore` broadening, no public production test-payment
+  exposure.
+- **Exact next action** (only if a standing, owner-reachable staging URL
+  is wanted beyond this packet's local proof): owner provisions a
+  Northflank staging service + staging Postgres/Neon database + Cloudflare
+  Pages preview environment per the pre-existing
+  `docs/deployment/R9_2_STAGING_ENVIRONMENT_MATRIX.md`, and supplies the
+  Northflank API key/service ID for that staging service so a future
+  packet can deploy and smoke-test it the same way production is deployed.
+  Otherwise, the remaining Pakistan blocker is unchanged:
+  `BANK_ALFALAH_FINAL_PRODUCTION_INTEGRATION`.
