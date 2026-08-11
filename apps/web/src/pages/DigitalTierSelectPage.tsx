@@ -28,18 +28,51 @@ const TIER_BADGES: Record<string, string> = {
   HD_4X: "BEST FOR PRINTING"
 };
 
+type SavedTierState = {
+  selected: string;
+  product: "DIGITAL" | "PRINT_DIGITAL";
+  printSize: string;
+  quantity: number;
+  address: { recipientName: string; phone: string; addressLine1: string; city: string; countryCode: string };
+};
+
+// Same rationale as the multi-image cart's CartConfigurePage: Back
+// navigation (Review -> Configure) remounts this page fresh, so React
+// state alone does not survive it. Session-only, browser-local, never
+// sent to the server -- the server-authoritative order-creation call still
+// re-validates everything in full.
+const storageKey = (draftId: string): string => `restoration-tier-select:${draftId}`;
+
+function readSavedState(draftId: string): SavedTierState | null {
+  try {
+    const raw = window.sessionStorage.getItem(storageKey(draftId));
+    return raw ? (JSON.parse(raw) as SavedTierState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedState(draftId: string, state: SavedTierState): void {
+  try {
+    window.sessionStorage.setItem(storageKey(draftId), JSON.stringify(state));
+  } catch {
+    // Best-effort only.
+  }
+}
+
 export function DigitalTierSelectPage() {
   const { draftId } = useParams<{ draftId: string }>();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const saved = draftId ? readSavedState(draftId) : null;
   const [offers, setOffers] = useState<DigitalOfferSummary[] | null>(null);
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [product, setProduct] = useState<"DIGITAL" | "PRINT_DIGITAL">("DIGITAL");
+  const [selected, setSelected] = useState<string | null>(saved?.selected ?? null);
+  const [product, setProduct] = useState<"DIGITAL" | "PRINT_DIGITAL">(saved?.product ?? "DIGITAL");
   const [printCatalog, setPrintCatalog] = useState<Awaited<ReturnType<typeof customerApi.getPrintCatalog>>>([]);
-  const [printSize, setPrintSize] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [address, setAddress] = useState({ recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
+  const [printSize, setPrintSize] = useState(saved?.printSize ?? "");
+  const [quantity, setQuantity] = useState(saved?.quantity ?? 1);
+  const [address, setAddress] = useState(saved?.address ?? { recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +109,14 @@ export function DigitalTierSelectPage() {
       mounted.current = false;
     };
   }, [load]);
+
+  // Persist so Back-navigation from Review, or an accidental reload,
+  // restores exactly what the customer had chosen -- same rationale as
+  // CartConfigurePage's identical pattern for the multi-image flow.
+  useEffect(() => {
+    if (!draftId || !selected) return;
+    writeSavedState(draftId, { selected, product, printSize, quantity, address });
+  }, [draftId, selected, product, printSize, quantity, address]);
 
   useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
 
