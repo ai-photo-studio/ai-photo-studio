@@ -2605,3 +2605,103 @@ VERIFIED` + `ZERO_REGRESSION`. No defects found -- no code commit.**
 - Remaining external blockers unchanged:
   `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
   (P5U).
+
+### R9.5-P5Y-PAYMENT-DRYRUN-DEVTOOLS-DIAGNOSTIC (2026-08-11)
+
+This section is additive; every rule above it remains in force verbatim.
+**`PAYMENT_STOPPING_POINT_PROVEN` + `OWNER_CLICKABLE_FULL_DRYRUN_READY` +
+`PRODUCTION_ISOLATION_VERIFIED` + `ZERO_REGRESSION`.**
+
+- **Exact live payment stopping point, real CDP evidence (not inferred):**
+  clicking the real, live "Pay 100% & Restore Photo" button on
+  `www.thannow.com` sends `POST https://api.thannow.com/api/fixed-orders/
+  :orderNo/checkout` and receives **HTTP 503
+  `{"code":"PAYMENT_PROVIDER_UNAVAILABLE"}`** -- a genuine Bank Alfalah
+  gateway-unavailable response, not a hidden/disabled control. The button
+  then permanently reads "Payment unavailable" and `GET .../payment-status`
+  correctly returns 404 `"Payment attempt not found"` -- **zero
+  `PaymentAttempt` rows are ever created** for an unpaid checkout attempt,
+  confirmed by the same request/response trace. `GET /api/fixed-orders/
+  :orderNo/restoration-status` also 404s (no `RestorationEntitlement`
+  exists). Root-cause classification: **`CHECKOUT_INIT_FAIL`** (real Bank
+  Alfalah checkout initiation correctly fails closed because
+  `BANK_ALFALAH_MPGS_ENABLED=false` / no production credentials exist yet)
+  -- everything downstream (PaymentAttempt, PAID evidence, P4A trigger,
+  RestorationEntitlement/Master/`ReplicateExecution`) correctly never
+  happens as a direct, fail-closed consequence, exactly as designed.
+  Separately, `GET /api/e2e/test-mode` = 404 and the "Complete TEST
+  Payment" button never renders (confirmed by DOM state in the same
+  trace) -- production's test-payment seam is route-mounted only when
+  `NODE_ENV !== "production" && COMMERCE_E2E_TEST_MODE === "true"`, and
+  correctly is not on `www.thannow.com`.
+- **Owner-clickable protected local dry-run, `npm run commerce:dryrun`
+  (new: `scripts/commerce-dryrun.ts`)**. Reuses the exact same disposable-
+  stack recipe `test:e2e:commerce-local` already proves (disposable local
+  PostgreSQL 17, API with `COMMERCE_E2E_TEST_MODE=true`/
+  `RESTORATION_PROVIDER=mock`/`STORAGE_PROVIDER=mock`/`AI_PROVIDER=mock`/
+  `BANK_ALFALAH_MPGS_ENABLED=false`, the mock P4B worker, Vite web) but
+  opens one **visible** Chromium window to the local home page and stays
+  running instead of driving the browser itself and auto-tearing-down --
+  refuses `NODE_ENV=production` by the same hard guard. Prints the local
+  frontend/API URLs and stays open for a human to click the entire journey
+  personally.
+- **Full journey re-verified against the launcher's own stack (not
+  test:e2e:commerce-local's separate harness -- this exact script, driven
+  as an owner would use it):** Digital single-image -- Upload -> Preview
+  -> Configure -> Review -> real "Complete TEST Payment" click -> PAID ->
+  download link appears; DB: 1 `PaymentAttempt` (`PAID`), 1
+  `RestorationEntitlement`, 1 `RestorationMaster` (`VALIDATED`), 1
+  `ReplicateExecution` (`SUCCEEDED`). 3-image mixed cart -- same launcher
+  instance, one "Complete TEST Payment" click for the whole cart, all 3
+  download links appear; DB: 1 `FixedOrder`, **1** `PaymentAttempt` (never
+  one per item), 3 `FixedOrderItem`/`RestorationEntitlement`/
+  `RestorationMaster` (all `VALIDATED`)/`ReplicateExecution` (all
+  `SUCCEEDED`).
+- **Two real bugs found and fixed while building/testing this launcher**
+  (a genuinely new script, not previously proven): (1) the API's cold
+  `tsx` JIT-compile startup sometimes exceeds the original 30s health-check
+  timeout on a first run, producing a spurious `FATAL: timeout waiting for
+  .../api/health` even though the API subsequently started fine a few
+  seconds later (confirmed in the raw log: `"API server started"` logged
+  just after the timeout fired) -- fixed by raising the health-check
+  timeout to 90s for this interactive, one-shot launcher (not a tight CI
+  loop, so the extra patience is free); (2) the fatal-error path
+  (`main().catch(...)`) never called `teardown()`, so a startup failure
+  left the disposable Postgres process (and its data directory) running
+  as a genuine orphan -- reproduced live (a leftover `postgres.exe`
+  listening on the disposable port was found and manually cleaned up
+  after the first failed run), root-caused, and fixed by hoisting
+  `dataDir`/`mockStorageDir` to module scope so the top-level catch
+  handler can always tear down whatever was already started.
+- **Teardown proven twice, for real, not by code inspection:** (a)
+  killing the launcher's own visible Chromium process (simulating the
+  owner closing the window) fired the `browser.on("disconnected")` handler
+  and produced a clean `"Teardown complete."` log line with exit code 0;
+  (b) process/port checks immediately after showed **0** Node processes
+  and the disposable Postgres port no longer listening -- zero orphan
+  processes, zero leftover state. (Literal Ctrl+C could not be simulated
+  through this session's tool interface on Windows -- the standard
+  `process.on("SIGINT"/"SIGTERM")` handlers registered early in `main()`
+  are the same idiomatic pattern already used elsewhere in this codebase
+  and were not separately re-derived.)
+- **Production isolation re-verified live after building the launcher**
+  (mandatory, not skipped): `api.thannow.com` `build_sha` unchanged
+  (`d1b818034cf6416b5011b11743f399883fab82ad` -- nothing was deployed, per
+  this packet's explicit "no production deploy" scope), `GET /api/e2e/
+  test-mode` = 404, `POST /test-checkout` = 404. The dry-run launcher is a
+  local-only dev script; it was never deployed and changes nothing about
+  how the production API is built or configured.
+- **Bank status**: `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING` -- no sandbox
+  API call was attempted, no credential was guessed.
+- **Zero regression, full evidence:** `npm run lint`/`typecheck`/`build`
+  all clean; `test:browser -w apps/web` 116/116; `test:browser:responsive`
+  99/99; full `test:e2e:commerce-local` pass. No backend service/route/
+  controller code was changed (only a new standalone dev script plus one
+  `package.json` script entry), so pg-race suites were not re-run.
+- **Protected Scope held**: no RunPod, no real Bank/Replicate call
+  attempted, no public production payment bypass added or enabled, no
+  `?paid=true`/localStorage/frontend-only paid state, no `.gitignore`
+  broadening, no production deploy.
+- Remaining external blockers unchanged:
+  `BANK_ALFALAH_ACCOUNT_ONBOARDING_PENDING`, `REMOTE_STAGING_INFRA_BLOCKED`
+  (P5U).

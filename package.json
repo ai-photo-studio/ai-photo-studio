@@ -37,6 +37,7 @@
     "rollback": "node scripts/rollback.js",
     "rollback:exec": "node scripts/rollback.js --execute",
     "test:e2e:commerce-local": "tsx scripts/test-commerce-local.ts",
+    "commerce:dryrun": "tsx scripts/commerce-dryrun.ts",
     "db:migrate:status:production": "tsx scripts/production-migrations.ts status",
     "db:migrate:production": "tsx scripts/production-migrations.ts apply"
   },
