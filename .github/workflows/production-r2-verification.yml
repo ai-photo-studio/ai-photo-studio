@@ -29,6 +29,6 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test "$CLOUDFLARE_ACCOUNT_ID" = "$EXPECTED_ACCOUNT"
-          buckets="$(npx wrangler r2 bucket list --json)"
-          echo "$buckets" | jq -e --arg expected "$EXPECTED_BUCKET" 'any(.[]; .name == $expected)' >/dev/null
+          buckets="$(npx wrangler r2 bucket list)"
+          echo "$buckets" | grep -Eiq "(^|[[:space:]])${EXPECTED_BUCKET}([[:space:]]|$)"
           echo "R2 account identity and expected bucket are present"
