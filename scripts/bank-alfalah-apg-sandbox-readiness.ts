@@ -69,7 +69,8 @@ const nestedKeys = Object.entries(body)
 const successValue = body.success ?? body.Success ?? body.isSuccess ?? body.IsSuccess;
 const success = successValue === true || successValue === "true";
 const resultCode = body.ResponseCode ?? body.ResultCode ?? body.responseCode ?? body.resultCode ?? body.Code ?? body.code ?? "ABSENT";
-const authToken = body.AuthToken ?? body.authToken;
+const nestedData = body.data && typeof body.data === "object" && !Array.isArray(body.data) ? body.data as Record<string, unknown> : {};
+const authToken = body.AuthToken ?? body.authToken ?? nestedData.AuthToken ?? nestedData.authToken;
 console.log(`HS1001_HTTP_STATUS=${response.status}`);
 console.log(`HS1001_RESPONSE_CONTENT_TYPE=${contentType.split(";", 1)[0]}`);
 console.log(`HS1001_RESPONSE_BODY_TYPE=${bodyType}`);
@@ -79,8 +80,9 @@ console.log(`HS1001_RESPONSE_TOP_LEVEL_KEYS=${topLevelKeys.join(",") || "ABSENT"
 console.log(`HS1001_RESPONSE_NESTED_KEYS=${nestedKeys.join(",") || "ABSENT"}`);
 console.log(`HS1001_SUCCESS=${success}`);
 console.log(`HS1001_RESULT_CODE=${String(resultCode).replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
-console.log(`HS1001_ERROR_CODE=${String(body.ErrorCode ?? body.errorCode ?? body.Error ?? "ABSENT").replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
-console.log(`HS1001_ERROR_MESSAGE_SANITIZED=${sanitizeApgMessage(body.ErrorMessage ?? body.errorMessage ?? body.Message ?? body.message)}`);
+console.log(`HS1001_DATA_STATUS=${String(nestedData.status ?? "ABSENT").replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+console.log(`HS1001_ERROR_CODE=${String(body.ErrorCode ?? body.errorCode ?? body.Error ?? nestedData.code ?? "ABSENT").replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+console.log(`HS1001_ERROR_MESSAGE_SANITIZED=${sanitizeApgMessage(body.ErrorMessage ?? body.errorMessage ?? body.Message ?? body.message ?? nestedData.message)}`);
 console.log(`HS1001_AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
 if (response.status !== 200 || !success || !authToken) process.exitCode = 1;
 if (response.status !== 200 || !success || !authToken) return;
