@@ -62,14 +62,40 @@ const response = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/HSAPI/HSAP
     HS_RequestHash: requestHash
   })
 });
-const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-const success = body.success === true || body.success === "true";
-const resultCode = body.ResponseCode ?? body.ResultCode ?? body.responseCode ?? "ABSENT";
+const contentType = response.headers.get("content-type") ?? "ABSENT";
+const responseText = await response.text();
+let body: Record<string, unknown> = {};
+let bodyType = "string";
+try {
+  const parsed = JSON.parse(responseText) as unknown;
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    body = parsed as Record<string, unknown>;
+    bodyType = "json-object";
+  } else {
+    bodyType = Array.isArray(parsed) ? "json-array" : `json-${typeof parsed}`;
+  }
+} catch {
+  bodyType = responseText.length === 0 ? "empty" : /<html[\s>]/i.test(responseText) ? "html" : "string";
+}
+const topLevelKeys = Object.keys(body).sort();
+const nestedKeys = Object.entries(body)
+  .filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
+  .flatMap(([name, value]) => Object.keys(value as Record<string, unknown>).map((keyName) => `${name}.${keyName}`))
+  .sort();
+const successValue = body.success ?? body.Success ?? body.isSuccess ?? body.IsSuccess;
+const success = successValue === true || successValue === "true";
+const resultCode = body.ResponseCode ?? body.ResultCode ?? body.responseCode ?? body.resultCode ?? body.Code ?? body.code ?? "ABSENT";
+const authToken = body.AuthToken ?? body.authToken;
 console.log(`HS_HTTP_STATUS=${response.status}`);
+console.log(`HS_RESPONSE_CONTENT_TYPE=${contentType.split(";", 1)[0]}`);
+console.log(`HS_RESPONSE_BODY_TYPE=${bodyType}`);
+console.log(`HS_RESPONSE_BODY_LENGTH=${Buffer.byteLength(responseText, "utf8")}`);
+console.log(`HS_RESPONSE_TOP_LEVEL_KEYS=${topLevelKeys.join(",") || "ABSENT"}`);
+console.log(`HS_RESPONSE_NESTED_KEYS=${nestedKeys.join(",") || "ABSENT"}`);
 console.log(`HS_SUCCESS=${success}`);
 console.log(`HS_RESULT_CODE=${String(resultCode).replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
-console.log(`AUTH_TOKEN_PRESENT=${Boolean(body.AuthToken)}`);
-if (response.status !== 200 || !success || !body.AuthToken) process.exitCode = 1;
+console.log(`AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
+if (response.status !== 200 || !success || !authToken) process.exitCode = 1;
 }
 
 void main();
