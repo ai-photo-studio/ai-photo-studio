@@ -242,3 +242,27 @@ not the current deployment contract.
   project `ai-photo-studio-frontend`. The existing `deploy.yml` remains the
   Northflank API path for the same `main` push; no separate worker resource was
   present in the read-only Northflank audit.
+
+## 10. Production Deployment Completed (2026-08-12)
+
+- Cloudflare Pages and the intended Northflank API service were deployed by
+  GitHub Actions from commit `bc7d472`. The Pages workflow completed and the
+  Northflank workflow's health and runtime-SHA verification completed.
+- Live API health/version report `build_sha`/`buildSha` equal to
+  `bc7d4726110ea2702be8bfd866f79839e9154bec`; monitoring health and worker
+  liveness are healthy. Payment remains `manual`/fail-closed and Replicate is
+  the active restoration provider.
+- Live DevTools smoke passed 33 route/viewport checks at 1440x900, 768x1024,
+  and 390x844: logo2, direct compliance routes, Contact-only address,
+  pricing PKR catalog, Triple Canvas exclusion, zero overflow, zero first-party
+  console errors, and zero first-party failed requests.
+- A production bug was repaired before final acceptance: `PricingPage` used
+  relative `/api` requests, which hit the Pages host and returned HTML. It now
+  uses the shared `API_BASE_URL`; focused regression and full 121-test browser
+  suite passed before redeployment. No database migration, data mutation,
+  APG activation, DNS change, or secret rotation was performed.
+- Neon API branch audit returned 401 with the existing GitHub secret and remains
+  an external credential-verification item. No destructive database operation
+  was attempted. The separate worker resource was not present in the
+  read-only Northflank project listing; current API worker monitoring is
+  healthy.
