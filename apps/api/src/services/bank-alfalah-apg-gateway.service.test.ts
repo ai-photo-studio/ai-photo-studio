@@ -4,6 +4,7 @@ import {
   BankAlfalahApgConfigurationError,
   BankAlfalahApgGateway,
   BankAlfalahApgProtocolError,
+  type ApgRequestHashInput,
   type BankAlfalahApgConfig
 } from "./bank-alfalah-apg-gateway.service";
 import type { VerifiedPaymentEvidence } from "./p4a-payment-verified-execution-queue.service";
@@ -50,6 +51,21 @@ test("handshake and transaction payloads use API channel 1002 and server-owned v
   assert.equal(transaction.TransactionReferenceNumber, "FO-SERVER-1");
   assert.equal(transaction.RequestHash, "fixture-transaction");
   assert.throws(() => gateway.buildTransactionPayload({ orderId: "FO-SERVER-1", amountMinor: 0n, currency: "PKR", authToken: "fixture-auth", transactionTypeId: "3" }), /positive/);
+});
+
+test("redirection handshake follows the portal channel 1001 form contract", () => {
+  const calls: ApgRequestHashInput[] = [];
+  const gateway = new BankAlfalahApgGateway(baseConfig, undefined, (input) => {
+    calls.push(input);
+    return "fixture-redirection";
+  });
+  const payload = gateway.buildRedirectionHandshakePayload({ orderId: "FO-REDIRECT-1" });
+  assert.deepEqual(Object.keys(payload), ["HS_MerchantId", "HS_StoreId", "HS_ChannelId", "HS_MerchantHash", "HS_MerchantUsername", "HS_MerchantPassword", "HS_IsRedirectionRequest", "HS_ReturnURL", "HS_RequestHash", "HS_IsBIN", "HS_TransactionReferenceNumber", "handshake"]);
+  assert.equal(payload.HS_ChannelId, "1001");
+  assert.equal(payload.HS_IsRedirectionRequest, "1");
+  assert.equal(payload.HS_IsBIN, "0");
+  assert.equal(payload.HS_RequestHash, "fixture-redirection");
+  assert.equal(calls[0]?.endpoint, "redirection-handshake");
 });
 
 test("malformed handshake responses and non-PAID statuses are rejected", async () => {

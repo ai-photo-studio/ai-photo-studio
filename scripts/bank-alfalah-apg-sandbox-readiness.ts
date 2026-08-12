@@ -31,37 +31,32 @@ console.log("AES_IV_LENGTH_VALID=PASS");
 
 const orderId = `THN-SBX-HS-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${randomUUID().slice(0, 8)}`;
 const fields = [
-  ["HS_ChannelId", "1002"],
   ["HS_MerchantId", env.BANK_ALFALAH_APG_MERCHANT_ID],
   ["HS_StoreId", env.BANK_ALFALAH_APG_STORE_ID],
-  ["HS_ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL],
+  ["HS_ChannelId", "1001"],
   ["HS_MerchantHash", env.BANK_ALFALAH_APG_MERCHANT_HASH],
   ["HS_MerchantUsername", env.BANK_ALFALAH_APG_USERNAME],
   ["HS_MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD],
-  ["HS_TransactionReferenceNumber", orderId]
+  ["HS_IsRedirectionRequest", "1"],
+  ["HS_ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL],
+  ["HS_RequestHash", ""],
+  ["HS_IsBIN", "0"],
+  ["HS_TransactionReferenceNumber", orderId],
+  ["handshake", ""]
 ] as const;
 const requestHash = encryptApgRequestHash(fields, key, iv);
-console.log("REQUESTHASH_GENERATION=PASS");
+console.log("HS1001_REQUESTHASH_GENERATION=PASS");
 
 if (env.APG_READINESS_DRY_RUN === "true") {
   console.log("HS_SKIPPED=DRY_RUN");
   process.exit(0);
 }
 
-const response = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/HSAPI/HSAPI`, {
+const redirectionForm = new URLSearchParams(fields.filter(([name]) => name !== "handshake").map(([name, value]) => [name, name === "HS_RequestHash" ? requestHash : value]));
+const response = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/HS/HS`, {
   method: "POST",
-  headers: { "content-type": "application/json", accept: "application/json" },
-  body: JSON.stringify({
-    HS_ChannelId: fields[0][1],
-    HS_MerchantId: fields[1][1],
-    HS_StoreId: fields[2][1],
-    HS_ReturnURL: fields[3][1],
-    HS_MerchantHash: fields[4][1],
-    HS_MerchantUsername: fields[5][1],
-    HS_MerchantPassword: fields[6][1],
-    HS_TransactionReferenceNumber: fields[7][1],
-    HS_RequestHash: requestHash
-  })
+  headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json,text/html" },
+  body: redirectionForm
 });
 const contentType = response.headers.get("content-type") ?? "ABSENT";
 const responseText = await response.text();
@@ -75,18 +70,18 @@ const successValue = body.success ?? body.Success ?? body.isSuccess ?? body.IsSu
 const success = successValue === true || successValue === "true";
 const resultCode = body.ResponseCode ?? body.ResultCode ?? body.responseCode ?? body.resultCode ?? body.Code ?? body.code ?? "ABSENT";
 const authToken = body.AuthToken ?? body.authToken;
-console.log(`HS_HTTP_STATUS=${response.status}`);
-console.log(`HS_RESPONSE_CONTENT_TYPE=${contentType.split(";", 1)[0]}`);
-console.log(`HS_RESPONSE_BODY_TYPE=${bodyType}`);
-console.log(`HS_RESPONSE_BODY_LENGTH=${Buffer.byteLength(responseText, "utf8")}`);
-console.log(`HS_RESPONSE_PARSE_DEPTH=${depth}`);
-console.log(`HS_RESPONSE_TOP_LEVEL_KEYS=${topLevelKeys.join(",") || "ABSENT"}`);
-console.log(`HS_RESPONSE_NESTED_KEYS=${nestedKeys.join(",") || "ABSENT"}`);
-console.log(`HS_SUCCESS=${success}`);
-console.log(`HS_RESULT_CODE=${String(resultCode).replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
-console.log(`HS_ERROR_CODE=${String(body.ErrorCode ?? body.errorCode ?? body.Error ?? "ABSENT").replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
-console.log(`HS_ERROR_MESSAGE_SANITIZED=${sanitizeApgMessage(body.ErrorMessage ?? body.errorMessage ?? body.Message ?? body.message)}`);
-console.log(`AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
+console.log(`HS1001_HTTP_STATUS=${response.status}`);
+console.log(`HS1001_RESPONSE_CONTENT_TYPE=${contentType.split(";", 1)[0]}`);
+console.log(`HS1001_RESPONSE_BODY_TYPE=${bodyType}`);
+console.log(`HS1001_RESPONSE_BODY_LENGTH=${Buffer.byteLength(responseText, "utf8")}`);
+console.log(`HS1001_RESPONSE_PARSE_DEPTH=${depth}`);
+console.log(`HS1001_RESPONSE_TOP_LEVEL_KEYS=${topLevelKeys.join(",") || "ABSENT"}`);
+console.log(`HS1001_RESPONSE_NESTED_KEYS=${nestedKeys.join(",") || "ABSENT"}`);
+console.log(`HS1001_SUCCESS=${success}`);
+console.log(`HS1001_RESULT_CODE=${String(resultCode).replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+console.log(`HS1001_ERROR_CODE=${String(body.ErrorCode ?? body.errorCode ?? body.Error ?? "ABSENT").replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+console.log(`HS1001_ERROR_MESSAGE_SANITIZED=${sanitizeApgMessage(body.ErrorMessage ?? body.errorMessage ?? body.Message ?? body.message)}`);
+console.log(`HS1001_AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
 if (response.status !== 200 || !success || !authToken) process.exitCode = 1;
 if (response.status !== 200 || !success || !authToken) return;
 

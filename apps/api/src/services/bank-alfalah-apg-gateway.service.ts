@@ -25,6 +25,10 @@ export interface ApgHandshakeInput {
   orderId: string;
 }
 
+export interface ApgRedirectionHandshakeInput {
+  orderId: string;
+}
+
 export interface ApgTransactionInput {
   orderId: string;
   amountMinor: bigint;
@@ -34,7 +38,7 @@ export interface ApgTransactionInput {
 }
 
 export interface ApgRequestHashInput {
-  endpoint: "handshake" | "transaction" | "sso";
+  endpoint: "handshake" | "redirection-handshake" | "transaction" | "sso";
   payload: Record<string, string>;
 }
 
@@ -85,6 +89,8 @@ const orderedFields = (payload: Record<string, string>, names: readonly string[]
 const defaultRequestHashGenerator = (input: ApgRequestHashInput, config: BankAlfalahApgConfig): string => {
   const fieldOrder = input.endpoint === "handshake"
     ? ["HS_ChannelId", "HS_MerchantId", "HS_StoreId", "HS_ReturnURL", "HS_MerchantHash", "HS_MerchantUsername", "HS_MerchantPassword", "HS_TransactionReferenceNumber"]
+    : input.endpoint === "redirection-handshake"
+      ? ["HS_MerchantId", "HS_StoreId", "HS_ChannelId", "HS_MerchantHash", "HS_MerchantUsername", "HS_MerchantPassword", "HS_IsRedirectionRequest", "HS_ReturnURL", "HS_RequestHash", "HS_IsBIN", "HS_TransactionReferenceNumber", "handshake"]
     : input.endpoint === "sso"
       ? ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "IsBIN", "RequestHash", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "run"]
       : ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "MobileNumber"];
@@ -177,6 +183,28 @@ export class BankAlfalahApgGateway {
     };
     assertHttpsUrl(payload.HS_ReturnURL, "HS_ReturnURL");
     payload.HS_RequestHash = this.hashGenerator({ endpoint: "handshake", payload: { ...payload } });
+    return payload;
+  }
+
+  buildRedirectionHandshakePayload(input: ApgRedirectionHandshakeInput): Record<string, string> {
+    assertConfigured(this.config);
+    if (!input.orderId) throw new BankAlfalahApgProtocolError("APG order ID is required");
+    const payload: Record<string, string> = {
+      HS_MerchantId: this.config.merchantId,
+      HS_StoreId: this.config.storeId,
+      HS_ChannelId: "1001",
+      HS_MerchantHash: this.config.merchantHash,
+      HS_MerchantUsername: this.config.username,
+      HS_MerchantPassword: this.config.password,
+      HS_IsRedirectionRequest: "1",
+      HS_ReturnURL: this.config.returnUrl,
+      HS_RequestHash: "",
+      HS_IsBIN: "0",
+      HS_TransactionReferenceNumber: input.orderId,
+      handshake: ""
+    };
+    assertHttpsUrl(payload.HS_ReturnURL, "HS_ReturnURL");
+    payload.HS_RequestHash = this.hashGenerator({ endpoint: "redirection-handshake", payload: { ...payload } });
     return payload;
   }
 
