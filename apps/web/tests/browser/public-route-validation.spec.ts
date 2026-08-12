@@ -26,8 +26,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024
     test.setTimeout(90000);
 
     test("load with canonical logo, no overflow, and clean first-party runtime", async ({ page, consoleErrors, pageErrors, failedFirstPartyRequests }) => {
-      await page.route("**/api/digital-catalog?market=PAKISTAN", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { offers: [], printCatalog: [] } }) }));
-      await page.route("**/api/memory-packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: [] }) }));
+      await page.route("**://**/api/digital-catalog?market=PAKISTAN", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { offers: [{ tier: "ORIGINAL", label: "Restored Original", amountMinor: 50000, currency: "PKR", description: "Restored image" }], printCatalog: [{ size: "Triple Canvas", unitAmountMinor: 2500000, currency: "PKR", minimumQuantity: 1, deliveryAmountMinor: 250000 }] } }) }));
+      await page.route("**://**/api/memory-packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: [] }) }));
 
       for (const route of PUBLIC_ROUTES) {
         await page.goto(route);
@@ -41,6 +41,11 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024
           await expect.poll(() => page.locator("body").textContent()).not.toContain("28-E, Gulshan-e-Ali Sahiwal");
         }
       }
+
+      await page.goto("/pricing");
+      await expect(page.getByRole("heading", { name: "Restore & Download" })).toBeVisible();
+      await expect(page.getByText("PKR 500.00", { exact: true })).toBeVisible();
+      await expect(page.getByText("Triple Canvas is not currently available to order.", { exact: true })).toBeVisible();
 
       expectNoPageErrors(consoleErrors, pageErrors);
       expectNoFailedFirstPartyRequests(failedFirstPartyRequests);

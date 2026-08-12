@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRestorationUpload } from "../components/RestorationUploadController";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
+import { API_BASE_URL } from "../lib/api";
 
 type PrintItem = Awaited<ReturnType<typeof customerApi.getPrintCatalog>>[number];
 type MemoryPackage = { code: string; name: string; priceMinor: number; currency: "PKR"; includes: string[]; checkoutReady: boolean; blocker?: string };
@@ -18,8 +19,8 @@ export function PricingPage() {
   useEffect(() => {
     let alive = true;
     void Promise.all([
-      fetch("/api/digital-catalog?market=PAKISTAN").then((r) => r.ok ? r.json() : Promise.reject(new Error("Restoration pricing unavailable"))),
-      fetch("/api/memory-packages").then((r) => r.ok ? r.json() : Promise.reject(new Error("Memory packages unavailable")))
+       fetch(`${API_BASE_URL}/api/digital-catalog?market=PAKISTAN`).then((r) => r.ok ? r.json() : Promise.reject(new Error("Restoration pricing unavailable"))),
+       fetch(`${API_BASE_URL}/api/memory-packages`).then((r) => r.ok ? r.json() : Promise.reject(new Error("Memory packages unavailable")))
     ]).then(([offerPayload, packagePayload]) => {
       if (!alive) return;
       setOffers(Array.isArray(offerPayload?.data?.offers) ? offerPayload.data.offers : []);
