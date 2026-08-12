@@ -43,11 +43,11 @@ export function PricingPage() {
         <h2>Print + Digital</h2>
         <div className="pricing-grid">
            {prints.filter((print) => print.size !== "Triple Canvas").map((print) => <article className="pricing-card" key={print.size}><h3>{print.size}</h3><p className="price">{money(print.unitAmountMinor, print.currency)} each</p><p>Minimum quantity: {print.minimumQuantity}</p><p>Delivery: {money(print.deliveryAmountMinor, print.currency)} per shipment</p><small>{print.catalogVersion}</small></article>)}
-           {prints.some((print) => print.size === "Triple Canvas") && <div className="state-panel state-panel-warning"><p>Triple Canvas is not currently orderable because its physical dimensions and fulfilment specifications require confirmation.</p></div>}
+           {prints.some((print) => print.size === "Triple Canvas") && <div className="state-panel state-panel-warning"><p>Triple Canvas is not currently available to order.</p></div>}
         </div>
         <h2>Memory Packages</h2>
         <div className="pricing-grid">
-          {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <button type="button" className="button button-secondary button-block" onClick={openRestorationUpload}>Start package</button> : <div className="state-panel"><p>{pkg.blocker || "Package fulfilment details required"}</p></div>}</article>)}
+           {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <button type="button" className="button button-secondary button-block" onClick={openRestorationUpload}>Start package</button> : <div className="state-panel"><p>This package is not currently available to order.</p></div>}</article>)}
         </div>
       </>}
     </section>

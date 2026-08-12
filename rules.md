@@ -3173,3 +3173,20 @@ changes were needed; the integration was already credential-ready.**
   use-case filter, the digital and cart crop guards, and the corresponding
   focused journey tests. Existing pricing, order creation, payment, database,
   restoration, and fulfilment backend logic remains unchanged.
+
+### R9.5-P6J — Release Candidate Production Cleanup (2026-08-12)
+
+- Removed placeholder analytics bootstrap and unrelated ecommerce metadata from
+  `apps/web/src/main.tsx`. ThanNow-specific title, description, canonical URL,
+  and logo social image metadata are now emitted without inventing analytics
+  identifiers or loading third-party tracking.
+- Customer-facing unavailable package, canvas, and Triple Canvas states now use
+  plain availability wording. The existing server catalog and fail-closed
+  ordering behavior are unchanged.
+- Release-candidate launch scope is the supported Restore & Download product,
+  supported PKR Print + Digital sizes with ratio-safe source images, and the
+  existing fail-closed checkout. Triple Canvas, incomplete albums, unsafe-crop
+  print selections, and paid-restoration print add-on remain excluded without
+  blocking supported products.
+- Protected scope now includes ThanNow production metadata, customer-facing
+  unavailable-product wording, and the supported launch catalog boundaries.

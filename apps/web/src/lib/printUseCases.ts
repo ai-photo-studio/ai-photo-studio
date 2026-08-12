@@ -16,7 +16,7 @@ export const CUSTOMER_USE_CASES: CustomerUseCase[] = [
   { id: "TABLE_FRAME", label: "Table Frame", copy: "Great for a desk, shelf, or bedside frame.", sizes: ["8x10"] },
   { id: "WALL_FRAME", label: "Wall Frame", copy: "Made for a medium wall display.", sizes: ["8x12", "10x12", "12x18"] },
   { id: "LARGE_WALL_ART", label: "Large Wall Art", copy: "For larger wall displays and statement pieces.", sizes: ["16x24", "20x30", "24x36", "30x40", "40x60"] },
-  { id: "CANVAS", label: "Canvas", copy: "Triple Canvas is available in the Pakistan catalog; exact physical specifications are confirmed before fulfilment.", sizes: ["Triple Canvas"] }
+  { id: "CANVAS", label: "Canvas", copy: "Canvas ordering is not currently available.", sizes: ["Triple Canvas"] }
 ];
 
 // Triple Canvas has an approved price but no documented physical dimensions,
