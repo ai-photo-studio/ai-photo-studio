@@ -3249,6 +3249,61 @@ changes were needed; the integration was already credential-ready.**
   server-side identity/amount/currency-checked OrderStatus or authenticated
   IPN evidence may produce PAID.
 
+### R9.5-P6P — Authenticated APG Portal Protocol Evidence (2026-08-12)
+
+- Official Chrome DevTools MCP v1.7.0 used the persistent D: profile at
+  `D:\AI-Tools\ChromeDevToolsProfile`. Owner authentication completed normally
+  in the Bank portal; the authenticated API Testing page loaded at
+  `/MerchantPortal/Sandbox/APITesting`. No login bypass, credential retrieval,
+  or captcha bypass was used.
+- The portal-generated HS schema is ordered JSON with fields
+  `HS_ChannelId`, `HS_MerchantId`, `HS_StoreId`, `HS_ReturnURL`,
+  `HS_MerchantHash`, `HS_MerchantUsername`, `HS_MerchantPassword`,
+  `HS_TransactionReferenceNumber`, and `HS_RequestHash`. The displayed API
+  endpoint is `https://sandbox.bankalfalah.com/HS/api/HSAPI/HSAPI`; the portal
+  action uses an authenticated portal POST to `/MerchantPortal/Sandbox/TestHSAPI`
+  and the Bank API is documented as POST/API channel `1002`.
+- One harmless sandbox handshake was submitted through the portal. The portal
+  returned HTTP `200`, result `success=true`, a ReturnURL, and an AuthToken
+  field present. Token/hash/credential values are intentionally not recorded.
+  No financial transaction or charge was made.
+- Official portal inline source proves RequestHash generation rather than a
+  guess: it constructs an ordered `&`-delimited map string, parses it as UTF-8,
+  encrypts with `CryptoJS.AES.encrypt`, UTF-8 key and IV, AES-128-CBC mode,
+  PKCS#7 padding, and CryptoJS Base64 ciphertext output. The HS map order is
+  `HS_ChannelId`, `HS_MerchantId`, `HS_StoreId`, `HS_ReturnURL`,
+  `HS_MerchantHash`, `HS_MerchantUsername`, `HS_MerchantPassword`,
+  `HS_TransactionReferenceNumber`. The portal source references hidden key/IV
+  configuration fields; their values are not recorded or committed. Status:
+  `APG_REQUESTHASH_PROTOCOL_CAPTURED`, with key/IV ownership/configuration
+  still required before ThanNow runtime implementation.
+- The portal transaction schema includes `ChannelId`, `MerchantId`, `StoreId`,
+  `MerchantHash`, `MerchantUsername`, `MerchantPassword`, `ReturnURL`,
+  `Currency`, `AuthToken`, `TransactionTypeId`,
+  `TransactionReferenceNumber`, `TransactionAmount`, `MobileNumber`,
+  account/country/email fields, and `RequestHash`. Its Bank endpoint is
+  `https://sandbox.bankalfalah.com/HS/api/Tran/DoTran`; portal initiation uses
+  `/MerchantPortal/Sandbox/TestTranAPI`. Supported UI types shown were Alfa
+  Wallet, Card on Delivery, JazzCash, Other Bank Accounts, and RAAST QR.
+- Process Transaction includes the transaction identity plus `SMSOTAC`,
+  `EmailOTAC`, `SMSOTP`, `HashKey`, and `RequestHash`; its Bank endpoint is
+  `https://sandbox.bankalfalah.com/HS/api/ProcessTran/ProTran`, with portal
+  initiation at `/MerchantPortal/Sandbox/TestProTranAPI`. No OTP/OTAC or
+  financial transaction was submitted. The portal source shows the same AES
+  construction pattern for transaction/process payloads.
+- Comparison: HS endpoint/schema/channel match current gateway; Transaction
+  endpoint/schema match current `createTransaction`; SSO endpoint remains the
+  current `/SSO/SSO/SSO` architecture but was not executed; OrderStatus remains
+  current `/HS/api/IPN/OrderStatus/{merchant}/{store}/{order}`. The portal
+  evidence does not prove IPN authentication, acknowledgement, retry, or
+  ReturnURL payment trust semantics. IPN remains fail-closed with
+  `BANK_IPN_AUTH_CONFIRMATION_REQUIRED`.
+- No runtime payment implementation was made in P6P. Production APG remains
+  disabled, no Bank charge occurred, no Replicate/RunPod call occurred, and
+  current product/payment protections remain unchanged. A subsequent packet
+  must obtain owner-approved key/IV runtime mapping and implement deterministic
+  synthetic-vector tests before ThanNow backend APG activation is considered.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
