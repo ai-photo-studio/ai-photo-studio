@@ -1,0 +1,41 @@
+name: Deploy ThanNow Frontend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-frontend.yml"
+
+env:
+  NODE_VERSION: "24"
+  CLOUDFLARE_PAGES_PROJECT: ai-photo-studio-frontend
+
+jobs:
+  deploy:
+    name: Build & Deploy Cloudflare Pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build -w apps/web
+        env:
+          VITE_API_URL: https://api.thannow.com
+
+      - name: Deploy production Pages project
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/dist --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --commit-hash=${{ github.sha }}

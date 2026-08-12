@@ -236,3 +236,9 @@ not the current deployment contract.
   through the authorized platform workflow, and reruns live route/logo/API
   smoke. No production deployment, DNS change, restart, APG activation,
   secret rotation, or database mutation was performed by this verification.
+- Authorized deployment path added as `.github/workflows/deploy-frontend.yml`:
+  Cloudflare Pages uses the existing `CLOUDFLARE_API_TOKEN` and
+  `CLOUDFLARE_ACCOUNT_ID` GitHub secrets, builds `apps/web`, and deploys only
+  project `ai-photo-studio-frontend`. The existing `deploy.yml` remains the
+  Northflank API path for the same `main` push; no separate worker resource was
+  present in the read-only Northflank audit.
