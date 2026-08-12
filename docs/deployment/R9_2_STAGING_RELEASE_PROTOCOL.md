@@ -294,3 +294,32 @@ not the current deployment contract.
   remaining external item is optional direct Neon migration-status execution
   from an authorized network context, not a launch blocker while live API
   dependency health remains green.
+
+## 12. ThanNow Supported Product Go-Live Freeze (2026-08-12)
+
+- ThanNow is confirmed LIVE for the supported launch scope at
+  `https://www.thannow.com`; the API is healthy at `https://api.thannow.com`.
+  The root domain resolves over HTTPS. No redeployment was required for this
+  final confirmation.
+- Live API runtime reports `ddff0d3` (verification-workflow commit only; no
+  product/runtime behavior changed after deployed `bc7d472`). `main` and
+  `origin/main` are synchronized at `e8303f5`.
+- Final rendered live checks passed at 1440x900 and 390x844: supported home,
+  Restore & Download, Print + Digital, upload/cart/checkout entry, all public
+  compliance pages, contact/KYC, logo2, PKR pricing, Contact-only address,
+  Triple Canvas exclusion, APG fail-closed behavior, zero first-party console
+  errors, zero failed first-party requests, zero broken images/links, and zero
+  horizontal overflow.
+- HTTPS, Cloudflare, Northflank, live Neon-backed API health, R2 Wrangler
+  verification, Replicate status, and production CORS remain PASS. No APG
+  credentials, hash/IPN values, or bank approval were invented or changed.
+- Robots permits search indexing. `/sitemap.xml` is not separately configured
+  and currently falls back to the SPA shell; this is a non-blocking SEO
+  follow-up. No SEO redesign or runtime change was made during the freeze.
+- Protected production scope is frozen: launch catalog, Restore & Download,
+  supported Print + Digital, upload/cart/checkout, PKR pricing, crop guards,
+  logo2, compliance routes, Contact-only address, Cloudflare configuration,
+  Northflank API, Neon credential source, R2, Replicate, and APG fail-closed
+  behavior. Future changes require a verified bug or approved requirement.
+- Rollback remains the existing platform redeploy of the previous known-good
+  Pages build/API image; no database rollback is required for this freeze.
