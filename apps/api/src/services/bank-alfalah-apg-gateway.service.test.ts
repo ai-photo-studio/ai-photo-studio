@@ -81,6 +81,7 @@ test("SSO redirect contains no client-controlled merchant or amount fields", () 
   const gateway = new BankAlfalahApgGateway(baseConfig, undefined, hash);
   const redirect = gateway.buildSsoRedirect("fixture-auth", "FO-1", "3", 125000n, "PKR");
   assert.equal(redirect.url, "https://sandbox.bankalfalah.com/SSO/SSO/SSO");
+  assert.equal(redirect.fields.IsBIN, "0");
   assert.equal(redirect.fields.MerchantId, "TEST-MERCHANT");
   assert.equal(redirect.fields.TransactionAmount, "1250.00");
 });

@@ -221,6 +221,7 @@ export class BankAlfalahApgGateway {
       AuthToken: authToken,
       RequestHash: "",
       ChannelId: "1002",
+      IsBIN: "0",
       Currency: currency,
       ReturnURL: this.config.returnUrl,
       MerchantId: this.config.merchantId,
