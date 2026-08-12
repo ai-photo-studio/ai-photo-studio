@@ -211,3 +211,28 @@ not the current deployment contract.
   Do not rewrite supported customer flows, PKR pricing, APG fail-closed
   behavior, compliance routes, or the Contact-only address invariant without a
   verified regression or separately authorized release packet.
+
+## 9. Live Production Verification (2026-08-12)
+
+- Read-only checks confirmed `https://api.thannow.com/api/health` and
+  `/api/monitoring/health` return 200. The API reports `provider: replicate`,
+  `payment_mode: manual`, and `build_sha: 10f1aa9`; no secret values were read.
+  Queue and worker monitoring also returned healthy responses.
+- Read-only CORS verification allows `https://www.thannow.com` and does not
+  allow an unrelated origin. The live Pakistan catalog returned the approved
+  PKR digital tiers and PKR print catalog.
+- Live frontend verification found a deployment mismatch: `www.thannow.com`
+  still serves the older ecommerce artifact (old title, old metadata, invalid
+  Meta Pixel `null` warning, no `logo2.png` marker), and direct compliance
+  routes redirect to `/` except supported routes such as `/pricing` and
+  `/login`. The intended release `462c9ca` has not been deployed to Pages.
+- Cloudflare, Northflank, and Neon CLIs were unavailable in the verification
+  environment. Therefore live resource identity and live environment-variable
+  presence cannot be certified from this machine. The legacy Railway CLI was
+  deliberately not used because it is not the current deployment contract.
+- Result: **NO-GO for deployment completion/acceptance** until the owner
+  verifies the Cloudflare Pages project and Northflank resources, confirms the
+  production variable names/values privately, deploys the frozen release only
+  through the authorized platform workflow, and reruns live route/logo/API
+  smoke. No production deployment, DNS change, restart, APG activation,
+  secret rotation, or database mutation was performed by this verification.
