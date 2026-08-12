@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { RestorationUploadController, useRestorationUpload } from "./RestorationUploadController";
+import { BrandLogo } from "./BrandLogo";
 
 // ThanNow locked public shell (R9.3). Human-memory restoration journey.
 // Header nav links to homepage anchors so that top-level sections remain
@@ -30,9 +31,7 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
   return (
     <div className="site-shell">
       <header className="site-header">
-        <Link to="/" className="brand" aria-label="ThanNow home">
-          <img src="/assets/thannow-logo.png" alt="ThanNow" className="brand-logo" />
-        </Link>
+        <BrandLogo />
 
         <nav className="desktop-nav" aria-label="Primary navigation">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>Home</NavLink>
@@ -63,9 +62,7 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
       <footer className="site-footer" id="footer">
         <div className="section-shell footer-grid">
           <div className="footer-brand">
-            <Link to="/" className="brand" aria-label="ThanNow home">
-              <img src="/assets/thannow-logo.png" alt="ThanNow" className="brand-logo" />
-            </Link>
+            <BrandLogo />
             <p>Restore, upscale and preserve the human memories that matter most.</p>
           </div>
           <div>

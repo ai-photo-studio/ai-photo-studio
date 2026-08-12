@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { BrandLogo } from "./BrandLogo";
 
 export function CustomerLayout() {
   const { user, logout } = useAuth();
@@ -7,9 +8,7 @@ export function CustomerLayout() {
   return (
     <div className="site-shell customer-shell customer-page">
       <header className="site-header customer-header">
-        <Link to="/" className="brand" aria-label="ThanNow home">
-          <img src="/assets/thannow-logo.png" alt="ThanNow" className="brand-logo" />
-        </Link>
+        <BrandLogo />
         <nav className="site-nav" aria-label="Customer">
           <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
             Orders

@@ -3124,3 +3124,32 @@ changes were needed; the integration was already credential-ready.**
   Album product/fulfilment details, paid-restoration add-on activation flow,
   and ThanNow APG sandbox credentials/hash/IPN confirmation. No deployment is
   authorized by this packet.
+
+### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
+
+- `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
+  asset is tracked at `apps/web/public/assets/logo2.png` and all public and
+  authenticated customer shell branding uses the shared
+  `apps/web/src/components/BrandLogo.tsx` component. Header, footer, and
+  customer-layout logo paths are no longer duplicated. Favicon metadata was
+  not added because this square brand asset was not required to replace the
+  existing browser metadata.
+- Browser inspection used the local production Vite harness with Chromium,
+  rendered DOM/CSS checks, image natural-width checks, address text checks,
+  first-party request collection, console/page-error collection, and viewport
+  emulation. Public route coverage included 18 routes at 1440x900, 768x1024,
+  and 390x844; all five route/logo validation tests passed.
+- The existing restoration, digital, print-boundary, cart, order-review,
+  checkout, authentication, and responsive browser suites passed `99/99`.
+  Type checks and production build passed. Lint passed with existing warnings
+  only. No first-party console errors, failed first-party requests, broken
+  logo images, horizontal overflow, or address-isolation failures were found.
+- APG invariants were revalidated: all seven compliance routes remain public,
+  Pakistan totals remain PKR/server-sourced, no cryptocurrency or Skrill
+  payment option is offered, no unrelated merchant redirect was introduced,
+  and `28-E, Gulshan-e-Ali Sahiwal` renders only on `/contact`.
+- Protected scope now explicitly includes `BrandLogo.tsx`, `logo2.png`, the
+  public/customer shells, compliance routes, checkout policy-link surfaces,
+  PKR pricing display, and the Contact-only office-address invariant. No API,
+  database, restoration, printing, authentication, or Bank Alfalah backend
+  code was changed.

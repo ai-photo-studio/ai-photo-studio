@@ -64,3 +64,9 @@ No secrets are committed in repository files.
 The public website exposes `/faq`, `/terms`, `/privacy-policy`, `/payment-policy`, `/refund-exchange-policy`, `/delivery-policy`, and `/contact` through the shared ThanNow footer. Pakistan customer catalog and checkout amounts remain server-sourced and are displayed in PKR. Checkout links to the applicable terms, privacy, payment, and refund policies without changing order or Bank Alfalah processing logic. No cryptocurrency payment method is displayed or offered.
 
 KYC contact information is shown on `/contact` only: ThanNow, operated by BioTech, the supplied Pakistan phone, support email, and office address. The physical address is intentionally not rendered in the global footer or other public pages. Compliance validation includes source searches for placeholders, prohibited payment methods, address exposure, and a production web build; browser/mobile route review remains part of release validation.
+
+## Launch-Ready Protected Scope
+
+- `apps/web/src/components/BrandLogo.tsx` is the canonical public ThanNow logo component and uses `apps/web/public/assets/logo2.png` everywhere the public or authenticated customer shell displays the brand.
+- Public and customer shell branding, direct public compliance routes, checkout policy links, PKR display, and the Contact-only office-address invariant are finalized and protected against unrelated redesign.
+- Browser validation covers the public navigation and compliance routes, restoration/upload entry, digital flow, print boundary, cart/order review, and checkout at 1440x900, 768x1024, and 390x844 where the supported local harness exposes each flow.
