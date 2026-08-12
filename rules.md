@@ -3172,6 +3172,45 @@ changes were needed; the integration was already credential-ready.**
   admin credentials if required, and existing Triple Canvas/Album/APG
   external blockers.
 
+### R9.5-P6J — APG Secret Audit and ThanNow Branding (2026-08-12)
+
+- P6I was finalized separately in commit `b3f58b2` (`feat(frontend):
+  premiumize upload and simplify customer preview`). The commit contains the
+  upload, auth, Preview, cart minimum-validation, focused browser coverage,
+  commerce harness, and P6I evidence changes only. `BAF/` and `logo/` remain
+  protected owner directories and are not tracked by this commit.
+- GitHub secret-name audit found `MERCHANT_HASH_KEY`, `MERCHANT_USERNAME`,
+  `MERCHANT_PASSWORD`, and `MERCHANT_ID`. No secret values were read or
+  printed. The current deployment workflows do not map these names to
+  `BANK_ALFALAH_APG_MERCHANT_HASH`, `BANK_ALFALAH_APG_USERNAME`,
+  `BANK_ALFALAH_APG_PASSWORD`, or `BANK_ALFALAH_APG_MERCHANT_ID`; no
+  unnecessary duplicate secrets were created. Store ID `023772` was supplied
+  as owner input during this session but was not written to source, GitHub, or
+  logs; no GitHub `STORE_ID` secret is present.
+- Exact ThanNow APG URLs remain Return
+  `https://api.thannow.com/api/payments/bank-alfalah/return` and Listener/IPN
+  `https://api.thannow.com/api/payments/bank-alfalah/ipn`. Both routes are
+  mounted. Runtime defaults point to the Return URL, and the return handler
+  never marks an order PAID. No `getfreeseeds.com` callback is active.
+- APG sandbox execution was not attempted and must remain stopped with
+  `THANNOW_APG_SANDBOX_INPUTS_REQUIRED`: the required request-hash/encryption
+  algorithm and owner-confirmed GitHub runtime mapping are not available, and
+  Store ID is not stored in the deployment secret set. The repository gateway
+  deliberately fails closed with `BANK_CONFIRMATION_REQUIRED` when the hash
+  generator is not supplied. IPN remains fail-closed; exact Bank IPN
+  authentication and acknowledgement contract is not supplied, so status is
+  `BANK_IPN_AUTH_CONFIRMATION_REQUIRED`.
+- No Bank request, real charge, production APG activation, production deploy,
+  Replicate call, or RunPod call was made in P6J. Browser Return is not payment
+  evidence; only trusted, identity/amount/currency-checked OrderStatus or
+  authenticated IPN evidence may transition PAID.
+- Owner `logo/logo2.png` remains the canonical square ThanNow brand source.
+  Header rendering was increased without stretching to `198x60` desktop and
+  `156x46` at mobile widths. Derived public assets are optimized favicon and
+  app-icon variants at 16, 32, 48, 180, 192, and 512 pixels. The source logo
+  was not modified. `index.html` links the 16/32 favicon and 180 touch icon;
+  the 192/512 assets are available for a future manifest if one is introduced.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged

@@ -2513,8 +2513,8 @@ img {
 
 .brand-logo {
   display: block;
-  width: 174px;
-  height: 52px;
+  width: 198px;
+  height: 60px;
   object-fit: contain;
   object-position: left center;
 }
@@ -2698,8 +2698,8 @@ img {
 
 @media (max-width: 470px) {
   .brand-logo {
-    width: 132px;
-    height: 42px;
+    width: 156px;
+    height: 46px;
   }
 }
 
