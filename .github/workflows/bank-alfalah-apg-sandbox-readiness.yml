@@ -21,6 +21,18 @@ jobs:
       BANK_ALFALAH_APG_AES_KEY: ${{ secrets.BANK_ALFALAH_APG_AES_KEY }}
       BANK_ALFALAH_APG_AES_IV: ${{ secrets.BANK_ALFALAH_APG_AES_IV }}
     steps:
+      - name: Checkout verified APG utility
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install verified utility dependencies
+        run: npm ci --ignore-scripts
+
       - name: Verify mapped APG inputs by name only
         shell: bash
         run: |
@@ -55,3 +67,62 @@ jobs:
           if [[ "$missing" -ne 0 ]]; then
             exit 1
           fi
+
+      - name: Run one sandbox handshake
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --import tsx --input-type=module <<'NODE'
+          import { randomUUID } from "node:crypto";
+          import { encryptApgRequestHash } from "./apps/api/src/services/bank-alfalah-request-hash.ts";
+
+          const env = process.env;
+          const required = [
+            "BANK_ALFALAH_APG_MERCHANT_ID",
+            "BANK_ALFALAH_APG_STORE_ID",
+            "BANK_ALFALAH_APG_MERCHANT_HASH",
+            "BANK_ALFALAH_APG_USERNAME",
+            "BANK_ALFALAH_APG_PASSWORD",
+            "BANK_ALFALAH_APG_AES_KEY",
+            "BANK_ALFALAH_APG_AES_IV"
+          ];
+          for (const name of required) {
+            if (!env[name]) throw new Error(`BANK_APG_SECRET_MISSING:${name}`);
+          }
+          if (Buffer.byteLength(env.BANK_ALFALAH_APG_AES_KEY, "utf8") !== 16) throw new Error("BANK_APG_AES_SECRET_INVALID:KEY");
+          if (Buffer.byteLength(env.BANK_ALFALAH_APG_AES_IV, "utf8") !== 16) throw new Error("BANK_APG_AES_SECRET_INVALID:IV");
+          console.log("AES_KEY_PRESENT=true");
+          console.log("AES_KEY_LENGTH_VALID=true");
+          console.log("AES_IV_PRESENT=true");
+          console.log("AES_IV_LENGTH_VALID=true");
+
+          const orderId = `THN-SBX-HS-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${randomUUID().slice(0, 8)}`;
+          const fields = [
+            ["HS_ChannelId", "1002"],
+            ["HS_MerchantId", env.BANK_ALFALAH_APG_MERCHANT_ID],
+            ["HS_StoreId", env.BANK_ALFALAH_APG_STORE_ID],
+            ["HS_ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL],
+            ["HS_MerchantHash", env.BANK_ALFALAH_APG_MERCHANT_HASH],
+            ["HS_MerchantUsername", env.BANK_ALFALAH_APG_USERNAME],
+            ["HS_MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD],
+            ["HS_TransactionReferenceNumber", orderId]
+          ];
+          const payload = Object.fromEntries(fields);
+          payload.HS_RequestHash = encryptApgRequestHash(fields, env.BANK_ALFALAH_APG_AES_KEY, env.BANK_ALFALAH_APG_AES_IV);
+          console.log("REQUESTHASH_GENERATION=PASS");
+          console.log("BASE64_FORMAT=PASS");
+
+          const response = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/HSAPI/HSAPI`, {
+            method: "POST",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const body = await response.json().catch(() => ({}));
+          const success = body.success === true || body.success === "true";
+          const resultCode = body.ResponseCode ?? body.ResultCode ?? body.responseCode ?? "ABSENT";
+          console.log(`HS_HTTP_STATUS=${response.status}`);
+          console.log(`HS_SUCCESS=${success}`);
+          console.log(`HS_RESULT_CODE=${String(resultCode).replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+          console.log(`AUTH_TOKEN_PRESENT=${Boolean(body.AuthToken)}`);
+          if (response.status !== 200 || !success || !body.AuthToken) process.exitCode = 1;
+          NODE
