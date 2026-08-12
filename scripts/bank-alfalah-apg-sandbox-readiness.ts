@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { encryptApgRequestHash } from "../apps/api/src/services/bank-alfalah-request-hash";
+import { parseApgResponse, sanitizeApgMessage } from "../apps/api/src/services/bank-alfalah-response-parser";
 
 async function main(): Promise<void> {
 const env = process.env;
@@ -64,19 +65,7 @@ const response = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/HSAPI/HSAP
 });
 const contentType = response.headers.get("content-type") ?? "ABSENT";
 const responseText = await response.text();
-let body: Record<string, unknown> = {};
-let bodyType = "string";
-try {
-  const parsed = JSON.parse(responseText) as unknown;
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    body = parsed as Record<string, unknown>;
-    bodyType = "json-object";
-  } else {
-    bodyType = Array.isArray(parsed) ? "json-array" : `json-${typeof parsed}`;
-  }
-} catch {
-  bodyType = responseText.length === 0 ? "empty" : /<html[\s>]/i.test(responseText) ? "html" : "string";
-}
+const { body, bodyType, depth } = parseApgResponse(responseText);
 const topLevelKeys = Object.keys(body).sort();
 const nestedKeys = Object.entries(body)
   .filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
@@ -90,10 +79,13 @@ console.log(`HS_HTTP_STATUS=${response.status}`);
 console.log(`HS_RESPONSE_CONTENT_TYPE=${contentType.split(";", 1)[0]}`);
 console.log(`HS_RESPONSE_BODY_TYPE=${bodyType}`);
 console.log(`HS_RESPONSE_BODY_LENGTH=${Buffer.byteLength(responseText, "utf8")}`);
+console.log(`HS_RESPONSE_PARSE_DEPTH=${depth}`);
 console.log(`HS_RESPONSE_TOP_LEVEL_KEYS=${topLevelKeys.join(",") || "ABSENT"}`);
 console.log(`HS_RESPONSE_NESTED_KEYS=${nestedKeys.join(",") || "ABSENT"}`);
 console.log(`HS_SUCCESS=${success}`);
 console.log(`HS_RESULT_CODE=${String(resultCode).replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+console.log(`HS_ERROR_CODE=${String(body.ErrorCode ?? body.errorCode ?? body.Error ?? "ABSENT").replace(/[^A-Za-z0-9_.-]/g, "") || "ABSENT"}`);
+console.log(`HS_ERROR_MESSAGE_SANITIZED=${sanitizeApgMessage(body.ErrorMessage ?? body.errorMessage ?? body.Message ?? body.message)}`);
 console.log(`AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
 if (response.status !== 200 || !success || !authToken) process.exitCode = 1;
 }
