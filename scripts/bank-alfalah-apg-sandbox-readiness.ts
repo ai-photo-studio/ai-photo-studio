@@ -88,6 +88,54 @@ console.log(`HS_ERROR_CODE=${String(body.ErrorCode ?? body.errorCode ?? body.Err
 console.log(`HS_ERROR_MESSAGE_SANITIZED=${sanitizeApgMessage(body.ErrorMessage ?? body.errorMessage ?? body.Message ?? body.message)}`);
 console.log(`AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
 if (response.status !== 200 || !success || !authToken) process.exitCode = 1;
+if (response.status !== 200 || !success || !authToken) return;
+
+const ssoFields = [
+  ["AuthToken", String(authToken)],
+  ["RequestHash", ""],
+  ["ChannelId", "1002"],
+  ["Currency", env.BANK_ALFALAH_APG_SSO_CURRENCY || "PKR"],
+  ["ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL],
+  ["MerchantId", env.BANK_ALFALAH_APG_MERCHANT_ID],
+  ["StoreId", env.BANK_ALFALAH_APG_STORE_ID],
+  ["MerchantHash", env.BANK_ALFALAH_APG_MERCHANT_HASH],
+  ["MerchantUsername", env.BANK_ALFALAH_APG_USERNAME],
+  ["MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD],
+  ["TransactionTypeId", env.BANK_ALFALAH_APG_SSO_TRANSACTION_TYPE_ID || "3"],
+  ["TransactionReferenceNumber", orderId],
+  ["TransactionAmount", env.BANK_ALFALAH_APG_SSO_AMOUNT || "1"]
+] as const;
+const ssoHashFields = [
+  "MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword",
+  "ReturnURL", "Currency", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount"
+].map((name) => [name, ssoFields.find(([field]) => field === name)?.[1] || ""] as const);
+const ssoRequestHash = encryptApgRequestHash(ssoHashFields, key, iv);
+const ssoForm = new URLSearchParams(ssoFields.map(([name, value]) => [name, name === "RequestHash" ? ssoRequestHash : value]));
+const ssoResponse = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/SSO/SSO/SSO`, {
+  method: "POST",
+  redirect: "manual",
+  headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html,application/xhtml+xml" },
+  body: ssoForm
+});
+const location = ssoResponse.headers.get("location");
+const ssoText = await ssoResponse.text();
+let redirectHost = "ABSENT";
+let redirectPath = "ABSENT";
+if (location) {
+  try {
+    const parsedLocation = new URL(location, env.BANK_ALFALAH_APG_BASE_URL);
+    redirectHost = parsedLocation.host;
+    redirectPath = parsedLocation.pathname;
+  } catch { /* sanitized metadata remains absent */ }
+}
+console.log(`SSO_HTTP_STATUS=${ssoResponse.status}`);
+console.log(`SSO_CONTENT_TYPE=${(ssoResponse.headers.get("content-type") || "ABSENT").split(";", 1)[0]}`);
+console.log(`SSO_RESPONSE_TYPE=${/html/i.test(ssoResponse.headers.get("content-type") || "") ? "html" : "text"}`);
+console.log(`SSO_RESPONSE_LENGTH=${Buffer.byteLength(ssoText, "utf8")}`);
+console.log(`SSO_REDIRECT_PRESENT=${Boolean(location)}`);
+console.log(`SSO_REDIRECT_HOST=${redirectHost}`);
+console.log(`SSO_REDIRECT_PATH=${redirectPath}`);
+console.log(`SSO_CHECKOUT_MARKER_PRESENT=${/(payment|checkout|otp|alfalah)/i.test(ssoText)}`);
 }
 
 void main();
