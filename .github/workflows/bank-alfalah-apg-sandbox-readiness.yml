@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --import tsx --input-type=module <<'NODE'
+          npx --no-install tsx --input-type=module <<'NODE'
           import { randomUUID } from "node:crypto";
           import { encryptApgRequestHash } from "./apps/api/src/services/bank-alfalah-request-hash.ts";
 
