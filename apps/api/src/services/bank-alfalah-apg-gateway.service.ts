@@ -85,7 +85,9 @@ const orderedFields = (payload: Record<string, string>, names: readonly string[]
 const defaultRequestHashGenerator = (input: ApgRequestHashInput, config: BankAlfalahApgConfig): string => {
   const fieldOrder = input.endpoint === "handshake"
     ? ["HS_ChannelId", "HS_MerchantId", "HS_StoreId", "HS_ReturnURL", "HS_MerchantHash", "HS_MerchantUsername", "HS_MerchantPassword", "HS_TransactionReferenceNumber"]
-    : ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "MobileNumber"];
+    : input.endpoint === "sso"
+      ? ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "IsBIN", "RequestHash", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "run"]
+      : ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "MobileNumber"];
   return encryptApgRequestHash(orderedFields(input.payload, fieldOrder), config.aesKey, config.aesIv);
 };
 
@@ -220,7 +222,7 @@ export class BankAlfalahApgGateway {
     const fields: Record<string, string> = {
       AuthToken: authToken,
       RequestHash: "",
-      ChannelId: "1002",
+      ChannelId: "1001",
       IsBIN: "0",
       Currency: currency,
       ReturnURL: this.config.returnUrl,
@@ -231,7 +233,8 @@ export class BankAlfalahApgGateway {
       MerchantPassword: this.config.password,
       TransactionTypeId: transactionTypeId,
       TransactionReferenceNumber: orderId,
-      TransactionAmount: amountMajor(amountMinorValue)
+      TransactionAmount: amountMajor(amountMinorValue),
+      run: ""
     };
     fields.RequestHash = this.hashGenerator({ endpoint: "sso", payload: { ...fields } });
     return { url: endpoint(this.config.baseUrl, "/SSO/SSO/SSO"), fields };

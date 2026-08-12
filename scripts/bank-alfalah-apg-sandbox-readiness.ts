@@ -93,8 +93,9 @@ if (response.status !== 200 || !success || !authToken) return;
 const ssoFields = [
   ["AuthToken", String(authToken)],
   ["RequestHash", ""],
-  ["ChannelId", "1002"],
+  ["ChannelId", "1001"],
   ["Currency", env.BANK_ALFALAH_APG_SSO_CURRENCY || "PKR"],
+  ["IsBIN", "0"],
   ["ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL],
   ["MerchantId", env.BANK_ALFALAH_APG_MERCHANT_ID],
   ["StoreId", env.BANK_ALFALAH_APG_STORE_ID],
@@ -103,14 +104,15 @@ const ssoFields = [
   ["MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD],
   ["TransactionTypeId", env.BANK_ALFALAH_APG_SSO_TRANSACTION_TYPE_ID || "3"],
   ["TransactionReferenceNumber", orderId],
-  ["TransactionAmount", env.BANK_ALFALAH_APG_SSO_AMOUNT || "1"]
+  ["TransactionAmount", env.BANK_ALFALAH_APG_SSO_AMOUNT || "1"],
+  ["run", ""]
 ] as const;
 const ssoHashFields = [
   "MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword",
-  "ReturnURL", "Currency", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount"
+  "ReturnURL", "Currency", "IsBIN", "RequestHash", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "run"
 ].map((name) => [name, ssoFields.find(([field]) => field === name)?.[1] || ""] as const);
 const ssoRequestHash = encryptApgRequestHash(ssoHashFields, key, iv);
-const ssoForm = new URLSearchParams(ssoFields.map(([name, value]) => [name, name === "RequestHash" ? ssoRequestHash : value]));
+const ssoForm = new URLSearchParams(ssoFields.filter(([name]) => name !== "run").map(([name, value]) => [name, name === "RequestHash" ? ssoRequestHash : value]));
 const ssoResponse = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/SSO/SSO/SSO`, {
   method: "POST",
   redirect: "manual",
