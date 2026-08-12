@@ -3304,6 +3304,26 @@ changes were needed; the integration was already credential-ready.**
   must obtain owner-approved key/IV runtime mapping and implement deterministic
   synthetic-vector tests before ThanNow backend APG activation is considered.
 
+### R9.5-P6Q — Isolated APG AES Utility Gate (2026-08-12)
+
+- Added isolated `apps/api/src/services/bank-alfalah-request-hash.ts` using the
+  portal-proven AES-128-CBC, PKCS#7, UTF-8, Base64 mechanism. It accepts
+  explicit ordered fields plus explicit 16-byte UTF-8 key and IV; it does not
+  read, log, persist, or infer merchant credentials or portal values.
+- Added synthetic tests only. `bank-alfalah-request-hash.test.ts` passed `5/5`:
+  ordered ampersand map, deterministic ciphertext, changed order/amount
+  divergence, wrong key/IV divergence, decrypt round-trip, and key/IV length
+  validation. No Bank-generated hash or credential-shaped value is committed.
+- The authenticated portal exposed hidden Key1 and Key2 fields populated with
+  16-character values, but no approved secure runtime mapping exists for those
+  values and no corresponding AES key/IV GitHub secrets are present. Therefore
+  the runtime APG hash generator remains fail-closed and no Bank HS, checkout,
+  OrderStatus, PAID transition, or mock processing was attempted. Gate:
+  `BANK_APG_AES_KEY_IV_REQUIRED`.
+- Production APG remains disabled; no Bank charge, Replicate/RunPod call,
+  production deployment, or customer transaction occurred. IPN remains
+  fail-closed under `BANK_IPN_AUTH_CONFIRMATION_REQUIRED`.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
