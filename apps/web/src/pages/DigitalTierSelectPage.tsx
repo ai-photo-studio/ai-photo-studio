@@ -284,7 +284,7 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-          disabled={!selected || !product || !useCaseId || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (printLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity > 10) || !printSize || !Number.isSafeInteger(quantity) || quantity > 10 || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+           disabled={!selected || !product || !useCaseId || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (selectedPrintLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity < (printCatalog.find((item) => item.size === line.printSize)?.minimumQuantity ?? 1) || line.quantity > 10) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}

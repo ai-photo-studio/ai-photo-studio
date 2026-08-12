@@ -3125,6 +3125,53 @@ changes were needed; the integration was already credential-ready.**
   and ThanNow APG sandbox credentials/hash/IPN confirmation. No deployment is
   authorized by this packet.
 
+### R9.5-P6I — Premium Upload, Auth Boundaries, and Metadata Preview (2026-08-12)
+
+- Upload modal is now premium and account-aware: one large real uploaded-photo
+  preview, compact vertical rows for every selected file, real thumbnails,
+  filename/type/size/ready facts, selected-main state, and per-image removal.
+  No sample/fake family imagery is used. Body scroll remains locked while the
+  modal is open and key controls retain practical touch targets.
+- Guest upload policy: one image maximum. Selecting multiple files preserves
+  the first valid image, rejects the additional selection, and displays
+  `Create a free account to upload multiple photos.` with Login and Sign Up
+  actions. Registered customers may select up to ten files in one bounded
+  client batch; additional batches are started through the existing upload
+  entry rather than an unbounded HTTP request. The current draft endpoint
+  accepts one image per request, validates MIME/size/country/ownership
+  server-side, and never receives an invented batch-count field.
+- Guest-to-auth handoff preserves the restoration destination through router
+  state without persisting or duplicating raw `File` objects. Existing drafts
+  and ownership tokens remain the only upload/storage source of truth; full
+  cross-navigation File preservation is not claimed where browser memory
+  cannot safely provide it.
+- Preview & Analysis is customer-facing metadata only: uploaded photo,
+  filename, format, file size, dimensions, friendly aspect ratio, and
+  orientation, with Back to Upload and Choose Product & Image Quality. PPI,
+  print suitability, raw technical metadata, and upscaling recommendations are
+  removed from this screen. Deterministic suitability code remains available
+  for later product/use-case selection.
+- Auth boundary evidence: focused browser auth/admin suite passed `23/23` for
+  customer login/signup/session/deep-link/logout boundaries and admin route
+  separation. No admin credentials were invented; interactive admin login was
+  not required for the fixture authorization proof.
+- P6I focused upload/preview evidence passed `14/14`; upload service security
+  tests passed `4/4`. Full browser evidence reached `120/121`; the sole failure
+  was a broad legacy CTA sweep timing out on a pricing-page lookup, while all
+  P6I upload, preview, auth, admin, commerce, payment-boundary, logo, and
+  overflow coverage passed. Responsive and final protected commerce reruns
+  were affected by local Windows process/resource exhaustion during the first
+  authenticated multi-image harness transition; the single-image Digital and
+  Print+Digital protected flows completed, including Print review, payment,
+  result/download, and in-house print pending.
+- D/E policy and Protected Scope remain active. No APG/Bank, Replicate,
+  RunPod, production, or database schema changes were made. P6I readiness is
+  frontend 100%, Pakistan funnel 100%, print-commerce 90%, auth/account 90%,
+  payment-code 65%, full Pakistan readiness 85%. Remaining blockers only:
+  complete authenticated multi-image E2E resource-stable rerun, interactive
+  admin credentials if required, and existing Triple Canvas/Album/APG
+  external blockers.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged

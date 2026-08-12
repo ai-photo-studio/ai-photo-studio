@@ -3395,6 +3395,39 @@ img {
   padding-right: 4px;
 }
 
+.upload-preview-stack {
+  margin: 14px 0;
+}
+
+.upload-main-preview {
+  position: relative;
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #f6f1f8;
+}
+
+.upload-main-preview img {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+}
+
+.upload-ready-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #1d754b;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .upload-modal .selected-files-list .selected-preview {
   margin: 0;
 }
@@ -3407,6 +3440,69 @@ img {
   gap: 12px;
   border: 1px solid var(--thannow-line, var(--line));
   border-radius: 12px;
+}
+
+.upload-modal .selected-preview-active {
+  border-color: var(--thannow-purple, #5b1aa8);
+  box-shadow: 0 0 0 2px rgba(91, 26, 168, 0.12);
+}
+
+.upload-thumbnail-button,
+.upload-file-details {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.upload-thumbnail-button {
+  width: 56px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 9px;
+  flex: 0 0 auto;
+}
+
+.upload-thumbnail-button img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+}
+
+.upload-file-details {
+  min-width: 0;
+  flex: 1;
+  padding: 5px 0;
+  text-align: left;
+}
+
+.upload-file-details strong,
+.upload-file-details small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-file-details small {
+  margin-top: 5px;
+  color: var(--thannow-muted, var(--muted));
+}
+
+.upload-remove-button {
+  min-height: 44px;
+}
+
+.upload-account-prompt {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fbf7ff;
+}
+
+.upload-account-prompt p {
+  margin: 0 0 10px;
 }
 
 .upload-modal .selected-preview button {

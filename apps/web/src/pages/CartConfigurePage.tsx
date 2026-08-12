@@ -191,7 +191,11 @@ export function CartConfigurePage() {
     if (!c) return false;
     if (c.product === "DIGITAL") return Boolean(c.useCaseId);
     if (c.product !== "PRINT_DIGITAL") return false;
-    return Boolean(c.useCaseId) && Boolean(c.printSize) && Number.isSafeInteger(c.quantity) && c.quantity > 0 && c.quantity <= 10;
+    const lines = c.printLines?.length ? c.printLines : [{ printSize: c.printSize, quantity: c.quantity }];
+    return Boolean(c.useCaseId) && lines.every((line) => {
+      const minimum = printCatalog.find((entry) => entry.size === line.printSize)?.minimumQuantity ?? 1;
+      return Boolean(line.printSize) && Number.isSafeInteger(line.quantity) && line.quantity >= minimum && line.quantity <= 10;
+    });
   });
   const addressReady = !anyPrint || (address.recipientName.trim() && address.phone.trim() && address.addressLine1.trim() && address.city.trim());
 

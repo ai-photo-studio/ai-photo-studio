@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow } from "./fixtures";
-import { mockAuthenticatedSession } from "./fixtures/auth";
+import { mockAuthenticatedSession, ensureAnonymous } from "./fixtures/auth";
 import { DRAFT_ID, draftFixture, mockGetDraft } from "./fixtures/mvp";
 
 test.describe("canonical restoration upload entry", () => {
@@ -99,6 +99,7 @@ test.describe("canonical restoration upload entry", () => {
   });
 
   test("unsupported and oversized files are rejected before upload", async ({ page }) => {
+    await ensureAnonymous(page);
     await page.goto("/?upload=1");
     await page.locator("#photoInput").setInputFiles({ name: "memory.gif", mimeType: "image/gif", buffer: Buffer.from("gif") });
     await expect(page.getByText("Choose a JPG, PNG, or WEBP image.")).toBeVisible();
@@ -109,6 +110,7 @@ test.describe("canonical restoration upload entry", () => {
   });
 
   test("Remove clears the single selected image and re-enables a fresh single selection", async ({ page }) => {
+    await mockAuthenticatedSession(page);
     await page.goto("/?upload=1");
     const input = page.locator("#photoInput");
     // R9.5-P5Q: multi-select is now intentional (1-10 photos); a single
@@ -133,7 +135,8 @@ test.describe("canonical restoration upload entry", () => {
     await expect(continueButton).toBeEnabled();
   });
 
-  test("R9.5-P5Q: selecting 3 photos at once shows all 3, Continue navigates to the cart route", async ({ page }) => {
+  test("R9.5-P6I: registered customers can select 3 photos and see real previews", async ({ page }) => {
+    await mockAuthenticatedSession(page);
     await page.goto("/?upload=1");
     await page.locator("#photoInput").setInputFiles([
       { name: "a.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-a") },
@@ -143,10 +146,11 @@ test.describe("canonical restoration upload entry", () => {
     await expect(page.getByText("a.jpg")).toBeVisible();
     await expect(page.getByText("b.jpg")).toBeVisible();
     await expect(page.getByText("c.jpg")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue to Restoration (3 photos)" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeEnabled();
   });
 
-  test("R9.5-P5Q: Add more photos appends to the existing selection without losing it", async ({ page }) => {
+  test("R9.5-P6I: registered customers can add and remove batch photos", async ({ page }) => {
+    await mockAuthenticatedSession(page);
     await page.goto("/?upload=1");
     const input = page.locator("#photoInput");
     await input.setInputFiles([{ name: "one.jpg", mimeType: "image/jpeg", buffer: Buffer.from("1") }, { name: "two.jpg", mimeType: "image/jpeg", buffer: Buffer.from("2") }]);
@@ -156,7 +160,7 @@ test.describe("canonical restoration upload entry", () => {
     await expect(page.getByText("one.jpg")).toBeVisible();
     await expect(page.getByText("two.jpg")).toBeVisible();
     await expect(page.getByText("three.jpg")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue to Restoration (3 photos)" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeEnabled();
 
     // Removing the middle one leaves exactly the other two.
     await page.getByRole("button", { name: "Remove two.jpg" }).click();
@@ -165,16 +169,16 @@ test.describe("canonical restoration upload entry", () => {
     await expect(page.getByText("three.jpg")).toBeVisible();
   });
 
-  test("R9.5-P5Q: selecting more than 10 photos is rejected with a clear inline error, no partial accidental submit", async ({ page }) => {
+  test("R9.5-P6I: guest multi-photo selection is blocked with account prompt", async ({ page }) => {
+    await ensureAnonymous(page);
     await page.goto("/?upload=1");
-    const eleven = Array.from({ length: 11 }, (_, i) => ({ name: `img${i}.jpg`, mimeType: "image/jpeg", buffer: Buffer.from(`img${i}`) }));
-    await page.locator("#photoInput").setInputFiles(eleven);
-    await expect(page.getByText("You can upload up to 10 photos at a time. Remove some to add more.")).toBeVisible();
-    // None of the 11 were accepted -- Continue stays disabled (zero selected).
-    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
+    await page.locator("#photoInput").setInputFiles([{ name: "img1.jpg", mimeType: "image/jpeg", buffer: Buffer.from("img1") }, { name: "img2.jpg", mimeType: "image/jpeg", buffer: Buffer.from("img2") }]);
+    await expect(page.getByText("Create a free account to upload multiple photos.").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Log in", exact: true })).toBeVisible();
   });
 
   test("R9.5-P5Q: removing every photo disables Continue and clears the list", async ({ page }) => {
+    await mockAuthenticatedSession(page);
     await page.goto("/?upload=1");
     await page.locator("#photoInput").setInputFiles([
       { name: "x.jpg", mimeType: "image/jpeg", buffer: Buffer.from("x") },

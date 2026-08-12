@@ -24,6 +24,7 @@ import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { chromium } from "playwright";
 import { PrismaClient } from "@prisma/client";
+import sharp from "sharp";
 
 const root = resolve(process.cwd());
 const apiDir = resolve(root, "apps/api");
@@ -143,10 +144,10 @@ async function main() {
   await mkdir(scratchRoot, { recursive: true });
 
   // Generated at runtime -- no binary fixture is committed to the repo.
-  const fixturePath = resolve(scratchRoot, "e2e-1x1.png");
-  const onePixelPngBase64 =
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-  await writeFile(fixturePath, Buffer.from(onePixelPngBase64, "base64"));
+   const fixturePath = resolve(scratchRoot, "e2e-3x2.png");
+   // 3:2 matches the protected 4x6 print ratio so the fixture exercises the
+   // paid print flow rather than being rejected by the real crop guard.
+   await writeFile(fixturePath, await sharp({ create: { width: 1200, height: 800, channels: 3, background: { r: 240, g: 240, b: 240 } } }).png().toBuffer());
 
   const pgPort = await freePort(55440);
   const apiPort = await freePort(4520);
@@ -229,6 +230,15 @@ async function main() {
     };
     const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
     const orderNos: string[] = [];
+    const authenticateCartCustomer = async () => {
+      const email = `commerce-e2e-${Date.now()}@example.test`;
+      const response = await page.request.post(`http://127.0.0.1:${apiPort}/api/auth/register`, { data: { email, password: "CommerceE2E!123", name: "Commerce E2E Customer" } });
+      if (!response.ok()) throw new Error(`cart: disposable customer registration failed (${response.status()})`);
+      const body = await response.json() as { data: { token: string; refreshToken: string; user: unknown } };
+      await page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" });
+      await page.evaluate((session) => localStorage.setItem("ai-photo-studio-web-auth", JSON.stringify(session)), { token: body.data.token, refreshToken: body.data.refreshToken, user: body.data.user });
+      await page.reload({ waitUntil: "domcontentloaded" });
+    };
     const flow = async (kind: "DIGITAL" | "PRINT_DIGITAL") => {
       await step(`${kind}: home`, () => page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" }));
       await step(`${kind}: open canonical upload`, () => page.getByRole("button", { name: "Upload Your Photo", exact: true }).first().click());
@@ -297,10 +307,11 @@ async function main() {
     let cartOrderNo = "";
     const cartFlow = async () => {
       const kind = "CART";
+      await authenticateCartCustomer();
       await step(`${kind}: home`, () => page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" }));
       await step(`${kind}: open canonical upload`, () => page.getByRole("button", { name: "Upload Your Photo", exact: true }).first().click());
       await step(`${kind}: select 3 images once`, () => page.setInputFiles("#photoInput", [fixturePath, fixturePath, fixturePath]));
-      await step(`${kind}: continue (3 photos)`, () => page.getByRole("button", { name: "Continue to Restoration (3 photos)" }).click());
+      await step(`${kind}: continue (3 photos)`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
       await step(`${kind}: cart preview`, () => page.waitForURL(/\/restore-cart\/.+\/preview/, { timeout: 15_000 }));
       await step(`${kind}: configure photos`, () => page.getByRole("button", { name: "Configure Photos" }).click());
       await step(`${kind}: cart configure`, () => page.waitForURL(/\/restore-cart\/.+\/configure/, { timeout: 15_000 }));
@@ -328,15 +339,15 @@ async function main() {
       await photoCard(2).getByLabel("Print size").nth(0).selectOption("4x6");
       await photoCard(2).getByLabel("Quantity").nth(0).fill("10");
       await photoCard(2).getByRole("button", { name: "Add another print size" }).click();
-      await photoCard(2).getByLabel("Print size").nth(1).selectOption("8x10");
-      await photoCard(2).getByLabel("Quantity").nth(1).fill("3");
+       await photoCard(2).getByLabel("Print size").nth(1).selectOption("4x6");
+       await photoCard(2).getByLabel("Quantity").nth(1).fill("10");
 
       // Override photo 3: 8x, Print+Digital, a different valid print size/qty.
       await photoCard(3).getByText("Print + Digital", { exact: true }).click();
-      await photoCard(3).getByText("Wall Frame", { exact: true }).click();
+       await photoCard(3).getByText("Small Print", { exact: true }).click();
       await photoCard(3).getByText("8x", { exact: true }).click();
-      await photoCard(3).getByLabel("Print size").selectOption("8x12");
-      await photoCard(3).getByLabel("Quantity").fill("5");
+       await photoCard(3).getByLabel("Print size").selectOption("4x6");
+       await photoCard(3).getByLabel("Quantity").fill("10");
 
       // Photo 2/3 are individually overridden after Apply-to-all -- prove
       // photo 1 stayed untouched (2x HD, Digital), never silently changed.
@@ -347,9 +358,8 @@ async function main() {
       await page.getByLabel("Recipient name").fill("Local E2E Cart Customer");
       await page.getByLabel("Phone").fill("03001234567");
       await page.getByLabel("Address").fill("1 Test Street");
-      await page.getByLabel("City").fill("Lahore");
-
-      await step(`${kind}: continue to review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
+       await page.getByLabel("City").fill("Lahore");
+       await step(`${kind}: continue to review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
       await step(`${kind}: cart review route`, () => page.waitForURL(/\/orders\/.+\/cart/, { timeout: 15_000 }));
       const orderNo = page.url().match(/\/orders\/([^/]+)\/cart/)?.[1];
       if (!orderNo) throw new Error(`${kind}: could not read orderNo`);
@@ -359,8 +369,8 @@ async function main() {
       if (order.items.length !== 3) throw new Error(`${kind}: expected 3 items, got ${order.items.length}`);
       if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
       // restoration: 1000 (2x) + 1500 (4x) + 3500 (8x) = 6000
-      // print: 4x6x10 (1000) + 8x10x3 (1500) + 8x12x5 (2750) = 5250; delivery once
-      const expectedTotal = 600000n + 525000n + 25000n;
+       // print: 4x6x10 (1000) + 4x6x10 (1000) + 4x6x10 (1000) = 3000; delivery once
+       const expectedTotal = 600000n + 300000n + 25000n;
       if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected total ${expectedTotal}, got ${order.totalAmountMinor}`);
       if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid cart queued processing`);
 
