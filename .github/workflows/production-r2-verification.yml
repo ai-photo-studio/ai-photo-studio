@@ -1,0 +1,34 @@
+name: Production R2 Verification (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify expected R2 bucket with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EXPECTED_BUCKET: ai-photo-studio-storage
+          EXPECTED_ACCOUNT: 2eb5eadd4af6da3d3a5f6c61d92437e4
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test "$CLOUDFLARE_ACCOUNT_ID" = "$EXPECTED_ACCOUNT"
+          buckets="$(npx wrangler r2 bucket list --json)"
+          echo "$buckets" | jq -e --arg expected "$EXPECTED_BUCKET" 'any(.[]; .name == $expected)' >/dev/null
+          echo "R2 account identity and expected bucket are present"
