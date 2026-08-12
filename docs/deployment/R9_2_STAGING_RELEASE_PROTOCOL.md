@@ -146,3 +146,68 @@ Exact order. Each step's acceptance criterion must pass before the next.
   payment gateway.
 - Does not deploy anything. Every step above is an instruction for the
   human owner to execute directly, separately, and later.
+
+## 8. Supported ThanNow Launch Release Candidate (2026-08-12)
+
+Release commit: `10f1aa9` on `main`, verified equal to `origin/main`.
+Production deployment was not performed.
+
+### Intended production target
+
+- Frontend: Cloudflare Pages project `ai-photo-studio-frontend`, configured by
+  `apps/web/wrangler.toml`, build command `npm run build -w apps/web`, output
+  directory `apps/web/dist`.
+- API: Northflank service built from the repository `Dockerfile`, production
+  command `node --expose-gc dist/index.js`, port `8080`, health route
+  `/api/health`.
+- Worker: separate Northflank process using the same image and
+  `node dist/scripts/p4b-worker-runner-main.js`, one instance, no public port.
+- Public relationship: the web build defaults to `https://api.thannow.com`;
+  production frontend is `https://www.thannow.com`.
+- Dependencies: Neon/PostgreSQL through `DATABASE_URL`, shared Redis through
+  `REDIS_URL`, private Cloudflare R2 through the R2 variables, and Replicate
+  through the restoration provider variables.
+
+### Environment names
+
+Required names and fail-closed behavior are maintained in
+`R9_2_STAGING_ENVIRONMENT_MATRIX.md`. The release packet does not contain or
+inspect secret values. The owner must verify live values for `DATABASE_URL`,
+`REDIS_URL`, `JWT_SECRET`, `ADMIN_JWT_SECRET`, `WHATSAPP_VERIFY_TOKEN`,
+`STORAGE_PROVIDER`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_BASE_URL`,
+`RESTORATION_PROVIDER`, `REPLICATE_API_TOKEN`,
+`REPLICATE_RESTORATION_MODEL_SLUG`, and
+`REPLICATE_RESTORATION_MODEL_VERSION` before deployment. Web deployment must
+provide `VITE_API_URL` or `VITE_API_BASE_URL` as appropriate.
+
+Bank Alfalah variables remain external/pending. Keep
+`BANK_ALFALAH_MPGS_ENABLED=false`; merchant credentials, hash/IPN details, and
+live activation require separately verified bank approval. The payment-freeze
+preflight passed without enabling them.
+
+### Launch scope and rollback
+
+The frozen launch scope is supported Restore & Download plus supported PKR
+Print + Digital sizes with the existing ratio-safe crop guard. Triple Canvas,
+albums, unsafe-crop selections, incomplete packages, and the paid-restoration
+print add-on remain non-orderable and do not block this supported launch.
+Rollback is a redeploy of the previous known-good API/worker image and Pages
+build through the owner-controlled platform workflow; stop/scale the worker
+first if needed. Do not run `safe-deploy.bat`: it targets legacy Railway and is
+not the current deployment contract.
+
+### Final verification and protected scope
+
+- `npm run scope:check`, `npm run verify:staging-preflight`, and
+  `npm run verify:payment-freeze` passed without deployment or network calls.
+- Type checks, lint, focused browser checks, the full 101-test responsive
+  suite, pricing/print tests, production build, and a 33-check built-preview
+  smoke passed. Lint has existing warnings only.
+- Protected canonical controls are `apps/web/wrangler.toml`, `Dockerfile`,
+  `apps/web/src/lib/api.ts`, `apps/web/src/main.tsx`,
+  `apps/web/src/lib/printUseCases.ts`, `apps/web/src/pages/PricingPage.tsx`,
+  `apps/api/src/config/env.ts`, and the tracked deployment matrix/runbooks.
+  Do not rewrite supported customer flows, PKR pricing, APG fail-closed
+  behavior, compliance routes, or the Contact-only address invariant without a
+  verified regression or separately authorized release packet.
