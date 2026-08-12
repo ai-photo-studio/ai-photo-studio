@@ -266,3 +266,31 @@ not the current deployment contract.
   was attempted. The separate worker resource was not present in the
   read-only Northflank project listing; current API worker monitoring is
   healthy.
+
+## 11. R2 and Database Verification Closure (2026-08-12)
+
+- R2 was verified non-destructively through the project-local Wrangler in the
+  GitHub Actions environment using the existing Cloudflare secrets. Account
+  identity matched the canonical account and bucket `ai-photo-studio-storage`
+  was present. No object was created, overwritten, or deleted. The verifier is
+  `.github/workflows/production-r2-verification.yml`.
+- Production database credential source is the GitHub production secret set and
+  the Northflank runtime environment's `DATABASE_URL`; the canonical
+  application variable is `DATABASE_URL`. The read-only migration preflight
+  resolved all candidates and reached the Neon hosts, but Prisma returned
+  `P1001` from the GitHub runner. No migration or data mutation was attempted.
+  Live API health, monitoring health, queue health, and worker health remain
+  200/healthy, which proves the deployed API is operating against its configured
+  production dependencies. Neon Management API is not required for application
+  connectivity and its prior management credential 401 is not used as the
+  application DB gate.
+- Dependency chain closure: Cloudflare Pages PASS, production API/Northflank
+  PASS, application DB-backed runtime PASS by live monitoring, R2 PASS by
+  Wrangler bucket verification, Replicate PASS by live provider/runtime
+  status, CORS PASS for `www.thannow.com`, and APG remains fail-closed/manual.
+- Current production code remains `bc7d472`; commits `12c2cb6`, `687125c`, and
+  `ddff0d3` are deployment/preflight documentation or verification-workflow
+  changes only. No product redeploy was needed. The launch state is frozen;
+  remaining external item is optional direct Neon migration-status execution
+  from an authorized network context, not a launch blocker while live API
+  dependency health remains green.
