@@ -3211,6 +3211,44 @@ changes were needed; the integration was already credential-ready.**
   was not modified. `index.html` links the 16/32 favicon and 180 touch icon;
   the 192/512 assets are available for a future manifest if one is introduced.
 
+### R9.5-P6L — APG Runtime Mapping and Sandbox Gate (2026-08-12)
+
+- GitHub secret-name discovery now finds `APG_MERCHANT_ID`, `STORE_ID`,
+  `MERCHANT_HASH_KEY`, `MERCHANT_USERNAME`, and `MERCHANT_PASSWORD`. The
+  manual workflow `.github/workflows/bank-alfalah-apg-sandbox-readiness.yml`
+  maps them, without printing values, to
+  `BANK_ALFALAH_APG_MERCHANT_ID`, `BANK_ALFALAH_APG_STORE_ID`,
+  `BANK_ALFALAH_APG_MERCHANT_HASH`, `BANK_ALFALAH_APG_USERNAME`, and
+  `BANK_ALFALAH_APG_PASSWORD`. It also sets the documented sandbox base URL
+  and ThanNow Return URL, while forcing `BANK_ALFALAH_PROVIDER=none` and
+  `BANK_ALFALAH_APG_ENABLED=false`. This is a manual sandbox-readiness
+  presence audit, not production runtime activation or deployment.
+- The BAF PDF documents HS fields, `HS/HS/HS`, `SSO/SSO/SSO`, API channel
+  `1001` for page redirection and `1002` for API, OrderStatus, and the IPN
+  `url` callback pattern. The supplied `BAF/API/API.txt` contains request
+  shapes and blank `RequestHash`/`HashKey` fields only. Neither source provides
+  the required encrypted RequestHash algorithm, concatenation/order, encoding,
+  key/IV, or sample implementation. Result: `BANK_APG_HASH_SPEC_REQUIRED`.
+- The guide describes IPN as a POST carrying a `url` parameter and says the
+  merchant performs a GET to that URL; it does not define inbound IPN
+  authentication or an acknowledgement response contract. Result:
+  `BANK_IPN_AUTH_CONFIRMATION_REQUIRED`; the listener remains fail-closed.
+- The commerce E2E port-4520 root cause was Windows `.cmd` child-process
+  lifetime/startup behavior combined with the harness waiting only on HTTP.
+  The harness now launches API, worker, and Vite directly with the current
+  Node executable and local `tsx`/Vite entrypoints, and reports child exits.
+  After clearing the local Vite cache, `npm run test:e2e:commerce-local` passed:
+  protected single-item Digital and Print+Digital flows, authenticated
+  three-image cart, one cart PaymentAttempt, three mock executions, downloads,
+  and in-house print pending. Redis `ECONNREFUSED 127.0.0.1:6399` is expected
+  local watchdog noise; no Redis service is required by this harness.
+- No APG network call was attempted because the hash algorithm and IPN
+  authentication/acknowledgement contract remain unknown. No Bank charge,
+  Replicate call, RunPod call, production APG activation, or production
+  deployment occurred. Return remains non-authoritative; only verified
+  server-side identity/amount/currency-checked OrderStatus or authenticated
+  IPN evidence may produce PAID.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged

@@ -33,10 +33,14 @@ const scratchRoot = resolve(root, "..", "kilo", "r95-p4b7b-local-e2e");
 const pgBin = process.env.PG_BIN || "C:\\Program Files\\PostgreSQL\\17\\bin";
 const isWin = process.platform === "win32";
 const npx = isWin ? "npx.cmd" : "npx";
+const node = process.execPath;
+const tsxCli = resolve(root, "node_modules", "tsx", "dist", "cli.mjs");
+const viteCli = resolve(root, "node_modules", "vite", "bin", "vite.js");
 
 const children: ChildProcess[] = [];
 const processStartCounts = { postgres: 0, api: 0, web: 0, worker: 0 };
 const external = { replicate: 0, runpod: 0, bank: 0, production: 0, other: 0 };
+let shuttingDown = false;
 
 function classify(url: string) {
   const lower = url.toLowerCase();
@@ -69,6 +73,11 @@ async function freePort(start: number): Promise<number> {
 function start(label: string, command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, useShell = true): ChildProcess {
   const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: useShell, windowsHide: true });
   children.push(child);
+  child.once("exit", (code, signal) => {
+    if (code !== 0 && !child.killed && !shuttingDown) {
+      console.error(`[${label}] exited before readiness: code=${code ?? "null"} signal=${signal ?? "none"}`);
+    }
+  });
   child.stdout?.on("data", (chunk) => process.stdout.write(`[${label}] ${chunk}`));
   child.stderr?.on("data", (chunk) => process.stderr.write(`[${label}] ${chunk}`));
   return child;
@@ -124,6 +133,7 @@ function killTree(child: ChildProcess): void {
 }
 
 async function teardown(dataDir: string, mockStorageDir: string): Promise<void> {
+  shuttingDown = true;
   for (const child of children) {
     if (!child.killed) killTree(child);
   }
@@ -194,20 +204,20 @@ async function main() {
 
   try {
     // ---- 3. Start API exactly once. ----
-    start("api", npx, ["tsx", "src/index.ts"], apiDir, { ...sharedEnv, PORT: String(apiPort), SKIP_MIGRATIONS: "true" });
+    start("api", node, [tsxCli, "src/index.ts"], apiDir, { ...sharedEnv, PORT: String(apiPort), SKIP_MIGRATIONS: "true" }, false);
     processStartCounts.api = 1;
     await waitForHttp(`http://127.0.0.1:${apiPort}/api/health`);
 
     // ---- 4. Start mock P4B worker exactly once. ----
-    start("worker", npx, ["tsx", "src/scripts/p4b-worker-runner-mock-local.ts"], apiDir, sharedEnv);
+    start("worker", node, [tsxCli, "src/scripts/p4b-worker-runner-mock-local.ts"], apiDir, sharedEnv, false);
     processStartCounts.worker = 1;
 
     // ---- 5. Start web exactly once. ----
-    start("web", npx, ["vite", "--host", "127.0.0.1", "--port", String(webPort), "--strictPort"], webDir, {
+    start("web", node, [viteCli, "--host", "127.0.0.1", "--port", String(webPort), "--strictPort"], webDir, {
       ...sharedEnv,
       VITE_API_URL: `http://127.0.0.1:${apiPort}`,
       VITE_COMMERCE_E2E_TEST_MODE: "true"
-    });
+    }, false);
     processStartCounts.web = 1;
     await waitForHttp(`http://127.0.0.1:${webPort}/`);
 

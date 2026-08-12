@@ -1,0 +1,46 @@
+name: Bank Alfalah APG sandbox readiness
+
+on:
+  workflow_dispatch:
+
+jobs:
+  presence-audit:
+    name: APG runtime mapping presence audit
+    runs-on: ubuntu-latest
+    env:
+      # Manual sandbox-readiness mapping only. APG stays explicitly disabled.
+      BANK_ALFALAH_PROVIDER: none
+      BANK_ALFALAH_APG_ENABLED: "false"
+      BANK_ALFALAH_APG_BASE_URL: https://sandbox.bankalfalah.com
+      BANK_ALFALAH_APG_RETURN_URL: https://api.thannow.com/api/payments/bank-alfalah/return
+      BANK_ALFALAH_APG_MERCHANT_ID: ${{ secrets.APG_MERCHANT_ID }}
+      BANK_ALFALAH_APG_STORE_ID: ${{ secrets.STORE_ID }}
+      BANK_ALFALAH_APG_MERCHANT_HASH: ${{ secrets.MERCHANT_HASH_KEY }}
+      BANK_ALFALAH_APG_USERNAME: ${{ secrets.MERCHANT_USERNAME }}
+      BANK_ALFALAH_APG_PASSWORD: ${{ secrets.MERCHANT_PASSWORD }}
+    steps:
+      - name: Verify mapped APG inputs by name only
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            BANK_ALFALAH_APG_MERCHANT_ID \
+            BANK_ALFALAH_APG_STORE_ID \
+            BANK_ALFALAH_APG_MERCHANT_HASH \
+            BANK_ALFALAH_APG_USERNAME \
+            BANK_ALFALAH_APG_PASSWORD; do
+            if [[ -n "${!name:-}" ]]; then
+              echo "PRESENT $name"
+            else
+              echo "MISSING $name"
+              missing=1
+            fi
+          done
+          echo "BANK_ALFALAH_APG_BASE_URL=$BANK_ALFALAH_APG_BASE_URL"
+          echo "BANK_ALFALAH_APG_RETURN_URL=$BANK_ALFALAH_APG_RETURN_URL"
+          echo "BANK_ALFALAH_PROVIDER=$BANK_ALFALAH_PROVIDER"
+          echo "BANK_ALFALAH_APG_ENABLED=$BANK_ALFALAH_APG_ENABLED"
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
