@@ -3153,3 +3153,23 @@ changes were needed; the integration was already credential-ready.**
   PKR pricing display, and the Contact-only office-address invariant. No API,
   database, restoration, printing, authentication, or Bank Alfalah backend
   code was changed.
+
+### R9.5-P6I — Launch Product Journey Guardrails (2026-08-12)
+
+- The current customer journey was rerun through upload, preview, digital
+  product/quality selection, PKR review, print selection, cart review, and
+  fail-closed checkout. Existing responsive browser coverage remained green.
+- Print selection now blocks only lines whose source aspect ratio would require
+  the current center-crop fulfilment variant to crop the image. The customer
+  receives an inline explanation and must choose a compatible size; no crop
+  editor or AI algorithm was introduced. Ratio-compatible PKR print selection
+  reaches order review in a focused browser test.
+- Triple Canvas remains priced in the server catalog but is not an orderable
+  customer use case because its physical dimensions and fulfilment
+  specifications are not approved. Pricing shows that exact blocker instead of
+  presenting an orderable option. Frame/canvas business details remain a
+  configuration decision, not a fabricated product capability.
+- Protected launch scope now includes `printCropRequired`, the orderable print
+  use-case filter, the digital and cart crop guards, and the corresponding
+  focused journey tests. Existing pricing, order creation, payment, database,
+  restoration, and fulfilment backend logic remains unchanged.

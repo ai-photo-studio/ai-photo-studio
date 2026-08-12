@@ -9,7 +9,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
-import { bestUseCaseResult, CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
+import { bestUseCaseResult, ORDERABLE_CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
+import { printCropRequired } from "../lib/printSuitability";
 
 const TIER_LABELS: Record<string, string> = { ORIGINAL: "Restored Original", HD_2X: "2x HD", HD_4X: "4x Ultra HD" };
 const TIER_DESCRIPTIONS: Record<string, string> = {
@@ -143,6 +144,12 @@ export function CartConfigurePage() {
   };
 
   const anyPrint = draftIds.some((id) => configs[id]?.product === "PRINT_DIGITAL");
+  const cropRequired = anyPrint && draftIds.some((id) => {
+    const config = configs[id];
+    const dimensions = dimensionsByDraft[id];
+    const lines = config?.printLines?.length ? config.printLines : config ? [{ printSize: config.printSize, quantity: config.quantity }] : [];
+    return lines.some((line) => printCropRequired(dimensions?.width ?? null, dimensions?.height ?? null, line.printSize));
+  });
 
   const submit = async () => {
     if (creating) return;
@@ -219,7 +226,7 @@ export function CartConfigurePage() {
             {!config.product ? <p className="helper-text" style={{ marginTop: "1rem" }}>Select a product to continue configuring this photo.</p> : <>
             <p className="helper-text" style={{ marginTop: "1rem" }}>2. Where would you like to use this photo?</p>
             <div role="radiogroup" aria-label={`Photo use case for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
-              {CUSTOMER_USE_CASES.filter((useCase) => config.product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
+              {ORDERABLE_CUSTOMER_USE_CASES.filter((useCase) => config.product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
                 <button key={useCase.id} type="button" role="radio" aria-checked={config.useCaseId === useCase.id} className={`card product-choice ${config.useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => updateConfig(id, { useCaseId: useCase.id, printSize: useCase.sizes[0] || config.printSize })}>
                   <h3 style={{ fontSize: "1rem" }}>{useCase.label}</h3><p className="helper-text">{useCase.copy}</p><small>{useCase.sizes.length ? useCase.sizes.join(", ") : "Digital sharing"}</small>
                   {(() => { const dimensions = dimensionsByDraft[id]; const suitability = bestUseCaseResult(useCase, dimensions?.width ?? null, dimensions?.height ?? null); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
@@ -291,11 +298,13 @@ export function CartConfigurePage() {
             <label>Address<input value={address.addressLine1} onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })} /></label>
             <label>City<input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} /></label>
           </div>
-        </div>
+          </div>
       )}
 
+      {cropRequired && <div className="state-panel state-panel-warning"><p>One selected print size does not match its image aspect ratio. Choose a different print size to avoid cropping important parts of the photo.</p></div>}
+
       <div className="button-row" style={{ marginTop: "1rem" }}>
-        <button type="button" className="button" disabled={!allConfigured || !addressReady || creating} onClick={() => void submit()}>
+        <button type="button" className="button" disabled={!allConfigured || !addressReady || creating || cropRequired} onClick={() => void submit()}>
           {creating ? "Preparing review..." : "Continue to Review"}
         </button>
         <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-cart/${draftIds.join(",")}/preview`)}>Back to Preview</button>

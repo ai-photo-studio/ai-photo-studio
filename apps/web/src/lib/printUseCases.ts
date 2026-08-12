@@ -19,6 +19,10 @@ export const CUSTOMER_USE_CASES: CustomerUseCase[] = [
   { id: "CANVAS", label: "Canvas", copy: "Triple Canvas is available in the Pakistan catalog; exact physical specifications are confirmed before fulfilment.", sizes: ["Triple Canvas"] }
 ];
 
+// Triple Canvas has an approved price but no documented physical dimensions,
+// so it must not be offered as an orderable customer choice yet.
+export const ORDERABLE_CUSTOMER_USE_CASES = CUSTOMER_USE_CASES.filter((useCase) => useCase.id !== "CANVAS");
+
 const TIER_RANK: Record<string, number> = { ORIGINAL: 0, HD_2X: 1, HD_4X: 2, HD_6X: 3, HD_8X: 4, HD_10X: 5, HD_12X: 6 };
 const TIER_FACTOR: Record<string, number> = { ORIGINAL: 1, HD_2X: 2, HD_4X: 4, HD_6X: 6, HD_8X: 8, HD_10X: 10, HD_12X: 12 };
 

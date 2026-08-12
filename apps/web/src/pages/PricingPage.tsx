@@ -42,7 +42,8 @@ export function PricingPage() {
         </div>
         <h2>Print + Digital</h2>
         <div className="pricing-grid">
-          {prints.map((print) => <article className="pricing-card" key={print.size}><h3>{print.size}</h3><p className="price">{money(print.unitAmountMinor, print.currency)} each</p><p>Minimum quantity: {print.minimumQuantity}</p><p>Delivery: {money(print.deliveryAmountMinor, print.currency)} per shipment</p><small>{print.catalogVersion}</small></article>)}
+           {prints.filter((print) => print.size !== "Triple Canvas").map((print) => <article className="pricing-card" key={print.size}><h3>{print.size}</h3><p className="price">{money(print.unitAmountMinor, print.currency)} each</p><p>Minimum quantity: {print.minimumQuantity}</p><p>Delivery: {money(print.deliveryAmountMinor, print.currency)} per shipment</p><small>{print.catalogVersion}</small></article>)}
+           {prints.some((print) => print.size === "Triple Canvas") && <div className="state-panel state-panel-warning"><p>Triple Canvas is not currently orderable because its physical dimensions and fulfilment specifications require confirmation.</p></div>}
         </div>
         <h2>Memory Packages</h2>
         <div className="pricing-grid">

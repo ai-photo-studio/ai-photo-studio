@@ -156,11 +156,50 @@ test.describe("P6C product choice truthfulness", () => {
      await expect(page.locator("input[type=number]")).toHaveCount(0);
      await page.getByRole("radio", { name: /Mobile & Social/i }).click();
      await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
-     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
-     await page.getByRole("radio", { name: /Small Print/i }).click();
-     await expect(page.locator("select")).toBeVisible();
+      await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
+      await page.getByRole("radio", { name: /Small Print/i }).click();
+      await expect(page.getByRole("radio", { name: /Canvas/i })).toHaveCount(0);
+      await expect(page.locator("select")).toBeVisible();
      await expect(page.locator("input[type=number]")).toHaveAttribute("max", "10");
     await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
+  });
+
+  test("print size with a mismatched aspect ratio is blocked before order creation", async ({ page }) => {
+    await blockExternalNetwork(page);
+    const draft = { ...draftFixture(), originalWidth: 1000, originalHeight: 1000, previewUrl: "http://127.0.0.1/mock-preview.png" };
+    await mockGetDraft(page, DRAFT_ID, draft);
+    await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+    await page.route("**/api/print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "5x7", unitAmountMinor: 15000, currency: "PKR", minimumQuantity: 5, deliveryAmountMinor: 25000 }] }) }));
+
+    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+    await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
+    await page.getByRole("radio", { name: /Small Print/i }).click();
+    await page.getByLabel("Recipient name").fill("Launch Test");
+    await page.getByLabel("Phone").fill("03001234567");
+    await page.getByLabel("Address").fill("1 Test Street");
+    await page.getByLabel("City").fill("Lahore");
+    await expect(page.getByText(/does not match the selected print aspect ratio/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
+  });
+
+  test("ratio-compatible PKR print selection reaches review", async ({ page }) => {
+    await blockExternalNetwork(page);
+    const draft = { ...draftFixture(), originalWidth: 1200, originalHeight: 800, previewUrl: "http://127.0.0.1/mock-preview.png" };
+    await mockGetDraft(page, DRAFT_ID, draft);
+    await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+    await mockCreateOrder(page, orderFixture({ amount: "225000" }));
+    await page.route("**/api/print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "4x6", unitAmountMinor: 10000, currency: "PKR", minimumQuantity: 10, deliveryAmountMinor: 25000 }] }) }));
+
+    await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+    await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
+    await page.getByRole("radio", { name: /Small Print/i }).click();
+    await page.getByLabel("Recipient name").fill("Launch Test");
+    await page.getByLabel("Phone").fill("03001234567");
+    await page.getByLabel("Address").fill("1 Test Street");
+    await page.getByLabel("City").fill("Lahore");
+    await expect(page.getByText(/does not match the selected print aspect ratio/i)).toHaveCount(0);
+    await page.getByRole("button", { name: "Continue to Review" }).click();
+    await expect(page).toHaveURL(/\/orders\/FO-P6C-TEST-0001\/review$/);
   });
 });
 

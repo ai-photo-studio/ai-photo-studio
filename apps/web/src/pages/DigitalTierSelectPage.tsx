@@ -6,7 +6,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
-import { bestUseCaseResult, CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
+import { bestUseCaseResult, ORDERABLE_CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
+import { printCropRequired } from "../lib/printSuitability";
 
 const TIER_LABELS: Record<string, string> = {
   ORIGINAL: "Restored Original",
@@ -156,6 +157,9 @@ export function DigitalTierSelectPage() {
     }
   };
 
+  const selectedPrintLines = printLines.length ? printLines : [{ printSize, quantity }];
+  const cropRequired = product === "PRINT_DIGITAL" && selectedPrintLines.some((line) => printCropRequired(sourceDimensions.width, sourceDimensions.height, line.printSize));
+
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading pricing...</p></div></section>;
 
   return (
@@ -184,7 +188,7 @@ export function DigitalTierSelectPage() {
            {!product ? <p className="helper-text">Continue by selecting Digital Download or Print + Digital.</p> : <>
            <h2 className="section-subheading">2. Where would you like to use this photo?</h2>
            <div role="radiogroup" aria-label="Photo use case" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-             {CUSTOMER_USE_CASES.filter((useCase) => product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
+              {ORDERABLE_CUSTOMER_USE_CASES.filter((useCase) => product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
                <button key={useCase.id} type="button" role="radio" aria-checked={useCaseId === useCase.id} className={`card product-choice ${useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => { setUseCaseId(useCase.id); if (useCase.sizes[0]) setPrintSize(useCase.sizes[0]); }}>
                  <h3>{useCase.label}</h3><p>{useCase.copy}</p><small>{useCase.sizes.length ? `Suggested sizes: ${useCase.sizes.join(", ")}` : "Digital sharing"}</small>
                  {(() => { const suitability = bestUseCaseResult(useCase, sourceDimensions.width, sourceDimensions.height); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
@@ -265,8 +269,9 @@ export function DigitalTierSelectPage() {
                     {estimatedTotalMinor !== null && <div><dt><strong>Estimated Total</strong></dt><dd><strong>{digitalOffer?.currency} {(estimatedTotalMinor / 100).toFixed(2)}</strong></dd></div>}
                   </dl>
                 )}
-                <p className="helper-text">The final order total is calculated and confirmed by the server on the Review page.</p>
-              </div>
+                 <p className="helper-text">The final order total is calculated and confirmed by the server on the Review page.</p>
+                 {cropRequired && <div className="state-panel state-panel-warning"><p>This image does not match the selected print aspect ratio. Choose a different print size to avoid cropping important parts of the photo.</p></div>}
+               </div>
             );
           })()}
            <button type="button" className="button button-ghost" onClick={() => setUseCaseId(null)}>Back to Use Case</button>
@@ -279,7 +284,7 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-          disabled={!selected || !product || !useCaseId || creating || !offers || (product === "PRINT_DIGITAL" && (printLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity > 10) || !printSize || !Number.isSafeInteger(quantity) || quantity > 10 || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+          disabled={!selected || !product || !useCaseId || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (printLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity > 10) || !printSize || !Number.isSafeInteger(quantity) || quantity > 10 || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}

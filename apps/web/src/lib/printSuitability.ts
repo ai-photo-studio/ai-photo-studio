@@ -64,3 +64,8 @@ export function calculateAllPrintSuitability(width: number, height: number): Pri
     .map((size) => calculatePrintSuitability(width, height, size))
     .filter((result): result is PrintSuitabilityResult => result !== null);
 }
+
+export function printCropRequired(width: number | null, height: number | null, size: string): boolean {
+  if (!width || !height) return false;
+  return calculatePrintSuitability(width, height, size)?.cropRequired ?? false;
+}
