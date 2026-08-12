@@ -18,6 +18,8 @@ jobs:
       BANK_ALFALAH_APG_MERCHANT_HASH: ${{ secrets.MERCHANT_HASH_KEY }}
       BANK_ALFALAH_APG_USERNAME: ${{ secrets.MERCHANT_USERNAME }}
       BANK_ALFALAH_APG_PASSWORD: ${{ secrets.MERCHANT_PASSWORD }}
+      BANK_ALFALAH_APG_AES_KEY: ${{ secrets.BANK_ALFALAH_APG_AES_KEY }}
+      BANK_ALFALAH_APG_AES_IV: ${{ secrets.BANK_ALFALAH_APG_AES_IV }}
     steps:
       - name: Verify mapped APG inputs by name only
         shell: bash
@@ -31,6 +33,15 @@ jobs:
             BANK_ALFALAH_APG_USERNAME \
             BANK_ALFALAH_APG_PASSWORD; do
             if [[ -n "${!name:-}" ]]; then
+              echo "PRESENT $name"
+            else
+              echo "MISSING $name"
+              missing=1
+            fi
+          done
+          for name in BANK_ALFALAH_APG_AES_KEY BANK_ALFALAH_APG_AES_IV; do
+            value="${!name:-}"
+            if [[ -n "$value" && "$(printf %s "$value" | wc -c)" -eq 16 ]]; then
               echo "PRESENT $name"
             else
               echo "MISSING $name"

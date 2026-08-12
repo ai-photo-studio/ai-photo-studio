@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { FixedOrderCurrency } from "../domain/fixedOrder/fixedOrderGuards";
+import { encryptApgRequestHash, type OrderedApgField } from "./bank-alfalah-request-hash";
 import {
   applyVerifiedPaymentEvidence,
   type PaymentEvidenceResult,
@@ -15,6 +16,8 @@ export interface BankAlfalahApgConfig {
   merchantHash: string;
   username: string;
   password: string;
+  aesKey: string;
+  aesIv: string;
   returnUrl: string;
 }
 
@@ -76,9 +79,19 @@ export class BankAlfalahApgProtocolError extends Error {
   }
 }
 
-const defaultRequestHashGenerator: ApgRequestHashGenerator = () => {
-  throw new BankAlfalahApgConfigurationError("BANK_CONFIRMATION_REQUIRED: APG request-hash algorithm/sample code is not documented");
+const orderedFields = (payload: Record<string, string>, names: readonly string[]): OrderedApgField[] =>
+  names.map((name) => [name, payload[name] ?? ""] as const);
+
+const defaultRequestHashGenerator = (input: ApgRequestHashInput, config: BankAlfalahApgConfig): string => {
+  const fieldOrder = input.endpoint === "handshake"
+    ? ["HS_ChannelId", "HS_MerchantId", "HS_StoreId", "HS_ReturnURL", "HS_MerchantHash", "HS_MerchantUsername", "HS_MerchantPassword", "HS_TransactionReferenceNumber"]
+    : ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "MobileNumber"];
+  return encryptApgRequestHash(orderedFields(input.payload, fieldOrder), config.aesKey, config.aesIv);
 };
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
 
 function assertHttpsUrl(value: string, field: string): void {
   let parsed: URL;
@@ -93,7 +106,9 @@ function assertConfigured(config: BankAlfalahApgConfig): void {
     storeId: config.storeId,
     merchantHash: config.merchantHash,
     username: config.username,
-    password: config.password
+    password: config.password,
+    aesKey: config.aesKey,
+    aesIv: config.aesIv
   })) {
     if (!value) throw new BankAlfalahApgConfigurationError(`Bank Alfalah APG ${name} is not configured`);
   }
@@ -121,19 +136,15 @@ function endpoint(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
-function sha256(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
 export class BankAlfalahApgGateway {
   private readonly hashGenerator: ApgRequestHashGenerator;
 
   constructor(
     private readonly config: BankAlfalahApgConfig,
     private readonly fetchImpl: FetchLike = globalThis.fetch,
-    hashGenerator: ApgRequestHashGenerator = defaultRequestHashGenerator
+    hashGenerator?: ApgRequestHashGenerator
   ) {
-    this.hashGenerator = hashGenerator;
+    this.hashGenerator = hashGenerator || ((input) => defaultRequestHashGenerator(input, this.config));
   }
 
   private async postJson<T>(path: string, payload: Record<string, string>): Promise<T> {

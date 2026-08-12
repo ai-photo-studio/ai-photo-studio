@@ -16,6 +16,8 @@ const baseConfig: BankAlfalahApgConfig = {
   merchantHash: "TEST-MERCHANT-HASH",
   username: "TEST-USERNAME",
   password: "TEST-PASSWORD",
+  aesKey: "0123456789abcdef",
+  aesIv: "fedcba9876543210",
   returnUrl: "https://api.thannow.com/api/payments/bank-alfalah/return"
 };
 
@@ -32,7 +34,7 @@ test("APG is disabled by default and never falls back to MPGS", () => {
 test("missing credentials and malformed configuration fail closed", () => {
   assert.throws(() => new BankAlfalahApgGateway({ ...baseConfig, merchantId: "" }, undefined, hash).buildHandshakePayload({ orderId: "FO-1" }), /merchantId/);
   assert.throws(() => new BankAlfalahApgGateway({ ...baseConfig, baseUrl: "http://sandbox.bankalfalah.com" }, undefined, hash).buildHandshakePayload({ orderId: "FO-1" }), /HTTPS/);
-  assert.throws(() => new BankAlfalahApgGateway(baseConfig).buildHandshakePayload({ orderId: "FO-1" }), /BANK_CONFIRMATION_REQUIRED/);
+  assert.throws(() => new BankAlfalahApgGateway({ ...baseConfig, aesKey: "", aesIv: "" }).buildHandshakePayload({ orderId: "FO-1" }), /aesKey is not configured/);
 });
 
 test("handshake and transaction payloads use API channel 1002 and server-owned values", () => {

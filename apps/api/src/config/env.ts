@@ -99,8 +99,10 @@ const envSchema = z
       BANK_ALFALAH_APG_MERCHANT_ID: z.string().optional().default(""),
       BANK_ALFALAH_APG_STORE_ID: z.string().optional().default(""),
       BANK_ALFALAH_APG_MERCHANT_HASH: z.string().optional().default(""),
-      BANK_ALFALAH_APG_USERNAME: z.string().optional().default(""),
-      BANK_ALFALAH_APG_PASSWORD: z.string().optional().default(""),
+       BANK_ALFALAH_APG_USERNAME: z.string().optional().default(""),
+       BANK_ALFALAH_APG_PASSWORD: z.string().optional().default(""),
+       BANK_ALFALAH_APG_AES_KEY: z.string().optional().default(""),
+       BANK_ALFALAH_APG_AES_IV: z.string().optional().default(""),
       BANK_ALFALAH_APG_RETURN_URL: z.string().optional().default("https://api.thannow.com/api/payments/bank-alfalah/return"),
      // Comma-separated exact hostnames (e.g. "ipn.bankalfalah.com"), owned by
      // the environment, never hardcoded here and never defaulting to any
@@ -207,10 +209,15 @@ const envSchema = z
         BANK_ALFALAH_APG_MERCHANT_ID: cfg.BANK_ALFALAH_APG_MERCHANT_ID,
         BANK_ALFALAH_APG_STORE_ID: cfg.BANK_ALFALAH_APG_STORE_ID,
         BANK_ALFALAH_APG_MERCHANT_HASH: cfg.BANK_ALFALAH_APG_MERCHANT_HASH,
-        BANK_ALFALAH_APG_USERNAME: cfg.BANK_ALFALAH_APG_USERNAME,
-        BANK_ALFALAH_APG_PASSWORD: cfg.BANK_ALFALAH_APG_PASSWORD
+         BANK_ALFALAH_APG_USERNAME: cfg.BANK_ALFALAH_APG_USERNAME,
+         BANK_ALFALAH_APG_PASSWORD: cfg.BANK_ALFALAH_APG_PASSWORD,
+         BANK_ALFALAH_APG_AES_KEY: cfg.BANK_ALFALAH_APG_AES_KEY,
+         BANK_ALFALAH_APG_AES_IV: cfg.BANK_ALFALAH_APG_AES_IV
       })) {
         if (!value) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [name], message: `${name} is required when BANK_ALFALAH_APG_ENABLED=true` });
+      }
+      for (const [name, value] of [["BANK_ALFALAH_APG_AES_KEY", cfg.BANK_ALFALAH_APG_AES_KEY], ["BANK_ALFALAH_APG_AES_IV", cfg.BANK_ALFALAH_APG_AES_IV]] as const) {
+        if (Buffer.byteLength(value, "utf8") !== 16) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [name], message: `${name} must be exactly 16 UTF-8 bytes when BANK_ALFALAH_APG_ENABLED=true` });
       }
       try { new URL(cfg.BANK_ALFALAH_APG_BASE_URL); } catch { ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_APG_BASE_URL"], message: "BANK_ALFALAH_APG_BASE_URL must be a valid URL" }); }
       try { new URL(cfg.BANK_ALFALAH_APG_RETURN_URL); } catch { ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BANK_ALFALAH_APG_RETURN_URL"], message: "BANK_ALFALAH_APG_RETURN_URL must be a valid URL" }); }
@@ -370,7 +377,9 @@ export type AppConfig = z.infer<typeof envSchema> & {
     storeId: string;
     merchantHash: string;
     username: string;
-    password: string;
+      password: string;
+    aesKey: string;
+    aesIv: string;
     returnUrl: string;
   };
   bankAlfalahProvider: "none" | "mpgs" | "apg";
@@ -456,6 +465,8 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
     merchantHash: "",
     username: "",
     password: "",
+    aesKey: "",
+    aesIv: "",
     returnUrl: "https://api.thannow.com/api/payments/bank-alfalah/return"
   },
   bankAlfalahProvider: "none",
@@ -525,6 +536,8 @@ export const loadConfig = (): AppConfig => {
       merchantHash: cfg.BANK_ALFALAH_APG_MERCHANT_HASH,
       username: cfg.BANK_ALFALAH_APG_USERNAME.trim(),
       password: cfg.BANK_ALFALAH_APG_PASSWORD,
+      aesKey: cfg.BANK_ALFALAH_APG_AES_KEY,
+      aesIv: cfg.BANK_ALFALAH_APG_AES_IV,
       returnUrl: cfg.BANK_ALFALAH_APG_RETURN_URL.trim()
     },
     bankAlfalahProvider: cfg.BANK_ALFALAH_PROVIDER

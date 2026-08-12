@@ -3324,6 +3324,26 @@ changes were needed; the integration was already credential-ready.**
   production deployment, or customer transaction occurred. IPN remains
   fail-closed under `BANK_IPN_AUTH_CONFIRMATION_REQUIRED`.
 
+### R9.5-P6R — Secure AES Runtime Mapping Gate (2026-08-12)
+
+- GitHub secret-name presence is confirmed for
+  `BANK_ALFALAH_APG_AES_KEY` and `BANK_ALFALAH_APG_AES_IV`, in addition to the
+  merchant/store/hash/username/password names. The manual readiness workflow
+  maps these secrets to the matching runtime environment names and validates
+  presence plus exactly 16 UTF-8 bytes without printing values. No secret
+  values are read into this local session, source, logs, docs, or artifacts.
+- `env.ts` now exposes the AES key/IV config fields and requires both only when
+  `BANK_ALFALAH_APG_ENABLED=true`; production remains blocked and defaults are
+  `BANK_ALFALAH_PROVIDER=none` / APG disabled. `BankAlfalahApgGateway` now uses
+  the isolated official AES utility by default for handshake, transaction, and
+  SSO hashes while retaining injectable synthetic test generators.
+- Focused APG/config/hash tests pass `16/16`; typecheck and lint pass. The local
+  process does not possess GitHub secret values, so actual UTF-8 length presence
+  and Bank HS execution remain gated. No Bank request, checkout, OrderStatus,
+  PAID transition, mock processing, Bank charge, Replicate/RunPod call, or
+  production deployment occurred. Gate: `BANK_APG_AES_SECRET_INVALID` until a
+  secure sandbox runner proves both mapped values are exactly 16 bytes.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
