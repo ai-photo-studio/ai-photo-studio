@@ -3695,3 +3695,22 @@ remains in force verbatim.
 - This UX change does not modify payment, APG, Bank Alfalah, Replicate, RunPod,
   GetFreeSeeds, or protected BAF/, EP/, and logo/ scope. `PRELAUNCH_MOCK_MODE=true`
   and `BANK_ALFALAH_APG_ENABLED=false` remain required for pre-launch verification.
+
+### R9.5-P7Z — Product Geometry and Back Navigation
+
+- Product-page geometry uses compact responsive bounds: desktop hero heading
+  `38–54px`, body `15–18px`, hero gallery max-height `150px`, product card
+  imagery max-height `195px`, and no fixed card minimum height. Mobile uses a
+  `34–44px` heading, capped hero imagery, one card per row, and contained product
+  assets with zero horizontal overflow.
+- The supplied WebP assets remain authoritative and must retain aspect ratio;
+  `object-fit: contain` and bounded containers prevent face/image clipping or
+  page-width expansion.
+- Product-stage navigation is explicit in the existing tiers URL: `?stage=product`
+  and `?stage=quality`. Fresh entry normalizes to Product, Digital/Print selection
+  pushes Quality, Quality Back targets Product, browser Back targets Product, and
+  Product Back may return to Preview. The draft and selected product remain
+  session-preserved across refresh.
+- This repair preserves the pre-launch mock flow, `PRELAUNCH_MOCK_MODE=true`, APG
+  freeze, and protected payment/provider scope. No Bank, Replicate, or RunPod
+  request is authorized by this packet.

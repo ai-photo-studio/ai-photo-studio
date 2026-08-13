@@ -256,10 +256,19 @@ async function main() {
       await step(`${kind}: persist draft`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
       await step(`${kind}: preview`, () => page.waitForURL(/\/restore-mvp\/.+\/preview/, { timeout: 15_000 }));
        await step(`${kind}: choose product`, () => page.getByRole("button", { name: /Choose Product & Image Quality|Continue to Product/ }).click());
-      await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
+       await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
+       await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
+       await page.getByRole("heading", { name: "Choose image quality" }).waitFor({ state: "visible" });
+       await step(`${kind}: browser back returns to product`, async () => {
+         await page.goBack();
+         await page.getByRole("heading", { name: "Choose your product" }).waitFor({ state: "visible" });
+       });
+       await step(`${kind}: reopen quality`, async () => {
+         await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
+         await page.getByRole("heading", { name: "Choose image quality" }).waitFor({ state: "visible" });
+       });
 
        if (kind === "PRINT_DIGITAL") {
-         await page.locator(".tn-product-card--print").click();
          await page.getByRole("button", { name: /Small Print/ }).click().catch(() => undefined);
          await page.getByText("4x Ultra HD", { exact: true }).click();
         await page.getByLabel("Print size").selectOption("4x6");
@@ -269,7 +278,6 @@ async function main() {
         await page.getByLabel("Address").fill("1 Test Street");
         await page.getByLabel("City").fill("Lahore");
        } else {
-          await page.locator(".tn-product-card--digital").click();
           await page.getByText("2x HD", { exact: true }).click();
        }
 

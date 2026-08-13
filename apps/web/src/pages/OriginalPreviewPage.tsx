@@ -100,7 +100,7 @@ export function OriginalPreviewPage() {
            aria-label="Choose Product & Image Quality"
           type="button"
           className="button"
-          onClick={() => navigate(`/restore-mvp/${draft.id}/tiers`)}
+          onClick={() => navigate(`/restore-mvp/${draft.id}/tiers?stage=product`)}
         >
            Continue / Choose Product
         </button>

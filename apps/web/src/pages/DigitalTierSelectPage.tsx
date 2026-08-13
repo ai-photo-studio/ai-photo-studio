@@ -2,7 +2,7 @@
 // immutable FixedOrder. Loading offers is a GET (mount/refresh-safe); order
 // creation happens only on the explicit "Create order" button click.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
@@ -69,6 +69,7 @@ export function DigitalTierSelectPage() {
   const { draftId } = useParams<{ draftId: string }>();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const saved = draftId ? readSavedState(draftId) : null;
   const [offers, setOffers] = useState<DigitalOfferSummary[] | null>(null);
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
@@ -81,7 +82,8 @@ export function DigitalTierSelectPage() {
   const [printLines, setPrintLines] = useState<Array<{ printSize: string; quantity: number }>>(saved?.printLines ?? []);
   const [address, setAddress] = useState(saved?.address ?? { recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
   const [sourceDimensions, setSourceDimensions] = useState<{ width: number | null; height: number | null }>({ width: null, height: null });
-  const [showQuality, setShowQuality] = useState(saved?.product != null);
+  const stageValue = searchParams.get("stage");
+  const [showQuality, setShowQuality] = useState(stageValue ? stageValue === "quality" : saved?.product != null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +132,14 @@ export function DigitalTierSelectPage() {
   useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); setPrintLines([{ printSize: marketItems[0].size, quantity: marketItems[0].minimumQuantity }]); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
   useEffect(() => { if (!draftId) return; void customerApi.getRestorationDraft(token || undefined, draftId, getGuestOwnershipToken(draftId) || undefined).then((draft) => setSourceDimensions({ width: draft.originalWidth, height: draft.originalHeight })).catch(() => setSourceDimensions({ width: null, height: null })); }, [draftId, token]);
 
+  useEffect(() => {
+    const stage = searchParams.get("stage");
+    if (!stage) {
+      setSearchParams({ stage: "product" }, { replace: true });
+      setShowQuality(false);
+    } else setShowQuality(stage === "quality");
+  }, [searchParams, setSearchParams]);
+
   // Switching back to Digital-only clears print-only selection state so a
   // stale size/quantity/address never leaks into a later Print+Digital
   // order; createOrder() already guards on `product` too, this is belt-
@@ -163,6 +173,7 @@ export function DigitalTierSelectPage() {
     const nextProduct = key === "digital" ? "DIGITAL" : "PRINT_DIGITAL";
     setProduct(nextProduct);
     setUseCaseId(nextProduct === "DIGITAL" ? "MOBILE_SOCIAL" : "SMALL_PRINT");
+    setSearchParams({ stage: "quality" });
     setShowQuality(true);
     window.scrollTo(0, 0);
   };
@@ -287,7 +298,7 @@ export function DigitalTierSelectPage() {
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh
         </button>
-        <button type="button" className="button button-ghost" onClick={() => { setShowQuality(false); window.scrollTo(0, 0); }}>
+        <button type="button" className="button button-ghost" onClick={() => { setSearchParams({ stage: "product" }); setShowQuality(false); window.scrollTo(0, 0); }}>
           Back to Product
         </button>
         <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${draftId}/preview`)}>
