@@ -3714,3 +3714,19 @@ remains in force verbatim.
 - This repair preserves the pre-launch mock flow, `PRELAUNCH_MOCK_MODE=true`, APG
   freeze, and protected payment/provider scope. No Bank, Replicate, or RunPod
   request is authorized by this packet.
+
+### R9.5-P7ZA — Compact Mobile/Tablet Shell
+
+- At widths up to `1050px`, the shared public header uses a compact logo/action
+  row followed by a 34px mobile navigation row; the logo is bounded to 104x52px
+  (92x46px below 470px). No restoration route may create a large blank header.
+- At widths up to `768px`, restoration content starts with 16px top padding,
+  Product hero imagery is capped at 90px, Product cards remain one column with
+  contained imagery, and footer columns/links use compact spacing while retaining
+  all required compliance links.
+- The `600–768px` range must use the same compact header behavior as narrow
+  mobile; it must not enter a tall desktop-stacked header state. Desktop layout
+  rules remain unchanged above the responsive breakpoint.
+- This responsive repair preserves Product/Quality stage navigation, the supplied
+  assets, `PRELAUNCH_MOCK_MODE=true`, APG freeze, and protected BAF/, EP/, logo/,
+  Bank, Replicate, and RunPod scope.

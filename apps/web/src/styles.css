@@ -2772,6 +2772,39 @@ img {
   }
 }
 
+/* R9.5-P7ZA: compact responsive shell for restoration and public pages. */
+@media (max-width: 1050px) {
+  .site-header { flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 0; }
+  .site-header > .brand { order: 1; flex: 1 1 auto; }
+  .site-header > .header-actions { order: 2; gap: 6px; }
+  .site-header > .mobile-nav { order: 3; flex: 0 0 100%; min-height: 34px; height: 34px; gap: 2px; }
+  .site-header > .mobile-nav a { min-height: 34px; padding: 0 8px; font-size: 12px; }
+  .brand-logo { width: 104px; height: 52px; }
+}
+
+@media (max-width: 768px) {
+  .site-header, .site-main, .site-footer { width: min(100% - 24px, 1180px); }
+  .tn-product-page { min-height: 0; padding-top: 16px; padding-bottom: 28px; }
+  .tn-product-hero { margin-bottom: 16px; gap: 14px; }
+  .tn-product-hero h1 { font-size: clamp(32px, 8vw, 42px); }
+  .tn-product-hero p { margin-top: 10px; line-height: 1.4; }
+  .tn-product-hero__gallery img { max-height: 90px; }
+  .tn-product-options { gap: 12px; }
+  .tn-product-card__body, .tn-product-card__body--digital, .tn-product-card__body--print { margin-top: 10px; margin-bottom: 8px; }
+  .tn-product-card__art { max-height: 175px; }
+  .site-footer { padding-top: 0; }
+  .footer-grid { gap: 18px 14px; padding-top: 20px; }
+  .footer-grid h4 { margin-bottom: 6px; }
+  .footer-brand p, .footer-cta p { margin: 6px 0; }
+  .footer-grid a:not(.brand) { min-height: 34px; padding: 3px 0; }
+  .footer-bottom { gap: 8px; padding: 12px 0 16px; line-height: 1.4; }
+}
+
+@media (max-width: 470px) {
+  .site-header > .header-actions .btn-primary { padding: 8px 11px; font-size: 12px; }
+  .brand-logo { width: 92px; height: 46px; }
+}
+
 /* ---- Homepage sections (scoped to .thannow-home only) ---- */
 
 .thannow-home .section-shell {
