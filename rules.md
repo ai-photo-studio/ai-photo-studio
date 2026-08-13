@@ -3344,6 +3344,46 @@ changes were needed; the integration was already credential-ready.**
   production deployment occurred. Gate: `BANK_APG_AES_SECRET_INVALID` until a
   secure sandbox runner proves both mapped values are exactly 16 bytes.
 
+### R9.5-P7P — APG Code Freeze and Bank Enablement Escalation (2026-08-13)
+
+- APG protocol implementation is frozen as `APG_CODE_READY_BANK_DIRECT_HS_ENABLEMENT_PENDING`. Protected pending Bank response: AES RequestHash utility, Key1/Key2 mappings, API HS1002, redirection HS1001, recursive response parsing, IsBIN=`"0"` SSO contract, SSO serializer, Courier sandbox mapping, non-authoritative browser Return, OrderStatus trust path, and fail-closed IPN. Do not alter these without new Bank evidence.
+- Live Bank portal evidence for the active Courier sandbox context: portal-mediated
+  `POST /MerchantPortal/Sandbox/HS` completes redirection handshake and returns
+  an AuthToken. The same active Courier credential set was securely mapped to
+  all seven GitHub APG sandbox secret names without recording values. ThanNow's
+  direct `POST /HS/HS/HS` uses ChannelId `1001`,
+  `HS_IsRedirectionRequest=1`, `HS_IsBIN=0`, and portal-aligned AES RequestHash
+  but returns HTTP `200`, `success=true`, nested
+  `data.status=PAYMENT_UNAVAILABLE`, `Online payment is temporarily
+  unavailable.`, and no AuthToken. No transaction was submitted.
+- Bank escalation: “For the same active Courier sandbox merchant/store
+  credentials, Bank Merchant Portal `/MerchantPortal/Sandbox/HS` completes the
+  redirection handshake and returns an AuthToken, while our direct merchant
+  integration to `/HS/HS/HS` with ChannelId `1001`,
+  `HS_IsRedirectionRequest=1`, `HS_IsBIN=0` and the portal-aligned RequestHash
+  returns HTTP 200 with `PAYMENT_UNAVAILABLE` and no AuthToken. Please confirm
+  whether direct merchant access to `/HS/HS/HS` / Hosted Page Redirection must
+  be separately enabled or whitelisted for the Courier sandbox store. If the
+  Merchant Portal backend adds any required server-side fields, headers,
+  merchant configuration or alternate handshake contract, please provide the
+  exact server-side specification/sample implementation. Please also provide
+  the IPN authentication and acknowledgement specification.”
+- Launch-critical non-Bank evidence is green: lint, typecheck, build, focused
+  APG/production/test-seam guards `29/29`, and protected commerce E2E passed.
+  The E2E proves authenticated multi-image cart, one cart PaymentAttempt,
+  server-authoritative pricing, three entitlements/masters/executions, mock
+  result/download, and `IN_HOUSE_PRINT_PENDING`, with zero Bank, Replicate,
+  RunPod, or production calls. Production APG remains disabled; the E2E test
+  payment and mock worker both reject production and require explicit test
+  flags.
+- Resume only after Bank confirms or enables direct Courier sandbox redirection
+  handshake: `HS1001 -> AuthToken -> SSO -> sandbox checkout -> test payment ->
+  OrderStatus -> verified PAID -> mock Processing -> Result/Download`.
+  Code readiness: frontend 100%, auth 90%, print-commerce 90%, payment-code
+  90%, APG integration code 90%, APG sandbox operational 45%, production
+  activation 0%, overall launch readiness 88%. The remaining gap is Bank
+  operational enablement, not a permitted production shortcut.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
