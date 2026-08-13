@@ -1,9 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { applyVerifiedPaymentEvidence } from "../services/p4a-payment-verified-execution-queue.service";
 
-if (process.env.NODE_ENV === "production") throw new Error("COMMERCE_E2E_TEST_MODE is unavailable in production");
-if (process.env.COMMERCE_E2E_TEST_MODE !== "true") throw new Error("set COMMERCE_E2E_TEST_MODE=true explicitly");
-if (process.env.RESTORATION_PROVIDER !== "mock") throw new Error("set RESTORATION_PROVIDER=mock for zero-cost E2E");
+const prelaunchMockMode = process.env.PRELAUNCH_MOCK_MODE === "true";
+if (process.env.NODE_ENV === "production" && !prelaunchMockMode) throw new Error("PRELAUNCH_MOCK_MODE is unavailable when disabled");
+if (!prelaunchMockMode && process.env.COMMERCE_E2E_TEST_MODE !== "true") throw new Error("set COMMERCE_E2E_TEST_MODE=true explicitly");
+if (process.env.RESTORATION_PROVIDER !== "mock" && !prelaunchMockMode) throw new Error("set RESTORATION_PROVIDER=mock for zero-cost E2E");
 
 export async function verifyTestPayment(attemptId: string, orderId: string, amountMinor: string, currency: "PKR" | "USD") {
   const prisma = new PrismaClient();

@@ -71,7 +71,7 @@ export async function startP4BWorkerRunnerProcess(): Promise<InternalWorkerRunne
   // ---- 2. Fail closed on provider misconfiguration. Belt-and-suspenders with
   // the worker's own `providerSelection !== "replicate"` guard: refuse before
   // constructing any network-capable adapter at all.
-  if (config.restorationProvider !== "replicate") {
+  if (!config.prelaunchMockMode && config.restorationProvider !== "replicate") {
     throw new Error(
       `P4B worker runner refuses to start: RESTORATION_PROVIDER must be "replicate" (got ${JSON.stringify(config.restorationProvider)})`
     );
@@ -123,7 +123,8 @@ export async function startP4BWorkerRunnerProcess(): Promise<InternalWorkerRunne
     pollIntervalMs,
     maxBackoffMs,
     restorationProvider: config.restorationProvider,
-    concurrency: 1
+    concurrency: 1,
+    prelaunchMockMode: config.prelaunchMockMode
   });
 
   runner

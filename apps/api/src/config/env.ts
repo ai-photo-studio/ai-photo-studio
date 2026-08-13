@@ -52,7 +52,8 @@ const envSchema = z
     PHASE1_REPLICATE_ONLY: z.string().optional().default(""),
     RESTORATION_DRY_RUN: z.string().optional().default(""),
     RESTORATION_PROVIDER: z.enum(["replicate", "mock"]).default("replicate"),
-     ALLOW_PAID_AI_TESTS: z.string().optional().default("false"),
+    PRELAUNCH_MOCK_MODE: z.string().optional().default("false"),
+    ALLOW_PAID_AI_TESTS: z.string().optional().default("false"),
      ALLOW_UNPAID_DOWNLOADS: z.string().optional().default("false")
      ,GFPGAN_SCALE: z.coerce.number().int().min(1).max(2).default(1),
      RESTORATION_REPLAY_MODE: z.string().optional().default("false"),
@@ -354,6 +355,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   restorationPipeline: "replicate" | "hybrid" | "local";
   restorationDryRun: boolean;
   restorationProvider: "replicate" | "mock";
+  prelaunchMockMode: boolean;
   allowPaidAiTests: boolean;
   allowUnpaidDownloads: boolean;
   gfpganScale: number;
@@ -436,6 +438,7 @@ export const createMockConfig = (overrides?: Partial<AppConfig>): AppConfig => (
   PHASE1_REPLICATE_ONLY: "",
   RESTORATION_DRY_RUN: "",
   RESTORATION_PROVIDER: "replicate",
+  PRELAUNCH_MOCK_MODE: "false",
   ALLOW_PAID_AI_TESTS: "false",
   ALLOW_UNPAID_DOWNLOADS: "false",
   aiProvider: "mock",
@@ -488,6 +491,7 @@ export const loadConfig = (): AppConfig => {
   const cfg = parsed.data;
   const selectedAiProvider = (cfg.AI_PROVIDER || cfg.AI_PROVIDER_NAME || "mock").trim().toLowerCase();
   const paymentProvider = cfg.PAYMENT_GATEWAY_NAME.trim().toLowerCase();
+  const prelaunchMockMode = cfg.PRELAUNCH_MOCK_MODE.trim().toLowerCase() === "true";
   const validAiProviders = ["mock", "local-yolo", "local-rembg", "local-esrgan", "local-iclight", "local-lama", "local-gfpgan", "local-codeformer", "local-ddcolor", "photoroom", "fal", "future-photoroom", "future-falai", "future-replicate"];
   return {
     ...cfg,
@@ -510,8 +514,9 @@ export const loadConfig = (): AppConfig => {
     deliveryMode: cfg.DELIVERY_MODE,
     providerMode: cfg.PROVIDER_MODE,
     restorationPipeline: cfg.RESTORATION_PIPELINE,
-    restorationDryRun: cfg.RESTORATION_DRY_RUN.trim().toLowerCase() === "true" || cfg.RESTORATION_PROVIDER === "mock",
-    restorationProvider: cfg.RESTORATION_PROVIDER,
+    restorationDryRun: cfg.RESTORATION_DRY_RUN.trim().toLowerCase() === "true" || prelaunchMockMode || cfg.RESTORATION_PROVIDER === "mock",
+    restorationProvider: prelaunchMockMode ? "mock" : cfg.RESTORATION_PROVIDER,
+    prelaunchMockMode,
      allowPaidAiTests: cfg.ALLOW_PAID_AI_TESTS.trim().toLowerCase() === "true",
     allowUnpaidDownloads: cfg.ALLOW_UNPAID_DOWNLOADS.trim().toLowerCase() === "true"
     ,gfpganScale: cfg.GFPGAN_SCALE

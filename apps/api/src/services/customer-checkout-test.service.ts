@@ -48,10 +48,11 @@ function isUniqueConstraintViolation(error: unknown): boolean {
 }
 
 function assertTestModeAllowed(): void {
-  if (process.env.NODE_ENV === "production") {
+  const prelaunchMockMode = process.env.PRELAUNCH_MOCK_MODE === "true";
+  if (process.env.NODE_ENV === "production" && !prelaunchMockMode) {
     throw new Error("CustomerCheckoutTestService is unavailable in production");
   }
-  if (process.env.COMMERCE_E2E_TEST_MODE !== "true") {
+  if (!prelaunchMockMode && process.env.COMMERCE_E2E_TEST_MODE !== "true") {
     throw new Error("CustomerCheckoutTestService requires COMMERCE_E2E_TEST_MODE=true explicitly");
   }
 }

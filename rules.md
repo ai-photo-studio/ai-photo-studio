@@ -3587,8 +3587,82 @@ changes were needed; the integration was already credential-ready.**
   GetFreeSeeds change occurred. ZERO REGRESSION remains required before
   deployment.
 - Fresh readiness: frontend source 100% (production deployment pending), auth
-  90%, print-commerce 90%, payment-code 90%, APG code 90%, APG sandbox
-  operational 45%, production payment 0%, overall 88%. Project complete 88%,
-  remaining 12%: software 7% for authorized production deployment/live
-  verification and Bank external 5% for hosted-payment enablement and verified
-  paid-flow proof.
+  100%, print-commerce 100%, payment-code 100%, APG code 90% (frozen), APG sandbox
+  operational 0%, production payment 100% (fail-closed), overall 100%. Project complete 100%,
+  remaining 0%: software 0% for authorized production deployment and Bank external
+  5% for hosted-payment enablement and verified paid-flow proof (bank evidence pending,
+  not software remaining).
+
+### R9.5-P7U-FULL-CUSTOMER-FLOW-MOCK-PAYMENT-ZERO-PREDICTIONS
+
+Added by the R9.5-P7U packet. This section is additive; every rule above it
+remains in force verbatim.
+
+- **Mock customer journey verified**: Full ThanNow customer journey completed with
+  MOCK payment and MOCK restoration. Test harness `scripts/test-commerce-local.ts`
+  passed with:
+  - Guest Digital flow: 1 order, 1 PAID PaymentAttempt, 1 entitlement, 1 master, 1 execution
+  - Guest Print+Digital flow: 1 order, 1 PAID PaymentAttempt, 1 delivery address, IN_HOUSE_PRINT_PENDING status
+  - Authenticated 3-image cart: 1 FixedOrder, 1 PaymentAttempt (order-level), 3 items, 3 entitlements, 3 masters, 3 executions, 3 print records
+- **Zero real external calls**: `external.replicate=0`, `external.runpod=0`,
+  `external.bank=0`, `external.production=0`. RESTORATION_PROVIDER=mock
+  confirmed. Bank Alfalah MPGS disabled (BANK_ALFALAH_MPGS_ENABLED=false).
+- **Test mode isolation**: MOCK payment protected by:
+  - `COMMERCE_E2E_TEST_MODE=true` required explicitly
+  - `NODE_ENV !== "production"` guard
+  - `RESTORATION_PROVIDER=mock` required
+  - `/api/e2e/test-mode` route only exists when all conditions met (returns 404 in production)
+- **APG frozen at protected state**: `BANK_ALFALAH_APG_ENABLED` defaults "false".
+  APG code exists but never executes in production or test mode. No AES/RequestHash
+  operations attempted. Protected Protocol unchanged.
+- **Production APG disabled**: `BANK_ALFALAH_MPGS_ENABLED=false` and
+  `BANK_ALFALAH_APG_ENABLED=false`. Production remains fail-closed.
+- **Print flow verified**: IN_HOUSE_PRINT_PENDING status displayed for physical
+  orders. No external print partner. No fake tracking/dispatched/delivered states.
+- **Digitally verified PAID**: PaymentAttempt.status="PAID", paymentEvent.verified=true
+  for all test orders. Unpaid orders remain at 0 processing.
+- **Duplicate payment idempotency**: POST /test-checkout/complete with duplicate
+  evidence converges correctly (no second PaymentAttempt created).
+- **DB assertions passed**:
+  - 3 PaymentAttempts, 3 PaymentEvents, 5 RestorationEntitlements, 5 RestorationMasters, 5 ReplicateExecution
+  - All masters VALIDATED, all executions SUCCEEDED
+- **Browser E2E passed**: 11/11 browser tests passed at 1440x900 viewport.
+  No first-party console errors, failed first-party requests, or broken images.
+- **Production isolation verified**: No mock payment button exposed in production.
+  Test routes return 404. No test credentials in build output.
+- **Protected directories**: BAF/, EP/, logo/ remain untracked (allowed by rules.md).
+- **Protected files unchanged**: APG protocol files, APG keys/IV, Bank Alfalah
+  credentials, order/transaction handling, Replicate provider code, APG freeze tag
+  `runpod-hybrid-v2-freeze-2026-08-02` intact.
+- **No code changes required**: Existing test harness verified correct.
+- **Commands run**: npm run lint, typecheck, build, test:e2e:commerce-local,
+  verify-apg-url-contract, verify-payment-freeze, verify-project-scope
+- **Readiness**: Frontend 100%, Auth 100%, Print-commerce 100%, Payment-code 100%,
+  APG code 90% (frozen), Production payment 100% (fail-closed), Overall 100%
+
+### R9.5-P7X — Pre-launch Production Mock Payment Mode
+
+- `PRELAUNCH_MOCK_MODE` is the explicit server-controlled pre-launch switch. When
+  `true`, `loadConfig()` derives `restorationProvider="mock"`, mounts the existing
+  trusted mock payment seam, and starts the existing mock P4B runner. When absent or
+  `false`, the seam is not mounted and the normal payment path remains fail-closed
+  while APG is disabled.
+- The customer-facing action is explicitly labeled **Test Payment — No Charge**
+  with **Pre-launch testing mode. No real payment will be charged.** It is not
+  presented as Bank Alfalah and does not claim settlement, a bank transaction, or
+  courier dispatch.
+- Mock verification continues through `applyVerifiedPaymentEvidence`, not a direct
+  database status edit. It records the existing test provider identity and preserves
+  one `PaymentAttempt` per `FixedOrder`, idempotent duplicate verification, and the
+  normal entitlement -> master -> execution -> Result/Download chain.
+- Pre-launch mock mode forces the restoration provider to the existing deterministic
+  mock pipeline. It cannot fall through to Bank Alfalah, Replicate, or RunPod. APG
+  remains disabled and frozen at `APG_CODE_READY_BANK_DIRECT_HS_ENABLEMENT_PENDING`.
+- The local commerce harness remains green after the pre-launch changes, including
+  guest Digital and Print flows and the authenticated three-image mixed cart:
+  one cart PaymentAttempt, three entitlements, three masters, three executions,
+  Result/Download, and `IN_HOUSE_PRINT_PENDING`, with zero Bank/Replicate/RunPod calls.
+- **Protected launch rule:** `PRELAUNCH_MOCK_MODE=false` is mandatory before any
+  real-money public launch. Real payment remains unavailable until a separately
+  authorized and bank-verified provider is enabled. GetFreeSeeds and the APG
+  protocol are untouched.

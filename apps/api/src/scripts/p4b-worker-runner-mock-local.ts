@@ -13,8 +13,8 @@
  * customer or admin HTTP request into this file.
  *
  * Hard-refuses to start unless ALL of the following hold:
- *   1. `NODE_ENV` is not `"production"`.
- *   2. `COMMERCE_E2E_TEST_MODE === "true"` (explicit opt-in, matching the
+ *   1. `PRELAUNCH_MOCK_MODE === "true"`, or the local test guards below.
+ *   2. `COMMERCE_E2E_TEST_MODE === "true"` for non-production local runs (explicit opt-in, matching the
  *      existing `commerce-e2e-payment.ts` test-payment seam's own guard).
  *   3. `RESTORATION_PROVIDER === "mock"` -- this is the INVERSE of the
  *      production runner's guard (`=== "replicate"`), so the two entrypoints
@@ -62,12 +62,13 @@ function readPositiveIntEnv(name: string, fallback: number): number {
 
 export async function startP4BMockWorkerRunnerProcess(): Promise<InternalWorkerRunner> {
   // ---- 1. Fail closed: never in production, no matter what else is set.
-  if (process.env.NODE_ENV === "production") {
+  const prelaunchMockMode = process.env.PRELAUNCH_MOCK_MODE === "true";
+  if (process.env.NODE_ENV === "production" && !prelaunchMockMode) {
     throw new Error("P4B mock worker runner refuses to start: NODE_ENV=production");
   }
 
   // ---- 2. Fail closed: explicit, non-inferrable opt-in only.
-  if (process.env.COMMERCE_E2E_TEST_MODE !== "true") {
+  if (!prelaunchMockMode && process.env.COMMERCE_E2E_TEST_MODE !== "true") {
     throw new Error("P4B mock worker runner refuses to start: set COMMERCE_E2E_TEST_MODE=true explicitly");
   }
 

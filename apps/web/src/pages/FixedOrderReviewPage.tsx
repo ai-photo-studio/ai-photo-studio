@@ -204,19 +204,19 @@ export function FixedOrderReviewPage() {
       <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 
        <div className="state-panel" style={{ marginTop: "1rem" }}>
-         <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
+          <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : testModeEnabled ? "Pre-launch testing mode. No real payment will be charged." : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
        </div>
 
        <div className="button-row" style={{ marginTop: "1rem" }}>
-         <button
+          {!testModeEnabled && <button
            type="button"
            className="button"
            onClick={() => void startCheckout()}
            disabled={checkoutBusy || paymentProviderUnavailable}
            aria-disabled={checkoutBusy || paymentProviderUnavailable}
-         >
-            {checkoutBusy ? "Starting checkout..." : paymentProviderUnavailable ? "Payment unavailable" : "Pay 100% & Restore Photo"}
-         </button>
+          >
+             {checkoutBusy ? "Starting checkout..." : paymentProviderUnavailable ? "Payment unavailable" : "Pay 100% & Restore Photo"}
+          </button>}
          <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>
            Check payment status
          </button>
@@ -230,9 +230,10 @@ export function FixedOrderReviewPage() {
          )}
       </div>
 
-      {testModeEnabled && (
-        <div className="state-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
-          <p><strong>TEST MODE — No real charge</strong></p>
+       {testModeEnabled && (
+         <div className="state-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
+           <p><strong>Test Payment — No Charge</strong></p>
+           <p>Pre-launch testing mode. No real payment will be charged.</p>
           <div className="button-row">
             <button
               type="button"
@@ -241,7 +242,7 @@ export function FixedOrderReviewPage() {
               onClick={() => void completeTestPayment()}
               disabled={testPaymentBusy || paymentStatus === "PAID"}
             >
-              {testPaymentBusy ? "Completing TEST payment..." : "Complete TEST Payment"}
+               {testPaymentBusy ? "Completing test payment..." : "Test Payment — No Charge"}
             </button>
           </div>
         </div>

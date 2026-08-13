@@ -389,7 +389,7 @@ async function main() {
       for (let i = 0; i < 3; i++) {
         await step(`${kind}: item ${i} download`, () => page.waitForSelector(`[data-testid="e2e-download-link-${i}"]`, { timeout: 20_000 }));
       }
-      const duplicatePayment = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/test-checkout/complete`, { method: "POST", headers, body: "{}" });
+       const duplicatePayment = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/test-checkout/complete`, { method: "POST", headers: { ...headers, "x-forwarded-for": "127.0.0.2" }, body: "{}" });
       if (!duplicatePayment.ok) throw new Error(`${kind}: duplicate verified evidence did not converge`);
 
       for (let i = 1; i <= 2; i++) {

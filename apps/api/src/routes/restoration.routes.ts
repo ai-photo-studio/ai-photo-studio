@@ -23,7 +23,8 @@ import { PrintFulfilmentBoundaryService } from "../services/print-fulfilment-bou
  * mock P4B worker runner's own guard (`p4b-worker-runner-mock-local.ts`).
  */
 const testCheckoutSeamAllowed = (): boolean =>
-  process.env.NODE_ENV !== "production" && process.env.COMMERCE_E2E_TEST_MODE === "true";
+  process.env.PRELAUNCH_MOCK_MODE === "true" ||
+  (process.env.NODE_ENV !== "production" && process.env.COMMERCE_E2E_TEST_MODE === "true");
 
 export const createRestorationRouter = (config: AppConfig): Router => {
   const router = Router();

@@ -40,6 +40,7 @@ import { startRecoveryWatchdog } from "./services/recovery-watchdog.service";
 import { startEventLoopMonitor } from "./services/event-loop-monitor.service";
 import { AdminAuthService, normalizeAdminRole } from "./services/admin-auth.service";
 import { RestorationEngineService } from "./services/restoration-engine.service";
+import { startP4BMockWorkerRunnerProcess } from "./scripts/p4b-worker-runner-mock-local";
 
 const execFile = promisify(execFileCb);
 
@@ -197,6 +198,9 @@ const bootstrap = async () => {
   app.use("/api", createBankAlfalahApgRouter(config));
 
   startImageProcessingWorker(config);
+  if (config.prelaunchMockMode) {
+    await startP4BMockWorkerRunnerProcess();
+  }
   startQueueWatchdog();
   startJobHeartbeat();
   startRecoveryWatchdog(config);

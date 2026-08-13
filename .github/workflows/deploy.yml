@@ -77,7 +77,8 @@ jobs:
           cat <<'EOF' > /tmp/runtime.json
           {
             "runtimeEnvironment": {
-              "BUILD_SHA": "__BUILD_SHA__"
+              "BUILD_SHA": "__BUILD_SHA__",
+              "PRELAUNCH_MOCK_MODE": "${{ vars.PRELAUNCH_MOCK_MODE || 'false' }}"
             }
           }
           EOF
