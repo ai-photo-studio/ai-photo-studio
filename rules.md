@@ -3551,3 +3551,44 @@ changes were needed; the integration was already credential-ready.**
   45%, production payment 0%, overall 88%. Project complete 88%, remaining 12%:
   software 7% for deployment/live responsive proof and Bank external 5% for
   direct hosted-payment enablement plus the verified paid-flow chain.
+
+### R9.5-P7T — Logo Geometry and Responsive Visual RC (2026-08-13)
+
+- Canonical `logo2.png` remains unchanged at `1024x1024` in both the owner
+  source and `apps/web/public/assets/logo2.png`. Pixel inspection found visible
+  artwork bounds `[171,187)-(830,731)`, or `659x544`: visible width `64.4%`,
+  visible height `53.1%`, with optical center approximately `(500.5,459)`.
+  The small appearance was caused by square-canvas whitespace, not CSS alpha
+  transparency. Existing favicon assets remain unchanged and branded.
+- Added `apps/web/public/assets/logo2-display.png`, a tightly bounded `659x544`
+  derived display asset extracted from the canonical artwork. It does not
+  replace, overwrite, or alter canonical `logo2.png`; `BrandLogo.tsx` documents
+  the separate canonical source and display source constants.
+- Previous render geometry: desktop CSS box `198x60`, visible artwork about
+  `38.6x31.9px`; mobile CSS box `156x46`, visible artwork about
+  `29.6x24.4px`. Final render geometry: desktop display box and visible artwork
+  `122x88px`; mobile display box and visible artwork `96x70px`. Header geometry
+  remained overflow-free at all audited widths: desktop header `109px`, mobile
+  header `219px`; footer uses the same responsive display asset without
+  dominating the footer grid.
+- Visual audit passed at `360`, `390`, `430`, `768`, `1024`, `1440`, and
+  `1920`-equivalent layout checks where practical; browser route proof ran at
+  `390`, `768`, and `1440`. Logo visibility, header/footer placement, commerce
+  page rendering, text wrapping, and horizontal overflow passed. First-party
+  public-route console/request checks reported no application errors, failed
+  first-party requests, or broken images.
+- Commerce visual regression remains green for Upload, Preview, Product,
+  Quality, Review, responsive cart pages, guest/registered limits, multi-image,
+  multi-print, server-owned totals, and fail-closed checkout. Required lint,
+  typecheck, build, visual browser tests `11/11`, and commerce E2E passed.
+- Protected Protocol remains frozen at
+  `APG_CODE_READY_BANK_DIRECT_HS_ENABLEMENT_PENDING`; no APG file, Bank
+  request, production APG activation, real payment, Replicate/RunPod call, or
+  GetFreeSeeds change occurred. ZERO REGRESSION remains required before
+  deployment.
+- Fresh readiness: frontend source 100% (production deployment pending), auth
+  90%, print-commerce 90%, payment-code 90%, APG code 90%, APG sandbox
+  operational 45%, production payment 0%, overall 88%. Project complete 88%,
+  remaining 12%: software 7% for authorized production deployment/live
+  verification and Bank external 5% for hosted-payment enablement and verified
+  paid-flow proof.

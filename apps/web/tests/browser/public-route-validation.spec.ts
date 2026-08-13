@@ -31,7 +31,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024
 
       for (const route of PUBLIC_ROUTES) {
         await page.goto(route);
-        await expect(page.locator(".brand-logo").first()).toHaveAttribute("src", "/assets/logo2.png");
+        await expect(page.locator(".brand-logo").first()).toHaveAttribute("src", "/assets/logo2-display.png");
         await expect(page.locator(".brand-logo").first()).toHaveJSProperty("complete", true);
         await expect.poll(() => page.locator(".brand-logo").first().evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
         await expectNoHorizontalOverflow(page);

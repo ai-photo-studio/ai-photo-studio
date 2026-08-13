@@ -2570,10 +2570,10 @@ img {
 
 .brand-logo {
   display: block;
-  width: 198px;
-  height: 60px;
+  width: 122px;
+  height: 88px;
   object-fit: contain;
-  object-position: left center;
+  object-position: center;
 }
 
 .brand {
@@ -2755,8 +2755,8 @@ img {
 
 @media (max-width: 470px) {
   .brand-logo {
-    width: 156px;
-    height: 46px;
+    width: 96px;
+    height: 70px;
   }
 }
 

@@ -7,7 +7,7 @@ test.describe("ThanNow production UI baseline", () => {
     await page.goto("/");
 
     await expect(page.getByRole("link", { name: "ThanNow home" }).first()).toBeVisible();
-    await expect(page.locator(".brand-logo").first()).toHaveAttribute("src", "/assets/logo2.png");
+    await expect(page.locator(".brand-logo").first()).toHaveAttribute("src", "/assets/logo2-display.png");
     const navigation = page.getByRole("navigation", { name: "Primary navigation" });
     for (const label of APPROVED_NAV) {
       await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
