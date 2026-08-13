@@ -3417,6 +3417,35 @@ changes were needed; the integration was already credential-ready.**
   remaining: 12%, entirely attributable to the external Bank direct hosted-
   payment enablement/contract blocker and the downstream payment proof chain.
 
+### R9.5-P7R — RC Live Drift Predeploy Audit (2026-08-13)
+
+- RC source is `83f62e7`, remote-synchronized. Protected untracked owner
+  directories `BAF/`, `EP/`, and `logo/` were untouched. No deployment occurred.
+- Live frontend serves `index-A9lT0sqB.js`/`index-DNUd3SJG.css`; a fresh RC
+  build produces `index-DZsyKj9F.js`/`index-DNUd3SJG.css`. Frontend drift is
+  confirmed. Live homepage rendered, policy/login/register routes returned
+  200, and inspected assets loaded. The first mobile CLI attempt used an
+  unsupported viewport flag, so no mobile pass is claimed from that attempt.
+- Live API health returned 200 with `build_sha=24824f0`, while RC is `83f62e7`.
+  API drift is confirmed. Live `/api/e2e/test-mode` returned 404, proving test
+  isolation. Forged payment Return query returned the truthful unavailable
+  response and did not create PAID.
+- Status: `PRODUCTION_DEPLOYMENT_READY` for a separately authorized deployment,
+  not executed here. Manifest: FRONTEND_SHA=`83f62e7`, API_SHA=`83f62e7`,
+  WORKER_SHA=`83f62e7`; predeploy checks are lint, typecheck, build, migration
+  status, API/frontend smoke, test-route 404, fail-closed payment, and zero
+  first-party asset/request errors. Rollback IDs must be recorded by the
+  deployment operator; none were guessed here.
+- APG remains frozen; no Bank request occurred. Production APG disabled, IPN
+  fail-closed, GetFreeSeeds untouched, and Replicate/RunPod calls were zero.
+  RC non-Bank evidence remains green: lint, typecheck, build, guards `29/29`,
+  and commerce E2E.
+- Fresh readiness: frontend 90% (live drift), auth 90%, print-commerce 90%,
+  payment-code 90%, APG code 90%, APG sandbox operational 45%, production
+  payment 0%, overall 85%. Project complete 85%, remaining 15%: software 10%
+  for deployment synchronization/mobile live audit, Bank external 5% for direct
+  hosted-payment enablement and downstream paid-flow proof.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
