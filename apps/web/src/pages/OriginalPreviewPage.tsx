@@ -82,20 +82,20 @@ export function OriginalPreviewPage() {
           alt="Uploaded original"
           style={{ display: "block", maxWidth: "100%", maxHeight: "480px", width: "auto", height: "auto", objectFit: "contain", margin: "0 auto", borderRadius: "var(--radius)" }}
         />
-        <div className="stack" style={{ marginTop: "1rem" }}>
-          <strong>Uploaded original</strong>
-          <dl className="order-summary">
+         <div className="stack preview-summary" style={{ marginTop: "1rem" }}>
+           <strong>Uploaded original</strong>
+           <details><summary>Photo details</summary><dl className="order-summary">
             {sourceFile && <div><dt>File name</dt><dd>{sourceFile.name}</dd></div>}
             {formatLabel && <div><dt>Format</dt><dd>{formatLabel}</dd></div>}
             {fileSizeLabel && <div><dt>File size</dt><dd>{fileSizeLabel}</dd></div>}
             {width && height && <div><dt>Dimensions</dt><dd>{width} × {height} px</dd></div>}
             {aspectRatioLabel && <div><dt>Aspect ratio</dt><dd>{aspectRatioLabel}</dd></div>}
             {orientationLabel && <div><dt>Orientation</dt><dd>{orientationLabel}</dd></div>}
-          </dl>
+           </dl></details>
         </div>
       </div>
 
-      <div className="button-row" style={{ marginTop: "1rem" }}>
+       <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
           <button
            aria-label="Choose Product & Image Quality"
           type="button"

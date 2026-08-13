@@ -28,8 +28,10 @@ export function PublicLayout() {
 
 function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
   const { openRestorationUpload } = useRestorationUpload();
+  const location = useLocation();
+  const journey = /^\/restore-mvp\//.test(location.pathname) || /^\/restore-cart\//.test(location.pathname) || /^\/orders\//.test(location.pathname) || /processing|result|status/.test(location.pathname);
   return (
-    <div className="site-shell">
+    <div className={`site-shell${journey ? " journey-shell" : ""}`}>
       <header className="site-header">
         <BrandLogo />
 
@@ -61,31 +63,28 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
 
       <footer className="site-footer" id="footer">
         <div className="section-shell footer-grid">
-          <div className="footer-brand">
+        <div className="footer-brand">
             <BrandLogo />
             <p>Restore, upscale and preserve the human memories that matter most.</p>
           </div>
-          <div>
-            <h4>Services</h4>
+          <details open={!journey} className="journey-footer-group"><summary>Services</summary><div>
             <a href={hrefFor("#memories")}>Photo Restoration</a>
             <a href={hrefFor("#upscale")}>Upscaling</a>
             <a href={hrefFor("#printing")}>Printing</a>
-          </div>
-          <div>
-            <h4>Customer Help</h4>
+          </div></details>
+          <details open={!journey} className="journey-footer-group"><summary>Customer Help</summary><div>
             <a href={hrefFor("#how")}>Our Process</a>
             <Link to="/faq">FAQ</Link>
             <Link to="/contact">Contact Us</Link>
             <Link to="/pricing">Pricing</Link>
-          </div>
-          <div>
-            <h4>Policies</h4>
+          </div></details>
+          <details open={!journey} className="journey-footer-group"><summary>Policies</summary><div>
             <Link to="/terms">Terms and Conditions</Link>
             <Link to="/privacy-policy">Privacy Policy</Link>
             <Link to="/payment-policy">Payment Policy</Link>
             <Link to="/refund-exchange-policy">Refund and Exchange</Link>
             <Link to="/delivery-policy">Delivery Policy</Link>
-          </div>
+          </div></details>
           <div className="footer-cta">
             <h4>Start Restoring</h4>
             <p>Bring a precious photo back to life today.</p>

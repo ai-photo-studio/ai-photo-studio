@@ -141,7 +141,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         <span className="eyebrow">START RESTORATION</span>
         <h2 id="uploadTitle">Upload Your Photo</h2>
         <p>{token ? `Upload up to ${MAX_IMAGES} photos in this batch.` : "Upload one photo as a guest, or create a free account for multiple photos."}</p>
-        <label className="drop-zone" htmlFor="photoInput">
+        <label className={`drop-zone${files.length ? " upload-dropzone-compact" : ""}`} htmlFor="photoInput">
           <span className="drop-icon">+</span>
           <strong>{files.length ? "Add another photo" : "Choose or drop your photo"}</strong>
           <small>JPG, PNG or WEBP -- up to 10 MB each</small>
@@ -180,7 +180,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
           </div>
         )}
         {!token && files.length === 1 && (
-          <div className="upload-account-prompt">
+            <div className="upload-account-prompt">
             <p>Create a free account to upload multiple photos.</p>
             <div className="button-row"><button type="button" className="button button-secondary" onClick={() => navigate("/login", { state: { from: "/?upload=1" } })}>Log in</button><button type="button" className="button" onClick={() => navigate("/signup", { state: { from: "/?upload=1" } })}>Sign up</button></div>
           </div>

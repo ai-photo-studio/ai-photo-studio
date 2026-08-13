@@ -286,7 +286,7 @@ export function DigitalTierSelectPage() {
           </>
        )}
 
-      <div className="button-row" style={{ marginTop: "1rem" }}>
+      <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
         <button
           type="button"
           className="button"
@@ -295,14 +295,11 @@ export function DigitalTierSelectPage() {
         >
           {creating ? "Preparing review..." : "Continue to Review"}
         </button>
-        <button type="button" className="button button-secondary" onClick={() => void load()}>
+        <button type="button" className="button button-secondary compact-refresh" onClick={() => void load()}>
           Refresh
         </button>
         <button type="button" className="button button-ghost" onClick={() => { setSearchParams({ stage: "product" }); setShowQuality(false); window.scrollTo(0, 0); }}>
           Back to Product
-        </button>
-        <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${draftId}/preview`)}>
-          Back to Preview
         </button>
       </div>
     </section>

@@ -207,7 +207,7 @@ export function FixedOrderReviewPage() {
           <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : testModeEnabled ? "Pre-launch testing mode. No real payment will be charged." : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
        </div>
 
-       <div className="button-row" style={{ marginTop: "1rem" }}>
+        <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
           {!testModeEnabled && <button
            type="button"
            className="button"

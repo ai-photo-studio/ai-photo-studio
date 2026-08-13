@@ -3730,3 +3730,24 @@ remains in force verbatim.
 - This responsive repair preserves Product/Quality stage navigation, the supplied
   assets, `PRELAUNCH_MOCK_MODE=true`, APG freeze, and protected BAF/, EP/, logo/,
   Bank, Replicate, and RunPod scope.
+
+### R9.5-P7ZB — Native Mobile Journey Compaction
+
+- Customer journey routes use a compact shell at mobile widths: no marketing
+  navigation row, no redundant Get Started action, reduced page-stack padding,
+  and a single sticky primary action group where appropriate.
+- After upload, the modal switches from the full dropzone to a compact active
+  preview plus horizontal thumbnail strip; the selected-image preview is not
+  duplicated as a second large vertical row. Guest maximum remains one image;
+  authenticated maximum remains ten.
+- Preview keeps filename/dimensions visible and places secondary metadata inside
+  a collapsed `Photo details` disclosure. Quality uses compact two-column cards
+  on mobile, preserves all server-authoritative tiers, and exposes only Continue
+  to Review plus Back to Product as the main navigation actions.
+- Journey footers collapse Services, Customer Help, and Policies by default on
+  mobile while preserving every compliance link. Non-journey desktop footers
+  retain their existing expanded presentation. Desktop marketing pages remain
+  substantially unchanged.
+- This packet preserves Product -> Quality -> Review -> Test Payment — No Charge
+  -> Processing -> Result/Download, print pending behavior, APG freeze,
+  `PRELAUNCH_MOCK_MODE=true`, and zero Bank/Replicate/RunPod calls.

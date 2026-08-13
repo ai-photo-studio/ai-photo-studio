@@ -2772,6 +2772,61 @@ img {
   }
 }
 
+/* R9.5-P7ZB: native-style compaction for customer journey routes only. */
+.journey-shell .site-main { min-width: 0; }
+.journey-shell .page-stack { padding-block: 24px; }
+.journey-shell .section-heading { margin-bottom: 16px; }
+.journey-shell .section-heading h1 { margin-bottom: 8px; }
+.journey-shell .card, .journey-shell .state-panel { border-radius: 14px; }
+.journey-shell .journey-actions { gap: 8px; }
+.journey-shell .compact-refresh { min-height: 36px; padding: 7px 11px; font-size: 13px; }
+.journey-shell .upload-dropzone-compact { display: none; }
+.journey-shell .upload-preview-stack { margin-top: 10px; }
+.journey-shell .upload-main-preview { max-height: 220px; }
+.journey-shell .upload-main-preview img { max-height: 220px; object-fit: contain; }
+.journey-shell .upload-photo-list { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; }
+.journey-shell .selected-preview { flex: 0 0 76px; }
+.journey-shell .selected-preview img { width: 76px; height: 58px; object-fit: cover; }
+.journey-shell .upload-remove-button { min-height: 30px; padding: 4px 6px; font-size: 11px; }
+.journey-shell .preview-summary details { margin-top: 8px; }
+.journey-shell .preview-summary summary { cursor: pointer; color: var(--accent-strong); font-weight: 700; }
+.journey-shell .review-item, .journey-shell .order-summary-card { margin-top: 12px !important; }
+.journey-shell .checkout-policies { margin: 12px 0; font-size: 12px; line-height: 1.45; }
+.journey-shell .journey-footer-group { min-width: 0; }
+.journey-shell .journey-footer-group summary { color: var(--thannow-ink, #18131d); font-weight: 700; cursor: pointer; padding: 6px 0; }
+.journey-shell .journey-footer-group > div { padding-bottom: 4px; }
+.site-shell:not(.journey-shell) .journey-footer-group { display: contents; }
+.site-shell:not(.journey-shell) .journey-footer-group summary { display: none; }
+.site-shell:not(.journey-shell) .journey-footer-group > div { display: contents; }
+
+@media (max-width: 768px) {
+  .upload-modal .modal-panel { width: min(100% - 24px, 520px); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 18px; }
+  .upload-modal .modal-panel > p { margin: 6px 0 10px; font-size: 14px; line-height: 1.35; }
+  .upload-modal .drop-zone { min-height: 150px; padding: 18px 12px; }
+  .upload-modal .upload-main-preview { max-height: 180px; }
+  .upload-modal .upload-main-preview img { max-height: 180px; }
+  .upload-modal .upload-account-prompt { margin: 10px 0; padding: 10px; }
+  .upload-modal .upload-account-prompt p { margin: 0 0 8px; }
+  .journey-shell .site-header { min-height: 56px; }
+  .journey-shell .site-header > .mobile-nav { display: none; }
+  .journey-shell .site-header > .header-actions .btn-primary { min-height: 40px; }
+  .journey-shell .site-main { width: min(100% - 24px, 1180px); }
+  .journey-shell .page-stack { padding: 16px 0 76px; }
+  .journey-shell .section-heading p:last-child { margin-bottom: 0; }
+  .journey-shell .journey-actions { position: sticky; bottom: 8px; z-index: 5; margin-inline: -4px; padding: 8px; background: color-mix(in srgb, var(--thannow-paper, #fffdfa) 94%, transparent); border: 1px solid var(--thannow-line, #e8dfd3); border-radius: 14px; box-shadow: 0 8px 24px rgba(48,31,17,.14); }
+  .journey-shell .journey-actions .button:first-child { flex: 1 1 auto; min-height: 46px; }
+  .journey-shell .journey-actions .button:not(:first-child) { min-height: 40px; }
+  .journey-shell .admin-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+  .journey-shell .admin-card-grid .card { padding: 12px; }
+  .journey-shell .admin-card-grid .card h3 { margin: 0 0 4px; font-size: 17px; }
+  .journey-shell .admin-card-grid .card p { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin: 0 0 5px; font-size: 12px; }
+  .journey-shell .quality-price { font-size: 16px; }
+  .journey-shell .field-grid { gap: 10px; }
+  .journey-shell .footer-grid { padding-bottom: 12px; }
+  .journey-shell .footer-brand .brand-logo { height: 46px; }
+  .journey-shell .footer-cta { display: none; }
+}
+
 /* R9.5-P7ZA: compact responsive shell for restoration and public pages. */
 @media (max-width: 1050px) {
   .site-header { flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 0; }
