@@ -3384,6 +3384,39 @@ changes were needed; the integration was already credential-ready.**
   activation 0%, overall launch readiness 88%. The remaining gap is Bank
   operational enablement, not a permitted production shortcut.
 
+### R9.5-P7Q — Launch Release Candidate and Bank Resume Gate (2026-08-13)
+
+- ThanNow is a release candidate for all non-Bank launch scope. Fresh evidence
+  remains green for frontend build, authentication, guest one-image and
+  registered ten-image upload limits, metadata-only Preview, product-first
+  digital/print journey, multi-image/multi-print cart, server PriceBook,
+  fail-closed checkout, order persistence, entitlement/master/execution chain,
+  Result/Download, in-house print pending, production test-route isolation,
+  and payment trust guards.
+- Required validation passed: lint, typecheck, production build, focused APG/
+  production/test-seam guards `29/29`, and protected commerce E2E. The E2E
+  demonstrated one cart PaymentAttempt, three items/entitlements/masters/
+  executions, mock results/downloads, and `IN_HOUSE_PRINT_PENDING`; Bank,
+  Replicate, RunPod, and production calls were zero.
+- APG is protected/frozen at `APG_CODE_READY_BANK_DIRECT_HS_ENABLEMENT_PENDING`.
+  No further HS1001/SSO experimentation is permitted without new Bank
+  evidence. Production APG remains disabled, browser Return is non-authoritative,
+  IPN remains fail-closed, and sandbox/test/mock payment seams remain
+  unavailable in production. GetFreeSeeds production remains untouched.
+- Bank resume classification gate: accept only new evidence classified as
+  `DIRECT_HS1001_ENABLED`, `NEW_HS1001_CONTRACT`,
+  `ALTERNATE_HOSTED_CHECKOUT_CONTRACT`, or
+  `NEW_SANDBOX_CREDENTIAL_OR_STORE_CONFIG`. `IPN_SPEC_ONLY` updates only the
+  listener contract; `INSUFFICIENT_BANK_RESPONSE` leaves APG frozen.
+- Exact resume point after qualifying Bank evidence:
+  `HS1001 -> AuthToken -> SSO -> sandbox checkout -> test payment ->
+  OrderStatus -> verified PAID -> mock Processing -> Result/Download`.
+- Fresh readiness: frontend 100%, auth 90%, print-commerce 90%, payment-code
+  90%, APG code readiness 90%, APG sandbox operational 45%, production payment
+  readiness 0%, overall launch readiness 88%. Project complete: 88%; project
+  remaining: 12%, entirely attributable to the external Bank direct hosted-
+  payment enablement/contract blocker and the downstream payment proof chain.
+
 ### R9.5-P6H — Canonical Logo and Public Route Validation (2026-08-12)
 
 - `logo/logo2.png` is now the canonical visible ThanNow logo. The unchanged
