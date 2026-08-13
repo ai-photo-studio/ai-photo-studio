@@ -3751,3 +3751,21 @@ remains in force verbatim.
 - This packet preserves Product -> Quality -> Review -> Test Payment — No Charge
   -> Processing -> Result/Download, print pending behavior, APG freeze,
   `PRELAUNCH_MOCK_MODE=true`, and zero Bank/Replicate/RunPod calls.
+
+### R9.5-P7ZC — Mobile Upload and Preview Forensics
+
+- Zero-image upload shows the full dropzone. Once one or more images exist, the
+  dropzone is hidden and replaced by one primary uploaded-photo preview with a
+  Ready badge and direct Remove control. A single uploaded image does not render
+  a duplicate history thumbnail; two or more images use a compact horizontal
+  thumbnail history strip. Guest maximum remains one and authenticated maximum
+  remains ten.
+- Mobile upload modal controls use compact typography and bounded preview height;
+  Add more and Continue remain readable and non-overlapping within the modal.
+- Preview keeps the uploaded image and essential summary compact; secondary
+  metadata remains behind collapsed `Photo details`. Journey action hierarchy is
+  primary Continue, compact secondary Back, and utility Refresh only where
+  technically necessary. Product/Quality/Review navigation is unchanged.
+- This repair preserves compact journey footer behavior, supplied assets,
+  `PRELAUNCH_MOCK_MODE=true`, APG freeze, protected protocol scope, and zero
+  Bank/Replicate/RunPod calls.

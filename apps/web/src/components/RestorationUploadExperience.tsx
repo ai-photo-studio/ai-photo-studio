@@ -159,24 +159,18 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
             <div className="upload-main-preview">
               <img src={previewUrls[activeIndex]} alt="Uploaded photo preview" />
               <span className="upload-ready-badge">Ready</span>
+              <button type="button" className="upload-main-remove" aria-label={`Remove ${files[activeIndex]?.name || "uploaded photo"}`} onClick={() => removeFileAt(activeIndex)}>Remove</button>
             </div>
-            <div className="selected-files-list upload-photo-list" aria-label="Uploaded photos">
-            {files.map((file, index) => (
-              <div className={`selected-preview${activeIndex === index ? " selected-preview-active" : ""}`} key={`${file.name}-${index}`}>
-                <button type="button" className="upload-thumbnail-button" onClick={() => setActiveIndex(index)} aria-label={`View ${file.name}`}>
-                  <img src={previewUrls[index]} alt="Uploaded photo preview" />
-                </button>
-                <button
-                  type="button"
-                  className="button button-ghost upload-remove-button"
-                  aria-label={`Remove ${file.name}`}
-                  onClick={() => removeFileAt(index)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            </div>
+            {files.length > 1 && <div className="selected-files-list upload-photo-list" aria-label="Uploaded photos">
+              {files.map((file, index) => (
+                <div className={`selected-preview${activeIndex === index ? " selected-preview-active" : ""}`} key={`${file.name}-${index}`}>
+                  <button type="button" className="upload-thumbnail-button" onClick={() => setActiveIndex(index)} aria-label={`View ${file.name}`}>
+                    <img src={previewUrls[index]} alt="Uploaded photo preview" />
+                  </button>
+                  <button type="button" className="button button-ghost upload-remove-button" aria-label={`Remove ${file.name}`} onClick={() => removeFileAt(index)}>Remove</button>
+                </div>
+              ))}
+            </div>}
           </div>
         )}
         {!token && files.length === 1 && (
