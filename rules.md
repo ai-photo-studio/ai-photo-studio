@@ -3666,3 +3666,10 @@ remains in force verbatim.
   real-money public launch. Real payment remains unavailable until a separately
   authorized and bank-verified provider is enabled. GetFreeSeeds and the APG
   protocol are untouched.
+- Live deployment proof: API runtime `06392299186e5feea26649a49a22d2dd49f99656`
+  is healthy; `GET /api/e2e/test-mode` returns the server-authoritative enabled
+  signal. Cloudflare Pages deployment succeeded for the same commit. A real
+  guest browser smoke at `390x844` completed Upload -> Preview -> Product ->
+  Quality -> Review -> **Test Payment — No Charge** -> mock PAID -> Completed ->
+  Download. First-party console errors, failed first-party requests, and
+  horizontal overflow were zero. No Bank, Replicate, or RunPod call was made.
