@@ -255,13 +255,13 @@ async function main() {
       await step(`${kind}: select image once`, () => page.setInputFiles("#photoInput", fixturePath));
       await step(`${kind}: persist draft`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
       await step(`${kind}: preview`, () => page.waitForURL(/\/restore-mvp\/.+\/preview/, { timeout: 15_000 }));
-      await step(`${kind}: choose product & quality`, () => page.getByRole("button", { name: "Choose Product & Image Quality" }).click());
+       await step(`${kind}: choose product`, () => page.getByRole("button", { name: /Choose Product & Image Quality|Continue to Product/ }).click());
       await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
 
-      if (kind === "PRINT_DIGITAL") {
-        await page.getByRole("radio", { name: /Print \+ Digital/ }).click();
-        await page.getByText("Small Print", { exact: true }).click();
-        await page.getByText("4x Ultra HD", { exact: true }).click();
+       if (kind === "PRINT_DIGITAL") {
+         await page.locator(".tn-product-card--print").click();
+         await page.getByRole("button", { name: /Small Print/ }).click().catch(() => undefined);
+         await page.getByText("4x Ultra HD", { exact: true }).click();
         await page.getByLabel("Print size").selectOption("4x6");
         await page.getByLabel("Quantity").fill("10");
         await page.getByLabel("Recipient name").fill("Local E2E Customer");
@@ -269,8 +269,8 @@ async function main() {
         await page.getByLabel("Address").fill("1 Test Street");
         await page.getByLabel("City").fill("Lahore");
        } else {
-         await page.getByRole("radio", { name: /Digital Download/ }).click();
-         await page.getByText("2x HD", { exact: true }).click();
+          await page.locator(".tn-product-card--digital").click();
+          await page.getByText("2x HD", { exact: true }).click();
        }
 
       await step(`${kind}: review`, () => page.getByRole("button", { name: "Continue to Review" }).click());

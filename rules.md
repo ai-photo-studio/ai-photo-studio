@@ -3673,3 +3673,25 @@ remains in force verbatim.
   Quality -> Review -> **Test Payment — No Charge** -> mock PAID -> Completed ->
   Download. First-party console errors, failed first-party requests, and
   horizontal overflow were zero. No Bank, Replicate, or RunPod call was made.
+
+### R9.5-P7Y — Separate Product and Quality Selection
+
+- The customer journey is explicitly ordered: Upload -> Preview -> **Choose your
+  product** -> **Choose image quality** (and print configuration when the selected
+  product requires it) -> Review -> Test Payment — No Charge -> Processing ->
+  Result/Download.
+- Product selection is a premium two-choice page with only **Digital Download**
+  and **Print + Digital — Home Delivery**. It uses the supplied product assets
+  `hero-memory-gallery.webp`, `digital-devices.webp`, and
+  `print-home-delivery.webp`; the canonical `logo2.png` remains unchanged.
+- Digital selection advances directly to the quality page. The old combined
+  heading and the unnecessary customer-facing use-case question are prohibited.
+  Quality cards remain server-price-authoritative and preserve the approved print
+  catalog, crop validation, quantity limits, delivery address, Review totals, and
+  Back-to-Product state preservation.
+- The product page must remain responsive at 390px and desktop widths: one card
+  per row on mobile, supplied imagery fully visible, no face clipping, no
+  horizontal overflow, and no first-party console/request/image errors.
+- This UX change does not modify payment, APG, Bank Alfalah, Replicate, RunPod,
+  GetFreeSeeds, or protected BAF/, EP/, and logo/ scope. `PRELAUNCH_MOCK_MODE=true`
+  and `BANK_ALFALAH_APG_ENABLED=false` remain required for pre-launch verification.

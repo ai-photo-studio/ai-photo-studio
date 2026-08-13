@@ -6,8 +6,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
-import { bestUseCaseResult, ORDERABLE_CUSTOMER_USE_CASES, type CustomerUseCaseId } from "../lib/printUseCases";
+import { type CustomerUseCaseId } from "../lib/printUseCases";
 import { printCropRequired } from "../lib/printSuitability";
+import ProductChoiceStage, { type ProductChoiceKey } from "../components/ProductChoiceStage";
 
 const TIER_LABELS: Record<string, string> = {
   ORIGINAL: "Restored Original",
@@ -73,13 +74,14 @@ export function DigitalTierSelectPage() {
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(saved?.selected ?? null);
   const [product, setProduct] = useState<"DIGITAL" | "PRINT_DIGITAL" | null>(saved?.product ?? null);
-  const [useCaseId, setUseCaseId] = useState<CustomerUseCaseId | null>(saved?.useCaseId ?? null);
+  const [useCaseId, setUseCaseId] = useState<CustomerUseCaseId | null>(saved?.useCaseId ?? "SMALL_PRINT");
   const [printCatalog, setPrintCatalog] = useState<Awaited<ReturnType<typeof customerApi.getPrintCatalog>>>([]);
   const [printSize, setPrintSize] = useState(saved?.printSize ?? "");
   const [quantity, setQuantity] = useState(saved?.quantity ?? 1);
   const [printLines, setPrintLines] = useState<Array<{ printSize: string; quantity: number }>>(saved?.printLines ?? []);
   const [address, setAddress] = useState(saved?.address ?? { recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
   const [sourceDimensions, setSourceDimensions] = useState<{ width: number | null; height: number | null }>({ width: null, height: null });
+  const [showQuality, setShowQuality] = useState(saved?.product != null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,17 +159,35 @@ export function DigitalTierSelectPage() {
     }
   };
 
+  const selectProduct = (key: ProductChoiceKey) => {
+    const nextProduct = key === "digital" ? "DIGITAL" : "PRINT_DIGITAL";
+    setProduct(nextProduct);
+    setUseCaseId(nextProduct === "DIGITAL" ? "MOBILE_SOCIAL" : "SMALL_PRINT");
+    setShowQuality(true);
+    window.scrollTo(0, 0);
+  };
+
   const selectedPrintLines = printLines.length ? printLines : [{ printSize, quantity }];
   const cropRequired = product === "PRINT_DIGITAL" && selectedPrintLines.some((line) => printCropRequired(sourceDimensions.width, sourceDimensions.height, line.printSize));
 
   if (loading) return <section className="page-stack"><div className="state-panel"><p>Loading pricing...</p></div></section>;
 
+  if (!showQuality) {
+    return <ProductChoiceStage
+      selected={product === "DIGITAL" ? "digital" : product === "PRINT_DIGITAL" ? "print" : null}
+      onSelect={selectProduct}
+      onContinue={() => { setShowQuality(true); window.scrollTo(0, 0); }}
+      busy={creating}
+      error={error}
+    />;
+  }
+
   return (
     <section className="page-stack">
       <div className="section-heading">
-        <p className="eyebrow">Choose product &amp; image quality</p>
-        <h1>Choose your product and image quality</h1>
-        <p>Choose the finish that fits your memory, then select the quality you want.</p>
+        <p className="eyebrow">Step 2 of 3 · Image quality</p>
+        <h1>Choose image quality</h1>
+        <p>{product === "PRINT_DIGITAL" ? "Choose the quality for your digital copy, then configure your approved print sizes and delivery." : "Choose the quality that fits how you will enjoy your restored photo."}</p>
       </div>
 
       {unavailableReason && <div className="state-panel state-panel-error"><p>{unavailableReason}</p></div>}
@@ -175,30 +195,6 @@ export function DigitalTierSelectPage() {
 
       {offers && (
         <>
-          <h2 className="section-subheading">1. Choose product</h2>
-          <div role="radiogroup" aria-label="Product" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-             <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("DIGITAL"); setUseCaseId("MOBILE_SOCIAL"); }}>
-              <h3>Digital Download</h3><p>Restore or upscale your photo and download it when ready.</p>
-            </button>
-             <button type="button" role="radio" aria-checked={product === "PRINT_DIGITAL"} className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("PRINT_DIGITAL"); setUseCaseId(null); }}>
-              <h3>Print + Digital — Home Delivery</h3><p>Restore your photo once, receive the digital copy, and order home delivery.</p>
-            </button>
-          </div>
-
-           {!product ? <p className="helper-text">Continue by selecting Digital Download or Print + Digital.</p> : <>
-            {product === "PRINT_DIGITAL" && <h2 className="section-subheading">2. Where would you like to use this photo?</h2>}
-            {product === "PRINT_DIGITAL" && <>
-           <div role="radiogroup" aria-label="Photo use case" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-              {ORDERABLE_CUSTOMER_USE_CASES.filter((useCase) => product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
-               <button key={useCase.id} type="button" role="radio" aria-checked={useCaseId === useCase.id} className={`card product-choice ${useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => { setUseCaseId(useCase.id); if (useCase.sizes[0]) setPrintSize(useCase.sizes[0]); }}>
-                 <h3>{useCase.label}</h3><p>{useCase.copy}</p><small>{useCase.sizes.length ? `Suggested sizes: ${useCase.sizes.join(", ")}` : "Digital sharing"}</small>
-                 {(() => { const suitability = bestUseCaseResult(useCase, sourceDimensions.width, sourceDimensions.height); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
-               </button>
-             ))}
-            </div>
-            </>}
-            {!useCaseId && product === "PRINT_DIGITAL" ? <p className="helper-text">Choose a use case to continue.</p> : <>
-           <h2 className="section-subheading">2. Choose image quality</h2>
           <div role="radiogroup" aria-label="Image quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {offers.map((offer) => (
               <article
@@ -276,23 +272,23 @@ export function DigitalTierSelectPage() {
                </div>
             );
           })()}
-            {product === "PRINT_DIGITAL" && <button type="button" className="button button-ghost" onClick={() => setUseCaseId(null)}>Back to Use Case</button>}
-           </>}
-           </>}
-        </>
-      )}
+          </>
+       )}
 
       <div className="button-row" style={{ marginTop: "1rem" }}>
         <button
           type="button"
           className="button"
-            disabled={!selected || !product || (product === "PRINT_DIGITAL" && !useCaseId) || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (selectedPrintLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity < (printCatalog.find((item) => item.size === line.printSize)?.minimumQuantity ?? 1) || line.quantity > 10) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+            disabled={!selected || !product || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (selectedPrintLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity < (printCatalog.find((item) => item.size === line.printSize)?.minimumQuantity ?? 1) || line.quantity > 10) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}
         </button>
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh
+        </button>
+        <button type="button" className="button button-ghost" onClick={() => { setShowQuality(false); window.scrollTo(0, 0); }}>
+          Back to Product
         </button>
         <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${draftId}/preview`)}>
           Back to Preview
