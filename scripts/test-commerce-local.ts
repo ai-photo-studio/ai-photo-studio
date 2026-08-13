@@ -268,11 +268,10 @@ async function main() {
         await page.getByLabel("Phone").fill("03001234567");
         await page.getByLabel("Address").fill("1 Test Street");
         await page.getByLabel("City").fill("Lahore");
-      } else {
-        await page.getByRole("radio", { name: /Digital Download/ }).click();
-        await page.getByText("Mobile & Social", { exact: true }).click();
-        await page.getByText("2x HD", { exact: true }).click();
-      }
+       } else {
+         await page.getByRole("radio", { name: /Digital Download/ }).click();
+         await page.getByText("2x HD", { exact: true }).click();
+       }
 
       await step(`${kind}: review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
       await step(`${kind}: review route`, () => page.waitForURL(/\/orders\/.+\/review/, { timeout: 15_000 }));
@@ -330,7 +329,6 @@ async function main() {
 
       // Photo 1: Digital, 2x HD.
       await photoCard(1).getByText("Digital Download", { exact: true }).click();
-      await photoCard(1).getByText("Mobile & Social", { exact: true }).click();
       await photoCard(1).getByText("2x HD", { exact: true }).click();
 
       // Apply-to-all from photo 1 propagates 2x HD + Digital to all 3.

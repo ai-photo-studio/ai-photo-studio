@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AdminLayout } from "./components/AdminLayout";
 import { PublicLayout } from "./components/PublicLayout";
 import { RequireAdminPortal } from "./components/RequireAdminPortal";
@@ -37,6 +38,9 @@ import { CartReviewPage } from "./pages/CartReviewPage";
 import { ContactPage, DeliveryPolicyPage, FaqPage, PaymentPolicyPage, PrivacyPolicyPage, RefundExchangePolicyPage, TermsPage } from "./pages/CompliancePages";
 
 export function App() {
+  const location = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [location.pathname, location.search]);
+
   return (
     <Routes>
       <Route element={<PublicLayout />}>

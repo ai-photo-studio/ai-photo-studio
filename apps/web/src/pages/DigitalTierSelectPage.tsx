@@ -167,7 +167,7 @@ export function DigitalTierSelectPage() {
       <div className="section-heading">
         <p className="eyebrow">Choose product &amp; image quality</p>
         <h1>Choose your product and image quality</h1>
-        <p>Choose one product first. Image quality and print totals are server-owned.</p>
+        <p>Choose the finish that fits your memory, then select the quality you want.</p>
       </div>
 
       {unavailableReason && <div className="state-panel state-panel-error"><p>{unavailableReason}</p></div>}
@@ -177,7 +177,7 @@ export function DigitalTierSelectPage() {
         <>
           <h2 className="section-subheading">1. Choose product</h2>
           <div role="radiogroup" aria-label="Product" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-             <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("DIGITAL"); setUseCaseId(null); }}>
+             <button type="button" role="radio" aria-checked={product === "DIGITAL"} className={`card product-choice ${product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("DIGITAL"); setUseCaseId("MOBILE_SOCIAL"); }}>
               <h3>Digital Download</h3><p>Restore or upscale your photo and download it when ready.</p>
             </button>
              <button type="button" role="radio" aria-checked={product === "PRINT_DIGITAL"} className={`card product-choice ${product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => { setProduct("PRINT_DIGITAL"); setUseCaseId(null); }}>
@@ -186,7 +186,8 @@ export function DigitalTierSelectPage() {
           </div>
 
            {!product ? <p className="helper-text">Continue by selecting Digital Download or Print + Digital.</p> : <>
-           <h2 className="section-subheading">2. Where would you like to use this photo?</h2>
+            {product === "PRINT_DIGITAL" && <h2 className="section-subheading">2. Where would you like to use this photo?</h2>}
+            {product === "PRINT_DIGITAL" && <>
            <div role="radiogroup" aria-label="Photo use case" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
               {ORDERABLE_CUSTOMER_USE_CASES.filter((useCase) => product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
                <button key={useCase.id} type="button" role="radio" aria-checked={useCaseId === useCase.id} className={`card product-choice ${useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => { setUseCaseId(useCase.id); if (useCase.sizes[0]) setPrintSize(useCase.sizes[0]); }}>
@@ -194,8 +195,9 @@ export function DigitalTierSelectPage() {
                  {(() => { const suitability = bestUseCaseResult(useCase, sourceDimensions.width, sourceDimensions.height); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
                </button>
              ))}
-           </div>
-           {!useCaseId ? <p className="helper-text">Choose a use case to continue.</p> : <>
+            </div>
+            </>}
+            {!useCaseId && product === "PRINT_DIGITAL" ? <p className="helper-text">Choose a use case to continue.</p> : <>
            <h2 className="section-subheading">2. Choose image quality</h2>
           <div role="radiogroup" aria-label="Image quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {offers.map((offer) => (
@@ -212,7 +214,7 @@ export function DigitalTierSelectPage() {
                  <h3>{TIER_LABELS[offer.tier] ?? offer.label}</h3>
                  <p className="helper-text">{TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
                  {TIER_BADGES[offer.tier] && <span className="status-pill">{TIER_BADGES[offer.tier]}</span>}
-                <strong>{offer.currency} {(offer.amountMinor / 100).toFixed(2)}</strong>
+                 <strong className="quality-price">{offer.currency} {(offer.amountMinor / 100).toLocaleString(undefined, { minimumFractionDigits: offer.currency === "PKR" ? 0 : 2, maximumFractionDigits: 2 })}</strong>
               </article>
             ))}
           </div>
@@ -274,7 +276,7 @@ export function DigitalTierSelectPage() {
                </div>
             );
           })()}
-           <button type="button" className="button button-ghost" onClick={() => setUseCaseId(null)}>Back to Use Case</button>
+            {product === "PRINT_DIGITAL" && <button type="button" className="button button-ghost" onClick={() => setUseCaseId(null)}>Back to Use Case</button>}
            </>}
            </>}
         </>
@@ -284,7 +286,7 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-           disabled={!selected || !product || !useCaseId || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (selectedPrintLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity < (printCatalog.find((item) => item.size === line.printSize)?.minimumQuantity ?? 1) || line.quantity > 10) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
+            disabled={!selected || !product || (product === "PRINT_DIGITAL" && !useCaseId) || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (selectedPrintLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity < (printCatalog.find((item) => item.size === line.printSize)?.minimumQuantity ?? 1) || line.quantity > 10) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
           onClick={() => void createOrder()}
         >
           {creating ? "Preparing review..." : "Continue to Review"}

@@ -85,8 +85,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
     setUploading(true);
     setUploadError(null);
     try {
-      const draftIds: string[] = [];
-      for (const file of files) {
+      const draftIds = await Promise.all(files.map(async (file) => {
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(String(reader.result || ""));
@@ -114,8 +113,8 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         } catch {
           // sessionStorage unavailable -- Preview simply omits these fields.
         }
-        draftIds.push(draft.id);
-      }
+        return draft.id;
+      }));
       onClose();
       // Exactly one image keeps the existing, extensively-tested
       // single-image route/behavior byte-for-byte -- this is not a new
@@ -158,17 +157,14 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         {files.length > 0 && (
           <div className="upload-preview-stack">
             <div className="upload-main-preview">
-              <img src={previewUrls[activeIndex]} alt={`Selected photo ${activeIndex + 1}`} />
+              <img src={previewUrls[activeIndex]} alt="Uploaded photo preview" />
               <span className="upload-ready-badge">Ready</span>
             </div>
-            <div className="selected-files-list" aria-label="Uploaded photos">
+            <div className="selected-files-list upload-photo-list" aria-label="Uploaded photos">
             {files.map((file, index) => (
               <div className={`selected-preview${activeIndex === index ? " selected-preview-active" : ""}`} key={`${file.name}-${index}`}>
                 <button type="button" className="upload-thumbnail-button" onClick={() => setActiveIndex(index)} aria-label={`View ${file.name}`}>
-                  <img src={previewUrls[index]} alt="" />
-                </button>
-                <button type="button" className="upload-file-details" onClick={() => setActiveIndex(index)}>
-                  <strong>{file.name}</strong><small>{file.type.replace("image/", "").toUpperCase()} · {(file.size / 1024).toFixed(0)} KB · Ready · Ready for restoration</small>
+                  <img src={previewUrls[index]} alt="Uploaded photo preview" />
                 </button>
                 <button
                   type="button"
@@ -191,7 +187,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         )}
         {token && files.length > 0 && files.length < MAX_IMAGES && (
           <button type="button" className="button button-secondary btn-full" onClick={() => fileInputRef.current?.click()}>
-            Add more photos ({files.length}/{MAX_IMAGES})
+            Add more photos — {MAX_IMAGES - files.length} remaining
           </button>
         )}
         {uploadError && <div className="state-panel state-panel-error"><p>{uploadError}</p></div>}

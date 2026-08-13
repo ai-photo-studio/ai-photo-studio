@@ -204,7 +204,7 @@ export function CartConfigurePage() {
       <div className="section-heading">
         <p className="eyebrow">Configure photos</p>
         <h1>Choose product and image quality for each photo</h1>
-        <p>Each photo can have a different product and image quality. Prices are server-owned.</p>
+        <p>Each photo can have a different product and image quality.</p>
       </div>
 
       {error && <div className="state-panel state-panel-error"><p>{error}</p></div>}
@@ -219,7 +219,7 @@ export function CartConfigurePage() {
 
             <p className="helper-text">1. Choose product</p>
             <div role="radiogroup" aria-label={`Product for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-              <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL", useCaseId: null })}>
+              <button type="button" role="radio" aria-checked={config.product === "DIGITAL"} className={`card product-choice ${config.product === "DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "DIGITAL", useCaseId: "MOBILE_SOCIAL" })}>
                 <h3 style={{ fontSize: "1rem" }}>Digital Download</h3>
               </button>
               <button type="button" role="radio" aria-checked={config.product === "PRINT_DIGITAL"} className={`card product-choice ${config.product === "PRINT_DIGITAL" ? "card-selected" : ""}`} onClick={() => updateConfig(id, { product: "PRINT_DIGITAL", useCaseId: null, printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1, printLines: config.printLines?.length ? config.printLines : [{ printSize: config.printSize || printCatalog[0]?.size || "", quantity: config.quantity || printCatalog[0]?.minimumQuantity || 1 }] })}>
@@ -228,7 +228,8 @@ export function CartConfigurePage() {
             </div>
 
             {!config.product ? <p className="helper-text" style={{ marginTop: "1rem" }}>Select a product to continue configuring this photo.</p> : <>
-            <p className="helper-text" style={{ marginTop: "1rem" }}>2. Where would you like to use this photo?</p>
+             {config.product === "PRINT_DIGITAL" && <p className="helper-text" style={{ marginTop: "1rem" }}>2. Where would you like to use this photo?</p>}
+             {config.product === "PRINT_DIGITAL" && <>
             <div role="radiogroup" aria-label={`Photo use case for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
               {ORDERABLE_CUSTOMER_USE_CASES.filter((useCase) => config.product === "PRINT_DIGITAL" ? useCase.id !== "MOBILE_SOCIAL" : useCase.id === "MOBILE_SOCIAL").map((useCase) => (
                 <button key={useCase.id} type="button" role="radio" aria-checked={config.useCaseId === useCase.id} className={`card product-choice ${config.useCaseId === useCase.id ? "card-selected" : ""}`} onClick={() => updateConfig(id, { useCaseId: useCase.id, printSize: useCase.sizes[0] || config.printSize })}>
@@ -236,8 +237,9 @@ export function CartConfigurePage() {
                   {(() => { const dimensions = dimensionsByDraft[id]; const suitability = bestUseCaseResult(useCase, dimensions?.width ?? null, dimensions?.height ?? null); return suitability?.result ? <small className="helper-text">Current image: {suitability.result.category} at {suitability.result.effectivePpi} PPI · minimum quality {suitability.requiredTier}</small> : null; })()}
                 </button>
               ))}
-            </div>
-            {!config.useCaseId ? <p className="helper-text">Choose a use case to continue configuring this photo.</p> : <>
+             </div>
+             </>}
+             {!config.useCaseId ? <p className="helper-text">Choose a product to continue configuring this photo.</p> : <>
             <p className="helper-text" style={{ marginTop: "1rem" }}>2. Choose image quality</p>
             <div role="radiogroup" aria-label={`Image quality for photo ${index + 1}`} className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
               {offers.map((offer) => (

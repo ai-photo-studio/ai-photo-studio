@@ -166,7 +166,7 @@ export function CartReviewPage() {
       <div className="section-heading">
         <p className="eyebrow">Review &amp; Checkout</p>
         <h1>Review your order</h1>
-        <p>Order {order.orderNo}. {order.items.length} photos. Pricing is locked by the server and refresh is read-only.</p>
+        <p>{order.items.length} photos, ready for one secure checkout.</p>
       </div>
 
       {order.items.map((item, index) => {
@@ -208,7 +208,6 @@ export function CartReviewPage() {
           <div><dt>Delivery</dt><dd>{order.currency} {deliveryMajor}</dd></div>
           <div><dt><strong>TOTAL</strong></dt><dd><strong>{order.currency} {totalMajor}</strong></dd></div>
         </dl>
-        <p className="helper-text">PriceBook: {order.priceBookVersion || "-"}</p>
       </div>
 
       <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>

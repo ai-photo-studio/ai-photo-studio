@@ -187,21 +187,19 @@ export function FixedOrderReviewPage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Review &amp; Checkout</p>
-        <h1>Review your restoration</h1>
-        <p>Order {order.orderNo}. Pricing is locked by the server and refresh is read-only.</p>
+        <h1>Review your order</h1>
+        <p>Your photo is ready for one secure checkout.</p>
       </div>
 
-      <div className="metric-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-        <article className="metric-card"><span>Market</span><strong>{order.market}</strong></article>
-        <article className="metric-card"><span>Product</span><strong>{order.print ? "Print + Digital" : "Restore & Download"}</strong></article>
-        <article className="metric-card"><span>Tier</span><strong>{TIER_LABELS[order.tier] || order.tier}</strong></article>
-        <article className="metric-card"><span>Total</span><strong>{order.currency} {amountMajor}</strong></article>
-        <article className="metric-card"><span>PriceBook</span><strong>{order.priceBookVersion || "-"}</strong></article>
-      </div>
+       <div className="card review-item" style={{ marginTop: "1rem" }}>
+         {thumbnailUrl && <img src={thumbnailUrl} alt="Original photo thumbnail" className="review-thumbnail" />}
+         <div><p className="eyebrow">Digital Download{order.print ? " + Home Delivery" : ""}</p><h2>{TIER_LABELS[order.tier] || order.tier}</h2><p className="helper-text">Restored photo delivered digitally{order.print ? " with your physical print" : ""}.</p></div>
+         <strong>{order.currency} {amountMajor}</strong>
+       </div>
 
-      {thumbnailUrl && <div className="card" style={{ marginTop: "1rem" }}><img src={thumbnailUrl} alt="Original photo thumbnail" style={{ display: "block", maxHeight: "220px", maxWidth: "100%", margin: "0 auto", objectFit: "contain" }} /></div>}
-
-      {order.print && <div className="state-panel" style={{ marginTop: "1rem" }}><p><strong>{order.print.size}, quantity {order.print.quantity}</strong></p><p>Digital: {order.currency} {(digitalAmountMinor / 100).toFixed(2)} · Print: {order.currency} {(printSubtotalMinor / 100).toFixed(2)} · Delivery: {order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</p>{order.deliveryAddress && <p>Deliver to: {order.deliveryAddress.recipientName}, {order.deliveryAddress.addressLine1}, {order.deliveryAddress.city}</p>}</div>}
+       <div className="card order-summary-card" style={{ marginTop: "1rem" }}>
+         <dl className="order-summary"><div><dt>Subtotal</dt><dd>{order.currency} {(digitalAmountMinor / 100).toFixed(2)}</dd></div>{order.print && <><div><dt>Print</dt><dd>{order.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div><div><dt>Delivery</dt><dd>{order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</dd></div></>}<div><dt><strong>Total</strong></dt><dd><strong>{order.currency} {amountMajor}</strong></dd></div></dl>
+       </div>
 
       <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 

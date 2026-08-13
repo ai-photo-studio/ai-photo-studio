@@ -106,15 +106,14 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
 
      await expect(page).toHaveURL(new RegExp(`/restore-mvp/${DRAFT_ID}/tiers$`));
      await page.getByRole("radio", { name: /Digital Download/i }).click();
-     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
-    await expect(page.getByText("PKR 500.00")).toBeVisible();
+     await expect(page.getByText("PKR 500")).toBeVisible();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
-    await expect(page.getByText("PAKISTAN", { exact: true })).toBeVisible();
-    await expect(page.getByText("PKR 500.00")).toBeVisible();
-    await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toBeVisible();
+     await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
+     await expect(page.locator(".order-summary dd").last()).toHaveText("PKR 500.00");
+     await expect(page.getByText("Subtotal", { exact: true })).toBeVisible();
     await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
   });
 });
@@ -128,19 +127,18 @@ test.describe("P6C International USD flow", () => {
 
      await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
      await page.getByRole("radio", { name: /Digital Download/i }).click();
-     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
-    await expect(page.getByText("USD 1.99")).toBeVisible();
-    await expect(page.getByText("USD 2.99")).toBeVisible();
-    await expect(page.getByText("USD 4.99")).toBeVisible();
+     await expect(page.getByText("USD 1.99", { exact: true })).toBeVisible();
+     await expect(page.getByText("USD 2.99", { exact: true })).toBeVisible();
+     await expect(page.getByText("USD 4.99", { exact: true })).toBeVisible();
   });
 
-  test("International order review shows correct USD amount and market", async ({ page }) => {
+   test("International order review shows correct USD amount", async ({ page }) => {
     await blockExternalNetwork(page);
     const order = orderFixture({ market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amount: "499" });
     await mockGetOrder(page, ORDER_NO, order);
     await page.goto(`/orders/${ORDER_NO}/review`);
-    await expect(page.getByText("INTERNATIONAL")).toBeVisible();
-    await expect(page.getByText("USD 4.99")).toBeVisible();
+     await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
+     await expect(page.locator(".order-summary dd").last()).toHaveText("USD 4.99");
   });
 });
 
@@ -152,9 +150,8 @@ test.describe("P6C product choice truthfulness", () => {
      await expect(page.getByRole("radio", { name: /Digital Download/i })).toBeVisible();
      await expect(page.getByText("Restored Original", { exact: true })).toHaveCount(0);
      await page.getByRole("radio", { name: /Digital Download/i }).click();
-     await expect(page.getByRole("radio", { name: /Mobile & Social/i })).toBeVisible();
+      await expect(page.getByText("Choose image quality")).toBeVisible();
      await expect(page.locator("input[type=number]")).toHaveCount(0);
-     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
      await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
       await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
       await page.getByRole("radio", { name: /Small Print/i }).click();
@@ -208,7 +205,6 @@ test("P4B11 Pakistan offer page exposes all seven V3 tiers and no stale 250 pric
   await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
      await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
      await page.getByRole("radio", { name: /Digital Download/i }).click();
-     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
     await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
   for (const label of ["2x HD", "4x Ultra HD", "6x", "8x", "10x", "12x"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
   await expect(page.getByText(/PKR 250\.00|PKR 350\.00/)).toHaveCount(0);
@@ -294,7 +290,7 @@ test.describe("P6C mobile usability", () => {
       const order = orderFixture();
       await mockGetOrder(page, ORDER_NO, order);
       await page.goto(`/orders/${ORDER_NO}/review`);
-      await expect(page.getByText(order.orderNo)).toBeVisible();
+       await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
     });
@@ -338,7 +334,6 @@ test.describe("P6C zero external network calls across the full flow", () => {
     await page.getByRole("button", { name: "Continue to Restoration" }).click();
      await page.getByRole("button", { name: "Choose Product & Image Quality" }).click();
      await page.getByRole("radio", { name: /Digital Download/i }).click();
-     await page.getByRole("radio", { name: /Mobile & Social/i }).click();
     await page.getByText("Restored Original", { exact: true }).click();
     await page.getByRole("button", { name: "Continue to Review" }).click();
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));

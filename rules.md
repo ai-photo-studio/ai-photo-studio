@@ -3511,3 +3511,43 @@ changes were needed; the integration was already credential-ready.**
   blocking supported products.
 - Protected scope now includes ThanNow production metadata, customer-facing
   unavailable-product wording, and the supported launch catalog boundaries.
+
+### R9.5-P7S — Commerce UX Upload Performance and Responsive Flow (2026-08-13)
+
+- Upload now presents the uploaded photo preview without the redundant filename,
+  file-type, size, and readiness metadata row. Registered users retain the
+  10-photo batch limit with `Add more photos — X remaining`; guests remain limited
+  to one photo. Remove controls and re-selection behavior remain accessible.
+- Draft creation now encodes and submits selected files concurrently. Local
+  Chromium evidence for the existing 3-image commerce harness reduced the
+  draft-submit phase from sequential behavior to concurrent requests: three
+  local draft uploads completed in approximately 14-20 ms each, while a single
+  upload completed in approximately 629 ms including mock storage. The dominant
+  single-upload cost remains the storage/API request, not preview rendering or
+  metadata extraction; no optional analysis or polling is awaited before routing.
+- Restoration routes now restore the window to the top on pathname/search
+  navigation, fixing forward navigation landing near the footer while preserving
+  browser back state in existing page/session state.
+- Digital Download now proceeds directly from product selection to its own
+  `Choose image quality` page. The customer-facing Mobile & Social/use-case step
+  is removed from Digital; Print + Digital retains required print use-case,
+  multi-print, address, ratio, and quantity validation.
+- Quality cards use compact responsive ecommerce sizing and customer price
+  formatting while retaining server-returned offer amounts and precision.
+  Review surfaces now use customer order-summary language with item quality,
+  subtotal, print, delivery, total, and checkout controls; internal market and
+  PriceBook metadata is not presented as sales copy.
+- Validation passed: lint, API/web typecheck, production build, commerce E2E,
+  focused upload/Digital browser tests `36/36`, and responsive/print tests
+  `17/17` across 360, 390, 430, 768, 1024, 1280, and 1440 widths. Commerce E2E
+  proved 3-image multi-item processing, one cart payment attempt, 3
+  entitlements/masters/executions, multi-print fulfilment, zero real charges,
+  and zero Replicate/RunPod/Bank calls. No production deployment occurred.
+- Protected Protocol remains frozen: APG code was untouched, production APG is
+  disabled, IPN remains fail-closed, GetFreeSeeds and owner directories remain
+  untouched, and ZERO REGRESSION is required before deployment.
+- Fresh readiness: frontend source 100% (deployment still pending), auth 90%,
+  print-commerce 90%, payment-code 90%, APG code 90%, APG sandbox operational
+  45%, production payment 0%, overall 88%. Project complete 88%, remaining 12%:
+  software 7% for deployment/live responsive proof and Bank external 5% for
+  direct hosted-payment enablement plus the verified paid-flow chain.

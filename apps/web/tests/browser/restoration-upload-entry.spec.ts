@@ -92,7 +92,7 @@ test.describe("canonical restoration upload entry", () => {
     const modal = page.getByRole("dialog", { name: "Upload Your Photo" });
     await expect(modal).toBeVisible();
     await page.locator("#photoInput").setInputFiles({ name: "memory.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image") });
-    await expect(page.getByText("Ready for restoration")).toBeVisible();
+    await expect(modal.locator(".upload-main-preview img")).toBeVisible();
     await page.getByRole("button", { name: "Close" }).click();
     await expect(modal).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
@@ -118,7 +118,7 @@ test.describe("canonical restoration upload entry", () => {
     await expect(input).toHaveAttribute("multiple", "");
 
     await input.setInputFiles({ name: "first.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-one") });
-    await expect(page.getByText("first.jpg")).toBeVisible();
+    await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(1);
     const continueButton = page.getByRole("button", { name: "Continue to Restoration" });
     await expect(continueButton).toBeEnabled();
 
@@ -130,8 +130,7 @@ test.describe("canonical restoration upload entry", () => {
     // Selecting a new single image after Remove works exactly like a first
     // selection -- the old file is fully gone, not merged/appended.
     await input.setInputFiles({ name: "second.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-two") });
-    await expect(page.getByText("second.jpg")).toBeVisible();
-    await expect(page.getByText("first.jpg")).toHaveCount(0);
+    await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(1);
     await expect(continueButton).toBeEnabled();
   });
 
@@ -143,9 +142,8 @@ test.describe("canonical restoration upload entry", () => {
       { name: "b.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-b") },
       { name: "c.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-c") }
     ]);
-    await expect(page.getByText("a.jpg")).toBeVisible();
-    await expect(page.getByText("b.jpg")).toBeVisible();
-    await expect(page.getByText("c.jpg")).toBeVisible();
+    await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "Add more photos — 7 remaining" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeEnabled();
   });
 
@@ -154,19 +152,16 @@ test.describe("canonical restoration upload entry", () => {
     await page.goto("/?upload=1");
     const input = page.locator("#photoInput");
     await input.setInputFiles([{ name: "one.jpg", mimeType: "image/jpeg", buffer: Buffer.from("1") }, { name: "two.jpg", mimeType: "image/jpeg", buffer: Buffer.from("2") }]);
-    await expect(page.getByText("one.jpg")).toBeVisible();
+    await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(2);
     await page.getByRole("button", { name: /Add more photos/ }).click();
     await input.setInputFiles({ name: "three.jpg", mimeType: "image/jpeg", buffer: Buffer.from("3") });
-    await expect(page.getByText("one.jpg")).toBeVisible();
-    await expect(page.getByText("two.jpg")).toBeVisible();
-    await expect(page.getByText("three.jpg")).toBeVisible();
+    await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(3);
     await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeEnabled();
 
     // Removing the middle one leaves exactly the other two.
     await page.getByRole("button", { name: "Remove two.jpg" }).click();
     await expect(page.getByText("two.jpg")).toHaveCount(0);
-    await expect(page.getByText("one.jpg")).toBeVisible();
-    await expect(page.getByText("three.jpg")).toBeVisible();
+    await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(2);
   });
 
   test("R9.5-P6I: guest multi-photo selection is blocked with account prompt", async ({ page }) => {
