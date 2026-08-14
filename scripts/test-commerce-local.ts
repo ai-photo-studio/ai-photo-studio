@@ -166,7 +166,7 @@ async function main() {
 
   // ---- 1. Disposable Postgres: fresh initdb, started exactly once. ----
    await runOnce("initdb", pgTool("initdb"), ["-D", dataDir, "-U", "postgres", "-A", "trust", "--locale=C", "-E", "UTF8"], root, process.env, 60_000, false);
-   await runOnce("pg_ctl-start", pgTool("pg_ctl"), ["-D", dataDir, "-l", resolve(scratchRoot, `pg-${runId}.log`), "-o", `-p ${pgPort} -h 127.0.0.1`, "start"], root, process.env, 60_000, false);
+   await runOnce("pg_ctl-start", pgTool("pg_ctl"), ["-D", dataDir, "-l", resolve(scratchRoot, `pg-${runId}.log`), "-o", `-p ${pgPort} -h 127.0.0.1 -k ${dataDir}`, "start"], root, process.env, 60_000, false);
   processStartCounts.postgres = 1;
    await runOnce("createdb", pgTool("createdb"), ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", "e2e_commerce"], root, process.env, 60_000, false);
 
