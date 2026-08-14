@@ -3853,3 +3853,16 @@ remains in force verbatim.
 - Live mock print proof used `1200x800` (3:2), `4x6`, quantity `10`, and reached
   `PAID`, `GRANTED`, `VALIDATED`, `SUCCEEDED`, Download, and
   `IN_HOUSE_PRINT_PENDING`. Provider calls remained zero.
+
+### R9.5-P7ZH — Quality-Tier ZIP Compatibility
+
+- `thannow-quality-tiers-final.zip` was found at the authorized Downloads path,
+  size `3466233` bytes, modified `2026-08-14T19:59:51.6963839+05:00`.
+- Classification: `PARTIAL_COMPATIBILITY`. The seven preview assets, card
+  layout, responsive 4/2/1 structure, badges, selected state, Select controls,
+  and Digital Download Only treatment were adopted. ZIP hardcoded prices and
+  presentation IDs were rejected; current server offers and `ORIGINAL`/`HD_*`
+  IDs remain authoritative.
+- PriceBook values and print rules were not changed. Product -> Quality,
+  Quality -> Product, review navigation, persistence, and multi-image behavior
+  remain unchanged.

@@ -2895,6 +2895,86 @@ img {
   margin: 0;
 }
 
+/* P7ZH locked quality presentation. Offer amounts and tier IDs remain API-owned. */
+.quality-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.quality-tier-card {
+  grid-column: span 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid #dfe7e1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 64, 39, .08);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.quality-tier-card:hover { transform: translateY(-2px); }
+.quality-tier-card.is-selected { border: 2px solid #087448; box-shadow: 0 10px 28px rgba(10, 122, 55, .16); }
+.quality-tier-card[data-tier="HD_8X"] { grid-column: span 3; }
+.quality-tier-card[data-tier="HD_10X"] { grid-column: span 4; }
+.quality-tier-card[data-tier="HD_12X"] { grid-column: span 5; }
+
+.quality-tier-topline {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+}
+
+.quality-tier-radio {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 2px solid #87958d;
+  border-radius: 50%;
+}
+
+.quality-tier-card.is-selected .quality-tier-radio { border-color: #087448; box-shadow: inset 0 0 0 5px white; background: #087448; }
+.quality-tier-badge { overflow: hidden; padding: 5px 10px; border-radius: 999px; background: #5a22bd; color: white; font-size: .7rem; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
+.quality-tier-card[data-tier="ORIGINAL"] .quality-tier-badge { background: #087448; }
+.quality-tier-recommended { margin-left: auto; padding: 5px 7px; border-radius: 7px; background: #087448; color: white; font-size: .62rem; font-weight: 800; white-space: nowrap; }
+.quality-tier-preview { aspect-ratio: 2.12 / 1; overflow: hidden; margin: 0 10px; border-radius: 10px; background: #eef4ef; }
+.quality-tier-card[data-tier="HD_8X"] .quality-tier-preview { aspect-ratio: 2.65 / 1; }
+.quality-tier-card[data-tier="HD_10X"] .quality-tier-preview { aspect-ratio: 2.9 / 1; }
+.quality-tier-card[data-tier="HD_12X"] .quality-tier-preview { aspect-ratio: 3.35 / 1; }
+.quality-tier-preview img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.quality-tier-content { display: flex; flex: 1; flex-direction: column; padding: 10px 14px 14px; text-align: center; }
+.quality-tier-content h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
+.quality-tier-subtitle { margin: 4px 0 0; color: #087448; font-size: .82rem; font-weight: 700; }
+.quality-tier-usage { min-height: 38px; margin: 10px 0 0; color: #385344; font-size: .82rem; line-height: 1.35; }
+.quality-tier-content .quality-price { margin: auto 0 10px; padding-top: 10px; color: #087448; font-size: 1.22rem; }
+.quality-tier-select { min-height: 42px; border: 1.5px solid #087448; border-radius: 8px; background: white; color: #087448; font: inherit; font-weight: 800; cursor: pointer; }
+.quality-tier-card.is-selected .quality-tier-select { background: #087448; color: white; }
+.quality-tier-download { margin-top: 9px; color: #5a22bd; font-size: .75rem; font-weight: 700; }
+
+@media (max-width: 1180px) {
+  .quality-tier-card,
+  .quality-tier-card[data-tier="HD_8X"],
+  .quality-tier-card[data-tier="HD_10X"],
+  .quality-tier-card[data-tier="HD_12X"] { grid-column: span 6; }
+}
+
+@media (max-width: 700px) {
+  .quality-tier-grid { gap: 10px; }
+  .quality-tier-card,
+  .quality-tier-card[data-tier="HD_8X"],
+  .quality-tier-card[data-tier="HD_10X"],
+  .quality-tier-card[data-tier="HD_12X"] { grid-column: span 12; }
+  .quality-tier-card { border-radius: 14px; }
+  .quality-tier-preview { aspect-ratio: 2.3 / 1; }
+  .quality-tier-content { padding: 8px 12px 12px; }
+  .quality-tier-usage { min-height: auto; margin-top: 6px; }
+}
+
 .upload-add-tile {
   display: grid;
   flex: 0 0 76px;

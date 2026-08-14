@@ -13,22 +13,46 @@ import ProductChoiceStage, { type ProductChoiceKey } from "../components/Product
 const TIER_LABELS: Record<string, string> = {
   ORIGINAL: "Restored Original",
   HD_2X: "2x HD",
-  HD_4X: "4x Ultra HD"
+  HD_4X: "4x Ultra HD",
+  HD_6X: "6x Super HD",
+  HD_8X: "8x Extreme HD",
+  HD_10X: "10x Gallery HD",
+  HD_12X: "12x Master HD"
 };
 
 const TIER_DESCRIPTIONS: Record<string, string> = {
   ORIGINAL: "Original resolution -- basic sharing",
   HD_2X: "Sharper detail for sharing and display",
   HD_4X: "Recommended for printing and larger displays",
-  HD_6X: "Large enlargement -- larger prints",
-  HD_8X: "High-resolution wall/display enlargement",
-  HD_10X: "Extra-large enlargement",
-  HD_12X: "Maximum enlargement tier"
+  HD_6X: "Great for table frames and medium prints",
+  HD_8X: "Excellent for large prints and wall frames",
+  HD_10X: "Best for canvas and premium wall art",
+  HD_12X: "For the biggest print sizes and premium output"
+};
+
+const TIER_IMAGES: Record<string, string> = {
+  ORIGINAL: "/assets/original.png",
+  HD_2X: "/assets/2x-hd.png",
+  HD_4X: "/assets/4x-ultra-hd.png",
+  HD_6X: "/assets/6x-super-hd.png",
+  HD_8X: "/assets/8x-extreme-hd.png",
+  HD_10X: "/assets/10x-gallery-hd.png",
+  HD_12X: "/assets/12x-master-hd.png"
 };
 
 const TIER_BADGES: Record<string, string> = {
   HD_2X: "MOST POPULAR",
   HD_4X: "BEST FOR PRINTING"
+};
+
+const TIER_BADGE_LABELS: Record<string, string> = {
+  ORIGINAL: "ORIGINAL QUALITY",
+  HD_2X: "2x HD",
+  HD_4X: "4x ULTRA HD",
+  HD_6X: "6x SUPER HD",
+  HD_8X: "8x EXTREME HD",
+  HD_10X: "10x GALLERY HD",
+  HD_12X: "12x MASTER HD"
 };
 
 type SavedTierState = {
@@ -203,23 +227,33 @@ export function DigitalTierSelectPage() {
 
       {offers && (
         <>
-          <div role="radiogroup" aria-label="Image quality" className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-            {offers.map((offer) => (
-              <article
+           <div role="radiogroup" aria-label="Image quality" className="quality-tier-grid">
+             {offers.map((offer) => (
+               <article
                 key={offer.tier}
                 role="radio"
                 aria-checked={selected === offer.tier}
                 tabIndex={0}
-                className={`card ${selected === offer.tier ? "card-selected" : ""}`}
-                style={{ border: selected === offer.tier ? "2px solid var(--accent)" : undefined, cursor: "pointer" }}
-                onClick={() => setSelected(offer.tier)}
-                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected(offer.tier); } }}
-              >
-                 <h3>{TIER_LABELS[offer.tier] ?? offer.label}</h3>
-                 <p className="helper-text">{TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
-                 {TIER_BADGES[offer.tier] && <span className="status-pill">{TIER_BADGES[offer.tier]}</span>}
-                 <strong className="quality-price">{offer.currency} {(offer.amountMinor / 100).toLocaleString(undefined, { minimumFractionDigits: offer.currency === "PKR" ? 0 : 2, maximumFractionDigits: 2 })}</strong>
-              </article>
+                 className={`quality-tier-card${selected === offer.tier ? " is-selected" : ""}`}
+                 data-tier={offer.tier}
+                 onClick={() => setSelected(offer.tier)}
+                 onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected(offer.tier); } }}
+               >
+                 <div className="quality-tier-topline">
+                   <span className="quality-tier-radio" aria-hidden="true" />
+                   <span className="quality-tier-badge">{TIER_BADGE_LABELS[offer.tier] ?? offer.label}</span>
+                   {TIER_BADGES[offer.tier] && <span className="quality-tier-recommended">{TIER_BADGES[offer.tier]}</span>}
+                 </div>
+                 <div className="quality-tier-preview"><img src={TIER_IMAGES[offer.tier]} alt={`${TIER_LABELS[offer.tier] ?? offer.label} preview`} loading="lazy" /></div>
+                 <div className="quality-tier-content">
+                   <h3>{TIER_LABELS[offer.tier] ?? offer.label}</h3>
+                   <p className="quality-tier-subtitle">{TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
+                   <p className="quality-tier-usage">{offer.tier === "ORIGINAL" ? "Best for mobile sharing" : TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
+                   <strong className="quality-price">{offer.currency} {(offer.amountMinor / 100).toLocaleString(undefined, { minimumFractionDigits: offer.currency === "PKR" ? 0 : 2, maximumFractionDigits: 2 })}</strong>
+                   <button type="button" className="quality-tier-select" onClick={(event) => { event.stopPropagation(); setSelected(offer.tier); }}>{selected === offer.tier ? "Selected" : "Select"}</button>
+                   <span className="quality-tier-download">↓ Digital Download Only</span>
+                 </div>
+               </article>
             ))}
           </div>
 

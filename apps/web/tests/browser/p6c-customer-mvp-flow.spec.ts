@@ -203,7 +203,9 @@ test("P4B11 Pakistan offer page exposes all seven V3 tiers and no stale 250 pric
      await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
      await page.getByRole("radio", { name: /Digital Download/i }).click();
     await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
-  for (const label of ["2x HD", "4x Ultra HD", "6x", "8x", "10x", "12x"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ["2x HD", "4x Ultra HD", "6x Super HD", "8x Extreme HD", "10x Gallery HD", "12x Master HD"]) {
+    await expect(page.getByRole("radio", { name: new RegExp(label, "i") })).toBeVisible();
+  }
   await expect(page.getByText(/PKR 250\.00|PKR 350\.00/)).toHaveCount(0);
   await expect(page.getByText("PB-2026-08-09-TRIAL-V3")).toHaveCount(0);
 });
