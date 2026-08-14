@@ -3769,3 +3769,25 @@ remains in force verbatim.
 - This repair preserves compact journey footer behavior, supplied assets,
   `PRELAUNCH_MOCK_MODE=true`, APG freeze, protected protocol scope, and zero
   Bank/Replicate/RunPod calls.
+
+### R9.5-P7ZD — Final Live UX Forensic Freeze
+
+- Final live Chromium/DevTools-compatible geometry audit was run against
+  `https://www.thannow.com` at 320, 360, 390, 430, 679, 768, 1024, and 1440px.
+  All measured widths had horizontal overflow `0`, console errors `0`, and
+  failed requests `0`.
+- At 390x844, measured upload modal height was `398px` empty and `522px` with
+  one uploaded image; the uploaded preview was `314x180px`, duplicate single
+  image history count `0`, and Continue was `314x44px`. Preview document height
+  was `1036px` (`1.23x` viewport), Product `1416px` (`1.68x`), Quality `1367px`
+  (`1.62x`), Review `1674px` (`1.98x`), and Processing/Result `1648px` (`1.95x`).
+  Sticky primary actions remained visible; no proven clipping or obstructed
+  action required another source repair.
+- Finalized Protected Protocol UX includes the mobile journey shell, compact
+  Upload/Preview/Product/Quality/Review/Result rules, stage navigation,
+  responsive breakpoints, compact footer, supplied asset containment, and the
+  single-primary-action hierarchy. Future agents must not broadly redesign these
+  areas without owner instruction.
+- Final prelaunch state remains `PRELAUNCH_MOCK_MODE=true` and
+  `BANK_ALFALAH_APG_ENABLED=false`; APG is frozen and no Bank, Replicate, or
+  RunPod request is authorized.
