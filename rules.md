@@ -3842,3 +3842,14 @@ remains in force verbatim.
   `public.PrintOrderLine`. No live print order or provider request occurred.
   Production migration requires the owner-approved workflow; no local shell
   mutation or migration inference is permitted.
+
+### R9.5-P7ZG — Production Print Schema Evidence
+
+- Migration `20260811000000_r95_p6f_print_order_lines` was classified
+  `ADDITIVE_SAFE`: one new table, nullable print-entitlement linkage, indexes,
+  and foreign keys only; no destructive SQL was present.
+- Canonical workflow run `31811221123` applied P6F against the verified
+  `northflank_runtime_environment`; read-only run `31811333354` returned clean.
+- Live mock print proof used `1200x800` (3:2), `4x6`, quantity `10`, and reached
+  `PAID`, `GRANTED`, `VALIDATED`, `SUCCEEDED`, Download, and
+  `IN_HOUSE_PRINT_PENDING`. Provider calls remained zero.
