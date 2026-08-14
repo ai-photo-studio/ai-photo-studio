@@ -61,9 +61,9 @@ jobs:
           # R9.5-P5R: the two R9.5-P4B/P4B4 migrations this allowlist used to
           # name are already applied to production (confirmed by the P5J
           # packet's clean status run) and are no longer pending anywhere.
-          # The sole currently-pending migration for this release is P5P's
-          # item-level restoration entitlement migration.
-          expected_one='20260810000000_r95_p5p_item_level_restoration_entitlement'
+          # The sole currently-pending migration for this release is P6F's
+          # additive print-order-line migration.
+          expected_one='20260811000000_r95_p6f_print_order_lines'
 
           diagnose_url() {
             CHECK_URL="$1" node -e 'const dns=require("node:dns"); const net=require("node:net"); const value=process.env.CHECK_URL||""; let parsed; try { parsed=new URL(value) } catch { parsed=null } const valid=!!parsed; console.log(`schemeValid=${valid&&(parsed.protocol==="postgres:"||parsed.protocol==="postgresql:")}`); console.log(`hostnamePresent=${!!(parsed&&parsed.hostname)}`); console.log(`databaseNamePresent=${!!(parsed&&parsed.pathname&&parsed.pathname.length>1)}`); console.log(`passwordPresent=${!!(parsed&&parsed.password)}`); console.log(`sslConfigured=${!!(parsed&&((parsed.searchParams.get("sslmode")||"")!=="disable"||parsed.searchParams.has("ssl")))}`); console.log(`urlParseValid=${valid}`); if(!valid||!parsed.hostname){console.log("dnsResolvable=NO"); console.log("tcpReachable=NO"); process.exit(0)} dns.lookup(parsed.hostname,{all:false},(dnsError)=>{ console.log(`dnsResolvable=${dnsError?"NO":"YES"}`); if(dnsError){console.log("tcpReachable=NO"); return} const socket=net.createConnection({host:parsed.hostname,port:Number(parsed.port||5432)}); let done=false; const finish=(ok)=>{if(done)return;done=true;socket.destroy();console.log(`tcpReachable=${ok?"YES":"NO"}`)}; socket.setTimeout(5000); socket.once("connect",()=>finish(true)); socket.once("timeout",()=>finish(false)); socket.once("error",()=>finish(false)); });' 2>/dev/null
