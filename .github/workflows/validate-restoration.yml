@@ -26,5 +26,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Configure PostgreSQL tool path
         run: echo "PG_BIN=$(pg_config --bindir)" >> "$GITHUB_ENV"
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema apps/api/prisma/schema.prisma
       - name: Run protected local commerce E2E
         run: npm run test:e2e:commerce-local
