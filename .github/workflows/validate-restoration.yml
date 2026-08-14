@@ -24,5 +24,7 @@ jobs:
         run: npm ci
       - name: Install PostgreSQL client tools
         run: sudo apt-get update && sudo apt-get install -y postgresql
+      - name: Configure PostgreSQL tool path
+        run: echo "PG_BIN=$(pg_config --bindir)" >> "$GITHUB_ENV"
       - name: Run protected local commerce E2E
         run: npm run test:e2e:commerce-local
