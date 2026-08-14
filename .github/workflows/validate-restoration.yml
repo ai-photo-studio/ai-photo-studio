@@ -7,102 +7,20 @@ on:
 
 jobs:
   e2e:
-    name: E2E M1.jpg Test
+    name: E2E protected mock commerce
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6399:6379
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install pinned fixture dependency
-        run: python3 -m pip install --disable-pip-version-check --no-cache-dir "Pillow==10.4.0"
-
-      - name: Create M1.jpg test image
-        run: |
-          python3 -c "
-          from PIL import Image
-          import io
-          img = Image.new('RGB', (1080, 720), color=(160, 140, 120))
-          arr = bytearray(img.tobytes())
-          # Add some JPEG-like artifacts
-          for i in range(0, len(arr), 3):
-              arr[i] = min(255, max(0, arr[i] + (-1 if i%2==0 else 1)))
-          img = Image.frombuffer('RGB', (1080, 720), bytes(arr))
-          import base64
-          buf = io.BytesIO()
-          img.save(buf, format='JPEG', quality=80)
-          with open('/tmp/m1.jpg', 'wb') as f:
-              f.write(buf.getvalue())
-          with open('/tmp/m1.b64', 'w') as f:
-              f.write(base64.b64encode(buf.getvalue()).decode())
-          print(f'M1.jpg: {len(buf.getvalue())} bytes')
-          "
-
-      - name: Run E2E Pipeline
-        id: e2e
-        run: |
-          API="https://api.thannow.com"
-          B64=$(cat /tmp/m1.b64)
-
-          # Register test user
-          REG=$(curl -s -X POST "$API/api/auth/register" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"e2e-github-test@test.com","password":"E2ETest123!","name":"E2E Test"}')
-          TOKEN=$(echo "$REG" | jq -r '.data.token // empty')
-
-          if [ -z "$TOKEN" ]; then
-            # Login if already exists
-            LOGIN=$(curl -s -X POST "$API/api/auth/login" \
-              -H "Content-Type: application/json" \
-              -d '{"email":"e2e-github-test@test.com","password":"E2ETest123!"}')
-            TOKEN=$(echo "$LOGIN" | jq -r '.data.token // empty')
-          fi
-
-          if [ -z "$TOKEN" ]; then
-            echo "FAILED: Cannot authenticate"
-            exit 1
-          fi
-          echo "TOKEN=$TOKEN"
-
-          # Create order
-          ORDER=$(curl -s -X POST "$API/api/restorations" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $TOKEN" \
-            -d '{}')
-          ORDER_ID=$(echo "$ORDER" | jq -r '.data.id')
-          echo "ORDER=$ORDER_ID"
-
-          # Upload image
-          UPLOAD=$(curl -s -X POST "$API/api/restorations/$ORDER_ID/items" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $TOKEN" \
-            -d "{\"fileName\":\"M1.jpg\",\"contentType\":\"image/jpeg\",\"bodyBase64\":\"${B64}\"}")
-          ITEM_ID=$(echo "$UPLOAD" | jq -r '.data.item.id // .data.id // empty')
-          echo "ITEM=$ITEM_ID"
-
-          # Trigger process
-          curl -s -X POST "$API/api/restorations/$ORDER_ID/items/$ITEM_ID/process" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $TOKEN" \
-            -d '{}' > /dev/null
-
-          # Poll for completion (up to 180s)
-          for i in $(seq 1 36); do
-            sleep 5
-            RESULT=$(curl -s "$API/api/restorations/$ORDER_ID" \
-              -H "Authorization: Bearer $TOKEN")
-            STATUS=$(echo "$RESULT" | jq -r '.data.items[0].status')
-            KEY=$(echo "$RESULT" | jq -r '.data.items[0].finalStorageKey // "null"')
-            ERROR=$(echo "$RESULT" | jq -r '.data.items[0].errorMessage // ""')
-            PROVIDER=$(echo "$RESULT" | jq -r '.data.items[0].providerUsed // "null"')
-            echo "[$((i*5))s] STATUS=$STATUS KEY=$KEY PROVIDER=$PROVIDER"
-            if [ "$STATUS" = "COMPLETED" ]; then
-              echo "E2E PASSED: STATUS=$STATUS PROVIDER=$PROVIDER KEY=$KEY"
-              exit 0
-            fi
-            if [ "$STATUS" = "FAILED" ]; then
-              echo "E2E FAILED: $ERROR"
-              echo "$RESULT" | jq '.'
-              exit 1
-            fi
-          done
-          echo "E2E FAILED: timed out"
-          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run protected local commerce E2E
+        run: npm run test:e2e:commerce-local

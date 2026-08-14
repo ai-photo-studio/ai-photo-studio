@@ -30,8 +30,9 @@ const root = resolve(process.cwd());
 const apiDir = resolve(root, "apps/api");
 const webDir = resolve(root, "apps/web");
 const scratchRoot = resolve(root, "..", "kilo", "r95-p4b7b-local-e2e");
-const pgBin = process.env.PG_BIN || "C:\\Program Files\\PostgreSQL\\17\\bin";
 const isWin = process.platform === "win32";
+const pgBin = process.env.PG_BIN || (isWin ? "C:\\Program Files\\PostgreSQL\\17\\bin" : "");
+const pgTool = (name: string): string => isWin ? resolve(pgBin, `${name}.exe`) : name;
 const npx = isWin ? "npx.cmd" : "npx";
 const node = process.execPath;
 const tsxCli = resolve(root, "node_modules", "tsx", "dist", "cli.mjs");
@@ -164,10 +165,10 @@ async function main() {
   const webPort = await freePort(4220);
 
   // ---- 1. Disposable Postgres: fresh initdb, started exactly once. ----
-  await runOnce("initdb", `${pgBin}\\initdb.exe`, ["-D", dataDir, "-U", "postgres", "-A", "trust", "--locale=C", "-E", "UTF8"], root, process.env, 60_000, false);
-  await runOnce("pg_ctl-start", `${pgBin}\\pg_ctl.exe`, ["-D", dataDir, "-l", resolve(scratchRoot, `pg-${runId}.log`), "-o", `-p ${pgPort} -h 127.0.0.1`, "start"], root, process.env, 60_000, false);
+   await runOnce("initdb", pgTool("initdb"), ["-D", dataDir, "-U", "postgres", "-A", "trust", "--locale=C", "-E", "UTF8"], root, process.env, 60_000, false);
+   await runOnce("pg_ctl-start", pgTool("pg_ctl"), ["-D", dataDir, "-l", resolve(scratchRoot, `pg-${runId}.log`), "-o", `-p ${pgPort} -h 127.0.0.1`, "start"], root, process.env, 60_000, false);
   processStartCounts.postgres = 1;
-  await runOnce("createdb", `${pgBin}\\createdb.exe`, ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", "e2e_commerce"], root, process.env, 60_000, false);
+   await runOnce("createdb", pgTool("createdb"), ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", "e2e_commerce"], root, process.env, 60_000, false);
 
   const databaseUrl = `postgresql://postgres@127.0.0.1:${pgPort}/e2e_commerce`;
 
