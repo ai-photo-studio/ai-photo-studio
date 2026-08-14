@@ -134,7 +134,7 @@ export function DigitalTierSelectPage() {
 
   useEffect(() => {
     const stage = searchParams.get("stage");
-    if (stage) setShowQuality(stage === "quality");
+    setShowQuality(stage === "quality");
   }, [searchParams]);
 
   // Switching back to Digital-only clears print-only selection state so a

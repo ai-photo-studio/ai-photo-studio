@@ -153,9 +153,8 @@ test.describe("P6C product choice truthfulness", () => {
       await expect(page.getByText("Choose image quality")).toBeVisible();
      await expect(page.locator("input[type=number]")).toHaveCount(0);
      await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
-      await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
-      await page.getByRole("radio", { name: /Small Print/i }).click();
-      await expect(page.getByRole("radio", { name: /Canvas/i })).toHaveCount(0);
+       await page.getByRole("button", { name: /Back to Product/i }).click();
+       await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
       await expect(page.locator("select")).toBeVisible();
      await expect(page.locator("input[type=number]")).toHaveAttribute("max", "10");
     await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
@@ -170,7 +169,6 @@ test.describe("P6C product choice truthfulness", () => {
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
-    await page.getByRole("radio", { name: /Small Print/i }).click();
     await page.getByLabel("Recipient name").fill("Launch Test");
     await page.getByLabel("Phone").fill("03001234567");
     await page.getByLabel("Address").fill("1 Test Street");
@@ -189,7 +187,6 @@ test.describe("P6C product choice truthfulness", () => {
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
-    await page.getByRole("radio", { name: /Small Print/i }).click();
     await page.getByLabel("Recipient name").fill("Launch Test");
     await page.getByLabel("Phone").fill("03001234567");
     await page.getByLabel("Address").fill("1 Test Street");
@@ -302,7 +299,7 @@ test.describe("P6C mobile usability", () => {
       const draft = draftFixture();
       await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
       await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
-      await expect(page.getByRole("button", { name: "Continue to Review" })).toBeVisible();
+       await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       void draft;

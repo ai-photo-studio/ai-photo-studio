@@ -3824,3 +3824,21 @@ remains in force verbatim.
   from CSS. Required widths remain 320, 360, 390, 430, 679, 768, 1024, and
   1440px. Keep `PRELAUNCH_MOCK_MODE=true`, APG disabled/frozen, and Bank,
   Replicate, and RunPod request counts at zero.
+
+### R9.5-P7ZF — CI and Print-Mock Validation Evidence
+
+- `validate-restoration.yml` now installs pinned `Pillow==10.4.0` before its
+  deterministic `M1.jpg` fixture generator. The prior CI failure was exactly
+  `ModuleNotFoundError: No module named 'PIL'`; application tests were never
+  reached. Pillow is workflow-local, not a production runtime dependency.
+- Legacy P6C browser expectations now follow Product -> Quality/Print. Removed
+  use-case radio controls are not restored to production UI.
+- The protected local commerce harness generates a deterministic `1200x800`
+  PNG at `3:2`, matching the supported `4x6` print ratio. Local Digital, Print
+  + Digital, multi-image, and multi-print mock flows pass with
+  `IN_HOUSE_PRINT_PENDING` and zero real provider calls.
+- Live print validation accepted the catalog-compatible `4x6`, quantity `10`,
+  and `1200x800` fixture, then failed closed because the managed database lacks
+  `public.PrintOrderLine`. No live print order or provider request occurred.
+  Production migration requires the owner-approved workflow; no local shell
+  mutation or migration inference is permitted.

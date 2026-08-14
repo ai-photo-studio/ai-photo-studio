@@ -12,6 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pinned fixture dependency
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir "Pillow==10.4.0"
+
       - name: Create M1.jpg test image
         run: |
           python3 -c "
