@@ -22,5 +22,7 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Run protected local commerce E2E
         run: npm run test:e2e:commerce-local
