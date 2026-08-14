@@ -32,7 +32,7 @@ const webDir = resolve(root, "apps/web");
 const scratchRoot = resolve(root, "..", "kilo", "r95-p4b7b-local-e2e");
 const isWin = process.platform === "win32";
 const pgBin = process.env.PG_BIN || (isWin ? "C:\\Program Files\\PostgreSQL\\17\\bin" : "");
-const pgTool = (name: string): string => isWin ? resolve(pgBin, `${name}.exe`) : name;
+const pgTool = (name: string): string => pgBin ? resolve(pgBin, isWin ? `${name}.exe` : name) : name;
 const npx = isWin ? "npx.cmd" : "npx";
 const node = process.execPath;
 const tsxCli = resolve(root, "node_modules", "tsx", "dist", "cli.mjs");
