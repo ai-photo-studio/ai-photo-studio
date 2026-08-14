@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { RestorationUploadController, useRestorationUpload } from "./RestorationUploadController";
 import { BrandLogo } from "./BrandLogo";
 
@@ -29,6 +29,7 @@ export function PublicLayout() {
 function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
   const { openRestorationUpload } = useRestorationUpload();
   const location = useLocation();
+  const navigate = useNavigate();
   const journey = /^\/restore-mvp\//.test(location.pathname) || /^\/restore-cart\//.test(location.pathname) || /^\/orders\//.test(location.pathname) || /processing|result|status/.test(location.pathname);
   return (
     <div className={`site-shell${journey ? " journey-shell" : ""}`}>
@@ -43,9 +44,12 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
           <NavLink to="/restore" className="nav-link">Restorations</NavLink>
         </nav>
 
-        <div className="header-actions">
-          <Link to="/login" className="btn btn-ghost">Login</Link>
-          <Link to="/register" className="btn btn-ghost">Sign Up</Link>
+        <div className={`header-actions${journey ? " journey-header-actions" : ""}`}>
+          {!journey && <>
+            <Link to="/login" className="btn btn-ghost">Login</Link>
+            <Link to="/register" className="btn btn-ghost">Sign Up</Link>
+          </>}
+          {journey && <button type="button" className="btn btn-ghost journey-back" onClick={() => navigate(-1)}>Back</button>}
           <button type="button" className="btn btn-primary upload-trigger" onClick={openRestorationUpload}>Get Started</button>
         </div>
         <nav className="mobile-nav" aria-label="Mobile navigation">

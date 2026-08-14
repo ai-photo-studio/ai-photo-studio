@@ -2772,6 +2772,400 @@ img {
   }
 }
 
+/* R9.5-P7ZE: shared premium mobile journey system. Marketing pages retain
+   their existing shell; these tokens apply only to customer restoration flow. */
+.journey-shell {
+  --journey-pad: clamp(12px, 4vw, 24px);
+  --journey-gap: 16px;
+  --journey-radius: 14px;
+  --journey-primary-height: 48px;
+}
+
+.journey-shell .site-main {
+  width: min(100% - (var(--journey-pad) * 2), 1180px);
+}
+
+.journey-shell .site-header {
+  min-height: 60px;
+}
+
+.journey-shell .page-stack {
+  padding-block: 20px 84px;
+}
+
+.journey-shell .section-heading {
+  margin-bottom: var(--journey-gap);
+}
+
+.journey-shell .section-heading h1 {
+  font-size: clamp(1.8rem, 7vw, 2.35rem);
+  line-height: 1.08;
+}
+
+.journey-shell .section-heading > p:last-child {
+  margin-top: 8px;
+  max-width: 50rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.journey-order-number {
+  color: var(--muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.journey-shell .card,
+.journey-shell .state-panel {
+  border-radius: var(--journey-radius);
+}
+
+.journey-shell .button {
+  min-height: 44px;
+  border-radius: 10px;
+  padding-inline: 15px;
+  font-size: 0.92rem;
+}
+
+.journey-shell .journey-actions {
+  position: sticky;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  margin: 16px -4px 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--journey-radius);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(16, 32, 21, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.journey-shell .journey-actions .button:first-child {
+  flex: 1 1 auto;
+  min-height: var(--journey-primary-height);
+}
+
+.journey-shell .journey-utility {
+  min-height: 36px;
+  padding: 6px 9px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.journey-shell .checkout-notice {
+  padding: 12px 14px;
+  font-size: 0.86rem;
+}
+
+.journey-shell .test-payment-panel {
+  padding: 12px 14px;
+  border-width: 1px !important;
+  border-style: solid !important;
+  background: #f7fbf8;
+}
+
+.journey-shell .test-payment-panel .button-row {
+  margin-top: 8px;
+}
+
+.journey-shell .review-item {
+  gap: 12px;
+  padding: 14px;
+}
+
+.journey-shell .order-summary-card {
+  padding: 14px;
+}
+
+.journey-shell .journey-footer-group summary {
+  padding: 4px 0;
+}
+
+.journey-shell .journey-footer-group > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.journey-shell .journey-footer-group a {
+  margin: 0;
+}
+
+.upload-add-tile {
+  display: grid;
+  flex: 0 0 76px;
+  min-width: 76px;
+  min-height: 76px;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  border: 1px dashed #b898d8;
+  border-radius: 12px;
+  background: #fbf7ff;
+  color: var(--thannow-purple, #5b1aa8);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.upload-add-tile span {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.upload-add-tile-single {
+  width: 100%;
+  min-height: 42px;
+  margin: 8px 0 2px;
+  display: flex;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.upload-remaining {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.upload-photo-list-single {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.upload-add-more {
+  width: auto;
+  min-height: 38px;
+  margin: 8px 0 0;
+  padding: 7px 11px;
+  font-size: 0.78rem;
+}
+
+.upload-add-more + .upload-remaining {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .journey-shell .site-header {
+    min-height: 56px;
+  }
+
+  .journey-shell .journey-header-actions .btn-primary {
+    display: none;
+  }
+
+  .journey-shell .journey-header-actions .journey-back {
+    display: inline-flex;
+    min-height: 38px;
+    padding: 7px 11px;
+    font-size: 0.82rem;
+  }
+
+  .journey-shell .site-main {
+    width: calc(100% - 24px);
+  }
+
+  .journey-shell .page-stack {
+    padding-block: 16px 82px;
+  }
+
+  .journey-shell .journey-actions {
+    margin-inline: -4px;
+  }
+
+  .journey-shell .journey-actions .journey-utility {
+    display: none;
+  }
+
+  .journey-shell .journey-actions .button-ghost {
+    min-height: 40px;
+    padding-inline: 10px;
+    font-size: 0.8rem;
+  }
+
+  .upload-modal .modal-panel {
+    width: min(100% - 16px, 520px);
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .upload-modal .modal-panel h2 {
+    margin: 6px 0 4px;
+    font-size: 29px;
+  }
+
+  .upload-modal .drop-zone {
+    min-height: 142px;
+  }
+
+  .upload-modal .upload-main-preview {
+    min-height: 146px;
+    max-height: 190px;
+  }
+
+  .upload-modal .upload-main-preview img {
+    max-height: 190px;
+  }
+
+  .upload-modal .upload-photo-list {
+    display: flex;
+    gap: 8px;
+    max-height: none;
+    margin: 8px 0 0;
+    overflow-x: auto;
+  }
+
+  .upload-modal .selected-preview {
+    position: relative;
+    flex: 0 0 76px;
+    padding: 0;
+    border: 0;
+  }
+
+  .upload-modal .selected-preview .upload-thumbnail-button {
+    width: 76px;
+    height: 76px;
+    min-height: 76px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+  }
+
+  .upload-modal .selected-preview-active .upload-thumbnail-button {
+    border-color: var(--thannow-purple, #5b1aa8);
+  }
+
+  .upload-modal .selected-preview .upload-remove-button {
+    position: absolute;
+    min-width: 24px;
+    min-height: 24px;
+    margin: -84px 0 0 54px;
+    padding: 0;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: #18131d;
+    color: white;
+    font-size: 16px;
+    line-height: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .tn-product-page {
+    padding: 16px 12px 82px;
+    background: #f7fbf8;
+  }
+
+  .tn-product-hero {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .tn-product-hero__copy p {
+    max-width: 34rem;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+
+  .tn-product-hero h1 {
+    font-size: clamp(30px, 8vw, 38px);
+  }
+
+  .tn-product-hero__gallery img {
+    max-height: 72px;
+  }
+
+  .tn-product-options {
+    gap: 10px;
+  }
+
+  .tn-product-card {
+    padding: 13px 12px 12px;
+    border-radius: 14px;
+    box-shadow: 0 5px 16px rgba(39, 64, 50, .06);
+  }
+
+  .tn-product-card__top {
+    min-height: 42px;
+  }
+
+  .tn-product-card__round-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tn-product-card__title {
+    font-size: 17px;
+  }
+
+  .tn-product-card__body,
+  .tn-product-card__body--digital,
+  .tn-product-card__body--print {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px;
+    align-items: center;
+    min-height: 96px;
+    margin-top: 8px;
+  }
+
+  .tn-product-card__copy {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .tn-product-card__art {
+    max-height: 92px;
+  }
+
+  .tn-product-features--green,
+  .tn-product-features--purple {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .tn-product-feature {
+    min-height: 28px;
+    font-size: 9px;
+  }
+
+  .tn-product-feature__icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tn-product-actions {
+    position: fixed;
+    right: 12px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 12px;
+    z-index: 5;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 8px 24px rgba(16,32,21,.12);
+    backdrop-filter: blur(12px);
+  }
+
+  .tn-product-continue {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 10px;
+  }
+}
+
 /* R9.5-P7ZB: native-style compaction for customer journey routes only. */
 .journey-shell .site-main { min-width: 0; }
 .journey-shell .page-stack { padding-block: 24px; }

@@ -3791,3 +3791,36 @@ remains in force verbatim.
 - Final prelaunch state remains `PRELAUNCH_MOCK_MODE=true` and
   `BANK_ALFALAH_APG_ENABLED=false`; APG is frozen and no Bank, Replicate, or
   RunPod request is authorized.
+
+### R9.5-P7ZE — Premium Mobile Commerce Journey Baseline
+
+- This packet supersedes the prior mobile presentation freeze where it conflicts
+  with the premium mobile repair. Desktop marketing pages remain substantially
+  unchanged.
+- Restoration journey routes use shared responsive tokens for page padding,
+  spacing, card geometry, typography, controls, sticky actions, and safe-area
+  spacing. Each state has one primary action; refresh/status checks are compact
+  utilities.
+- Upload is a ThanNow-owned attachment composer: the empty dropzone becomes a
+  primary preview after selection, single-image state has no visible duplicate
+  history tile, and multi-image state uses a horizontal thumbnail tray with
+  selected/remove controls, compact Add, remaining count, and Continue.
+- Native Android/iOS camera, gallery, and Done screens are operating-system or
+  browser UI and are outside website styling scope. The file input remains the
+  supported fallback; no OS-screen CSS workaround is permitted.
+- Mobile journey headers use a compact app-bar/back affordance and do not present
+  marketing `Get Started` as a competing mobile journey action. Preview,
+  Product, Quality, Review, Processing, and Result keep photo-first hierarchy,
+  compact content, persistent primary actions, and no full marketing footer
+  chrome between steps.
+- Review is a compact commerce summary with item, subtotal, delivery, total,
+  terms, and a clearly labeled pre-launch no-charge notice. Processing and
+  Result expose the photo state and Download in the first useful viewport.
+- Business logic, server pricing, guest/registered image limits, multi-image
+  and multi-print behavior, one PaymentAttempt/order, entitlements, masters,
+  executions, unpaid-zero-execution, mock `PAID`, print pending, and navigation
+  invariants remain protected.
+- Verification must record real viewport geometry and overflow, not infer it
+  from CSS. Required widths remain 320, 360, 390, 430, 679, 768, 1024, and
+  1440px. Keep `PRELAUNCH_MOCK_MODE=true`, APG disabled/frozen, and Bank,
+  Replicate, and RunPod request counts at zero.

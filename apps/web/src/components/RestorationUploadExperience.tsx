@@ -134,17 +134,17 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
   };
 
   return (
-    <div className="upload-modal open" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
+    <div className="upload-modal open" role="dialog" aria-modal="true" aria-label="Upload Your Photo">
       <div className="modal-backdrop" onClick={onClose} />
       <section className="modal-panel">
         <button ref={closeButtonRef} className="modal-close" type="button" aria-label="Close" onClick={onClose}>x</button>
         <span className="eyebrow">START RESTORATION</span>
-        <h2 id="uploadTitle">Upload Your Photo</h2>
-        <p>{token ? `Upload up to ${MAX_IMAGES} photos in this batch.` : "Upload one photo as a guest, or create a free account for multiple photos."}</p>
+        <h2 id="uploadTitle">Upload photos</h2>
+        <p>{token ? `Up to ${MAX_IMAGES} photos · JPG, PNG or WEBP · 10 MB each` : "Add one photo to start. Create a free account for multiple photos."}</p>
         <label className={`drop-zone${files.length ? " upload-dropzone-compact" : ""}`} htmlFor="photoInput">
           <span className="drop-icon">+</span>
-          <strong>{files.length ? "Add another photo" : "Choose or drop your photo"}</strong>
-          <small>JPG, PNG or WEBP -- up to 10 MB each</small>
+          <strong>{files.length ? "Add another photo" : "Add photos"}</strong>
+          <small>{files.length ? "Camera or gallery" : "Camera or gallery · JPG, PNG or WEBP"}</small>
           <input
             ref={fileInputRef}
             id="photoInput"
@@ -159,18 +159,20 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
             <div className="upload-main-preview">
               <img src={previewUrls[activeIndex]} alt="Uploaded photo preview" />
               <span className="upload-ready-badge">Ready</span>
-              <button type="button" className="upload-main-remove" aria-label={`Remove ${files[activeIndex]?.name || "uploaded photo"}`} onClick={() => removeFileAt(activeIndex)}>Remove</button>
+              {files.length === 1 && <button type="button" className="upload-main-remove" aria-label={`Remove ${files[activeIndex]?.name || "uploaded photo"}`} onClick={() => removeFileAt(activeIndex)}>Remove</button>}
             </div>
-            {files.length > 1 && <div className="selected-files-list upload-photo-list" aria-label="Uploaded photos">
+            {files.length > 0 && <div className={`selected-files-list upload-photo-list${files.length === 1 ? " upload-photo-list-single" : ""}`} aria-label="Uploaded photos">
               {files.map((file, index) => (
                 <div className={`selected-preview${activeIndex === index ? " selected-preview-active" : ""}`} key={`${file.name}-${index}`}>
                   <button type="button" className="upload-thumbnail-button" onClick={() => setActiveIndex(index)} aria-label={`View ${file.name}`}>
                     <img src={previewUrls[index]} alt="Uploaded photo preview" />
                   </button>
-                  <button type="button" className="button button-ghost upload-remove-button" aria-label={`Remove ${file.name}`} onClick={() => removeFileAt(index)}>Remove</button>
+                  {files.length > 1 && <button type="button" className="upload-remove-button" aria-label={`Remove ${file.name}`} onClick={() => removeFileAt(index)}>×</button>}
                 </div>
               ))}
+              {token && files.length < MAX_IMAGES && <button type="button" className="upload-add-tile" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+</button>}
             </div>}
+            {token && files.length === 1 && <button type="button" className="upload-add-tile upload-add-tile-single" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+ <span>Add</span></button>}
           </div>
         )}
         {!token && files.length === 1 && (
@@ -179,11 +181,12 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
             <div className="button-row"><button type="button" className="button button-secondary" onClick={() => navigate("/login", { state: { from: "/?upload=1" } })}>Log in</button><button type="button" className="button" onClick={() => navigate("/signup", { state: { from: "/?upload=1" } })}>Sign up</button></div>
           </div>
         )}
-        {token && files.length > 0 && files.length < MAX_IMAGES && (
-          <button type="button" className="button button-secondary btn-full" onClick={() => fileInputRef.current?.click()}>
+        {token && files.length > 0 && files.length < MAX_IMAGES && <>
+          <button type="button" className="button button-secondary upload-add-more" onClick={() => fileInputRef.current?.click()}>
             Add more photos — {MAX_IMAGES - files.length} remaining
           </button>
-        )}
+          <p className="upload-remaining">{MAX_IMAGES - files.length} remaining</p>
+        </>}
         {uploadError && <div className="state-panel state-panel-error"><p>{uploadError}</p></div>}
         <button aria-label="Continue to Restoration" className="btn btn-primary btn-full" type="button" disabled={files.length === 0 || uploading} onClick={() => void continueFromModal()}>
           {uploading ? "Uploading..." : files.length > 1 ? `Continue (${files.length} photos)` : "Continue"}

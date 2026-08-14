@@ -55,7 +55,7 @@ export function CartPreviewPage() {
       <div className="section-heading">
         <p className="eyebrow">Preview</p>
         <h1>Preview your photos</h1>
-        <p>{draftIds.length} photos uploaded once and stored securely. Review each one, then choose the restoration quality you need for each.</p>
+        <p>{draftIds.length} photos ready. Review each one, then configure quality.</p>
       </div>
 
       <div className="admin-card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
@@ -98,11 +98,11 @@ export function CartPreviewPage() {
         })}
       </div>
 
-      <div className="button-row" style={{ marginTop: "1rem" }}>
+      <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
         <button type="button" className="button" onClick={() => navigate(`/restore-cart/${draftIds.join(",")}/configure`)}>
           Configure Photos
         </button>
-        <button type="button" className="button button-secondary" onClick={() => void load()}>Refresh</button>
+        <button type="button" className="button button-secondary journey-utility" onClick={() => void load()}>Refresh</button>
         <button type="button" className="button button-ghost" onClick={() => navigate("/?upload=1")}>Back to Upload</button>
       </div>
     </section>

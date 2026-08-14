@@ -166,7 +166,7 @@ export function CartReviewPage() {
       <div className="section-heading">
         <p className="eyebrow">Review &amp; Checkout</p>
         <h1>Review your order</h1>
-        <p>{order.items.length} photos, ready for one secure checkout.</p>
+        <p>{order.items.length} photos ready for one checkout.</p>
       </div>
 
       {order.items.map((item, index) => {
@@ -212,11 +212,11 @@ export function CartReviewPage() {
 
       <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 
-      <div className="state-panel" style={{ marginTop: "1rem" }}>
+       <div className="state-panel checkout-notice" style={{ marginTop: "1rem" }}>
         <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
       </div>
 
-      <div className="button-row" style={{ marginTop: "1rem" }}>
+       <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
         <button
           type="button"
           className="button"
@@ -226,8 +226,8 @@ export function CartReviewPage() {
         >
           {checkoutBusy ? "Starting checkout..." : paymentProviderUnavailable ? "Payment unavailable" : "Pay 100% & Restore Photos"}
         </button>
-        <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>Check payment status</button>
-        <button type="button" aria-label="Refresh order" className="button button-secondary" onClick={() => void load()}>Refresh</button>
+         <button type="button" className="button button-secondary journey-utility" onClick={() => void refreshPaymentStatus()}>Check payment status</button>
+         <button type="button" aria-label="Refresh order" className="button button-secondary journey-utility" onClick={() => void load()}>Refresh</button>
         {paymentStatus !== "PAID" && (
           <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-cart/${order.items.map((item) => item.draftId).join(",")}/configure`)}>
             Back to Configure
@@ -236,7 +236,7 @@ export function CartReviewPage() {
       </div>
 
       {testModeEnabled && (
-        <div className="state-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
+         <div className="state-panel test-payment-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
           <p><strong>TEST MODE — No real charge</strong></p>
           <div className="button-row">
             <button

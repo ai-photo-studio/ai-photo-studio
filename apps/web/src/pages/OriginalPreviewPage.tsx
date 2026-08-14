@@ -72,7 +72,7 @@ export function OriginalPreviewPage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Preview</p>
-        <h1>Preview &amp; Analysis</h1>
+        <h1>Preview</h1>
         <p>Your original photo is uploaded once and stored securely. Review its details, then choose the restoration quality you need.</p>
       </div>
 
@@ -84,7 +84,7 @@ export function OriginalPreviewPage() {
         />
          <div className="stack preview-summary" style={{ marginTop: "1rem" }}>
            <strong>Uploaded original</strong>
-           <details><summary>Photo details</summary><dl className="order-summary">
+            <details open={typeof window !== "undefined" && window.innerWidth > 768}><summary>Photo details</summary><dl className="order-summary">
             {sourceFile && <div><dt>File name</dt><dd>{sourceFile.name}</dd></div>}
             {formatLabel && <div><dt>Format</dt><dd>{formatLabel}</dd></div>}
             {fileSizeLabel && <div><dt>File size</dt><dd>{fileSizeLabel}</dd></div>}
@@ -96,13 +96,13 @@ export function OriginalPreviewPage() {
       </div>
 
        <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
-          <button
+           <button
            aria-label="Choose Product & Image Quality"
           type="button"
           className="button"
-          onClick={() => navigate(`/restore-mvp/${draft.id}/tiers?stage=product`)}
+           onClick={() => navigate(`/restore-mvp/${draft.id}/tiers`)}
         >
-           Continue / Choose Product
+            Continue to Product
         </button>
         <button type="button" className="button button-secondary" onClick={() => void load()}>
           Refresh

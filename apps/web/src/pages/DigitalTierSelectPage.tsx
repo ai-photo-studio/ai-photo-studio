@@ -134,11 +134,8 @@ export function DigitalTierSelectPage() {
 
   useEffect(() => {
     const stage = searchParams.get("stage");
-    if (!stage) {
-      setSearchParams({ stage: "product" }, { replace: true });
-      setShowQuality(false);
-    } else setShowQuality(stage === "quality");
-  }, [searchParams, setSearchParams]);
+    if (stage) setShowQuality(stage === "quality");
+  }, [searchParams]);
 
   // Switching back to Digital-only clears print-only selection state so a
   // stale size/quantity/address never leaks into a later Print+Digital

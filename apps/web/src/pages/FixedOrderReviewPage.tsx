@@ -188,7 +188,8 @@ export function FixedOrderReviewPage() {
       <div className="section-heading">
         <p className="eyebrow">Review &amp; Checkout</p>
         <h1>Review your order</h1>
-        <p>Your photo is ready for one secure checkout.</p>
+        <p>Your photo is ready. Confirm the details below.</p>
+        <p className="journey-order-number">Order {order.orderNo}</p>
       </div>
 
        <div className="card review-item" style={{ marginTop: "1rem" }}>
@@ -203,7 +204,7 @@ export function FixedOrderReviewPage() {
 
       <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 
-       <div className="state-panel" style={{ marginTop: "1rem" }}>
+        <div className="state-panel checkout-notice" style={{ marginTop: "1rem" }}>
           <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : testModeEnabled ? "Pre-launch testing mode. No real payment will be charged." : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
        </div>
 
@@ -217,10 +218,10 @@ export function FixedOrderReviewPage() {
           >
              {checkoutBusy ? "Starting checkout..." : paymentProviderUnavailable ? "Payment unavailable" : "Pay 100% & Restore Photo"}
           </button>}
-         <button type="button" className="button button-secondary" onClick={() => void refreshPaymentStatus()}>
+          <button type="button" className="button button-secondary journey-utility" onClick={() => void refreshPaymentStatus()}>
            Check payment status
          </button>
-         <button type="button" aria-label="Refresh order" className="button button-secondary" onClick={() => void load()}>
+          <button type="button" aria-label="Refresh order" className="button button-secondary journey-utility" onClick={() => void load()}>
            Refresh
          </button>
          {paymentStatus !== "PAID" && order.sourceDraftId && (
@@ -231,7 +232,7 @@ export function FixedOrderReviewPage() {
       </div>
 
        {testModeEnabled && (
-         <div className="state-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
+          <div className="state-panel test-payment-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
            <p><strong>Test Payment — No Charge</strong></p>
            <p>Pre-launch testing mode. No real payment will be charged.</p>
           <div className="button-row">
