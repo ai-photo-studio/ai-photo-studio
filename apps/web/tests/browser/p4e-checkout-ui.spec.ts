@@ -75,7 +75,7 @@ for (const width of [360, 390, 430]) {
   test(`review remains usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await setup(page);
-    await expect(page.getByText("PKR 2500.00")).toBeVisible();
+    await expect(page.locator(".order-summary dd").last()).toHaveText("PKR 2500.00");
     await expect(page.getByRole("button", { name: "Pay 100% & Restore Photo" })).toBeVisible();
   });
 }

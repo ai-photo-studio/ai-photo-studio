@@ -44,16 +44,6 @@ const TIER_BADGES: Record<string, string> = {
   HD_4X: "BEST FOR PRINTING"
 };
 
-const TIER_BADGE_LABELS: Record<string, string> = {
-  ORIGINAL: "ORIGINAL QUALITY",
-  HD_2X: "2x HD",
-  HD_4X: "4x ULTRA HD",
-  HD_6X: "6x SUPER HD",
-  HD_8X: "8x EXTREME HD",
-  HD_10X: "10x GALLERY HD",
-  HD_12X: "12x MASTER HD"
-};
-
 type SavedTierState = {
   selected: string;
   product: "DIGITAL" | "PRINT_DIGITAL" | null;
@@ -123,7 +113,6 @@ export function DigitalTierSelectPage() {
       if (Array.isArray(result)) {
         setOffers(result);
         setUnavailableReason(null);
-        if (!selected && result.length > 0) setSelected(result[0].tier);
       } else {
         setOffers(null);
         setUnavailableReason(result.reason);
@@ -193,9 +182,6 @@ export function DigitalTierSelectPage() {
     const nextProduct = key === "digital" ? "DIGITAL" : "PRINT_DIGITAL";
     setProduct(nextProduct);
     setUseCaseId(nextProduct === "DIGITAL" ? "MOBILE_SOCIAL" : "SMALL_PRINT");
-    setSearchParams({ stage: "quality" });
-    setShowQuality(true);
-    window.scrollTo(0, 0);
   };
 
   const selectedPrintLines = printLines.length ? printLines : [{ printSize, quantity }];
@@ -207,7 +193,7 @@ export function DigitalTierSelectPage() {
     return <ProductChoiceStage
       selected={product === "DIGITAL" ? "digital" : product === "PRINT_DIGITAL" ? "print" : null}
       onSelect={selectProduct}
-      onContinue={() => { setShowQuality(true); window.scrollTo(0, 0); }}
+      onContinue={() => { if (!product) return; setSearchParams({ stage: "quality" }); setShowQuality(true); window.scrollTo(0, 0); }}
       busy={creating}
       error={error}
     />;
@@ -240,7 +226,7 @@ export function DigitalTierSelectPage() {
                >
                  <div className="quality-tier-topline">
                    <span className="quality-tier-radio" aria-hidden="true" />
-                   <span className="quality-tier-badge">{TIER_BADGE_LABELS[offer.tier] ?? offer.label}</span>
+                   {offer.tier === "ORIGINAL" && <span className="quality-tier-badge">ORIGINAL QUALITY</span>}
                    {TIER_BADGES[offer.tier] && <span className="quality-tier-recommended">{TIER_BADGES[offer.tier]}</span>}
                  </div>
                  <div className={`quality-tier-preview${offer.tier === "ORIGINAL" ? " quality-tier-before-after" : ""}`}>
@@ -248,7 +234,6 @@ export function DigitalTierSelectPage() {
                  </div>
                  <div className="quality-tier-content">
                    <h3>{TIER_LABELS[offer.tier] ?? offer.label}</h3>
-                   <p className="quality-tier-subtitle">{TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
                    <p className="quality-tier-usage">{offer.tier === "ORIGINAL" ? "Best for mobile sharing" : TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
                    <strong className="quality-price">{offer.currency} {(offer.amountMinor / 100).toLocaleString(undefined, { minimumFractionDigits: offer.currency === "PKR" ? 0 : 2, maximumFractionDigits: 2 })}</strong>
                    <button type="button" className="quality-tier-select" onClick={(event) => { event.stopPropagation(); setSelected(offer.tier); }}>{selected === offer.tier ? "Selected" : "Select"}</button>

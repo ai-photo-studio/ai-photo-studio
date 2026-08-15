@@ -3879,3 +3879,22 @@ remains in force verbatim.
   benefits for Digital Download and Print + Digital Home Delivery. P7ZE mobile
   shell, Product -> Quality flow, and Quality -> Product navigation remain
   protected.
+
+### R9.5-P7ZJ — HD Quality and Selection Baseline
+
+- `thannow-quality-cards-hd-final.zip` (`28292785` bytes, modified
+  `2026-08-15T14:11:26.9576866+05:00`) is the canonical Quality visual source.
+  Eight HD WebP files map to the existing seven server tier IDs; PriceBook,
+  print catalog, and business rules remain unchanged.
+- Product and Quality use select-then-Continue. Product cards never navigate on
+  selection, first Quality visit has no preselection, and disabled Continue
+  controls remain subdued until valid input exists. Review/Edit preserves a
+  deliberate prior tier selection.
+- Product images use prominent face-safe `contain` geometry; Product and Quality
+  copy must not repeat the same benefit in headings, paragraphs, and feature
+  rows. Review uses a balanced item/summary layout with one payment primary.
+- Favicons are optically cropped derivatives of canonical `logo2.png`; visible
+  artwork fills about 60–66% of the square canvas without changing `logo2.png`.
+- The protected commerce harness closes browser/Prisma resources, sends bounded
+  child-process termination, awaits closure, uses a Linux SIGKILL fallback, and
+  stops disposable PostgreSQL before returning the true test status.

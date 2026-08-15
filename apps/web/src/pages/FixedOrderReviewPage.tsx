@@ -192,20 +192,22 @@ export function FixedOrderReviewPage() {
         <p className="journey-order-number">Order {order.orderNo}</p>
       </div>
 
+       <div className="review-checkout-grid">
        <div className="card review-item" style={{ marginTop: "1rem" }}>
          {thumbnailUrl && <img src={thumbnailUrl} alt="Original photo thumbnail" className="review-thumbnail" />}
-         <div><p className="eyebrow">Digital Download{order.print ? " + Home Delivery" : ""}</p><h2>{TIER_LABELS[order.tier] || order.tier}</h2><p className="helper-text">Restored photo delivered digitally{order.print ? " with your physical print" : ""}.</p></div>
+         <div><p className="eyebrow">{order.print ? "Print + Digital · Home Delivery" : "Digital Download"}</p><h2>{TIER_LABELS[order.tier] || order.tier}</h2>{order.print && <p className="helper-text">{order.print.size} × {order.print.quantity}</p>}<button type="button" className="review-edit" onClick={() => navigate(`/restore-mvp/${order.sourceDraftId}/tiers?stage=quality`)}>Edit</button></div>
          <strong>{order.currency} {amountMajor}</strong>
        </div>
 
        <div className="card order-summary-card" style={{ marginTop: "1rem" }}>
          <dl className="order-summary"><div><dt>Subtotal</dt><dd>{order.currency} {(digitalAmountMinor / 100).toFixed(2)}</dd></div>{order.print && <><div><dt>Print</dt><dd>{order.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div><div><dt>Delivery</dt><dd>{order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</dd></div></>}<div><dt><strong>Total</strong></dt><dd><strong>{order.currency} {amountMajor}</strong></dd></div></dl>
        </div>
+       </div>
 
       <p className="checkout-policies">Before continuing, review the <Link to="/terms">Terms and Conditions</Link>, <Link to="/privacy-policy">Privacy Policy</Link>, <Link to="/payment-policy">Payment Policy</Link>, and <Link to="/refund-exchange-policy">Refund and Exchange Policy</Link>.</p>
 
         <div className="state-panel checkout-notice" style={{ marginTop: "1rem" }}>
-          <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : testModeEnabled ? "Pre-launch testing mode. No real payment will be charged." : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
+           <p>{checkoutError || (paymentStatus ? `Payment status: ${paymentStatus}` : testModeEnabled ? "Pre-launch test payment — no real charge." : PAYMENT_UNAVAILABLE_MESSAGE)}</p>
        </div>
 
         <div className="button-row journey-actions" style={{ marginTop: "1rem" }}>
@@ -225,7 +227,7 @@ export function FixedOrderReviewPage() {
            Refresh
          </button>
          {paymentStatus !== "PAID" && order.sourceDraftId && (
-           <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${order.sourceDraftId}/tiers`)}>
+            <button type="button" className="button button-ghost" onClick={() => navigate(`/restore-mvp/${order.sourceDraftId}/tiers?stage=quality`)}>
              Back to Configure
            </button>
          )}
@@ -234,7 +236,6 @@ export function FixedOrderReviewPage() {
        {testModeEnabled && (
           <div className="state-panel test-payment-panel" style={{ marginTop: "1rem", border: "2px dashed var(--accent, #999)" }} data-testid="e2e-test-payment-panel">
            <p><strong>Test Payment — No Charge</strong></p>
-           <p>Pre-launch testing mode. No real payment will be charged.</p>
           <div className="button-row">
             <button
               type="button"
