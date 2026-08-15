@@ -3992,3 +3992,23 @@ remains in force verbatim.
 - Delivery-phase and print-selection state survives refresh/back navigation;
   Print Review remains explicitly Print + Digital with persisted PrintOrderLine,
   upscale, delivery, recipient, and total data.
+
+### R9.5-P7ZO — Print Selection, Payment, and Order Acceptance
+
+- A fresh normal Print Configuration starts with no selected print size. No
+  upscale text, print amount, subtotal, or forward CTA is shown until a print
+  card is deliberately selected. Quantity may display one but is inactive until
+  selection.
+- Normal Digital and Print orders advance from configuration directly to the
+  public Advance Payment screen. The old standalone normal Review route is a
+  redirect/compatibility alias only; it is not a customer-facing journey step.
+- Delivery is a real checkout phase for Print: order summary first, then full
+  recipient, mobile, address, city, and province/region details, then one
+  server-owned delivery charge and final total before Continue to Payment.
+- Payment is full advance payment. Only verified `PAID` creates Order Accepted
+  and permits processing. Browser redirects/query parameters never create
+  acceptance; unpaid orders perform zero work and duplicate payment remains
+  idempotent.
+- Digital and Print Payment screens share the final server-priced summary. Print
+  identity, PrintOrderLine, upscale, delivery, recipient, and total remain
+  preserved through payment and Order Accepted into fulfilment.

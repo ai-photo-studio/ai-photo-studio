@@ -73,7 +73,8 @@ export function App() {
         <Route path="restore-mvp/new" element={<Navigate to="/?upload=1" replace={false} />} />
         <Route path="restore-mvp/:draftId/preview" element={<OriginalPreviewPage />} />
         <Route path="restore-mvp/:draftId/tiers" element={<DigitalTierSelectPage />} />
-        <Route path="orders/:orderNo/review" element={<FixedOrderReviewPage />} />
+        <Route path="orders/:orderNo/payment" element={<FixedOrderReviewPage />} />
+        <Route path="orders/:orderNo/review" element={<Navigate to="../payment" replace />} />
         <Route path="restore-cart/:draftIds/preview" element={<CartPreviewPage />} />
         <Route path="restore-cart/:draftIds/configure" element={<CartConfigurePage />} />
         <Route path="restore-package/:packageCode/:draftIds/preview" element={<MemoryPackagePreviewPage />} />

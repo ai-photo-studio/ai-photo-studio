@@ -188,9 +188,9 @@ export function FixedOrderReviewPage() {
   return (
     <section className="page-stack">
       <div className="section-heading">
-        <p className="eyebrow">Review &amp; Checkout</p>
-        <h1>Review your order</h1>
-        <p>Your photo is ready. Confirm the details below.</p>
+        <p className="eyebrow">Advance Payment</p>
+        <h1>Advance Payment</h1>
+        <p>Confirm the server-priced order below before payment.</p>
         <p className="journey-order-number">Order {order.orderNo}</p>
       </div>
 
@@ -252,7 +252,13 @@ export function FixedOrderReviewPage() {
         </div>
       )}
 
-      {paymentStatus === "PAID" && (
+       {paymentStatus === "PAID" && (
+        <div className="state-panel state-panel-success" style={{ marginTop: "1rem" }} data-testid="order-accepted">
+          <p><strong>Order Accepted</strong></p>
+          <p>Payment confirmed for order {order.orderNo}. {isPrintOrder ? "Digital restoration and print fulfilment will continue." : "Your photo is now moving to processing."}</p>
+        </div>
+       )}
+       {paymentStatus === "PAID" && (
         <div className="state-panel" style={{ marginTop: "1rem" }} data-testid="restoration-processing-status">
           {restorationStatus?.downloadAvailable ? (
             <>

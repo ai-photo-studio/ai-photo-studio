@@ -279,8 +279,14 @@ async function main() {
        await step(`${kind}: choose product`, () => page.getByRole("button", { name: /Choose Product & Image Quality|Continue to Product/ }).click());
        await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
        await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
-       await page.getByRole("button", { name: "Continue" }).click();
-        await page.getByRole("heading", { name: kind === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality" }).waitFor({ state: "visible" });
+        await page.getByRole("button", { name: "Continue" }).click();
+         await page.getByRole("heading", { name: kind === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality" }).waitFor({ state: "visible" });
+        if (kind === "PRINT_DIGITAL") {
+          if (await page.locator('[role="radio"][aria-checked="true"]').count() !== 0) throw new Error(`${kind}: fresh Print configuration selected a size`);
+          if (await page.getByText("Estimated subtotal", { exact: true }).count() !== 0) throw new Error(`${kind}: fresh Print configuration showed subtotal before selection`);
+          if (await page.getByText("Automatic enhancement:", { exact: false }).count() !== 0) throw new Error(`${kind}: fresh Print configuration showed upscale before selection`);
+          if (!(await page.getByRole("button", { name: "Continue to Delivery" }).isDisabled())) throw new Error(`${kind}: Continue enabled before print selection`);
+        }
        await step(`${kind}: browser back returns to product`, async () => {
          await page.goBack();
          await page.getByRole("heading", { name: "Choose your product" }).waitFor({ state: "visible" });
@@ -292,24 +298,26 @@ async function main() {
        });
 
          if (kind === "PRINT_DIGITAL") {
+          await page.getByRole("radio", { name: /4x6/ }).waitFor({ state: "visible" });
           await page.getByRole("radio", { name: /4x6/ }).click();
           if (await page.locator("select").count() !== 0) throw new Error(`${kind}: print size select leaked into normal flow`);
           if (await page.getByRole("radio", { name: /Triple Canvas/ }).count() !== 0) throw new Error(`${kind}: incomplete Triple Canvas leaked into normal print cards`);
           const configText = await page.locator(".print-configuration-panel .order-summary").innerText();
           if (configText.includes("Delivery")) throw new Error(`${kind}: configuration subtotal includes hidden delivery`);
           await page.getByRole("button", { name: "Continue to Delivery" }).click();
-         await page.getByLabel("Recipient name").fill("Local E2E Customer");
-         await page.getByLabel("Phone").fill("03001234567");
-         await page.getByLabel("Address").fill("1 Test Street");
+         await page.getByLabel(/Full recipient name/).fill("Local E2E Customer");
+         await page.getByLabel(/Mobile number/).fill("03001234567");
+         await page.getByLabel(/Address line/).fill("1 Test Street");
          await page.getByLabel("City").fill("Lahore");
-          await page.getByRole("button", { name: "Continue to Review" }).click();
+         await page.getByLabel(/Province \/ Region/).fill("Punjab");
+          await page.getByRole("button", { name: "Continue to Payment" }).click();
         } else {
             await page.getByRole("radio", { name: /2x HD/i }).click();
-            await page.getByRole("button", { name: "Continue to Review" }).click();
+            await page.getByRole("button", { name: "Continue to Payment" }).click();
         }
-       await step(`${kind}: review`, async () => {});
-      await step(`${kind}: review route`, () => page.waitForURL(/\/orders\/.+\/review/, { timeout: 15_000 }));
-      const orderNo = page.url().match(/\/orders\/([^/]+)\/review/)?.[1];
+       await step(`${kind}: payment`, async () => {});
+       await step(`${kind}: payment route`, () => page.waitForURL(/\/orders\/.+\/payment/, { timeout: 15_000 }));
+       const orderNo = page.url().match(/\/orders\/([^/]+)\/payment/)?.[1];
       if (!orderNo) throw new Error(`${kind}: could not read orderNo`);
       orderNos.push(orderNo);
 

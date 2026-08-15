@@ -340,7 +340,7 @@ export class FixedOrderService {
       if (owned.currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
       if (owned.currency !== "PKR" || !input.printSize || !Number.isSafeInteger(input.quantity)) throw new AppError("valid PKR print size and quantity are required", 422, "INVALID_PRINT_SELECTION");
       const address = input.deliveryAddress;
-      if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");
+      if (!address || !address.recipientName.trim() || !/^(?:\+92|0)3\d{9}$/.test(address.phone.replace(/[\s-]/g, "")) || !address.addressLine1.trim() || !address.city.trim() || !address.region?.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");
       const requestedLines = input.printLines?.length ? input.printLines : [{ printSize: input.printSize, quantity: input.quantity }];
       if (requestedLines.length > 10) throw new AppError("too many print lines", 422, "INVALID_PRINT_LINES");
       try { printLines = requestedLines.map((line) => ({ printSize: line.printSize, quantity: line.quantity, quote: quoteSinglePrint(enhancementAmountMinor, line.printSize, line.quantity) })); printQuote = printLines[0]?.quote; } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
@@ -540,7 +540,7 @@ export class FixedOrderService {
     if (anyPrint) {
       if (currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
       const address = input.deliveryAddress;
-      if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) {
+      if (!address || !address.recipientName.trim() || !/^(?:\+92|0)3\d{9}$/.test(address.phone.replace(/[\s-]/g, "")) || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) {
         throw new AppError("delivery address is required when any item is Print + Digital", 422, "PRINT_ADDRESS_REQUIRED");
       }
     }
