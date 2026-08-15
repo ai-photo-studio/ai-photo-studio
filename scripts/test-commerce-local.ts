@@ -396,7 +396,11 @@ async function main() {
       await page.getByLabel("Phone").fill("03001234567");
       await page.getByLabel("Address").fill("1 Test Street");
        await page.getByLabel("City").fill("Lahore");
+       await page.getByRole("button", { name: "Continue to Review" }).waitFor({ state: "visible" });
+       const cartResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/fixed-orders/restoration-cart") && response.request().method() === "POST");
        await step(`${kind}: continue to review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
+       const cartResponse = await cartResponsePromise;
+       if (!cartResponse.ok()) throw new Error(`${kind}: cart creation failed (${cartResponse.status()}): ${await cartResponse.text()}`);
       await step(`${kind}: cart review route`, () => page.waitForURL(/\/orders\/.+\/cart/, { timeout: 15_000 }));
       const orderNo = page.url().match(/\/orders\/([^/]+)\/cart/)?.[1];
       if (!orderNo) throw new Error(`${kind}: could not read orderNo`);
