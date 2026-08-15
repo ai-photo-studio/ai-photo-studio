@@ -25,6 +25,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { chromium } from "playwright";
 import { PrismaClient } from "@prisma/client";
 import sharp from "sharp";
+import { getGlobalDispatcher } from "undici";
 
 const root = resolve(process.cwd());
 const apiDir = resolve(root, "apps/api");
@@ -155,8 +156,10 @@ async function teardown(dataDir: string, mockStorageDir: string): Promise<void> 
   await Promise.all([...children].reverse().map((child) => stopChild(child)));
   console.log("[teardown] child processes stopped");
   try {
-   await runOnce("pg_ctl-stop", pgTool("pg_ctl"), ["-D", dataDir, "stop", "-m", "fast"], root, process.env, 30_000, false);
+    await runOnce("pg_ctl-stop", pgTool("pg_ctl"), ["-D", dataDir, "stop", "-m", "fast"], root, process.env, 30_000, false);
   } catch { /* already down */ }
+  await getGlobalDispatcher().close();
+  console.log("[teardown] global HTTP dispatcher closed");
   await rm(dataDir, { recursive: true, force: true });
   await rm(mockStorageDir, { recursive: true, force: true });
 }
