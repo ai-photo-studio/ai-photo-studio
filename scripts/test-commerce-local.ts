@@ -140,7 +140,7 @@ async function teardown(dataDir: string, mockStorageDir: string): Promise<void> 
   }
   await sleep(1000);
   try {
-    await runOnce("pg_ctl-stop", `${pgBin}\\pg_ctl.exe`, ["-D", dataDir, "stop", "-m", "fast"], root, process.env, 30_000, false);
+   await runOnce("pg_ctl-stop", pgTool("pg_ctl"), ["-D", dataDir, "stop", "-m", "fast"], root, process.env, 30_000, false);
   } catch { /* already down */ }
   await rm(dataDir, { recursive: true, force: true });
   await rm(mockStorageDir, { recursive: true, force: true });
@@ -279,7 +279,7 @@ async function main() {
         await page.getByLabel("Address").fill("1 Test Street");
         await page.getByLabel("City").fill("Lahore");
        } else {
-          await page.getByText("2x HD", { exact: true }).click();
+           await page.getByRole("radio", { name: /2x HD/i }).click();
        }
 
       await step(`${kind}: review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
