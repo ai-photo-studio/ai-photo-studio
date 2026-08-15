@@ -3974,3 +3974,21 @@ remains in force verbatim.
   restoration/master/execution is created per source image, never per copy.
 - Favicon HTML references remain the optically filled derivatives generated from
   `logo/frivcon.png`; unrelated logo artwork remains unchanged.
+
+### R9.5-P7ZN — Print Delivery and Pricing Integrity
+
+- Valid single-photo Print Configuration transitions to Delivery Details. A
+  genuinely incompatible aspect ratio remains blocked with an explicit crop
+  warning; compatible selections must never be a no-op.
+- Print Configuration shows only Prints, automatic Upscale, and Estimated
+  Subtotal. Delivery is excluded until Delivery Details. Delivery Details then
+  shows the one server-catalog delivery charge and the complete estimated total.
+- Final Print totals are `sum(print unit price * quantity) + highest required
+  upscale once per source + one order-level delivery charge`. Frontend values
+  are informational; FixedOrder and Review use server-authoritative values.
+- Triple Canvas is not selectable for normal single-photo orders while approved
+  physical dimensions/specifications are incomplete. It must not default to
+  Original-sufficient or bypass automatic suitability.
+- Delivery-phase and print-selection state survives refresh/back navigation;
+  Print Review remains explicitly Print + Digital with persisted PrintOrderLine,
+  upscale, delivery, recipient, and total data.

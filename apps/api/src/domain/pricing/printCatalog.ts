@@ -1,4 +1,4 @@
-export interface PrintCatalogEntry { size: string; currency: "PKR" | "USD"; unitPriceMinor: number; minQuantity: number; deliveryFeeMinor: number | null; blocker?: "INTERNATIONAL_PRINT_SHIPPING_REQUIRED"; }
+export interface PrintCatalogEntry { size: string; currency: "PKR" | "USD"; unitPriceMinor: number; minQuantity: number; deliveryFeeMinor: number | null; blocker?: string; }
 // Sourced from `price book/prices.xlsx` (Sheet1, "photo printing + home
 // delivery" table). USD prices exist only for the 12 sizes that table
 // carried before this revision -- there is no owner-approved USD price for
@@ -26,7 +26,7 @@ export const PRINT_CATALOG: readonly PrintCatalogEntry[] = [
 ];
 export const INTERNATIONAL_PRINT_CATALOG: readonly PrintCatalogEntry[] = sizes.map((size, i) => ({ size, currency: "USD", unitPriceMinor: usdUnits[i], minQuantity: mins[i], deliveryFeeMinor: null, blocker: "INTERNATIONAL_PRINT_SHIPPING_REQUIRED" }));
 export function publicPrintCatalog() { return [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].map((item) => ({ catalogVersion: PRINT_CATALOG_VERSION, size: item.size, unitAmountMinor: item.unitPriceMinor, currency: item.currency, minimumQuantity: item.minQuantity, deliveryAmountMinor: item.deliveryFeeMinor, blocker: item.blocker })); }
-export function publicSinglePrintCatalog() { return [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].map((item) => ({ catalogVersion: PRINT_CATALOG_VERSION, size: item.size, unitAmountMinor: item.unitPriceMinor, currency: item.currency, minimumQuantity: 1, deliveryAmountMinor: item.deliveryFeeMinor, blocker: item.blocker })); }
+export function publicSinglePrintCatalog() { return [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].map((item) => ({ catalogVersion: PRINT_CATALOG_VERSION, size: item.size, unitAmountMinor: item.unitPriceMinor, currency: item.currency, minimumQuantity: 1, deliveryAmountMinor: item.deliveryFeeMinor, blocker: item.blocker ?? (item.size === "Triple Canvas" ? "PRINT_SPECIFICATIONS_REQUIRED" : undefined) })); }
 export function quotePrint(digitalAmountMinor: number, size: string, quantity: number, currency: "PKR" | "USD" = "PKR") {
   const entry = [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].find((item) => item.size === size && item.currency === currency);
   if (!entry) throw new Error("unknown print size");
@@ -38,6 +38,7 @@ export function quotePrint(digitalAmountMinor: number, size: string, quantity: n
 export function quoteSinglePrint(digitalAmountMinor: number, size: string, quantity: number, currency: "PKR" | "USD" = "PKR") {
   const entry = [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].find((item) => item.size === size && item.currency === currency);
   if (!entry) throw new Error("unknown print size");
+  if (entry.size === "Triple Canvas") throw new Error("PRINT_SPECIFICATIONS_REQUIRED");
   if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error("quantity must be at least 1");
   if (quantity > 10) throw new Error("quantity exceeds maximum of 10");
   if (entry.deliveryFeeMinor === null) throw new Error("INTERNATIONAL_PRINT_SHIPPING_REQUIRED");

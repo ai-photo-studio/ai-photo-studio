@@ -294,6 +294,9 @@ async function main() {
          if (kind === "PRINT_DIGITAL") {
           await page.getByRole("radio", { name: /4x6/ }).click();
           if (await page.locator("select").count() !== 0) throw new Error(`${kind}: print size select leaked into normal flow`);
+          if (await page.getByRole("radio", { name: /Triple Canvas/ }).count() !== 0) throw new Error(`${kind}: incomplete Triple Canvas leaked into normal print cards`);
+          const configText = await page.locator(".print-configuration-panel .order-summary").innerText();
+          if (configText.includes("Delivery")) throw new Error(`${kind}: configuration subtotal includes hidden delivery`);
           await page.getByRole("button", { name: "Continue to Delivery" }).click();
          await page.getByLabel("Recipient name").fill("Local E2E Customer");
          await page.getByLabel("Phone").fill("03001234567");
