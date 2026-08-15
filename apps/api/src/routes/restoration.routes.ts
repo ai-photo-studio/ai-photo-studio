@@ -15,6 +15,7 @@ import { FixedOrderRestorationStatusController } from "../controllers/fixed-orde
 // even in a production process (the class is simply never instantiated).
 import { CustomerCheckoutTestController } from "../controllers/customer-checkout-test.controller";
 import { PrintFulfilmentBoundaryService } from "../services/print-fulfilment-boundary.service";
+import { PUBLIC_MEMORY_PACKAGES } from "../domain/pricing/memoryPackages";
 
 /**
  * R9.5-P4B7-TEST-CHECKOUT-SEAM: true only for a disposable local E2E harness
@@ -56,7 +57,9 @@ export const createRestorationRouter = (config: AppConfig): Router => {
     rateLimit(60_000, 20),
     fixedOrderController.createRestorationCartOrder
   );
+  router.post("/fixed-orders/memory-package", rateLimit(60_000, 20), fixedOrderController.createMemoryPackageOrder);
   router.get("/print-catalog", rateLimit(60_000, 60), fixedOrderController.getPrintCatalog);
+  router.get("/memory-packages", rateLimit(60_000, 60), (_req, res) => res.json({ success: true, data: PUBLIC_MEMORY_PACKAGES }));
   router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
   router.get("/fixed-orders/:orderNo/cart", rateLimit(60_000, 60), fixedOrderController.getCartByOrderNo);
   // R9.2-MPGS-ACTUAL-APP-E2E: these were previously mounted at

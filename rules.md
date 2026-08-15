@@ -3916,3 +3916,35 @@ remains in force verbatim.
   primary, compact order/summary geometry, and secondary utility controls.
 - Favicon derivatives use `logo/frivcon.png` as the approved source at maximum
   undistorted fill; canonical `logo2.png` remains unchanged.
+
+### R9.5-P7ZL — Single-Photo and Memory-Package Commerce
+
+- Public restoration commerce is single-photo-first: Upload one photo, Preview,
+  Product, then Digital Quality or Print Configuration, Review, Payment,
+  Processing, and Result. The prior public per-image multi-product/quality cart
+  is hidden; backend multi-item infrastructure remains package/internal only.
+- Public entry choices are `Single Photo` and server-owned `Memory Packages`.
+  Package selection precedes package upload, uses exact configured image counts,
+  and never exposes per-photo Product, Quality, Apply-to-All, or override grids.
+- The active package is `AMI_ABU_MEMORIES`: exactly 2 photos, fixed PKR 2,500,
+  digital restoration package. Family, Wedding, Old Family Collection, and
+  Photo Album entries remain draft/inactive until their physical specifications,
+  approved price, and delivery rules exist.
+- Print customers select only print size, quantity, and delivery. Quality cards
+  are not a public Print step. The server calculates required output resolution,
+  source suitability, and the minimum existing tier for every print line;
+  highest required tier is charged once per source image. Source-sufficient
+  originals have zero enhancement surcharge.
+- Server print totals are print unit price multiplied by quantity, plus one
+  automatic enhancement/restoration charge, plus one order delivery charge.
+  Review labels these as Prints, Image Enhancement, Delivery, and Total.
+- A package creates one FixedOrder and one payment lifecycle with N item-scoped
+  fulfilment records. Package price is one server-owned commercial line while
+  each source image retains its own item, entitlement, master, and execution.
+  Unpaid orders perform zero processing and duplicate payment remains idempotent.
+- Package catalog money is never accepted from the frontend. Package catalog
+  pricing is separately recognized by payment-readiness while existing PriceBook
+  tier prices remain unchanged.
+- `logo/frivcon.png` remains the canonical favicon source; do not reintroduce
+  the old padded logo favicon. APG remains frozen and all provider safety gates
+  remain unchanged.

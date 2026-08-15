@@ -40,6 +40,7 @@ const ATTEMPT_BLOCKED_STATUSES: readonly string[] = [
 export interface OrderItemPricingInput {
   pricingSource: string;
   pricingApproved: boolean;
+  metadata?: unknown;
 }
 
 export interface OrderPaymentReadinessInput {
@@ -96,7 +97,8 @@ export function computeOrderPaymentReasons(order: OrderPaymentReadinessInput): s
   // is actually present. A gap here means a corrupt/incomplete snapshot --
   // fail closed rather than trust a bare boolean.
   const hasApprovedItem = order.items.some((item) => item.pricingApproved);
-  if (hasApprovedItem && (!order.priceBookVersion || !order.priceBookApprovalReference)) {
+  const packageCatalogOnly = order.items.length > 0 && order.items.every((item) => item.pricingSource === "package_catalog" && item.pricingApproved && item.metadata && typeof item.metadata === "object" && "package" in item.metadata);
+  if (hasApprovedItem && !packageCatalogOnly && (!order.priceBookVersion || !order.priceBookApprovalReference)) {
     reasons.push(
       "approved pricing is missing its PriceBook version or approval reference; payment is not permitted for an incomplete snapshot"
     );

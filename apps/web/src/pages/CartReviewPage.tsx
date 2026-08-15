@@ -165,22 +165,24 @@ export function CartReviewPage() {
     <section className="page-stack">
       <div className="section-heading">
         <p className="eyebrow">Review &amp; Checkout</p>
-        <h1>Review your order</h1>
-        <p>{order.items.length} photos ready for one checkout.</p>
+        <h1>{order.package ? `Review ${order.package.name}` : "Review your order"}</h1>
+        <p>{order.package ? `${order.package.imagesIncluded} photos included in one fixed-price package.` : `${order.items.length} photos ready for one checkout.`}</p>
       </div>
+
+      {order.package && <div className="card package-review-card"><p className="eyebrow">Memory Package</p><h2>{order.package.name}</h2><p>{order.package.imagesIncluded} restored digital photos with one server-set package price.</p><dl className="order-summary"><div><dt>Package price</dt><dd>{order.currency} {(Number(order.package.priceMinor) / 100).toLocaleString()}</dd></div><div><dt><strong>Total</strong></dt><dd><strong>{order.currency} {(Number(order.package.priceMinor) / 100).toLocaleString()}</strong></dd></div></dl></div>}
 
       {order.items.map((item, index) => {
         const status = itemStatuses.find((s) => s.fixedOrderItemId === item.fixedOrderItemId);
         return (
           <div className="card" key={item.fixedOrderItemId} style={{ marginBottom: "1rem" }}>
             <p className="eyebrow">Photo {index + 1} of {order.items.length}</p>
-            <dl className="order-summary">
+             {!order.package && <dl className="order-summary">
               <div><dt>Image quality</dt><dd>{TIER_LABELS[item.tier] || item.tier}</dd></div>
               <div><dt>Delivery</dt><dd>{item.product === "PRINT_DIGITAL" ? "Print + Digital" : "Digital Download"}</dd></div>
               <div><dt>Restoration price</dt><dd>{order.currency} {(Number(item.digitalAmountMinor) / 100).toFixed(2)}</dd></div>
                {(item.prints || (item.print ? [item.print] : [])).map((print, printIndex) => <div key={`${item.fixedOrderItemId}-print-${printIndex}`}><dt>Print {printIndex + 1}</dt><dd>{print.size} × {print.quantity} · {order.currency} {(Number(print.subtotalMinor) / 100).toFixed(2)}</dd></div>)}
               <div><dt><strong>Line total</strong></dt><dd><strong>{order.currency} {(Number(item.lineTotalMinor) / 100).toFixed(2)}</strong></dd></div>
-            </dl>
+             </dl>}
 
             {paymentStatus === "PAID" && (
               <div className="state-panel" data-testid={`item-processing-status-${index}`}>
@@ -203,7 +205,7 @@ export function CartReviewPage() {
 
       <div className="card">
         <dl className="order-summary">
-          <div><dt>Restoration total</dt><dd>{order.currency} {restorationMajor}</dd></div>
+          <div><dt>{order.package ? "Package" : "Restoration total"}</dt><dd>{order.currency} {restorationMajor}</dd></div>
           <div><dt>Print total</dt><dd>{order.currency} {printMajor}</dd></div>
           <div><dt>Delivery</dt><dd>{order.currency} {deliveryMajor}</dd></div>
           <div><dt><strong>TOTAL</strong></dt><dd><strong>{order.currency} {totalMajor}</strong></dd></div>

@@ -69,3 +69,12 @@ export function printCropRequired(width: number | null, height: number | null, s
   if (!width || !height) return false;
   return calculatePrintSuitability(width, height, size)?.cropRequired ?? false;
 }
+
+export type AutomaticPrintTier = "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
+const PRINT_TIER_FACTORS: Record<AutomaticPrintTier, number> = { ORIGINAL: 1, HD_2X: 2, HD_4X: 4, HD_6X: 6, HD_8X: 8, HD_10X: 10, HD_12X: 12 };
+export function minimumPrintTier(width: number | null, height: number | null, size: string): AutomaticPrintTier | null {
+  if (!width || !height || !PRINT_DIMENSIONS_INCHES[size]) return null;
+  const suitability = calculatePrintSuitability(width, height, size);
+  if (!suitability) return null;
+  return (Object.keys(PRINT_TIER_FACTORS) as AutomaticPrintTier[]).find((tier) => suitability.effectivePpi * PRINT_TIER_FACTORS[tier] >= 200) ?? "HD_12X";
+}

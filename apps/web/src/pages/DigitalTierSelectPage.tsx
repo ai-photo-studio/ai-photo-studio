@@ -7,7 +7,7 @@ import { useAuth } from "../lib/auth";
 import { getGuestOwnershipToken, setGuestOwnershipToken } from "../lib/guest";
 import { customerApi, type DigitalOfferSummary } from "../services/customerApi";
 import { type CustomerUseCaseId } from "../lib/printUseCases";
-import { printCropRequired } from "../lib/printSuitability";
+import { minimumPrintTier, printCropRequired } from "../lib/printSuitability";
 import ProductChoiceStage, { type ProductChoiceKey } from "../components/ProductChoiceStage";
 
 const TIER_LABELS: Record<string, string> = {
@@ -145,6 +145,15 @@ export function DigitalTierSelectPage() {
   useEffect(() => { if (!draftId) return; void customerApi.getRestorationDraft(token || undefined, draftId, getGuestOwnershipToken(draftId) || undefined).then((draft) => setSourceDimensions({ width: draft.originalWidth, height: draft.originalHeight })).catch(() => setSourceDimensions({ width: null, height: null })); }, [draftId, token]);
 
   useEffect(() => {
+    if (product !== "PRINT_DIGITAL" || !offers) return;
+    const lines = printLines.length ? printLines : [{ printSize, quantity }];
+    const tiers = lines.map((line) => minimumPrintTier(sourceDimensions.width, sourceDimensions.height, line.printSize));
+    const order = ["ORIGINAL", "HD_2X", "HD_4X", "HD_6X", "HD_8X", "HD_10X", "HD_12X"];
+    const required = tiers.filter(Boolean).sort((a, b) => order.indexOf(b as string) - order.indexOf(a as string))[0] ?? "ORIGINAL";
+    setSelected(required);
+  }, [product, offers, printLines, printSize, quantity, sourceDimensions]);
+
+  useEffect(() => {
     const stage = searchParams.get("stage");
     setShowQuality(stage === "quality");
   }, [searchParams]);
@@ -201,10 +210,10 @@ export function DigitalTierSelectPage() {
 
   return (
     <section className="page-stack">
-      <div className="section-heading">
-        <p className="eyebrow">Step 2 of 3 · Image quality</p>
-        <h1>Choose image quality</h1>
-        <p>{product === "PRINT_DIGITAL" ? "Choose the quality for your digital copy, then configure your approved print sizes and delivery." : "Choose the quality that fits how you will enjoy your restored photo."}</p>
+       <div className="section-heading">
+        <p className="eyebrow">Step 2 of 3 · {product === "PRINT_DIGITAL" ? "Print configuration" : "Image quality"}</p>
+        <h1>{product === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality"}</h1>
+        <p>{product === "PRINT_DIGITAL" ? "Choose print sizes and quantity. We calculate the minimum enhancement automatically." : "Choose the quality that fits how you will enjoy your restored photo."}</p>
       </div>
 
       {unavailableReason && <div className="state-panel state-panel-error"><p>{unavailableReason}</p></div>}
@@ -212,7 +221,7 @@ export function DigitalTierSelectPage() {
 
       {offers && (
         <>
-           <div role="radiogroup" aria-label="Image quality" className="quality-tier-grid">
+           {product !== "PRINT_DIGITAL" && <div role="radiogroup" aria-label="Image quality" className="quality-tier-grid">
              {offers.map((offer) => (
                <article
                 key={offer.tier}
@@ -228,27 +237,24 @@ export function DigitalTierSelectPage() {
                    <span className="quality-tier-radio" aria-hidden="true" />
                    {offer.tier === "ORIGINAL" && <span className="quality-tier-badge">ORIGINAL QUALITY</span>}
                    {TIER_BADGES[offer.tier] && <span className="quality-tier-recommended">{TIER_BADGES[offer.tier]}</span>}
-                 </div>
+                  </div>
                  <div className={`quality-tier-preview${offer.tier === "ORIGINAL" ? " quality-tier-before-after" : ""}`}>
                    {offer.tier === "ORIGINAL" ? <><img src="/assets/quality-tiers/original-before.webp" alt="Original photo before restoration" /><img src="/assets/quality-tiers/original-after.webp" alt="Original photo after restoration" /></> : <img src={TIER_IMAGES[offer.tier]} alt={`${TIER_LABELS[offer.tier] ?? offer.label} preview`} loading="lazy" />}
-                 </div>
+                  </div>
                  <div className="quality-tier-content">
                    <h3>{TIER_LABELS[offer.tier] ?? offer.label}</h3>
                    <p className="quality-tier-usage">{offer.tier === "ORIGINAL" ? "Best for mobile sharing" : TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
                    <strong className="quality-price">{offer.currency} {(offer.amountMinor / 100).toLocaleString(undefined, { minimumFractionDigits: offer.currency === "PKR" ? 0 : 2, maximumFractionDigits: 2 })}</strong>
                    <button type="button" className="quality-tier-select" onClick={(event) => { event.stopPropagation(); setSelected(offer.tier); }}>{selected === offer.tier ? "Selected" : "Select"}</button>
                    <span className="quality-tier-download">↓ Digital Download Only</span>
-                 </div>
+                  </div>
                </article>
             ))}
-          </div>
+           </div>}
 
-          {product === "PRINT_DIGITAL" && selected === "HD_4X" && (
-            <div className="state-panel state-panel-info"><p>4x Ultra HD is recommended for most prints.</p></div>
-          )}
-          {product === "PRINT_DIGITAL" && (selected === "ORIGINAL" || selected === "HD_2X") && (
-            <div className="state-panel state-panel-warning"><p>Lower image quality may reduce print quality, especially at larger print sizes. Continue with this quality at your own choice.</p></div>
-          )}
+           {product === "PRINT_DIGITAL" && (
+             <div className="state-panel state-panel-info"><p><strong>Automatic enhancement:</strong> {selected ? `${TIER_LABELS[selected]} will be used when required by the selected print size.` : "calculating from your source image..."}</p></div>
+           )}
 
             {product === "PRINT_DIGITAL" && (() => {
              const lines = printLines.length ? printLines : [{ printSize, quantity }];

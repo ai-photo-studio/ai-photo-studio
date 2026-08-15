@@ -37,6 +37,22 @@ export class FixedOrderController {
 
   getPrintCatalog = (_req: Request, res: Response): void => { res.json({ success: true, data: this.fixedOrders.getPrintCatalog() }); };
 
+  createMemoryPackageOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const rawItems = Array.isArray(req.body?.items) ? req.body.items : [];
+      const data = await this.fixedOrders.createMemoryPackageOrder({
+        packageCode: typeof req.body?.packageCode === "string" ? req.body.packageCode : "",
+        items: rawItems.map((raw: Record<string, unknown>) => ({
+          draftId: typeof raw.draftId === "string" ? raw.draftId : "",
+          guestOwnershipToken: typeof raw.guestOwnershipToken === "string" ? raw.guestOwnershipToken : undefined
+        }))
+      }, actorFromRequest(req));
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
   /** GET /api/fixed-orders/:orderNo -- read-only. */
   getByOrderNo = async (req: Request, res: Response): Promise<void> => {
     try {

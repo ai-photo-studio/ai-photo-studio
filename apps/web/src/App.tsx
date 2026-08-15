@@ -35,6 +35,7 @@ import { PaymentReturnPage } from "./pages/PaymentReturnPage";
 import { CartPreviewPage } from "./pages/CartPreviewPage";
 import { CartConfigurePage } from "./pages/CartConfigurePage";
 import { CartReviewPage } from "./pages/CartReviewPage";
+import { MemoryPackagePreviewPage } from "./pages/MemoryPackagePreviewPage";
 import { ContactPage, DeliveryPolicyPage, FaqPage, PaymentPolicyPage, PrivacyPolicyPage, RefundExchangePolicyPage, TermsPage } from "./pages/CompliancePages";
 
 export function App() {
@@ -75,6 +76,7 @@ export function App() {
         <Route path="orders/:orderNo/review" element={<FixedOrderReviewPage />} />
         <Route path="restore-cart/:draftIds/preview" element={<CartPreviewPage />} />
         <Route path="restore-cart/:draftIds/configure" element={<CartConfigurePage />} />
+        <Route path="restore-package/:packageCode/:draftIds/preview" element={<MemoryPackagePreviewPage />} />
         <Route path="orders/:orderNo/cart" element={<CartReviewPage />} />
         <Route path="payment/return" element={<PaymentReturnPage />} />
       </Route>

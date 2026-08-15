@@ -278,7 +278,7 @@ async function main() {
        await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
        await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
        await page.getByRole("button", { name: "Continue" }).click();
-       await page.getByRole("heading", { name: "Choose image quality" }).waitFor({ state: "visible" });
+        await page.getByRole("heading", { name: kind === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality" }).waitFor({ state: "visible" });
        await step(`${kind}: browser back returns to product`, async () => {
          await page.goBack();
          await page.getByRole("heading", { name: "Choose your product" }).waitFor({ state: "visible" });
@@ -286,13 +286,11 @@ async function main() {
        await step(`${kind}: reopen quality`, async () => {
           await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
           await page.getByRole("button", { name: "Continue" }).click();
-         await page.getByRole("heading", { name: "Choose image quality" }).waitFor({ state: "visible" });
+          await page.getByRole("heading", { name: kind === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality" }).waitFor({ state: "visible" });
        });
 
        if (kind === "PRINT_DIGITAL") {
-         await page.getByRole("button", { name: /Small Print/ }).click().catch(() => undefined);
-         await page.getByText("4x Ultra HD", { exact: true }).click();
-        await page.getByLabel("Print size").selectOption("4x6");
+         await page.getByLabel("Print size").selectOption("4x6");
         await page.getByLabel("Quantity").fill("10");
         await page.getByLabel("Recipient name").fill("Local E2E Customer");
         await page.getByLabel("Phone").fill("03001234567");
@@ -310,7 +308,7 @@ async function main() {
 
       const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { orderNo } });
       if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
-      const expectedTotal = kind === "DIGITAL" ? 100000n : 275000n;
+       const expectedTotal = kind === "DIGITAL" ? 100000n : 125000n;
       if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected ${expectedTotal}, got ${order.totalAmountMinor}`);
       if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid order queued processing`);
 
@@ -348,75 +346,21 @@ async function main() {
       await authenticateCartCustomer();
       await step(`${kind}: home`, () => page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" }));
       await step(`${kind}: open canonical upload`, () => page.getByRole("button", { name: "Upload Your Photo", exact: true }).first().click());
-      await step(`${kind}: select 3 images once`, () => page.setInputFiles("#photoInput", [fixturePath, fixturePath, fixturePath]));
-      await step(`${kind}: continue (3 photos)`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
-      await step(`${kind}: cart preview`, () => page.waitForURL(/\/restore-cart\/.+\/preview/, { timeout: 15_000 }));
-      await step(`${kind}: configure photos`, () => page.getByRole("button", { name: "Configure Photos" }).click());
-      await step(`${kind}: cart configure`, () => page.waitForURL(/\/restore-cart\/.+\/configure/, { timeout: 15_000 }));
+       await step(`${kind}: choose Ammi Abu package`, () => page.getByRole("button", { name: /Ammi Abu Memories/ }).click());
+       await step(`${kind}: select 2 images once`, () => page.setInputFiles("#photoInput", [fixturePath, fixturePath]));
+       await step(`${kind}: review package`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
+       await step(`${kind}: package preview`, () => page.waitForURL(/\/restore-package\/AMI_ABU_MEMORIES\/.+\/preview/, { timeout: 15_000 }));
+       await step(`${kind}: package review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
 
-      const photoCard = (n: number) => page.locator(".card").filter({ has: page.getByText(`Photo ${n} of 3`, { exact: true }) });
-
-      // Photo 1: Digital, 2x HD.
-      await photoCard(1).getByText("Digital Download", { exact: true }).click();
-      await photoCard(1).getByText("2x HD", { exact: true }).click();
-
-      // Apply-to-all from photo 1 propagates 2x HD + Digital to all 3.
-      await photoCard(1).getByRole("button", { name: "Apply these settings to all photos" }).click();
-      await step(`${kind}: apply-to-all propagated`, async () => {
-        for (const n of [2, 3]) {
-          const applied = await photoCard(n).getByRole("radiogroup", { name: `Image quality for photo ${n}` }).getByRole("radio", { checked: true }).textContent();
-          if (!applied || !applied.includes("2x HD")) throw new Error(`${kind}: Apply-to-all did not propagate to photo ${n}`);
-        }
-      });
-
-      // Override photo 2: 4x Ultra HD, Print+Digital, 4x6 qty 10.
-      await photoCard(2).getByText("Print + Digital", { exact: true }).click();
-      await photoCard(2).getByText("Small Print", { exact: true }).click();
-      await photoCard(2).getByText("4x Ultra HD", { exact: true }).click();
-      await photoCard(2).getByLabel("Print size").nth(0).selectOption("4x6");
-      await photoCard(2).getByLabel("Quantity").nth(0).fill("10");
-      await photoCard(2).getByRole("button", { name: "Add another print size" }).click();
-       await photoCard(2).getByLabel("Print size").nth(1).selectOption("4x6");
-       await photoCard(2).getByLabel("Quantity").nth(1).fill("10");
-
-      // Override photo 3: 8x, Print+Digital, a different valid print size/qty.
-      await photoCard(3).getByText("Print + Digital", { exact: true }).click();
-       await photoCard(3).getByText("Small Print", { exact: true }).click();
-      await photoCard(3).getByText("8x", { exact: true }).click();
-       await photoCard(3).getByLabel("Print size").selectOption("4x6");
-       await photoCard(3).getByLabel("Quantity").fill("10");
-
-      // Photo 2/3 are individually overridden after Apply-to-all -- prove
-      // photo 1 stayed untouched (2x HD, Digital), never silently changed.
-      const photo1Text = await photoCard(1).innerText();
-      if (!photo1Text.includes("2x HD")) throw new Error(`${kind}: photo 1 setting changed unexpectedly after overriding photos 2/3`);
-
-      // One shared delivery address for the whole cart (any print item).
-      await page.getByLabel("Recipient name").fill("Local E2E Cart Customer");
-      await page.getByLabel("Phone").fill("03001234567");
-      await page.getByLabel("Address").fill("1 Test Street");
-       await page.getByLabel("City").fill("Lahore");
-       await page.getByRole("button", { name: "Continue to Review" }).waitFor({ state: "visible" });
-       let cartResponse: Awaited<ReturnType<typeof page.waitForResponse>> | null = null;
-       for (let attempt = 0; attempt < 3; attempt += 1) {
-         const responsePromise = page.waitForResponse((response) => response.url().endsWith("/api/fixed-orders/restoration-cart") && response.request().method() === "POST");
-         await step(`${kind}: continue to review${attempt ? ` retry ${attempt}` : ""}`, () => page.getByRole("button", { name: "Continue to Review" }).click());
-         cartResponse = await responsePromise;
-         if (cartResponse.ok()) break;
-         if (cartResponse.status() !== 404 || attempt === 2) throw new Error(`${kind}: cart creation failed (${cartResponse.status()}): ${await cartResponse.text()}`);
-         await sleep(500);
-       }
       await step(`${kind}: cart review route`, () => page.waitForURL(/\/orders\/.+\/cart/, { timeout: 15_000 }));
       const orderNo = page.url().match(/\/orders\/([^/]+)\/cart/)?.[1];
       if (!orderNo) throw new Error(`${kind}: could not read orderNo`);
       cartOrderNo = orderNo;
 
       const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { orderNo }, include: { items: true } });
-      if (order.items.length !== 3) throw new Error(`${kind}: expected 3 items, got ${order.items.length}`);
-      if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
-      // restoration: 1000 (2x) + 1500 (4x) + 3500 (8x) = 6000
-       // print: 4x6x10 (1000) + 4x6x10 (1000) + 4x6x10 (1000) = 3000; delivery once
-       const expectedTotal = 600000n + 300000n + 25000n;
+       if (order.items.length !== 2) throw new Error(`${kind}: expected 2 package items, got ${order.items.length}`);
+       if (order.priceBookVersion !== null || order.currency !== "PKR") throw new Error(`${kind}: incorrect package price metadata`);
+       const expectedTotal = 250000n;
       if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected total ${expectedTotal}, got ${order.totalAmountMinor}`);
       if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid cart queued processing`);
 
@@ -424,20 +368,12 @@ async function main() {
       const headers = { "content-type": "application/json", "x-guest-ownership-token": guestToken };
 
       await step(`${kind}: complete verified TEST payment (once for whole cart)`, () => page.click('[data-testid="e2e-complete-test-payment"]'));
-      for (let i = 0; i < 3; i++) {
+       for (let i = 0; i < 2; i++) {
         await step(`${kind}: item ${i} download`, () => page.waitForSelector(`[data-testid="e2e-download-link-${i}"]`, { timeout: 20_000 }));
       }
        const duplicatePayment = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/test-checkout/complete`, { method: "POST", headers: { ...headers, "x-forwarded-for": "127.0.0.2" }, body: "{}" });
       if (!duplicatePayment.ok) throw new Error(`${kind}: duplicate verified evidence did not converge`);
 
-      for (let i = 1; i <= 2; i++) {
-        const panel = page.locator(`[data-testid="print-status-${i}"]`);
-        await panel.waitFor({ timeout: 15_000 });
-        const text = await panel.innerText();
-        if (!text.includes("Preparing for printing")) throw new Error(`${kind}: item ${i} expected truthful in-house print status, got: ${text}`);
-      }
-      const digitalOnlyPrintPanel = page.locator('[data-testid="print-status-0"]');
-      if (await digitalOnlyPrintPanel.count() !== 0) throw new Error(`${kind}: digital-only photo 1 must never show a print status`);
     };
 
     try {
@@ -468,15 +404,15 @@ async function main() {
         }
       });
       // Single-item DIGITAL + PRINT_DIGITAL flows create 2 drafts/2 orders;
-      // the cart flow (checked separately below) adds 3 more drafts and 1
-      // more order -- 5 drafts/3 orders total, asserted via `expected` below.
-      if (orders.length !== 2) throw new Error("expected exactly two single-item orders");
-      for (const order of orders) {
+      // the package flow is asserted separately below.
+      const singleOrders = orders.filter((order) => orderNos.includes(order.orderNo));
+      if (singleOrders.length !== 2) throw new Error("expected exactly two single-item orders");
+      for (const order of singleOrders) {
         const entitlement = order.restorationEntitlements[0];
         if (order.items.length !== 1 || !order.paymentAttempt || order.paymentAttempt.events.length !== 1 || !entitlement?.restorationMaster?.replicateExecution) throw new Error(`${order.orderNo}: incomplete or duplicate paid chain`);
         if (order.paymentAttempt.status !== "PAID" || entitlement.restorationMaster.status !== "VALIDATED" || entitlement.restorationMaster.replicateExecution.status !== "SUCCEEDED") throw new Error(`${order.orderNo}: processing did not complete`);
       }
-      const printOrder = orders.find((order) => order.type === "RESTORATION_WITH_PRINT");
+       const printOrder = singleOrders.find((order) => order.type === "RESTORATION_WITH_PRINT");
       if (!printOrder?.deliveryAddress) throw new Error("print delivery address missing");
 
       // ---- Cart order (3 items, mixed Digital/Print+Digital) assertions. ----
@@ -489,18 +425,17 @@ async function main() {
           deliveryAddress: true
         }
       });
-      if (cartOrder.items.length !== 3) throw new Error(`cart: expected 3 FixedOrderItems, got ${cartOrder.items.length}`);
+       if (cartOrder.items.length !== 2) throw new Error(`package: expected 2 FixedOrderItems, got ${cartOrder.items.length}`);
       if (cartOrder.paymentAttempt?.status !== "PAID") throw new Error("cart: payment did not complete");
       if (await prisma.paymentAttempt.count({ where: { fixedOrderId: cartOrder.id } }) !== 1) throw new Error("cart: expected exactly one order-level PaymentAttempt, never one per item");
-      if (cartOrder.restorationEntitlements.length !== 3) throw new Error(`cart: expected 3 RestorationEntitlements, got ${cartOrder.restorationEntitlements.length}`);
+       if (cartOrder.restorationEntitlements.length !== 2) throw new Error(`package: expected 2 RestorationEntitlements, got ${cartOrder.restorationEntitlements.length}`);
       const cartMasters = cartOrder.restorationEntitlements.map((e) => e.restorationMaster).filter(Boolean);
-      if (cartMasters.length !== 3 || cartMasters.some((m) => m!.status !== "VALIDATED")) throw new Error("cart: expected 3 VALIDATED RestorationMasters");
+       if (cartMasters.length !== 2 || cartMasters.some((m) => m!.status !== "VALIDATED")) throw new Error("package: expected 2 VALIDATED RestorationMasters");
       const cartExecutions = cartMasters.map((m) => m!.replicateExecution).filter(Boolean);
-      if (cartExecutions.length !== 3 || cartExecutions.some((x) => x!.status !== "SUCCEEDED")) throw new Error("cart: expected exactly 3 SUCCEEDED ReplicateExecutions, never 1 and never 9");
+       if (cartExecutions.length !== 2 || cartExecutions.some((x) => x!.status !== "SUCCEEDED")) throw new Error("package: expected exactly 2 SUCCEEDED ReplicateExecutions");
       const cartPrintEntitlements = await prisma.printEntitlement.count({ where: { fixedOrderItemId: { in: cartOrder.items.map((i) => i.id) } } });
       const cartPrintLines = await prisma.printOrderLine.findMany({ where: { fixedOrderId: cartOrder.id }, orderBy: { createdAt: "asc" } });
-      if (cartPrintEntitlements !== 3 || cartPrintLines.length !== 3) throw new Error(`cart: expected 3 print records/lines for 2 print items, got ${cartPrintEntitlements}/${cartPrintLines.length}`);
-      if (cartPrintLines.filter((line) => line.fixedOrderItemId === cartOrder.items[1]!.id).length !== 2) throw new Error("cart: multiple print lines were not attached to one source item");
+       if (cartPrintEntitlements !== 0 || cartPrintLines.length !== 0) throw new Error(`package: unexpected print records/lines ${cartPrintEntitlements}/${cartPrintLines.length}`);
 
       const counts = {
         restorationDraft: await prisma.restorationDraft.count(),
@@ -516,8 +451,8 @@ async function main() {
         fulfilmentOrder: await prisma.fulfilmentOrder.count(),
         shipment: await prisma.shipment.count()
       };
-      // Single-item flows (2 orders, 1 item each) + cart flow (1 order, 3 items).
-      const expected = { restorationDraft: 5, fixedOrder: 3, fixedOrderItem: 5, paymentAttempt: 3, paymentEvent: 3, restorationEntitlement: 5, restorationMaster: 5, replicateExecution: 5, printDeliveryAddress: 2, printEntitlement: 4, fulfilmentOrder: 4, shipment: 0 };
+       // Single-item flows (2 orders, 1 item each) + package flow (1 order, 2 items).
+       const expected = { restorationDraft: 4, fixedOrder: 3, fixedOrderItem: 4, paymentAttempt: 3, paymentEvent: 3, restorationEntitlement: 4, restorationMaster: 4, replicateExecution: 4, printDeliveryAddress: 1, printEntitlement: 1, fulfilmentOrder: 1, shipment: 0 };
       for (const [key, value] of Object.entries(expected)) if (counts[key as keyof typeof counts] !== value) throw new Error(`expected ${value} ${key}, got ${counts[key as keyof typeof counts]}`);
       // Only Replicate/RunPod/Bank Alfalah/production-API are safety-critical
       // for a zero-cost harness -- those must be exactly 0. "other" catches

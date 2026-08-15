@@ -346,6 +346,13 @@ export const customerApi = {
   ) =>
     apiRequest<FixedOrderCartSummary>("/api/fixed-orders/restoration-cart", { method: "POST", body: JSON.stringify(input) }, token, guestToken),
 
+  getMemoryPackages: () => apiRequest<MemoryPackageSummary[]>("/api/memory-packages"),
+  createMemoryPackageOrder: (
+    token: string | undefined,
+    input: { packageCode: string; items: Array<{ draftId: string; guestOwnershipToken?: string }> },
+    guestToken?: string
+  ) => apiRequest<FixedOrderCartSummary>("/api/fixed-orders/memory-package", { method: "POST", body: JSON.stringify(input) }, token, guestToken),
+
   getRestorationCart: (token: string | undefined, orderNo: string, guestToken?: string) =>
     apiRequest<FixedOrderCartSummary>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/cart`, {}, token, guestToken),
 
@@ -378,7 +385,7 @@ export type FixedOrderCartItemSummary = {
   tier: string;
   product: "DIGITAL" | "PRINT_DIGITAL";
   digitalAmountMinor: string;
-  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string };
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string; requiredTier?: string; qualitySurchargeMinor?: number };
   prints?: Array<{ size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; catalogVersion: string; requiredTier?: string; qualitySurchargeMinor: string }>;
   lineTotalMinor: string;
 };
@@ -397,6 +404,19 @@ export type FixedOrderCartSummary = {
   priceBookVersion: string | null;
   createdAt: string;
   paymentStatus?: string;
+  package?: { code: string; name: string; priceMinor: string; imagesIncluded: number };
+};
+
+export type MemoryPackageSummary = {
+  code: string;
+  name: string;
+  priceMinor: number;
+  currency: "PKR" | "USD";
+  minImages: number;
+  maxImages: number;
+  includes: string[];
+  checkoutReady: boolean;
+  blocker?: string;
 };
 
 export type RestorationDraftSummary = {
@@ -439,6 +459,6 @@ export type FixedOrderSummary = {
   priceBookEffectiveAt: string | null;
   createdAt: string;
   paymentStatus?: string;
-  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string; requiredTier?: string; qualitySurchargeMinor?: number };
   deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 };

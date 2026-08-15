@@ -80,7 +80,7 @@ export class CustomerCheckoutTestService {
       currency: owned.currency,
       status: owned.status,
       totalAmountMinor: owned.totalAmountMinor,
-      items: owned.items.map((item) => ({ pricingSource: item.pricingSource, pricingApproved: item.pricingApproved })),
+      items: owned.items.map((item) => ({ pricingSource: item.pricingSource, pricingApproved: item.pricingApproved, metadata: item.metadata })),
       existingAttemptStatus: owned.paymentAttempt?.status ?? null,
       priceBookVersion: owned.priceBookVersion,
       priceBookApprovalReference: owned.priceBookApprovalReference

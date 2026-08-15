@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { setGuestOwnershipToken } from "../lib/guest";
-import { customerApi } from "../services/customerApi";
+import { customerApi, type MemoryPackageSummary } from "../services/customerApi";
 
-const MAX_IMAGES = 10;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -15,6 +14,8 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
   const [activeIndex, setActiveIndex] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [packages, setPackages] = useState<MemoryPackageSummary[]>([]);
+  const [packageCode, setPackageCode] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const uploadInFlightRef = useRef(false);
@@ -31,6 +32,8 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
       document.body.style.overflow = previousOverflow;
     };
   }, [open, onClose]);
+
+  useEffect(() => { if (open) void customerApi.getMemoryPackages().then(setPackages).catch(() => setPackages([])); }, [open]);
 
   const previewUrls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
   useEffect(() => () => previewUrls.forEach((url) => URL.revokeObjectURL(url)), [previewUrls]);
@@ -60,13 +63,14 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
     // `files` closure value is authoritative here -- no functional updater
     // needed, which keeps this one linear decision instead of splitting
     // state across two setState calls.
-    const limit = token ? MAX_IMAGES : 1;
+    const selectedPackage = packages.find((item) => item.code === packageCode);
+    const limit = selectedPackage ? selectedPackage.maxImages : 1;
     if (files.length + incoming.length > limit) {
-      if (!token && files.length === 0 && incoming.length > 0) {
+      if (!token && !packageCode && files.length === 0 && incoming.length > 0) {
         setFiles([incoming[0]]);
         setActiveIndex(0);
       }
-      setUploadError(token ? `You can upload up to ${MAX_IMAGES} photos at a time. Remove some to add more.` : "Create a free account to upload multiple photos.");
+      setUploadError(selectedPackage ? `This package accepts up to ${limit} photos.` : "Single Photo accepts one image. Choose a Memory Package for multiple photos.");
       return;
     }
     setFiles([...files, ...incoming]);
@@ -120,7 +124,11 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
       // single-image route/behavior byte-for-byte -- this is not a new
       // code path, it is the same one that has always run for one image.
       // Two or more images navigate to the new cart flow instead.
-      if (draftIds.length === 1) {
+      if (packageCode) {
+        const selectedPackage = packages.find((item) => item.code === packageCode);
+        if (!selectedPackage || draftIds.length < selectedPackage.minImages || draftIds.length > selectedPackage.maxImages) throw new Error(`Upload ${selectedPackage?.minImages ?? 2} photos for this package.`);
+        navigate(`/restore-package/${packageCode}/${draftIds.join(",")}/preview`, { replace: true });
+      } else if (draftIds.length === 1) {
         navigate(`/restore-mvp/${draftIds[0]}/preview`, { replace: true });
       } else {
         navigate(`/restore-cart/${draftIds.join(",")}/preview`, { replace: true });
@@ -140,11 +148,15 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
         <button ref={closeButtonRef} className="modal-close" type="button" aria-label="Close" onClick={onClose}>x</button>
         <span className="eyebrow">START RESTORATION</span>
         <h2 id="uploadTitle">Upload photos</h2>
-        <p>{token ? `Up to ${MAX_IMAGES} photos · JPG, PNG or WEBP · 10 MB each` : "Add one photo to start. Create a free account for multiple photos."}</p>
+        <p>{packageCode ? "Memory package photos · JPG, PNG or WEBP · 10 MB each" : "Single Photo is the default. Choose a Memory Package for a guided multi-photo order."}</p>
+        <div className="package-entry-grid" aria-label="Restoration type">
+          <button type="button" className={`card package-entry-card${!packageCode ? " is-selected" : ""}`} onClick={() => { setPackageCode(null); setFiles([]); setUploadError(null); }}> <strong>Single Photo</strong><span>One photo · Digital or Print + Digital</span></button>
+          {packages.filter((item) => item.checkoutReady).map((item) => <button type="button" key={item.code} className={`card package-entry-card${packageCode === item.code ? " is-selected" : ""}`} onClick={() => { setPackageCode(item.code); setFiles([]); setUploadError(null); }}><strong>{item.name}</strong><span>{item.minImages} photos · {item.currency} {(item.priceMinor / 100).toLocaleString()}</span></button>)}
+        </div>
         <label className={`drop-zone${files.length ? " upload-dropzone-compact" : ""}`} htmlFor="photoInput">
           <span className="drop-icon">+</span>
           <strong>{files.length ? "Add another photo" : "Add photos"}</strong>
-          <small>{files.length ? "Camera or gallery" : "Camera or gallery · JPG, PNG or WEBP"}</small>
+             <small>{files.length ? "Camera or gallery" : packageCode ? `Photo 1–${packages.find((item) => item.code === packageCode)?.maxImages ?? 2}` : "Camera or gallery · JPG, PNG or WEBP"}</small>
           <input
             ref={fileInputRef}
             id="photoInput"
@@ -170,26 +182,26 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
                   {files.length > 1 && <button type="button" className="upload-remove-button" aria-label={`Remove ${file.name}`} onClick={() => removeFileAt(index)}>×</button>}
                 </div>
               ))}
-              {token && files.length < MAX_IMAGES && <button type="button" className="upload-add-tile" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+</button>}
+               {packageCode && files.length < (packages.find((item) => item.code === packageCode)?.maxImages ?? 1) && <button type="button" className="upload-add-tile" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+</button>}
             </div>}
-            {token && files.length === 1 && <button type="button" className="upload-add-tile upload-add-tile-single" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+ <span>Add</span></button>}
+            {packageCode && files.length === 1 && <button type="button" className="upload-add-tile upload-add-tile-single" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+ <span>Add</span></button>}
           </div>
         )}
         {!token && files.length === 1 && (
             <div className="upload-account-prompt">
-            <p>Create a free account to upload multiple photos.</p>
+            <p>Choose a Memory Package when you want to restore multiple photos together.</p>
             <div className="button-row"><button type="button" className="button button-secondary" onClick={() => navigate("/login", { state: { from: "/?upload=1" } })}>Log in</button><button type="button" className="button" onClick={() => navigate("/signup", { state: { from: "/?upload=1" } })}>Sign up</button></div>
           </div>
         )}
-        {token && files.length > 0 && files.length < MAX_IMAGES && <>
+        {packageCode && files.length > 0 && files.length < (packages.find((item) => item.code === packageCode)?.maxImages ?? 1) && <>
           <button type="button" className="button button-secondary upload-add-more" onClick={() => fileInputRef.current?.click()}>
-            Add more photos — {MAX_IMAGES - files.length} remaining
+             Add more photos — {(packages.find((item) => item.code === packageCode)?.maxImages ?? 1) - files.length} remaining
           </button>
-          <p className="upload-remaining">{MAX_IMAGES - files.length} remaining</p>
+           <p className="upload-remaining">{(packages.find((item) => item.code === packageCode)?.maxImages ?? 1) - files.length} remaining</p>
         </>}
         {uploadError && <div className="state-panel state-panel-error"><p>{uploadError}</p></div>}
         <button aria-label="Continue to Restoration" className="btn btn-primary btn-full" type="button" disabled={files.length === 0 || uploading} onClick={() => void continueFromModal()}>
-          {uploading ? "Uploading..." : files.length > 1 ? `Continue (${files.length} photos)` : "Continue"}
+           {uploading ? "Uploading..." : packageCode ? `Review package (${files.length})` : files.length > 1 ? `Continue (${files.length} photos)` : "Continue"}
         </button>
       </section>
     </div>

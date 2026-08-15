@@ -42,6 +42,8 @@ import {
 } from "../domain/pricing/offerProvider";
 import { ApprovedOfferProvider } from "../domain/pricing/approvedOfferProvider";
 import { PRINT_CATALOG_VERSION, publicPrintCatalog, quotePrint } from "../domain/pricing/printCatalog";
+import { findMemoryPackage } from "../domain/pricing/memoryPackages";
+import { highestRequiredTier, minimumTierForPrint } from "./print-quality.service";
 
 export interface CreateRestorationDigitalOrderInput {
   draftId: string;
@@ -74,6 +76,11 @@ export interface CreateRestorationCartOrderInput {
   deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
 
+export interface CreateMemoryPackageOrderInput {
+  packageCode: string;
+  items: Array<{ draftId: string; guestOwnershipToken?: string }>;
+}
+
 export interface CartItemSafeView {
   fixedOrderItemId: string;
   draftId: string;
@@ -99,6 +106,7 @@ export interface FixedOrderCartSafeView {
   priceBookVersion: string | null;
   createdAt: string;
   paymentStatus?: string;
+  package?: { code: string; name: string; priceMinor: string; imagesIncluded: number };
 }
 
 export interface FixedOrderSafeView {
@@ -117,7 +125,7 @@ export interface FixedOrderSafeView {
   priceBookEffectiveAt: string | null;
   createdAt: string;
   paymentStatus?: string;
-  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string };
+  print?: { size: string; quantity: number; unitAmountMinor: string; subtotalMinor: string; deliveryAmountMinor: string; catalogVersion: string; requiredTier?: string; qualitySurchargeMinor?: number };
   deliveryAddress?: { recipientName: string; phone: string; addressLine1: string; addressLine2?: string; city: string; region?: string; postalCode?: string; countryCode: string };
 }
 
@@ -217,6 +225,7 @@ function toCartSafeView(order: {
   const restorationTotalMinor = order.items.reduce((sum, item) => sum + item.unitAmountMinor, 0n);
   const printTotalMinor = order.items.reduce((sum, item) => sum + (item.totalAmountMinor - item.unitAmountMinor), 0n);
   const deliveryAmountMinor = order.totalAmountMinor - restorationTotalMinor - printTotalMinor;
+  const packageMeta = order.items.find((item) => item.metadata && typeof item.metadata === "object" && "package" in item.metadata)?.metadata as { package?: { code?: string; name?: string; priceMinor?: number; imagesIncluded?: number } } | undefined;
   return {
     id: order.id,
     orderNo: order.orderNo,
@@ -230,7 +239,8 @@ function toCartSafeView(order: {
     totalAmountMinor: order.totalAmountMinor.toString(),
     priceBookVersion: order.priceBookVersion,
     createdAt: order.createdAt.toISOString(),
-    paymentStatus: order.paymentAttempt?.status
+    paymentStatus: order.paymentAttempt?.status,
+    ...(packageMeta?.package ? { package: { code: String(packageMeta.package.code), name: String(packageMeta.package.name), priceMinor: String(packageMeta.package.priceMinor), imagesIncluded: Number(packageMeta.package.imagesIncluded) } } : {})
   };
 }
 
@@ -258,10 +268,10 @@ export class FixedOrderService {
     input: CreateRestorationDigitalOrderInput,
     actor: RequestActor
   ): Promise<FixedOrderSafeView> {
-    if (!ALLOWED_DIGITAL_TIERS.includes(input.tier as DigitalTier)) {
+    const isPrint = input.product === "PRINT_DIGITAL";
+    if (!isPrint && !ALLOWED_DIGITAL_TIERS.includes(input.tier as DigitalTier)) {
       throw new AppError(`invalid tier: ${input.tier}`, 422, "INVALID_TIER");
     }
-    const tier = input.tier as DigitalTier;
 
     const draft = await prisma.restorationDraft.findUnique({ where: { id: input.draftId } });
     const owned = assertOwnership(draft, actor);
@@ -286,6 +296,16 @@ export class FixedOrderService {
       return toSafeView(existing);
     }
 
+    const requestedLinesForTier = input.printLines?.length
+      ? input.printLines
+      : input.printSize
+        ? [{ printSize: input.printSize, quantity: input.quantity ?? 1 }]
+        : [];
+    const requiredTier = isPrint
+      ? highestRequiredTier(requestedLinesForTier.map((line) => minimumTierForPrint(owned.originalWidth, owned.originalHeight, line.printSize)))
+      : null;
+    const tier = (isPrint ? requiredTier ?? "ORIGINAL" : input.tier) as DigitalTier;
+
     if (!owned.market || !owned.currency) {
       throw new AppError("draft has no resolved market/currency", 422, "INVALID_MARKET");
     }
@@ -308,9 +328,9 @@ export class FixedOrderService {
     }
 
     const isApproved = offer.source === "approved_pricebook";
-    const isPrint = input.product === "PRINT_DIGITAL";
     let printQuote: ReturnType<typeof quotePrint> | undefined;
     let printLines: Array<{ printSize: string; quantity: number; quote: ReturnType<typeof quotePrint> }> = [];
+    const enhancementAmountMinor = isPrint && requiredTier === "ORIGINAL" ? 0 : offer.amountMinor;
     if (isPrint) {
       if (owned.currency === "USD") throw new AppError("international print shipping is not configured", 422, "INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
       if (owned.currency !== "PKR" || !input.printSize || !Number.isSafeInteger(input.quantity)) throw new AppError("valid PKR print size and quantity are required", 422, "INVALID_PRINT_SELECTION");
@@ -318,7 +338,7 @@ export class FixedOrderService {
       if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");
       const requestedLines = input.printLines?.length ? input.printLines : [{ printSize: input.printSize, quantity: input.quantity }];
       if (requestedLines.length > 10) throw new AppError("too many print lines", 422, "INVALID_PRINT_LINES");
-      try { printLines = requestedLines.map((line) => ({ printSize: line.printSize, quantity: line.quantity, quote: quotePrint(offer.amountMinor, line.printSize, line.quantity) })); printQuote = printLines[0]?.quote; } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
+      try { printLines = requestedLines.map((line) => ({ printSize: line.printSize, quantity: line.quantity, quote: quotePrint(enhancementAmountMinor, line.printSize, line.quantity) })); printQuote = printLines[0]?.quote; } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
     }
 
     try {
@@ -333,7 +353,7 @@ export class FixedOrderService {
             ownerCustomerId: null,
             guestOwnershipTokenHash: owned.guestOwnershipTokenHash ?? null,
             sourceDraftId: owned.id,
-            totalAmountMinor: BigInt(offer.amountMinor) + printLines.reduce((sum, line) => sum + BigInt(line.quote.printSubtotalMinor), 0n) + printLines.reduce((max, line) => { const fee = BigInt(line.quote.deliveryFeeMinor); return fee > max ? fee : max; }, 0n),
+            totalAmountMinor: BigInt(enhancementAmountMinor) + printLines.reduce((sum, line) => sum + BigInt(line.quote.printSubtotalMinor), 0n) + printLines.reduce((max, line) => { const fee = BigInt(line.quote.deliveryFeeMinor); return fee > max ? fee : max; }, 0n),
             priceBookVersion: isApproved ? offer.priceBookVersion ?? null : null,
             priceBookApprovalReference: isApproved ? offer.approvalReference ?? null : null,
             priceBookEffectiveAt: isApproved && offer.effectiveAt ? new Date(offer.effectiveAt) : null,
@@ -341,12 +361,12 @@ export class FixedOrderService {
               create: {
                 kind: "RESTORATION_DIGITAL_TIER",
                 tierOrSku: tier,
-                unitAmountMinor: BigInt(offer.amountMinor),
-                totalAmountMinor: BigInt(offer.amountMinor) + printLines.reduce((sum, line) => sum + BigInt(line.quote.printSubtotalMinor), 0n),
+                unitAmountMinor: BigInt(enhancementAmountMinor),
+                totalAmountMinor: BigInt(enhancementAmountMinor) + printLines.reduce((sum, line) => sum + BigInt(line.quote.printSubtotalMinor), 0n),
                 currency: owned.currency as FixedOrderCurrency,
                 pricingSource: offer.source,
                 pricingApproved: isApproved,
-                metadata: printQuote && input.printSize ? { print: { size: input.printSize, quantity: input.quantity, unitAmountMinor: printQuote.printSubtotalMinor / (input.quantity ?? 1), subtotalMinor: printQuote.printSubtotalMinor, deliveryAmountMinor: printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION }, printLines: printLines.map((line) => ({ size: line.printSize, quantity: line.quantity, unitAmountMinor: line.quote.printSubtotalMinor / line.quantity, subtotalMinor: line.quote.printSubtotalMinor, deliveryAmountMinor: line.quote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION })) } : undefined
+                metadata: printQuote && input.printSize ? { print: { size: input.printSize, quantity: input.quantity, unitAmountMinor: printQuote.printSubtotalMinor / (input.quantity ?? 1), subtotalMinor: printQuote.printSubtotalMinor, deliveryAmountMinor: printQuote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION, requiredTier: tier, qualitySurchargeMinor: enhancementAmountMinor }, printLines: printLines.map((line) => ({ size: line.printSize, quantity: line.quantity, unitAmountMinor: line.quote.printSubtotalMinor / line.quantity, subtotalMinor: line.quote.printSubtotalMinor, deliveryAmountMinor: line.quote.deliveryFeeMinor, catalogVersion: PRINT_CATALOG_VERSION, requiredTier: tier, qualitySurchargeMinor: enhancementAmountMinor })) } : undefined
               }
             }
           },
@@ -388,6 +408,48 @@ export class FixedOrderService {
   }
 
   getPrintCatalog() { return publicPrintCatalog(); }
+
+  /** Server-owned fixed-price package order. Package policy supplies one tier
+   * for every image; customers never choose per-image product or quality. */
+  async createMemoryPackageOrder(input: CreateMemoryPackageOrderInput, actor: RequestActor): Promise<FixedOrderCartSafeView> {
+    const pkg = findMemoryPackage(input.packageCode);
+    if (!pkg || !pkg.checkoutReady) throw new AppError("memory package is not currently available", 422, "PACKAGE_UNAVAILABLE");
+    if (!Array.isArray(input.items) || input.items.length < pkg.minImages || input.items.length > pkg.maxImages) {
+      throw new AppError(`package requires ${pkg.minImages} to ${pkg.maxImages} photos`, 422, "INVALID_PACKAGE_IMAGE_COUNT");
+    }
+    const draftIds = input.items.map((item) => item.draftId);
+    if (new Set(draftIds).size !== draftIds.length) throw new AppError("each package photo must be unique", 422, "DUPLICATE_DRAFT_IN_PACKAGE");
+    const drafts = await prisma.restorationDraft.findMany({ where: { id: { in: draftIds } } });
+    if (drafts.length !== draftIds.length) throw new AppError("one or more package photos were not found", 404, "NOT_FOUND");
+    for (const draft of drafts) {
+      const item = input.items.find((candidate) => candidate.draftId === draft.id);
+      assertOwnership(draft, actor.userId ? actor : { guestToken: item?.guestOwnershipToken ?? actor.guestToken ?? null });
+      if (draft.status === "EXPIRED" || draft.status === "CANCELLED") throw new AppError("package photo is not orderable", 409, "DRAFT_NOT_ORDERABLE");
+    }
+    if (drafts.some((draft) => draft.market !== "PAKISTAN" || draft.currency !== "PKR")) throw new AppError("this package is currently available in PKR only", 422, "PACKAGE_MARKET_UNAVAILABLE");
+    const existing = await prisma.fixedOrderItem.findMany({ where: { sourceDraftId: { in: draftIds } }, select: { fixedOrderId: true } });
+    if (existing.length) throw new AppError("one or more package photos are already ordered", 409, "DRAFT_ALREADY_ORDERED");
+    const created = await prisma.$transaction(async (tx) => {
+      const order = await tx.fixedOrder.create({
+        data: {
+          orderNo: orderNo(), type: "RESTORATION_DIGITAL", market: "PAKISTAN", currency: "PKR",
+          ownerUserId: drafts[0].ownerUserId ?? null, ownerCustomerId: null,
+          guestOwnershipTokenHash: drafts[0].guestOwnershipTokenHash ?? null,
+          sourceDraftId: drafts[0].id, totalAmountMinor: BigInt(pkg.priceMinor),
+          items: { create: drafts.map((draft, index) => ({
+            kind: "MEMORY_PACKAGE_IMAGE", tierOrSku: "HD_2X", unitAmountMinor: index === 0 ? BigInt(pkg.priceMinor) : 0n,
+            totalAmountMinor: index === 0 ? BigInt(pkg.priceMinor) : 0n, currency: "PKR",
+            pricingSource: "package_catalog", pricingApproved: true, sourceDraftId: draft.id,
+            metadata: { package: { code: pkg.code, name: pkg.name, priceMinor: pkg.priceMinor, imagesIncluded: drafts.length, policyTier: "HD_2X" } }
+          }))
+          }
+        }, include: CART_ORDER_INCLUDE
+      });
+      await tx.restorationDraft.updateMany({ where: { id: { in: draftIds } }, data: { status: "ORDER_SELECTION" } });
+      return order;
+    });
+    return toCartSafeView(created);
+  }
 
   /** R9.5-P5Q: GET /api/fixed-orders/:orderNo/cart -- read-only, multi-item view. */
   async getCartByOrderNo(orderNo: string, actor: RequestActor): Promise<FixedOrderCartSafeView> {
