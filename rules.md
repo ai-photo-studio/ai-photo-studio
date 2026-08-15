@@ -3898,3 +3898,21 @@ remains in force verbatim.
 - The protected commerce harness closes browser/Prisma resources, sends bounded
   child-process termination, awaits closure, uses a Linux SIGKILL fallback, and
   stops disposable PostgreSQL before returning the true test status.
+
+### R9.5-P7ZK — Final Visual Consistency Baseline
+
+- Journey primary actions use ThanNow purple; green is reserved for selected,
+  ready, valid, and completed states. Secondary actions remain outlined or
+  neutral and disabled primary actions remain visibly subdued.
+- Customer journey mobile headers are compact and expose Back, ThanNow brand,
+  and a useful navigation menu for Home, Restoration, Upscaling, Printing,
+  Pricing, and Restorations/Help. Desktop navigation remains full.
+- Journey top spacing is compact and must not create an accidental hero or blank
+  region. Product imagery remains face-safe `contain` with materially meaningful
+  image/card area; Product select-then-Continue and Quality no-preselection are
+  protected invariants.
+- Mobile journey typography targets H1 28–32px, H2 20–24px, card titles
+  18–21px, body 14–16px, and captions 12–13px. Review keeps one payment
+  primary, compact order/summary geometry, and secondary utility controls.
+- Favicon derivatives use `logo/frivcon.png` as the approved source at maximum
+  undistorted fill; canonical `logo2.png` remains unchanged.

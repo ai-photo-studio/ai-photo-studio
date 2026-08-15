@@ -3380,6 +3380,45 @@ img {
   .brand-logo { width: 92px; height: 46px; }
 }
 
+/* R9.5-P7ZK: one journey action language and compact native-style header. */
+.journey-shell {
+  --journey-primary: var(--thannow-purple, #5b1aa8);
+  --journey-primary-dark: var(--thannow-purple-dark, #471080);
+  --journey-success: #087448;
+}
+.journey-shell .site-header { min-height: 64px; padding-block: 6px; }
+.journey-shell .brand-logo { width: 108px; height: 44px; }
+.journey-shell .site-main { min-width: 0; }
+.journey-shell .page-stack { padding-block: 16px 72px; }
+.journey-shell .section-heading h1 { font-size: clamp(1.75rem, 4vw, 2.25rem); }
+.journey-shell .section-heading h2 { font-size: clamp(1.25rem, 3vw, 1.5rem); }
+.journey-shell .button:not(.button-secondary):not(.button-ghost):not(.journey-utility),
+.journey-shell .btn-primary { border-color: var(--journey-primary); background: var(--journey-primary); color: #fff; }
+.journey-shell .button:not(.button-secondary):not(.button-ghost):not(.journey-utility):hover,
+.journey-shell .btn-primary:hover { border-color: var(--journey-primary-dark); background: var(--journey-primary-dark); }
+.journey-shell .button-secondary, .journey-shell .button-ghost, .journey-shell .btn-ghost { border-color: var(--journey-primary); color: var(--journey-primary); }
+.journey-shell .quality-tier-card.is-selected { border-color: var(--journey-success); box-shadow: 0 10px 28px rgba(10, 122, 55, .16); }
+.journey-shell .quality-tier-card.is-selected .quality-tier-radio { border-color: var(--journey-success); background: var(--journey-success); }
+.journey-shell .quality-tier-card.is-selected .quality-tier-select { border-color: var(--journey-success); background: var(--journey-success); }
+.journey-shell .journey-menu-toggle { display: none; }
+
+@media (max-width: 768px) {
+  .journey-shell .site-header { min-height: 58px; padding-block: 4px; }
+  .journey-shell .brand-logo { width: 96px; height: 40px; }
+  .journey-shell .journey-header-actions .journey-back { min-height: 38px; padding: 7px 10px; }
+  .journey-shell .journey-header-actions .btn-primary { display: none; }
+  .journey-shell .journey-menu-toggle { display: inline-grid; order: 4; width: 40px; height: 40px; place-items: center; border: 1px solid var(--journey-primary); border-radius: 10px; background: #fff; color: var(--journey-primary); font-size: 21px; line-height: 1; }
+  .journey-shell .site-header { position: relative; }
+  .journey-shell .mobile-nav { position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; display: none; width: min(250px, calc(100vw - 24px)); padding: 8px; border: 1px solid var(--thannow-line); border-radius: 14px; background: var(--thannow-paper); box-shadow: 0 14px 32px rgba(48, 31, 17, .16); }
+  .journey-shell .mobile-nav.is-open { display: grid; gap: 2px; }
+  .journey-shell .mobile-nav a { padding: 11px 12px; border-radius: 9px; color: var(--thannow-ink); font-size: 14px; font-weight: 700; }
+  .journey-shell .mobile-nav a:hover, .journey-shell .mobile-nav a.active { background: var(--thannow-purple-soft); color: var(--journey-primary); }
+  .journey-shell .page-stack { padding-block: 12px 68px; }
+  .journey-shell .section-heading h1 { font-size: clamp(1.75rem, 8vw, 2rem); }
+  .journey-shell .section-heading h2 { font-size: 1.3rem; }
+  .journey-shell .journey-actions .button:first-child { min-height: 46px; }
+}
+
 /* ---- Homepage sections (scoped to .thannow-home only) ---- */
 
 .thannow-home .section-shell {

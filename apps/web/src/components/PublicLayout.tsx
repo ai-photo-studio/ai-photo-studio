@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { RestorationUploadController, useRestorationUpload } from "./RestorationUploadController";
 import { BrandLogo } from "./BrandLogo";
 
@@ -30,6 +31,7 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
   const { openRestorationUpload } = useRestorationUpload();
   const location = useLocation();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const journey = /^\/restore-mvp\//.test(location.pathname) || /^\/restore-cart\//.test(location.pathname) || /^\/orders\//.test(location.pathname) || /processing|result|status/.test(location.pathname);
   return (
     <div className={`site-shell${journey ? " journey-shell" : ""}`}>
@@ -52,12 +54,16 @@ function PublicShell({ hrefFor }: { hrefFor: (anchor: string) => string }) {
           {journey && <button type="button" className="btn btn-ghost journey-back" onClick={() => navigate(-1)}>Back</button>}
           <button type="button" className="btn btn-primary upload-trigger" onClick={openRestorationUpload}>Get Started</button>
         </div>
-        <nav className="mobile-nav" aria-label="Mobile navigation">
-          <NavLink to="/" end>Home</NavLink>
-          <a href={hrefFor("#memories")}>Restoration</a>
-          <a href={hrefFor("#printing")}>Printing</a>
-          <NavLink to="/pricing">Pricing</NavLink>
-          <NavLink to="/restore">Restorations</NavLink>
+        <button type="button" className="journey-menu-toggle" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+          <span aria-hidden="true">&#9776;</span>
+        </button>
+        <nav className={`mobile-nav${menuOpen ? " is-open" : ""}`} aria-label="Mobile navigation">
+          <NavLink to="/" end onClick={() => setMenuOpen(false)}>Home</NavLink>
+          <a href={hrefFor("#memories")} onClick={() => setMenuOpen(false)}>Restoration</a>
+          <a href={hrefFor("#upscale")} onClick={() => setMenuOpen(false)}>Upscaling</a>
+          <a href={hrefFor("#printing")} onClick={() => setMenuOpen(false)}>Printing</a>
+          <NavLink to="/pricing" onClick={() => setMenuOpen(false)}>Pricing</NavLink>
+          <NavLink to="/restore" onClick={() => setMenuOpen(false)}>Restorations / Help</NavLink>
         </nav>
       </header>
 
