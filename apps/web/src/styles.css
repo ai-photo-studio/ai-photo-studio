@@ -3284,7 +3284,7 @@ img {
 }
 
 /* R9.5-P7ZB: native-style compaction for customer journey routes only. */
-.journey-shell .site-main { min-width: 0; }
+.journey-shell .site-main { min-width: 0; padding-block: 0; }
 .journey-shell .page-stack { padding-block: 24px; }
 .journey-shell .section-heading { margin-bottom: 16px; }
 .journey-shell .section-heading h1 { margin-bottom: 8px; }
