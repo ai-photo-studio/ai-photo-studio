@@ -73,7 +73,7 @@ async function freePort(start: number): Promise<number> {
  * a command path containing spaces (e.g. "C:\Program Files\...").
  */
 function start(label: string, command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, useShell = true): ChildProcess {
-  const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: useShell, windowsHide: true });
+  const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: useShell, windowsHide: true, detached: !isWin });
   children.push(child);
   child.once("exit", (code, signal) => {
     if (code !== 0 && !child.killed && !shuttingDown) {
@@ -130,7 +130,7 @@ function killTree(child: ChildProcess): void {
       spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", shell: false, windowsHide: true });
     } catch { /* best effort */ }
   } else {
-    child.kill();
+    try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill(); }
   }
 }
 
@@ -142,7 +142,7 @@ async function stopChild(child: ChildProcess): Promise<void> {
     sleep(3_000)
   ]);
   if (!isWin && child.exitCode === null && child.signalCode === null) {
-    child.kill("SIGKILL");
+    try { process.kill(-child.pid!, "SIGKILL"); } catch { child.kill("SIGKILL"); }
     await Promise.race([
       new Promise<void>((resolvePromise) => child.once("close", () => resolvePromise())),
       sleep(2_000)
