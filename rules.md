@@ -3866,3 +3866,16 @@ remains in force verbatim.
 - PriceBook values and print rules were not changed. Product -> Quality,
   Quality -> Product, review navigation, persistence, and multi-image behavior
   remain unchanged.
+
+### R9.5-P7ZI — Final Quality Assets and Copy Audit
+
+- `thannow-quality-cards-final.zip` is the final Quality visual source. Its
+  eight WebP assets are canonical under `apps/web/public/assets/quality-tiers/`;
+  superseded root PNG quality assets were removed and old URL references are 0.
+- The Quality page uses `object-fit: contain`, separate Original before/after
+  images, server-owned `ORIGINAL`/`HD_*` IDs, and server-returned amounts.
+  PriceBook and print rules remain unchanged.
+- Product cards use one concise benefit sentence and compact non-repeating
+  benefits for Digital Download and Print + Digital Home Delivery. P7ZE mobile
+  shell, Product -> Quality flow, and Quality -> Product navigation remain
+  protected.

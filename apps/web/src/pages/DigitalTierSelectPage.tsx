@@ -31,13 +31,12 @@ const TIER_DESCRIPTIONS: Record<string, string> = {
 };
 
 const TIER_IMAGES: Record<string, string> = {
-  ORIGINAL: "/assets/original.png",
-  HD_2X: "/assets/2x-hd.png",
-  HD_4X: "/assets/4x-ultra-hd.png",
-  HD_6X: "/assets/6x-super-hd.png",
-  HD_8X: "/assets/8x-extreme-hd.png",
-  HD_10X: "/assets/10x-gallery-hd.png",
-  HD_12X: "/assets/12x-master-hd.png"
+  HD_2X: "/assets/quality-tiers/2x-hd-family.webp",
+  HD_4X: "/assets/quality-tiers/4x-ultra-hd-family.webp",
+  HD_6X: "/assets/quality-tiers/6x-super-hd-table-frame.webp",
+  HD_8X: "/assets/quality-tiers/8x-extreme-hd-wall-frame.webp",
+  HD_10X: "/assets/quality-tiers/10x-gallery-hd-triple-canvas-wedding.webp",
+  HD_12X: "/assets/quality-tiers/12x-master-hd-triple-canvas-family.webp"
 };
 
 const TIER_BADGES: Record<string, string> = {
@@ -244,7 +243,9 @@ export function DigitalTierSelectPage() {
                    <span className="quality-tier-badge">{TIER_BADGE_LABELS[offer.tier] ?? offer.label}</span>
                    {TIER_BADGES[offer.tier] && <span className="quality-tier-recommended">{TIER_BADGES[offer.tier]}</span>}
                  </div>
-                 <div className="quality-tier-preview"><img src={TIER_IMAGES[offer.tier]} alt={`${TIER_LABELS[offer.tier] ?? offer.label} preview`} loading="lazy" /></div>
+                 <div className={`quality-tier-preview${offer.tier === "ORIGINAL" ? " quality-tier-before-after" : ""}`}>
+                   {offer.tier === "ORIGINAL" ? <><img src="/assets/quality-tiers/original-before.webp" alt="Original photo before restoration" /><img src="/assets/quality-tiers/original-after.webp" alt="Original photo after restoration" /></> : <img src={TIER_IMAGES[offer.tier]} alt={`${TIER_LABELS[offer.tier] ?? offer.label} preview`} loading="lazy" />}
+                 </div>
                  <div className="quality-tier-content">
                    <h3>{TIER_LABELS[offer.tier] ?? offer.label}</h3>
                    <p className="quality-tier-subtitle">{TIER_DESCRIPTIONS[offer.tier] ?? offer.label}</p>
