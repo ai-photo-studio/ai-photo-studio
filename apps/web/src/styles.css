@@ -3403,7 +3403,7 @@ img {
 .journey-shell .journey-menu-toggle { display: none; }
 
 @media (max-width: 768px) {
-  .journey-shell .site-header { min-height: 58px; padding-block: 4px; }
+  .journey-shell .site-header { min-height: 58px; padding-block: 4px; flex-wrap: nowrap; }
   .journey-shell .brand-logo { width: 96px; height: 40px; }
   .journey-shell .journey-header-actions .journey-back { min-height: 38px; padding: 7px 10px; }
   .journey-shell .journey-header-actions .btn-primary { display: none; }
