@@ -133,12 +133,27 @@ function killTree(child: ChildProcess): void {
   }
 }
 
+async function stopChild(child: ChildProcess): Promise<void> {
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+  killTree(child);
+  await Promise.race([
+    new Promise<void>((resolvePromise) => child.once("close", () => resolvePromise())),
+    sleep(3_000)
+  ]);
+  if (!isWin && child.exitCode === null && child.signalCode === null) {
+    child.kill("SIGKILL");
+    await Promise.race([
+      new Promise<void>((resolvePromise) => child.once("close", () => resolvePromise())),
+      sleep(2_000)
+    ]);
+  }
+}
+
 async function teardown(dataDir: string, mockStorageDir: string): Promise<void> {
   shuttingDown = true;
-  for (const child of children) {
-    if (!child.killed) killTree(child);
-  }
-  await sleep(1000);
+  console.log(`[teardown] stopping ${children.length} child processes`);
+  await Promise.all([...children].reverse().map((child) => stopChild(child)));
+  console.log("[teardown] child processes stopped");
   try {
    await runOnce("pg_ctl-stop", pgTool("pg_ctl"), ["-D", dataDir, "stop", "-m", "fast"], root, process.env, 30_000, false);
   } catch { /* already down */ }
@@ -259,13 +274,15 @@ async function main() {
        await step(`${kind}: choose product`, () => page.getByRole("button", { name: /Choose Product & Image Quality|Continue to Product/ }).click());
        await step(`${kind}: tiers`, () => page.waitForURL(/\/restore-mvp\/.+\/tiers/, { timeout: 15_000 }));
        await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
+       await page.getByRole("button", { name: "Continue" }).click();
        await page.getByRole("heading", { name: "Choose image quality" }).waitFor({ state: "visible" });
        await step(`${kind}: browser back returns to product`, async () => {
          await page.goBack();
          await page.getByRole("heading", { name: "Choose your product" }).waitFor({ state: "visible" });
        });
        await step(`${kind}: reopen quality`, async () => {
-         await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
+          await page.locator(kind === "PRINT_DIGITAL" ? ".tn-product-card--print" : ".tn-product-card--digital").click();
+          await page.getByRole("button", { name: "Continue" }).click();
          await page.getByRole("heading", { name: "Choose image quality" }).waitFor({ state: "visible" });
        });
 
