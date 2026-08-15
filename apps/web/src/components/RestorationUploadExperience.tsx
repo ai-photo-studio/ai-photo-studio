@@ -7,7 +7,7 @@ import { customerApi, type MemoryPackageSummary } from "../services/customerApi"
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-export function RestorationUploadExperience({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function RestorationUploadExperience({ open, onClose, packageCode: requestedPackageCode = null }: { open: boolean; onClose: () => void; packageCode?: string | null }) {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [files, setFiles] = useState<File[]>([]);
@@ -15,7 +15,7 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [packages, setPackages] = useState<MemoryPackageSummary[]>([]);
-  const [packageCode, setPackageCode] = useState<string | null>(null);
+  const [packageCode, setPackageCode] = useState<string | null>(requestedPackageCode);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const uploadInFlightRef = useRef(false);
@@ -33,7 +33,8 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
     };
   }, [open, onClose]);
 
-  useEffect(() => { if (open) void customerApi.getMemoryPackages().then(setPackages).catch(() => setPackages([])); }, [open]);
+  useEffect(() => { setPackageCode(requestedPackageCode); setFiles([]); setUploadError(null); }, [requestedPackageCode]);
+  useEffect(() => { if (open && requestedPackageCode) void customerApi.getMemoryPackages().then(setPackages).catch(() => setPackages([])); }, [open, requestedPackageCode]);
 
   const previewUrls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
   useEffect(() => () => previewUrls.forEach((url) => URL.revokeObjectURL(url)), [previewUrls]);
@@ -147,15 +148,11 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
       <section className="modal-panel">
         <button ref={closeButtonRef} className="modal-close" type="button" aria-label="Close" onClick={onClose}>x</button>
         <span className="eyebrow">START RESTORATION</span>
-        <h2 id="uploadTitle">Upload photos</h2>
-        <p>{packageCode ? "Memory package photos · JPG, PNG or WEBP · 10 MB each" : "Single Photo is the default. Choose a Memory Package for a guided multi-photo order."}</p>
-        <div className="package-entry-grid" aria-label="Restoration type">
-          <button type="button" className={`card package-entry-card${!packageCode ? " is-selected" : ""}`} onClick={() => { setPackageCode(null); setFiles([]); setUploadError(null); }}> <strong>Single Photo</strong><span>One photo · Digital or Print + Digital</span></button>
-          {packages.filter((item) => item.checkoutReady).map((item) => <button type="button" key={item.code} className={`card package-entry-card${packageCode === item.code ? " is-selected" : ""}`} onClick={() => { setPackageCode(item.code); setFiles([]); setUploadError(null); }}><strong>{item.name}</strong><span>{item.minImages} photos · {item.currency} {(item.priceMinor / 100).toLocaleString()}</span></button>)}
-        </div>
+        <h2 id="uploadTitle">{packageCode ? "Upload photos" : "Upload photo"}</h2>
+        <p>{packageCode ? "Memory package photos · JPG, PNG or WEBP · 10 MB each" : "Add one photo to start your restoration."}</p>
         <label className={`drop-zone${files.length ? " upload-dropzone-compact" : ""}`} htmlFor="photoInput">
           <span className="drop-icon">+</span>
-          <strong>{files.length ? "Add another photo" : "Add photos"}</strong>
+           <strong>{files.length ? "Add another photo" : packageCode ? "Add photos" : "Add photo"}</strong>
              <small>{files.length ? "Camera or gallery" : packageCode ? `Photo 1–${packages.find((item) => item.code === packageCode)?.maxImages ?? 2}` : "Camera or gallery · JPG, PNG or WEBP"}</small>
           <input
             ref={fileInputRef}
@@ -185,12 +182,6 @@ export function RestorationUploadExperience({ open, onClose }: { open: boolean; 
                {packageCode && files.length < (packages.find((item) => item.code === packageCode)?.maxImages ?? 1) && <button type="button" className="upload-add-tile" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+</button>}
             </div>}
             {packageCode && files.length === 1 && <button type="button" className="upload-add-tile upload-add-tile-single" onClick={() => fileInputRef.current?.click()} aria-label="Add another photo">+ <span>Add</span></button>}
-          </div>
-        )}
-        {!token && files.length === 1 && (
-            <div className="upload-account-prompt">
-            <p>Choose a Memory Package when you want to restore multiple photos together.</p>
-            <div className="button-row"><button type="button" className="button button-secondary" onClick={() => navigate("/login", { state: { from: "/?upload=1" } })}>Log in</button><button type="button" className="button" onClick={() => navigate("/signup", { state: { from: "/?upload=1" } })}>Sign up</button></div>
           </div>
         )}
         {packageCode && files.length > 0 && files.length < (packages.find((item) => item.code === packageCode)?.maxImages ?? 1) && <>

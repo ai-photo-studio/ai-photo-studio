@@ -3948,3 +3948,29 @@ remains in force verbatim.
 - `logo/frivcon.png` remains the canonical favicon source; do not reintroduce
   the old padded logo favicon. APG remains frozen and all provider safety gates
   remain unchanged.
+
+### R9.5-P7ZM — Single-Photo Print Commerce Regression Fix
+
+- The normal upload modal is single-photo only. Package selection is not shown
+  there; active packages are entered from Pricing and open a package-specific
+  uploader. The generic public multi-image cart remains hidden.
+- Normal Print + Digital uses Product selection, visual print-size cards,
+  quantity starting at one, a separate Delivery Details step, and Review. Bulk
+  catalog minimums remain internal/package concerns and do not constrain the
+  normal single-photo path.
+- Print size cards use the server single-print catalog. The normal customer
+  does not see a print-size select or manual Original/2x/4x/6x/8x/10x/12x
+  quality choice.
+- The server determines automatic upscale from source dimensions and selected
+  print dimensions. A sufficient source has zero upscale surcharge; an
+  insufficient source uses the minimum sufficient approved tier, charged once
+  per source even when multiple print lines exist.
+- Print Review must use the explicit FixedOrder product identity and persisted
+  print metadata. A Print order may never fall back to Digital Download or
+  Restored Original presentation. Unpaid product changes may replace a stale
+  selection order; paid orders are immutable.
+- Review must show the server-owned Prints, Upscale required for this print,
+  Delivery, and Total breakdown. PrintOrderLine remains item-scoped and one
+  restoration/master/execution is created per source image, never per copy.
+- Favicon HTML references remain the optically filled derivatives generated from
+  `logo/frivcon.png`; unrelated logo artwork remains unchanged.

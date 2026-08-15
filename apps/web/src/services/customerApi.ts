@@ -297,6 +297,7 @@ export const customerApi = {
       successIndicator: string | null;
     }>(`/api/fixed-orders/${encodeURIComponent(orderNo)}/payment-status`, {}, token, guestToken),
   getPrintCatalog: () => apiRequest<Array<{ catalogVersion: string; size: string; unitAmountMinor: number; currency: "PKR" | "USD"; minimumQuantity: number; deliveryAmountMinor: number | null; blocker?: string }>>("/api/print-catalog"),
+  getSinglePrintCatalog: () => apiRequest<Array<{ catalogVersion: string; size: string; unitAmountMinor: number; currency: "PKR" | "USD"; minimumQuantity: number; deliveryAmountMinor: number | null; blocker?: string }>>("/api/single-print-catalog"),
 
   // R9.5-P4B7B: server-authoritative test-mode check. A 404 (production, or
   // any environment without the seam mounted) is treated as "disabled" by
@@ -451,6 +452,7 @@ export type FixedOrderSummary = {
   market: "PAKISTAN" | "INTERNATIONAL";
   currency: "PKR" | "USD";
   tier: "ORIGINAL" | "HD_2X" | "HD_4X" | "HD_6X" | "HD_8X" | "HD_10X" | "HD_12X";
+  product: "DIGITAL" | "PRINT_DIGITAL";
   totalAmountMinor: string;
   pricingSource: string;
   pricingApproved: boolean;

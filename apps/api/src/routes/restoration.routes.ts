@@ -59,6 +59,7 @@ export const createRestorationRouter = (config: AppConfig): Router => {
   );
   router.post("/fixed-orders/memory-package", rateLimit(60_000, 20), fixedOrderController.createMemoryPackageOrder);
   router.get("/print-catalog", rateLimit(60_000, 60), fixedOrderController.getPrintCatalog);
+  router.get("/single-print-catalog", rateLimit(60_000, 60), fixedOrderController.getSinglePrintCatalog);
   router.get("/memory-packages", rateLimit(60_000, 60), (_req, res) => res.json({ success: true, data: PUBLIC_MEMORY_PACKAGES }));
   router.get("/fixed-orders/:orderNo", rateLimit(60_000, 60), fixedOrderController.getByOrderNo);
   router.get("/fixed-orders/:orderNo/cart", rateLimit(60_000, 60), fixedOrderController.getCartByOrderNo);

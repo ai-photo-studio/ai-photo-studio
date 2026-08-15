@@ -23,6 +23,7 @@ import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { chromium } from "playwright";
+import { highestRequiredTier, minimumTierForPrint } from "../apps/api/src/services/print-quality.service";
 import { PrismaClient } from "@prisma/client";
 import sharp from "sharp";
 import { getGlobalDispatcher } from "undici";
@@ -271,6 +272,7 @@ async function main() {
     const flow = async (kind: "DIGITAL" | "PRINT_DIGITAL") => {
       await step(`${kind}: home`, () => page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" }));
       await step(`${kind}: open canonical upload`, () => page.getByRole("button", { name: "Upload Your Photo", exact: true }).first().click());
+      if (await page.getByRole("button", { name: /Ammi Abu Memories/ }).count() !== 0) throw new Error(`${kind}: package selector leaked into normal upload`);
       await step(`${kind}: select image once`, () => page.setInputFiles("#photoInput", fixturePath));
       await step(`${kind}: persist draft`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
       await step(`${kind}: preview`, () => page.waitForURL(/\/restore-mvp\/.+\/preview/, { timeout: 15_000 }));
@@ -289,27 +291,34 @@ async function main() {
           await page.getByRole("heading", { name: kind === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality" }).waitFor({ state: "visible" });
        });
 
-       if (kind === "PRINT_DIGITAL") {
-         await page.getByLabel("Print size").selectOption("4x6");
-        await page.getByLabel("Quantity").fill("10");
-        await page.getByLabel("Recipient name").fill("Local E2E Customer");
-        await page.getByLabel("Phone").fill("03001234567");
-        await page.getByLabel("Address").fill("1 Test Street");
-        await page.getByLabel("City").fill("Lahore");
-       } else {
-           await page.getByRole("radio", { name: /2x HD/i }).click();
-       }
-
-      await step(`${kind}: review`, () => page.getByRole("button", { name: "Continue to Review" }).click());
+         if (kind === "PRINT_DIGITAL") {
+          await page.getByRole("radio", { name: /4x6/ }).click();
+          if (await page.locator("select").count() !== 0) throw new Error(`${kind}: print size select leaked into normal flow`);
+          await page.getByRole("button", { name: "Continue to Delivery" }).click();
+         await page.getByLabel("Recipient name").fill("Local E2E Customer");
+         await page.getByLabel("Phone").fill("03001234567");
+         await page.getByLabel("Address").fill("1 Test Street");
+         await page.getByLabel("City").fill("Lahore");
+          await page.getByRole("button", { name: "Continue to Review" }).click();
+        } else {
+            await page.getByRole("radio", { name: /2x HD/i }).click();
+            await page.getByRole("button", { name: "Continue to Review" }).click();
+        }
+       await step(`${kind}: review`, async () => {});
       await step(`${kind}: review route`, () => page.waitForURL(/\/orders\/.+\/review/, { timeout: 15_000 }));
       const orderNo = page.url().match(/\/orders\/([^/]+)\/review/)?.[1];
       if (!orderNo) throw new Error(`${kind}: could not read orderNo`);
       orderNos.push(orderNo);
 
-      const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { orderNo } });
+       const order = await prisma.fixedOrder.findUniqueOrThrow({ where: { orderNo }, include: { items: true } });
       if (order.priceBookVersion !== "PB-2026-08-09-TRIAL-V3" || order.currency !== "PKR") throw new Error(`${kind}: incorrect PriceBook/currency`);
-       const expectedTotal = kind === "DIGITAL" ? 100000n : 125000n;
-      if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected ${expectedTotal}, got ${order.totalAmountMinor}`);
+        const expectedTotal = kind === "DIGITAL" ? 100000n : 35000n;
+       if (order.totalAmountMinor !== expectedTotal) throw new Error(`${kind}: expected ${expectedTotal}, got ${order.totalAmountMinor}`);
+       if (kind === "PRINT_DIGITAL" && (!order.items[0]?.metadata || typeof order.items[0].metadata !== "object" || !("print" in order.items[0].metadata))) throw new Error(`${kind}: print identity missing from FixedOrder metadata`);
+       if (kind === "PRINT_DIGITAL") {
+         const printLine = await prisma.printOrderLine.findFirst({ where: { fixedOrderId: order.id } });
+         if (!printLine || printLine.quantity !== 1 || printLine.qualitySurchargeMinor < 0n) throw new Error(`${kind}: PrintOrderLine quantity/surcharge invariant failed`);
+       }
       if (await prisma.replicateExecution.count({ where: { restorationMaster: { restorationEntitlement: { fixedOrderId: order.id } } } }) !== 0) throw new Error(`${kind}: unpaid order queued processing`);
 
       const guestToken = await page.evaluate((key) => JSON.parse(localStorage.getItem("ai-photo-studio-guest-ownership") || "{}")[key] as string, orderNo);
@@ -344,9 +353,8 @@ async function main() {
     const cartFlow = async () => {
       const kind = "CART";
       await authenticateCartCustomer();
-      await step(`${kind}: home`, () => page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "domcontentloaded" }));
-      await step(`${kind}: open canonical upload`, () => page.getByRole("button", { name: "Upload Your Photo", exact: true }).first().click());
-       await step(`${kind}: choose Ammi Abu package`, () => page.getByRole("button", { name: /Ammi Abu Memories/ }).click());
+       await step(`${kind}: pricing`, () => page.goto(`http://127.0.0.1:${webPort}/pricing`, { waitUntil: "domcontentloaded" }));
+       await step(`${kind}: choose Ammi Abu package`, () => page.getByRole("button", { name: "Choose package" }).click());
        await step(`${kind}: select 2 images once`, () => page.setInputFiles("#photoInput", [fixturePath, fixturePath]));
        await step(`${kind}: review package`, () => page.getByRole("button", { name: "Continue to Restoration" }).click());
        await step(`${kind}: package preview`, () => page.waitForURL(/\/restore-package\/AMI_ABU_MEMORIES\/.+\/preview/, { timeout: 15_000 }));
@@ -377,6 +385,8 @@ async function main() {
     };
 
     try {
+      if (minimumTierForPrint(1200, 800, "4x6") !== "ORIGINAL") throw new Error("print suitability sufficient-source regression");
+      if (highestRequiredTier([minimumTierForPrint(1200, 800, "4x6"), minimumTierForPrint(1200, 800, "24x36")]) !== "HD_6X") throw new Error("print suitability highest-tier regression");
       await flow("DIGITAL");
       await flow("PRINT_DIGITAL");
       await cartFlow();

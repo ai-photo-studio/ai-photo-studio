@@ -94,6 +94,7 @@ export function DigitalTierSelectPage() {
   const [quantity, setQuantity] = useState(saved?.quantity ?? 1);
   const [printLines, setPrintLines] = useState<Array<{ printSize: string; quantity: number }>>(saved?.printLines ?? []);
   const [address, setAddress] = useState(saved?.address ?? { recipientName: "", phone: "", addressLine1: "", city: "", countryCode: "PK" });
+  const [printStep, setPrintStep] = useState<"config" | "delivery">("config");
   const [sourceDimensions, setSourceDimensions] = useState<{ width: number | null; height: number | null }>({ width: null, height: null });
   const stageValue = searchParams.get("stage");
   const [showQuality, setShowQuality] = useState(stageValue ? stageValue === "quality" : saved?.product != null);
@@ -141,7 +142,7 @@ export function DigitalTierSelectPage() {
     writeSavedState(draftId, { selected, product, useCaseId, printSize, quantity, printLines, address });
   }, [draftId, selected, product, useCaseId, printSize, quantity, printLines, address]);
 
-  useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getPrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(marketItems[0].minimumQuantity); setPrintLines([{ printSize: marketItems[0].size, quantity: marketItems[0].minimumQuantity }]); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
+  useEffect(() => { if (product === "PRINT_DIGITAL") void customerApi.getSinglePrintCatalog().then((items) => { const currency = offers?.[0]?.currency || "PKR"; const marketItems = items.filter((item) => item.currency === currency); setPrintCatalog(marketItems); if (!printSize && marketItems[0]) { setPrintSize(marketItems[0].size); setQuantity(1); setPrintLines([{ printSize: marketItems[0].size, quantity: 1 }]); } }).catch(() => setPrintCatalog([])); }, [product, offers, printSize]);
   useEffect(() => { if (!draftId) return; void customerApi.getRestorationDraft(token || undefined, draftId, getGuestOwnershipToken(draftId) || undefined).then((draft) => setSourceDimensions({ width: draft.originalWidth, height: draft.originalHeight })).catch(() => setSourceDimensions({ width: null, height: null })); }, [draftId, token]);
 
   useEffect(() => {
@@ -187,9 +188,17 @@ export function DigitalTierSelectPage() {
     }
   };
 
+  const continueToDelivery = () => {
+    if (product !== "PRINT_DIGITAL") return;
+    if (cropRequired || !printSize || !Number.isSafeInteger(quantity) || quantity < 1) return;
+    setPrintStep("delivery");
+    window.scrollTo(0, 0);
+  };
+
   const selectProduct = (key: ProductChoiceKey) => {
     const nextProduct = key === "digital" ? "DIGITAL" : "PRINT_DIGITAL";
     setProduct(nextProduct);
+    setPrintStep("config");
     setUseCaseId(nextProduct === "DIGITAL" ? "MOBILE_SOCIAL" : "SMALL_PRINT");
   };
 
@@ -208,12 +217,20 @@ export function DigitalTierSelectPage() {
     />;
   }
 
+  if (product === "PRINT_DIGITAL" && printStep === "delivery") {
+    return <section className="page-stack">
+      <div className="section-heading"><p className="eyebrow">Step 3 of 4 · Delivery details</p><h1>Where should we deliver?</h1><p>Your print configuration is saved. Add delivery details to continue to Review.</p></div>
+      <div className="card delivery-details-card"><div className="field-grid"><label>Recipient name<input value={address.recipientName} onChange={(e) => setAddress({ ...address, recipientName: e.target.value })} /></label><label>Phone<input value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} /></label><label>Address<input value={address.addressLine1} onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })} /></label><label>City<input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} /></label></div></div>
+      <div className="button-row journey-actions"><button type="button" className="button" disabled={!address.recipientName || !address.phone || !address.addressLine1 || !address.city} onClick={() => void createOrder()}>{creating ? "Preparing review..." : "Continue to Review"}</button><button type="button" className="button button-secondary" onClick={() => setPrintStep("config")}>Back to Print Configuration</button></div>
+    </section>;
+  }
+
   return (
     <section className="page-stack">
        <div className="section-heading">
         <p className="eyebrow">Step 2 of 3 · {product === "PRINT_DIGITAL" ? "Print configuration" : "Image quality"}</p>
         <h1>{product === "PRINT_DIGITAL" ? "Configure your print" : "Choose image quality"}</h1>
-        <p>{product === "PRINT_DIGITAL" ? "Choose print sizes and quantity. We calculate the minimum enhancement automatically." : "Choose the quality that fits how you will enjoy your restored photo."}</p>
+        <p>{product === "PRINT_DIGITAL" ? "Choose a print size and quantity. Enhancement is calculated automatically." : "Choose the quality that fits how you will enjoy your restored photo."}</p>
       </div>
 
       {unavailableReason && <div className="state-panel state-panel-error"><p>{unavailableReason}</p></div>}
@@ -256,56 +273,21 @@ export function DigitalTierSelectPage() {
              <div className="state-panel state-panel-info"><p><strong>Automatic enhancement:</strong> {selected ? `${TIER_LABELS[selected]} will be used when required by the selected print size.` : "calculating from your source image..."}</p></div>
            )}
 
-            {product === "PRINT_DIGITAL" && (() => {
-             const lines = printLines.length ? printLines : [{ printSize, quantity }];
-             const printItem = printCatalog.find((entry) => entry.size === lines[0]?.printSize);
-             const digitalOffer = offers?.find((offer) => offer.tier === selected);
-             const printSubtotals = lines.map((line) => { const item = printCatalog.find((entry) => entry.size === line.printSize); return item && Number.isSafeInteger(line.quantity) && line.quantity >= item.minimumQuantity ? item.unitAmountMinor * line.quantity : null; });
-             const printSubtotalMinor = printSubtotals.every((value) => value !== null) ? printSubtotals.reduce((sum, value) => sum + (value ?? 0), 0) : null;
-            // Estimated only: the server (quotePrint / FixedOrder creation)
-            // is the sole authority on the final total, computed fresh from
-            // its own PriceBook + print catalog, never from this value.
-             const deliveryAmountMinor = Math.max(...lines.map((line) => printCatalog.find((entry) => entry.size === line.printSize)?.deliveryAmountMinor ?? 0));
-             const estimatedTotalMinor =
-               printSubtotalMinor !== null && digitalOffer
-                 ? digitalOffer.amountMinor + printSubtotalMinor + deliveryAmountMinor
-                : null;
-            return (
-              <div className="state-panel">
-                 <div className="stack">
-                   {lines.map((line, lineIndex) => {
-                     const lineItem = printCatalog.find((entry) => entry.size === line.printSize);
-                     const lineMinimum = lineItem?.minimumQuantity ?? 1;
-                     return <div className="field-grid" key={`${line.printSize}-${lineIndex}`}>
-                       <label>Print size<select value={line.printSize} onChange={(event) => { const item = printCatalog.find((entry) => entry.size === event.target.value); const next = [...lines]; next[lineIndex] = { printSize: event.target.value, quantity: item?.minimumQuantity ?? 1 }; setPrintLines(next); setPrintSize(next[0].printSize); setQuantity(next[0].quantity); }}>
-                         {printCatalog.map((item) => <option key={item.size} value={item.size}>{item.size} — {item.currency} {(item.unitAmountMinor / 100).toFixed(2)}{item.blocker ? ` (${item.blocker})` : ""}</option>)}
-                       </select></label>
-                       <label>Quantity<input type="number" min={lineMinimum} max={10} value={line.quantity} onChange={(event) => { const next = [...lines]; next[lineIndex] = { ...next[lineIndex], quantity: Number(event.target.value) }; setPrintLines(next); setPrintSize(next[0].printSize); setQuantity(next[0].quantity); }} />{line.quantity < lineMinimum && <small className="field-error">Minimum quantity for this size is {lineMinimum}.</small>}</label>
-                       {lineIndex > 0 && <button type="button" className="button button-ghost" onClick={() => { const next = lines.filter((_, index) => index !== lineIndex); setPrintLines(next); }}>Remove line</button>}
-                     </div>;
-                   })}
-                   {lines.length < 10 && <button type="button" className="button button-secondary" onClick={() => setPrintLines([...lines, { printSize: printCatalog[0]?.size || printSize, quantity: printCatalog[0]?.minimumQuantity || 1 }])}>Add another print size</button>}
-                 </div>
-                 <div className="field-grid">
-                  <label>Recipient name<input value={address.recipientName} onChange={(e) => setAddress({ ...address, recipientName: e.target.value })} /></label>
-                  <label>Phone<input value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} /></label>
-                  <label>Address<input value={address.addressLine1} onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })} /></label>
-                  <label>City<input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} /></label>
+             {product === "PRINT_DIGITAL" && (() => {
+              const item = printCatalog.find((entry) => entry.size === printSize);
+              const enhancement = selected === "ORIGINAL" ? 0 : offers?.find((offer) => offer.tier === selected)?.amountMinor ?? 0;
+              const printSubtotal = item ? item.unitAmountMinor * quantity : 0;
+              const delivery = item?.deliveryAmountMinor ?? 0;
+              return <div className="state-panel print-configuration-panel">
+                <div className="print-size-grid" role="radiogroup" aria-label="Print size">
+                  {printCatalog.filter((entry) => !entry.blocker && entry.currency === "PKR").map((entry) => <button type="button" role="radio" aria-checked={printSize === entry.size} className={`print-size-card${printSize === entry.size ? " is-selected" : ""}`} key={entry.size} onClick={() => { setPrintSize(entry.size); setQuantity(1); setPrintLines([{ printSize: entry.size, quantity: 1 }]); }}><span className="print-size-visual" aria-hidden="true" /><strong>{entry.size}</strong><span>{entry.currency} {(entry.unitAmountMinor / 100).toLocaleString()}</span><small>{entry.size === "4x6" ? "Desk and wallet frames" : entry.size === "24x36" ? "Statement wall display" : "Frame-ready print"}</small></button>)}
                 </div>
-                {(printItem || digitalOffer) && (
-                  <dl className="order-summary">
-                    {digitalOffer && <div><dt>Image quality ({TIER_LABELS[digitalOffer.tier] ?? digitalOffer.label})</dt><dd>{digitalOffer.currency} {(digitalOffer.amountMinor / 100).toFixed(2)}</dd></div>}
-                     {lines.map((line, lineIndex) => { const item = printCatalog.find((entry) => entry.size === line.printSize); return item ? <div key={`${line.printSize}-summary-${lineIndex}`}><dt>Print {lineIndex + 1} · {line.printSize} × {line.quantity}</dt><dd>{item.currency} {((item.unitAmountMinor * line.quantity) / 100).toFixed(2)}</dd></div> : null; })}
-                    {printSubtotalMinor !== null && <div><dt>Print subtotal</dt><dd>{printItem?.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div>}
-                     <div><dt>Delivery</dt><dd>{printItem ? `${printItem.currency} ${(deliveryAmountMinor / 100).toFixed(2)}` : "Calculated by server"}</dd></div>
-                    {estimatedTotalMinor !== null && <div><dt><strong>Estimated Total</strong></dt><dd><strong>{digitalOffer?.currency} {(estimatedTotalMinor / 100).toFixed(2)}</strong></dd></div>}
-                  </dl>
-                )}
-                 <p className="helper-text">The final order total is calculated and confirmed by the server on the Review page.</p>
-                 {cropRequired && <div className="state-panel state-panel-warning"><p>This image does not match the selected print aspect ratio. Choose a different print size to avoid cropping important parts of the photo.</p></div>}
-               </div>
-            );
-          })()}
+                <div className="quantity-stepper"><span>Quantity</span><button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1}>−</button><strong>{quantity}</strong><button type="button" aria-label="Increase quantity" onClick={() => setQuantity(Math.min(10, quantity + 1))} disabled={quantity >= 10}>+</button></div>
+                <dl className="order-summary"><div><dt>Print</dt><dd>{item ? `${item.currency} ${(printSubtotal / 100).toLocaleString()}` : "Select a size"}</dd></div><div><dt>Upscale required for this print</dt><dd>{enhancement > 0 ? `${TIER_LABELS[selected || ""]} — ${offers?.[0]?.currency || "PKR"} ${(enhancement / 100).toLocaleString()}` : "Not required — your image is suitable"}</dd></div><div><dt>Estimated subtotal</dt><dd><strong>{item ? `${item.currency} ${((printSubtotal + enhancement + delivery) / 100).toLocaleString()}` : "Calculated after selection"}</strong></dd></div></dl>
+                <p className="helper-text">Delivery details are collected on the next step. Final pricing is confirmed by the server.</p>
+                {cropRequired && <div className="state-panel state-panel-warning"><p>This image does not match the selected print aspect ratio. Choose a different print size to avoid cropping important parts of the photo.</p></div>}
+              </div>;
+            })()}
           </>
        )}
 
@@ -313,10 +295,10 @@ export function DigitalTierSelectPage() {
         <button
           type="button"
           className="button"
-            disabled={!selected || !product || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (selectedPrintLines.some((line) => !line.printSize || !Number.isSafeInteger(line.quantity) || line.quantity < (printCatalog.find((item) => item.size === line.printSize)?.minimumQuantity ?? 1) || line.quantity > 10) || !address.recipientName || !address.phone || !address.addressLine1 || !address.city))}
-          onClick={() => void createOrder()}
+            disabled={!selected || !product || creating || !offers || cropRequired || (product === "PRINT_DIGITAL" && (!printSize || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10))}
+          onClick={() => product === "PRINT_DIGITAL" ? continueToDelivery() : void createOrder()}
         >
-          {creating ? "Preparing review..." : "Continue to Review"}
+          {creating ? "Preparing review..." : product === "PRINT_DIGITAL" ? "Continue to Delivery" : "Continue to Review"}
         </button>
         <button type="button" className="button button-secondary compact-refresh" onClick={() => void load()}>
           Refresh

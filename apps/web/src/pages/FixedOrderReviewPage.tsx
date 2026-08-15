@@ -183,6 +183,7 @@ export function FixedOrderReviewPage() {
   const deliveryAmountMinor = Number(order.print?.deliveryAmountMinor || 0);
   const enhancementAmountMinor = Number(order.print?.qualitySurchargeMinor || 0);
   const digitalAmountMinor = order.print ? enhancementAmountMinor : Number(order.totalAmountMinor) - printSubtotalMinor - deliveryAmountMinor;
+  const isPrintOrder = order.product === "PRINT_DIGITAL";
 
   return (
     <section className="page-stack">
@@ -196,12 +197,12 @@ export function FixedOrderReviewPage() {
        <div className="review-checkout-grid">
        <div className="card review-item" style={{ marginTop: "1rem" }}>
          {thumbnailUrl && <img src={thumbnailUrl} alt="Original photo thumbnail" className="review-thumbnail" />}
-          <div><p className="eyebrow">{order.print ? "Print + Digital · Home Delivery" : "Digital Download"}</p><h2>{order.print ? "Print configuration" : (TIER_LABELS[order.tier] || order.tier)}</h2>{order.print && <p className="helper-text">{order.print.size} × {order.print.quantity} · {order.print.qualitySurchargeMinor ? `Enhancement ${TIER_LABELS[order.print.requiredTier || ""] || order.print.requiredTier}` : "Suitable as uploaded"}</p>}<button type="button" className="review-edit" onClick={() => navigate(`/restore-mvp/${order.sourceDraftId}/tiers?stage=quality`)}>Edit</button></div>
+          <div><p className="eyebrow">{isPrintOrder ? "PRINT + DIGITAL · HOME DELIVERY" : "Digital Download"}</p><h2>{isPrintOrder ? "Print configuration" : (TIER_LABELS[order.tier] || order.tier)}</h2>{isPrintOrder && order.print && <p className="helper-text">{order.print.size} × {order.print.quantity} · {order.print.qualitySurchargeMinor ? `Upscale ${TIER_LABELS[order.print.requiredTier || ""] || order.print.requiredTier}` : "Suitable as uploaded"}</p>}<button type="button" className="review-edit" onClick={() => navigate(`/restore-mvp/${order.sourceDraftId}/tiers?stage=quality`)}>Edit</button></div>
          <strong>{order.currency} {amountMajor}</strong>
        </div>
 
        <div className="card order-summary-card" style={{ marginTop: "1rem" }}>
-          <dl className="order-summary"><div><dt>{order.print ? "Image enhancement" : "Subtotal"}</dt><dd>{order.currency} {(digitalAmountMinor / 100).toFixed(2)}</dd></div>{order.print && <><div><dt>Prints</dt><dd>{order.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div><div><dt>Delivery</dt><dd>{order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</dd></div></>}<div><dt><strong>Total</strong></dt><dd><strong>{order.currency} {amountMajor}</strong></dd></div></dl>
+           <dl className="order-summary"><div><dt>{isPrintOrder ? "Upscale required for this print" : "Subtotal"}</dt><dd>{isPrintOrder && !order.print ? "Print details unavailable" : `${order.currency} ${(digitalAmountMinor / 100).toFixed(2)}`}</dd></div>{isPrintOrder && order.print && <><div><dt>Prints</dt><dd>{order.currency} {(printSubtotalMinor / 100).toFixed(2)}</dd></div><div><dt>Delivery</dt><dd>{order.currency} {(deliveryAmountMinor / 100).toFixed(2)}</dd></div></>}<div><dt><strong>Total</strong></dt><dd><strong>{order.currency} {amountMajor}</strong></dd></div></dl>
        </div>
        </div>
 

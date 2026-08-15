@@ -36,6 +36,7 @@ export class FixedOrderController {
   };
 
   getPrintCatalog = (_req: Request, res: Response): void => { res.json({ success: true, data: this.fixedOrders.getPrintCatalog() }); };
+  getSinglePrintCatalog = (_req: Request, res: Response): void => { res.json({ success: true, data: this.fixedOrders.getSinglePrintCatalog() }); };
 
   createMemoryPackageOrder = async (req: Request, res: Response): Promise<void> => {
     try {

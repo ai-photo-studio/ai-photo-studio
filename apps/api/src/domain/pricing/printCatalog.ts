@@ -26,10 +26,19 @@ export const PRINT_CATALOG: readonly PrintCatalogEntry[] = [
 ];
 export const INTERNATIONAL_PRINT_CATALOG: readonly PrintCatalogEntry[] = sizes.map((size, i) => ({ size, currency: "USD", unitPriceMinor: usdUnits[i], minQuantity: mins[i], deliveryFeeMinor: null, blocker: "INTERNATIONAL_PRINT_SHIPPING_REQUIRED" }));
 export function publicPrintCatalog() { return [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].map((item) => ({ catalogVersion: PRINT_CATALOG_VERSION, size: item.size, unitAmountMinor: item.unitPriceMinor, currency: item.currency, minimumQuantity: item.minQuantity, deliveryAmountMinor: item.deliveryFeeMinor, blocker: item.blocker })); }
+export function publicSinglePrintCatalog() { return [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].map((item) => ({ catalogVersion: PRINT_CATALOG_VERSION, size: item.size, unitAmountMinor: item.unitPriceMinor, currency: item.currency, minimumQuantity: 1, deliveryAmountMinor: item.deliveryFeeMinor, blocker: item.blocker })); }
 export function quotePrint(digitalAmountMinor: number, size: string, quantity: number, currency: "PKR" | "USD" = "PKR") {
   const entry = [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].find((item) => item.size === size && item.currency === currency);
   if (!entry) throw new Error("unknown print size");
   if (!Number.isSafeInteger(quantity) || quantity < entry.minQuantity) throw new Error("quantity below catalog minimum");
+  if (quantity > 10) throw new Error("quantity exceeds maximum of 10");
+  if (entry.deliveryFeeMinor === null) throw new Error("INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
+  return { digitalAmountMinor, printSubtotalMinor: entry.unitPriceMinor * quantity, deliveryFeeMinor: entry.deliveryFeeMinor, totalAmountMinor: digitalAmountMinor + entry.unitPriceMinor * quantity + entry.deliveryFeeMinor };
+}
+export function quoteSinglePrint(digitalAmountMinor: number, size: string, quantity: number, currency: "PKR" | "USD" = "PKR") {
+  const entry = [...PRINT_CATALOG, ...INTERNATIONAL_PRINT_CATALOG].find((item) => item.size === size && item.currency === currency);
+  if (!entry) throw new Error("unknown print size");
+  if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error("quantity must be at least 1");
   if (quantity > 10) throw new Error("quantity exceeds maximum of 10");
   if (entry.deliveryFeeMinor === null) throw new Error("INTERNATIONAL_PRINT_SHIPPING_REQUIRED");
   return { digitalAmountMinor, printSubtotalMinor: entry.unitPriceMinor * quantity, deliveryFeeMinor: entry.deliveryFeeMinor, totalAmountMinor: digitalAmountMinor + entry.unitPriceMinor * quantity + entry.deliveryFeeMinor };

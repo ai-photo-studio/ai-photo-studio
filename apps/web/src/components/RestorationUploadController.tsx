@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { RestorationUploadExperience } from "./RestorationUploadExperience";
 
-type UploadController = { openRestorationUpload: () => void; closeRestorationUpload: () => void };
+type UploadController = { openRestorationUpload: () => void; openPackageUpload: (packageCode: string) => void; closeRestorationUpload: () => void };
 const UploadContext = createContext<UploadController | null>(null);
 
 export function RestorationUploadController({ children }: { children: ReactNode }) {
@@ -13,12 +13,17 @@ export function RestorationUploadController({ children }: { children: ReactNode 
     navigate("/?upload=1");
     setOpen(true);
   };
+  const openPackageUpload = (packageCode: string) => {
+    navigate(`/?upload=1&package=${encodeURIComponent(packageCode)}`);
+    setOpen(true);
+  };
   const closeRestorationUpload = () => {
     setOpen(false);
     if (location.search) navigate("/", { replace: true });
   };
-  const routeOpen = location.pathname === "/" && new URLSearchParams(location.search).get("upload") === "1";
-  return <UploadContext.Provider value={{ openRestorationUpload, closeRestorationUpload }}>{children}<RestorationUploadExperience open={open || routeOpen} onClose={closeRestorationUpload} /></UploadContext.Provider>;
+  const search = new URLSearchParams(location.search);
+  const routeOpen = location.pathname === "/" && search.get("upload") === "1";
+  return <UploadContext.Provider value={{ openRestorationUpload, openPackageUpload, closeRestorationUpload }}>{children}<RestorationUploadExperience open={open || routeOpen} packageCode={search.get("package")} onClose={closeRestorationUpload} /></UploadContext.Provider>;
 }
 
 export function useRestorationUpload() {

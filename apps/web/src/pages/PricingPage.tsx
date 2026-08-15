@@ -9,7 +9,7 @@ type MemoryPackage = { code: string; name: string; priceMinor: number; currency:
 const money = (minor: number, currency: string) => `${currency} ${(minor / 100).toFixed(2)}`;
 
 export function PricingPage() {
-  const { openRestorationUpload } = useRestorationUpload();
+  const { openRestorationUpload, openPackageUpload } = useRestorationUpload();
   const [offers, setOffers] = useState<DigitalOfferSummary[]>([]);
   const [prints, setPrints] = useState<PrintItem[]>([]);
   const [packages, setPackages] = useState<MemoryPackage[]>([]);
@@ -43,12 +43,12 @@ export function PricingPage() {
         </div>
         <h2>Print + Digital</h2>
         <div className="pricing-grid">
-           {prints.filter((print) => print.size !== "Triple Canvas").map((print) => <article className="pricing-card" key={print.size}><h3>{print.size}</h3><p className="price">{money(print.unitAmountMinor, print.currency)} each</p><p>Minimum quantity: {print.minimumQuantity}</p><p>Delivery: {money(print.deliveryAmountMinor, print.currency)} per shipment</p><small>{print.catalogVersion}</small></article>)}
+           {prints.filter((print) => print.size !== "Triple Canvas" && print.currency === "PKR").map((print) => <article className="pricing-card" key={`${print.currency}-${print.size}`}><h3>{print.size}</h3><p className="price">{money(print.unitAmountMinor, print.currency)} each</p><p>Single-photo orders start at quantity 1.</p><p>Delivery: {money(print.deliveryAmountMinor, print.currency)} per shipment</p><small>{print.catalogVersion}</small></article>)}
            {prints.some((print) => print.size === "Triple Canvas") && <div className="state-panel state-panel-warning"><p>Triple Canvas is not currently available to order.</p></div>}
         </div>
         <h2>Memory Packages</h2>
         <div className="pricing-grid">
-           {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <button type="button" className="button button-secondary button-block" onClick={openRestorationUpload}>Start package</button> : <div className="state-panel"><p>This package is not currently available to order.</p></div>}</article>)}
+            {packages.map((pkg) => <article className="pricing-card" key={pkg.code}><h3>{pkg.name}</h3><p className="price">{money(pkg.priceMinor, pkg.currency)}</p><ul className="feature-list">{pkg.includes.map((item) => <li key={item}>{item}</li>)}</ul>{pkg.checkoutReady ? <button type="button" className="button button-secondary button-block" onClick={() => openPackageUpload(pkg.code)}>Choose package</button> : <div className="state-panel"><p>This package is not currently available to order.</p></div>}</article>)}
         </div>
       </>}
     </section>

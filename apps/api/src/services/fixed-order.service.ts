@@ -41,7 +41,7 @@ import {
   type OfferProvider
 } from "../domain/pricing/offerProvider";
 import { ApprovedOfferProvider } from "../domain/pricing/approvedOfferProvider";
-import { PRINT_CATALOG_VERSION, publicPrintCatalog, quotePrint } from "../domain/pricing/printCatalog";
+import { PRINT_CATALOG_VERSION, publicPrintCatalog, publicSinglePrintCatalog, quotePrint, quoteSinglePrint } from "../domain/pricing/printCatalog";
 import { findMemoryPackage } from "../domain/pricing/memoryPackages";
 import { highestRequiredTier, minimumTierForPrint } from "./print-quality.service";
 
@@ -117,6 +117,7 @@ export interface FixedOrderSafeView {
   market: Market;
   currency: FixedOrderCurrency;
   tier: DigitalTier;
+  product: "DIGITAL" | "PRINT_DIGITAL";
   totalAmountMinor: string;
   pricingSource: string;
   pricingApproved: boolean;
@@ -156,6 +157,7 @@ function toSafeView(order: {
   paymentAttempt?: { status: string } | null;
 }): FixedOrderSafeView {
   const item = order.items[0];
+  const isPrint = Boolean(item?.metadata && typeof item.metadata === "object" && "print" in item.metadata);
   return {
     id: order.id,
     orderNo: order.orderNo,
@@ -164,6 +166,7 @@ function toSafeView(order: {
     market: order.market as Market,
     currency: order.currency as FixedOrderCurrency,
     tier: (item?.tierOrSku ?? "ORIGINAL") as DigitalTier,
+    product: isPrint ? "PRINT_DIGITAL" : "DIGITAL",
     totalAmountMinor: order.totalAmountMinor.toString(),
     pricingSource: item?.pricingSource ?? "local_fixture",
     pricingApproved: item?.pricingApproved ?? false,
@@ -280,22 +283,6 @@ export class FixedOrderService {
       throw new AppError(`draft is ${owned.status.toLowerCase()} and cannot be ordered`, 409, "DRAFT_NOT_ORDERABLE");
     }
 
-    // Idempotency: a draft may source at most one FixedOrder, ever (DB-level
-    // unique index on FixedOrder.sourceDraftId). A repeat call -- including a
-    // page refresh re-submitting the same draft -- returns the existing,
-    // immutable order rather than creating (or erroring on) a duplicate.
-    const existing = await prisma.fixedOrder.findFirst({
-      where: { sourceDraftId: owned.id },
-      include: ORDER_INCLUDE
-    });
-    if (existing) {
-      assertOwnership(
-        { ownerUserId: existing.ownerUserId, guestOwnershipTokenHash: existing.guestOwnershipTokenHash },
-        actor
-      );
-      return toSafeView(existing);
-    }
-
     const requestedLinesForTier = input.printLines?.length
       ? input.printLines
       : input.printSize
@@ -305,6 +292,24 @@ export class FixedOrderService {
       ? highestRequiredTier(requestedLinesForTier.map((line) => minimumTierForPrint(owned.originalWidth, owned.originalHeight, line.printSize)))
       : null;
     const tier = (isPrint ? requiredTier ?? "ORIGINAL" : input.tier) as DigitalTier;
+
+    // A customer can return from Review and change Product before payment.
+    // The draft uniqueness constraint still protects duplicate submissions, but
+    // an unpaid stale order must not win over the new product selection.
+    const existing = await prisma.fixedOrder.findFirst({ where: { sourceDraftId: owned.id }, include: ORDER_INCLUDE });
+    if (existing) {
+      assertOwnership({ ownerUserId: existing.ownerUserId, guestOwnershipTokenHash: existing.guestOwnershipTokenHash }, actor);
+      const existingMeta = existing.items[0]?.metadata;
+      const existingPrint = existingMeta && typeof existingMeta === "object" && "print" in existingMeta;
+      const existingTier = existing.items[0]?.tierOrSku;
+      const requestedLines = input.printLines?.length ? input.printLines : (input.printSize ? [{ printSize: input.printSize, quantity: input.quantity ?? 1 }] : []);
+      const existingPrintLines = existingMeta && typeof existingMeta === "object" && "printLines" in existingMeta ? (existingMeta as { printLines?: Array<{ size?: string; quantity?: number }> }).printLines ?? [] : [];
+      const samePrint = isPrint && existingPrint && JSON.stringify(existingPrintLines.map((line) => [line.size, line.quantity])) === JSON.stringify(requestedLines.map((line) => [line.printSize, line.quantity]));
+      const sameSelection = isPrint ? samePrint : !existingPrint && existingTier === tier;
+      if (sameSelection) return toSafeView(existing);
+      if (existing.paymentAttempt) throw new AppError("paid order selections cannot be changed", 409, "ORDER_ALREADY_PAID");
+      await prisma.fixedOrder.delete({ where: { id: existing.id } });
+    }
 
     if (!owned.market || !owned.currency) {
       throw new AppError("draft has no resolved market/currency", 422, "INVALID_MARKET");
@@ -338,7 +343,7 @@ export class FixedOrderService {
       if (!address || !address.recipientName.trim() || !address.phone.trim() || !address.addressLine1.trim() || !address.city.trim() || !address.countryCode.trim()) throw new AppError("delivery address is required for print orders", 422, "PRINT_ADDRESS_REQUIRED");
       const requestedLines = input.printLines?.length ? input.printLines : [{ printSize: input.printSize, quantity: input.quantity }];
       if (requestedLines.length > 10) throw new AppError("too many print lines", 422, "INVALID_PRINT_LINES");
-      try { printLines = requestedLines.map((line) => ({ printSize: line.printSize, quantity: line.quantity, quote: quotePrint(enhancementAmountMinor, line.printSize, line.quantity) })); printQuote = printLines[0]?.quote; } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
+      try { printLines = requestedLines.map((line) => ({ printSize: line.printSize, quantity: line.quantity, quote: quoteSinglePrint(enhancementAmountMinor, line.printSize, line.quantity) })); printQuote = printLines[0]?.quote; } catch (error) { throw new AppError(error instanceof Error ? error.message : "invalid print selection", 422, "INVALID_PRINT_SELECTION"); }
     }
 
     try {
@@ -374,7 +379,7 @@ export class FixedOrderService {
         });
 
         const createdItem = order.items[0];
-        if (createdItem && printLines.length > 0) await tx.printOrderLine.createMany({ data: printLines.map((line) => ({ fixedOrderId: order.id, fixedOrderItemId: createdItem.id, printProduct: line.printSize, quantity: line.quantity, currency: owned.currency as FixedOrderCurrency, unitPriceMinor: BigInt(line.quote.printSubtotalMinor / line.quantity), subtotalMinor: BigInt(line.quote.printSubtotalMinor), requiredTier: tier, qualitySurchargeMinor: 0n })) });
+        if (createdItem && printLines.length > 0) await tx.printOrderLine.createMany({ data: printLines.map((line, index) => ({ fixedOrderId: order.id, fixedOrderItemId: createdItem.id, printProduct: line.printSize, quantity: line.quantity, currency: owned.currency as FixedOrderCurrency, unitPriceMinor: BigInt(line.quote.printSubtotalMinor / line.quantity), subtotalMinor: BigInt(line.quote.printSubtotalMinor), requiredTier: tier, qualitySurchargeMinor: index === 0 ? BigInt(enhancementAmountMinor) : 0n })) });
         await tx.restorationDraft.update({
           where: { id: owned.id },
           data: { status: "ORDER_SELECTION" }
@@ -408,6 +413,7 @@ export class FixedOrderService {
   }
 
   getPrintCatalog() { return publicPrintCatalog(); }
+  getSinglePrintCatalog() { return publicSinglePrintCatalog(); }
 
   /** Server-owned fixed-price package order. Package policy supplies one tier
    * for every image; customers never choose per-image product or quality. */
@@ -433,7 +439,7 @@ export class FixedOrderService {
       const order = await tx.fixedOrder.create({
         data: {
           orderNo: orderNo(), type: "RESTORATION_DIGITAL", market: "PAKISTAN", currency: "PKR",
-          ownerUserId: drafts[0].ownerUserId ?? null, ownerCustomerId: null,
+          ownerUserId: actor.userId ?? drafts[0].ownerUserId ?? null, ownerCustomerId: null,
           guestOwnershipTokenHash: drafts[0].guestOwnershipTokenHash ?? null,
           sourceDraftId: drafts[0].id, totalAmountMinor: BigInt(pkg.priceMinor),
           items: { create: drafts.map((draft, index) => ({
