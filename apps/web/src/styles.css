@@ -2976,7 +2976,7 @@ img {
 }
 
 .review-checkout-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); gap: 14px; align-items: stretch; }
-.review-checkout-grid .review-item, .review-checkout-grid .order-summary-card { margin-top: 0 !important; max-width: none; }
+.review-checkout-grid .review-item, .review-checkout-grid .order-summary-card { width: 100%; margin: 0 !important; max-width: none; }
 .review-checkout-grid .review-item { min-height: 154px; grid-template-columns: 112px minmax(0, 1fr) auto; }
 .review-checkout-grid .review-thumbnail { width: 112px; height: 112px; border-radius: 12px; }
 .review-edit { min-height: 32px; margin-top: 6px; padding: 4px 0; border: 0; background: transparent; color: var(--accent-strong); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
