@@ -343,8 +343,9 @@ async function main() {
       const legacyProcess = await fetch(`http://127.0.0.1:${apiPort}/api/restorations/forged/items/forged/process`, { method: "POST", headers, body: "{}" });
       if (legacyProcess.status !== 404) throw new Error(`${kind}: legacy processing endpoint remains active (${legacyProcess.status})`);
 
-      await step(`${kind}: complete verified TEST payment`, () => page.click('[data-testid="e2e-complete-test-payment"]'));
-      await step(`${kind}: completed download`, () => page.waitForSelector('[data-testid="e2e-download-link"]', { timeout: 20_000 }));
+       await step(`${kind}: complete verified TEST payment`, () => page.click('[data-testid="e2e-complete-test-payment"]'));
+       await step(`${kind}: Order Accepted`, () => page.waitForSelector('[data-testid="order-accepted"]', { timeout: 20_000 }));
+       await step(`${kind}: completed download`, () => page.waitForSelector('[data-testid="e2e-download-link"]', { timeout: 20_000 }));
        const duplicatePayment = await fetch(`http://127.0.0.1:${apiPort}/api/fixed-orders/${orderNo}/test-checkout/complete`, { method: "POST", headers: { ...headers, "x-forwarded-for": "127.0.0.2" }, body: "{}" });
       if (!duplicatePayment.ok) throw new Error(`${kind}: duplicate verified evidence did not converge`);
       for (let index = 0; index < 10; index++) {
