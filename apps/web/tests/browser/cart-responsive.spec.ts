@@ -21,7 +21,7 @@ function draftFixture(id: string, index: number) {
     originalWidth: 1200,
     originalHeight: 1600 - index * 200,
     createdAt: new Date().toISOString(),
-    previewUrl: "http://127.0.0.1/mock-preview.jpg"
+     previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
   };
 }
 

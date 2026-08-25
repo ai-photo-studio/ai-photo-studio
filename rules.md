@@ -4012,3 +4012,22 @@ remains in force verbatim.
 - Digital and Print Payment screens share the final server-priced summary. Print
   identity, PrintOrderLine, upscale, delivery, recipient, and total remain
   preserved through payment and Order Accepted into fulfilment.
+
+### R9.2-NEON-NORTHFLANK-RUNTIME — Production Database and Queue Ownership
+
+- Production PostgreSQL is Neon. The canonical production `DATABASE_URL` is
+  the existing secure Northflank API/worker runtime secret; GitHub candidate
+  URLs are diagnostic fallbacks only and must not replace the runtime secret
+  without owner-approved secure rotation.
+- Northflank owns the API/worker runtime and its managed Redis addon. The
+  Redis hostname is runtime-private; authenticated Redis probes must execute
+  from the Northflank runtime, not from an external GitHub runner.
+- Production migration status is read-only first and uses the Northflank
+  runtime database connection. No `migrate dev`, `db push`, reset, or guessed
+  connection string is permitted against Neon.
+- Disposable PostgreSQL tests remain loopback-only. Teardown must stop the
+  server, prove the port is closed, retry deletion within a bounded window,
+  and fail rather than mask cleanup errors.
+- An unpaid FixedOrder with a deliberately changed selection may replace its
+  stale unpaid order; an unchanged selection remains idempotent, and paid
+  orders remain immutable.

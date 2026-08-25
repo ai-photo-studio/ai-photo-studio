@@ -273,7 +273,7 @@ test("(q7) invalid tier fails closed before any FixedOrder row is written", asyn
   assert.equal(count, 0);
 });
 
-test("(q8) repeated submission (sequential) reuses the existing immutable order", async () => {
+test("(q8) unchanged submission reuses an unpaid order while a changed selection replaces it", async () => {
   const { FixedOrderService } = await loadServiceModule();
   const service = new FixedOrderService();
   const { draft, guestToken } = await seedDraft("repeat-submit");
@@ -281,9 +281,14 @@ test("(q8) repeated submission (sequential) reuses the existing immutable order"
   const first = await service.createRestorationDigitalOrder({ draftId: draft.id, tier: "ORIGINAL" }, { guestToken });
   createdOrderIds.push(first.id);
   const second = await service.createRestorationDigitalOrder({ draftId: draft.id, tier: "HD_4X" }, { guestToken });
+  createdOrderIds.push(second.id);
 
-  assert.equal(second.id, first.id, "a second submission (even requesting a different tier) returns the same order");
-  assert.equal(second.tier, "ORIGINAL", "the original tier/price is immutable; a later request cannot change it");
+  assert.notEqual(second.id, first.id, "an unpaid changed selection replaces the stale order");
+  assert.equal(second.tier, "HD_4X", "the deliberate replacement tier is persisted");
+
+  const third = await service.createRestorationDigitalOrder({ draftId: draft.id, tier: "HD_4X" }, { guestToken });
+  assert.equal(third.id, second.id, "the unchanged replacement selection is idempotent");
+  assert.equal(third.tier, "HD_4X");
 
   const count = await clientA.fixedOrder.count({ where: { sourceDraftId: draft.id } });
   assert.equal(count, 1, "exactly one FixedOrder must exist for this draft");
