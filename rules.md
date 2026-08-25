@@ -4031,3 +4031,28 @@ remains in force verbatim.
 - An unpaid FixedOrder with a deliberately changed selection may replace its
   stale unpaid order; an unchanged selection remains idempotent, and paid
   orders remain immutable.
+
+### R9.3-THANNOW-APG-1001-UAT — Qualified Bank Evidence and Direct Access Gate
+
+- ThanNow's only launch payment flow is Bank Alfalah sandbox Page Redirection:
+  form-encoded `POST /HS/HS/HS`, `ChannelId=1001`,
+  `HS_IsRedirectionRequest=1`, `HS_IsBIN=0`, then form-encoded
+  `POST /SSO/SSO/SSO`. API Channel 1002, `DoTran`, and `ProcessTran` are
+  alternative Bank flows and are not customer-checkout fallbacks.
+- Customer checkout must invoke the 1001 redirection handshake, extract an
+  AuthToken recursively from the Bank response, and generate the SSO form only
+  from server-owned order, amount, currency, and merchant inputs.
+- RequestHash uses the Bank-proven ordered `key=value&...` UTF-8 string,
+  AES-128-CBC, PKCS7 padding, and Base64 with Bank-provisioned Key1/Key2.
+  Values remain secure environment references only.
+- ThanNow's Return URL is `https://api.thannow.com/api/payments/bank-alfalah/return`,
+  Listener/IPN URL is `https://api.thannow.com/api/payments/bank-alfalah/ipn`,
+  and frontend landing page is `https://thannow.com/payment/return`. Browser
+  Return is never payment authority; exact server OrderStatus identity, amount,
+  and currency verification is required before PAID.
+- Secure sandbox run `32822967010` proved the exact Channel 1001 form reaches
+  Bank Alfalah and produces `HTTP 200`, `success=true`,
+  `PAYMENT_UNAVAILABLE`, and no AuthToken. No SSO or payment was attempted.
+  This is `BANK_DIRECT_HS1001_ENABLEMENT_REQUIRED`; do not retry until Bank
+  enables direct hosted-page access for the ThanNow merchant/store or supplies
+  a changed hosted-checkout contract.

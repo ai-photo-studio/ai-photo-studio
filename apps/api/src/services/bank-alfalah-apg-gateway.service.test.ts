@@ -91,6 +91,24 @@ test("verified sandbox handshake returns an SSO redirect built from server-owned
   assert.equal(redirect.fields.AuthToken, "fixture-auth");
 });
 
+test("HS1001 customer handshake is form-encoded, recursively extracts AuthToken, and never uses API 1002", async () => {
+  let requestUrl = "";
+  let requestBody = "";
+  const gateway = new BankAlfalahApgGateway(baseConfig, async (url, init) => {
+    requestUrl = String(url);
+    requestBody = String(init?.body);
+    return response({ success: true, data: { AuthToken: "fixture-auth", ReturnURL: baseConfig.returnUrl } });
+  }, hash);
+  const result = await gateway.initiateRedirectionHandshake({ orderId: "FO-1001-1" });
+  assert.equal(requestUrl, "https://sandbox.bankalfalah.com/HS/HS/HS");
+  assert.match(requestBody, /HS_ChannelId=1001/);
+  assert.match(requestBody, /HS_IsRedirectionRequest=1/);
+  assert.match(requestBody, /HS_IsBIN=0/);
+  assert.match(requestBody, /HS_RequestHash=fixture-redirection-handshake/);
+  assert.equal(result.authToken, "fixture-auth");
+  assert.equal(result.returnUrl, baseConfig.returnUrl);
+});
+
 test("documented PAID OrderStatus is verified before evidence is emitted", async () => {
   let applied: VerifiedPaymentEvidence | undefined;
   const gateway = new BankAlfalahApgGateway(baseConfig, async (url, init) => {

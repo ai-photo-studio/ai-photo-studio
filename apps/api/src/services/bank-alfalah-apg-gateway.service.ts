@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { FixedOrderCurrency } from "../domain/fixedOrder/fixedOrderGuards";
 import { encryptApgRequestHash, type OrderedApgField } from "./bank-alfalah-request-hash";
+import { parseApgResponse, sanitizeApgMessage } from "./bank-alfalah-response-parser";
 import {
   applyVerifiedPaymentEvidence,
   type PaymentEvidenceResult,
@@ -214,6 +215,33 @@ export class BankAlfalahApgGateway {
     const successful = response.success === true || response.success === "true";
     if (!successful || !response.AuthToken) throw new BankAlfalahApgProtocolError(response.ErrorMessage || "APG handshake did not return AuthToken");
     return { authToken: response.AuthToken, returnUrl: response.ReturnURL || payload.HS_ReturnURL };
+  }
+
+  /**
+   * Page Redirection launch flow: HS1001 is form-encoded and uses ChannelId
+   * 1001. API-channel 1002 remains an alternative Bank flow, never checkout's
+   * fallback.
+   */
+  async initiateRedirectionHandshake(input: ApgRedirectionHandshakeInput): Promise<ApgHandshakeResult> {
+    const payload = this.buildRedirectionHandshakePayload(input);
+    const form = new URLSearchParams(Object.entries(payload).filter(([name]) => name !== "handshake"));
+    const response = await this.fetchImpl(endpoint(this.config.baseUrl, "/HS/HS/HS"), {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json,text/html" },
+      body: form
+    });
+    const parsed = parseApgResponse(await response.text());
+    const nested = parsed.body.data && typeof parsed.body.data === "object" && !Array.isArray(parsed.body.data)
+      ? parsed.body.data as Record<string, unknown>
+      : {};
+    const successValue = parsed.body.success ?? parsed.body.Success ?? nested.success ?? nested.Success;
+    const authToken = parsed.body.AuthToken ?? parsed.body.authToken ?? nested.AuthToken ?? nested.authToken;
+    const returnUrl = parsed.body.ReturnURL ?? parsed.body.returnUrl ?? nested.ReturnURL ?? nested.returnUrl;
+    if (!response.ok || (successValue !== true && successValue !== "true") || typeof authToken !== "string" || !authToken) {
+      const message = sanitizeApgMessage(parsed.body.ErrorMessage ?? parsed.body.errorMessage ?? parsed.body.Message ?? nested.ErrorMessage ?? nested.errorMessage ?? nested.Message);
+      throw new BankAlfalahApgProtocolError(`APG HS1001 did not return AuthToken: ${message}`);
+    }
+    return { authToken, returnUrl: typeof returnUrl === "string" && returnUrl ? returnUrl : payload.HS_ReturnURL };
   }
 
   buildTransactionPayload(input: ApgTransactionInput): Record<string, string> {

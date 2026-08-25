@@ -92,7 +92,7 @@ export class CustomerCheckoutService {
     }
 
     if (apgSelected) {
-      const handshake = await this.apgGateway.initiateHandshake({ orderId: owned.orderNo });
+      const handshake = await this.apgGateway.initiateRedirectionHandshake({ orderId: owned.orderNo });
       const redirect = this.apgGateway.buildSsoRedirect(handshake.authToken, owned.orderNo, "3", attempt.amountMinor, attempt.currency);
       const updated = await prisma.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "REDIRECT_READY" } });
       return {
