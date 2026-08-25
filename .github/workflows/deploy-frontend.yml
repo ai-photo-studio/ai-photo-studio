@@ -2,13 +2,6 @@ name: Deploy ThanNow Frontend
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "apps/web/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/deploy-frontend.yml"
 
 env:
   NODE_VERSION: "24"
