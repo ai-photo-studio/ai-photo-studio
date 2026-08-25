@@ -38,3 +38,20 @@ Do not inject APG credentials into the production/default runtime.
 Redeploy the previous known API/web runtime SHA `af18fa7` as appropriate.
 Keep all payment flags disabled during rollback. Confirm health, route
 availability, and zero payment/provider calls after rollback.
+
+## Verified 2026-08-25
+
+- Secure migration preflight selected the existing Northflank runtime
+  `DATABASE_URL`; Prisma migration status was `clean` with no migration
+  applied. Direct GitHub candidate URLs were not substituted.
+- Northflank runtime is the canonical API/worker environment. Live API health
+  and database-backed monitoring returned HTTP 200 after deployment.
+- Northflank managed Redis is runtime-private. Live queue health returned HTTP
+  200 with `healthy: true`; no queue data was mutated by verification.
+- API SHA `c8e0b7a` is deployed and matched `/api/health`.
+- Web remains at `472934e`; no web delta required redeployment. Worker remains
+  unchanged.
+- Return URL returned HTTP 200; IPN returned HTTP 503 fail-closed; frontend
+  `/payment/return` returned HTTP 200.
+- Production payment remained disabled. Bank, Replicate, RunPod, and real
+  charge counts were zero during live verification.
