@@ -8,9 +8,9 @@ Hello Bank Alfalah Support,
 
 ThanNow has completed its local Alfa Payment Gateway sandbox integration for
 the configured merchant profile. Please enable and confirm the following for
-the Merchant ID and Store ID already supplied through our secure channel:
+the merchant and store identifiers already supplied through our secure channel:
 
-- Direct HS1001 hosted-payment-page access for the sandbox Merchant ID + Store ID.
+- Direct HS1001 hosted-payment-page access for the sandbox merchant/store identifiers.
 - Registration/whitelisting of our Return URL:
   `https://api.thannow.com/api/payments/bank-alfalah/return`
 - Registration/whitelisting of our Listener/IPN URL:
