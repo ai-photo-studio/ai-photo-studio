@@ -20,6 +20,7 @@
     "verify:staging-preflight": "node scripts/verify-staging-preflight.mjs",
     "verify:payment-freeze": "node scripts/verify-payment-freeze.mjs",
     "verify:apg-url-contract": "node scripts/verify-apg-url-contract.mjs",
+    "verify:apg-sandbox-ready": "node scripts/verify-apg-sandbox-ready.mjs",
     "scope:check": "node scripts/verify-project-scope.mjs",
     "push:safe": "node scripts/safe-git-push.mjs",
     "r2:check": "node scripts/safe-r2-check.mjs",

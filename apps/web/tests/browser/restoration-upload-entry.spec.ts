@@ -63,11 +63,11 @@ test.describe("canonical restoration upload entry", () => {
     await page.route("**/api/digital-catalog?market=PAKISTAN", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { offers: [{ tier: "HD_2X", label: "2x HD", amountMinor: 100000, currency: "PKR", description: "Sharp detail", priceBookVersion: "PB-2026-08-09-TRIAL-V3" }], printCatalog: [] } }) }));
     await page.route("**/api/memory-packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ code: "TEST", name: "Test Package", priceMinor: 100000, currency: "PKR", includes: [], checkoutReady: true }] }) }));
     await page.goto("/pricing");
-    for (const name of ["Choose this quality", "Start package"]) {
+    for (const name of ["Choose this quality", "Choose package"]) {
       await page.getByRole("button", { name }).click();
       await expect(page.getByRole("dialog", { name: "Upload Your Photo" })).toBeVisible();
       await page.getByRole("button", { name: "Close" }).click();
-      if (name === "Choose this quality") await page.goto("/pricing");
+       if (name === "Choose this quality") await page.goto("/pricing");
     }
   });
 
@@ -136,7 +136,8 @@ test.describe("canonical restoration upload entry", () => {
 
   test("R9.5-P6I: registered customers can select 3 photos and see real previews", async ({ page }) => {
     await mockAuthenticatedSession(page);
-    await page.goto("/?upload=1");
+    await page.route("**/api/memory-packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ code: "AMI_ABU_MEMORIES", name: "Ammi Abu Memories", minImages: 2, maxImages: 10, priceMinor: 100000, currency: "PKR" }] }) }));
+    await page.goto("/?upload=1&package=AMI_ABU_MEMORIES");
     await page.locator("#photoInput").setInputFiles([
       { name: "a.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-a") },
       { name: "b.jpg", mimeType: "image/jpeg", buffer: Buffer.from("image-b") },
@@ -149,7 +150,8 @@ test.describe("canonical restoration upload entry", () => {
 
   test("R9.5-P6I: registered customers can add and remove batch photos", async ({ page }) => {
     await mockAuthenticatedSession(page);
-    await page.goto("/?upload=1");
+    await page.route("**/api/memory-packages", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ code: "AMI_ABU_MEMORIES", name: "Ammi Abu Memories", minImages: 2, maxImages: 10, priceMinor: 100000, currency: "PKR" }] }) }));
+    await page.goto("/?upload=1&package=AMI_ABU_MEMORIES");
     const input = page.locator("#photoInput");
     await input.setInputFiles([{ name: "one.jpg", mimeType: "image/jpeg", buffer: Buffer.from("1") }, { name: "two.jpg", mimeType: "image/jpeg", buffer: Buffer.from("2") }]);
     await expect(page.getByRole("dialog").locator(".upload-photo-list img")).toHaveCount(2);
@@ -168,21 +170,16 @@ test.describe("canonical restoration upload entry", () => {
     await ensureAnonymous(page);
     await page.goto("/?upload=1");
     await page.locator("#photoInput").setInputFiles([{ name: "img1.jpg", mimeType: "image/jpeg", buffer: Buffer.from("img1") }, { name: "img2.jpg", mimeType: "image/jpeg", buffer: Buffer.from("img2") }]);
-    await expect(page.getByText("Create a free account to upload multiple photos.").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Log in", exact: true })).toBeVisible();
+    await expect(page.getByText("Single Photo accepts one image. Choose a Memory Package for multiple photos.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeEnabled();
   });
 
   test("R9.5-P5Q: removing every photo disables Continue and clears the list", async ({ page }) => {
     await mockAuthenticatedSession(page);
     await page.goto("/?upload=1");
-    await page.locator("#photoInput").setInputFiles([
-      { name: "x.jpg", mimeType: "image/jpeg", buffer: Buffer.from("x") },
-      { name: "y.jpg", mimeType: "image/jpeg", buffer: Buffer.from("y") }
-    ]);
-    await page.getByRole("button", { name: "Remove x.jpg" }).click();
-    await page.getByRole("button", { name: "Remove y.jpg" }).click();
+    await page.locator("#photoInput").setInputFiles({ name: "x.jpg", mimeType: "image/jpeg", buffer: Buffer.from("x") });
+    await page.getByRole("button", { name: "Remove" }).click();
     await expect(page.getByText("x.jpg")).toHaveCount(0);
-    await expect(page.getByText("y.jpg")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Continue to Restoration" })).toBeDisabled();
   });
 });

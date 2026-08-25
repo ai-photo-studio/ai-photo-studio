@@ -76,6 +76,21 @@ test("malformed handshake responses and non-PAID statuses are rejected", async (
   await assert.rejects(() => unpaid.getOrderStatus("FO-1", 125000n, "PKR"), BankAlfalahApgProtocolError);
 });
 
+test("verified sandbox handshake returns an SSO redirect built from server-owned order data", async () => {
+  let requestBody: Record<string, string> | undefined;
+  const gateway = new BankAlfalahApgGateway(baseConfig, async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body)) as Record<string, string>;
+    return response({ success: true, AuthToken: "fixture-auth", ReturnURL: baseConfig.returnUrl });
+  }, hash);
+  const handshake = await gateway.initiateHandshake({ orderId: "FO-SANDBOX-1" });
+  const redirect = gateway.buildSsoRedirect(handshake.authToken, "FO-SANDBOX-1", "3", 125000n, "PKR");
+  assert.equal(requestBody?.HS_TransactionReferenceNumber, "FO-SANDBOX-1");
+  assert.equal(redirect.fields.TransactionReferenceNumber, "FO-SANDBOX-1");
+  assert.equal(redirect.fields.TransactionAmount, "1250.00");
+  assert.equal(redirect.fields.Currency, "PKR");
+  assert.equal(redirect.fields.AuthToken, "fixture-auth");
+});
+
 test("documented PAID OrderStatus is verified before evidence is emitted", async () => {
   let applied: VerifiedPaymentEvidence | undefined;
   const gateway = new BankAlfalahApgGateway(baseConfig, async (url, init) => {

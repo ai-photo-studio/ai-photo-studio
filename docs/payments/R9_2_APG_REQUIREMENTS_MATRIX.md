@@ -4,7 +4,8 @@ Canonical, standalone tracked matrix (carried forward from
 `docs/payments/R9_2_MPGS_FREEZE_AND_APG_REACTIVATION_PROTOCOL.md` §3,
 updated with the now-defined URL foundation from
 `docs/payments/R9_2_APG_URL_INGRESS_PROTOCOL.md`). Every row not
-explicitly resolved by a URL-foundation packet remains
+explicitly resolved by documented protocol evidence or a fixture-backed
+implementation remains
 `AWAITING_BANK_CONFIRMATION` — no value here is invented.
 
 | Requirement | Status | Notes |
@@ -15,18 +16,18 @@ explicitly resolved by a URL-foundation packet remains
 | Merchant ID / account conversion | `AWAITING_BANK_CONFIRMATION` | Does the existing Bank Alfalah relationship convert to a local-APG merchant profile, or is separate onboarding required? |
 | Supported local payment methods | `AWAITING_BANK_CONFIRMATION` | Which wallets/rails (JazzCash, EasyPaisa, RAAST, bank transfer, others) — none invented |
 | PKR / currency scope | `AWAITING_BANK_CONFIRMATION` | Local rails are typically PKR-only, but no confirming document exists |
-| Session/checkout API shape | **DOCUMENTED_BY_BAF_GUIDE; NOT_IMPLEMENTED** | BAF `Alfa Payment Gateway Merchant Integration Guide V1.1` documents a form POST handshake to `https://sandbox.bankalfalah.com/HS/HS/HS`, then an `auth_token` POST to `https://sandbox.bankalfalah.com/SSO/SSO/SSO`; this is not the current MPGS REST v100 adapter and must not be mixed with it |
+| Session/checkout API shape | **FIXTURE_IMPLEMENTED; LIVE_BLOCKED** | APG adapter and customer FixedOrder checkout use server-owned handshake/SSO fields; direct sandbox hosted-page enablement still returns `PAYMENT_UNAVAILABLE` without `AuthToken` |
 | Callback/IPN payload shape and signature scheme | `AWAITING_BANK_CONFIRMATION` | The listener URL exists and validates its documented `url` parameter's host, but the payload/signature contract itself is unknown |
-| Status inquiry (equivalent of MPGS's Retrieve Order) | **DOCUMENTED_BY_BAF_GUIDE; NOT_IMPLEMENTED** | BAF guide documents `GET https://sandbox.bankalfalah.com/HS/api/IPN/OrderStatus/{MerchantId}/{StoreId}/{OrderId}` and a `TransactionStatus` field; authentication/complete response contract still requires Bank confirmation before implementation |
+| Status inquiry (equivalent of MPGS's Retrieve Order) | **FIXTURE_IMPLEMENTED; LIVE_BLOCKED** | Server verifies exact merchant/store/order/amount/currency, `ResponseCode=00`, and `TransactionStatus=Paid` before emitting P4A evidence |
 | Acknowledgement requirements | `AWAITING_BANK_CONFIRMATION` | What response shape/timing the bank expects from the IPN listener |
 | Authentication/signature | `AWAITING_BANK_CONFIRMATION` | How the bank authenticates to this listener, and how this server would authenticate outbound once status inquiry is implemented |
 | Refund/void | `AWAITING_BANK_CONFIRMATION` | No refund mechanism exists for MPGS either — a genuine gap for both providers |
 | Settlement/reconciliation | `AWAITING_BANK_CONFIRMATION` | No settlement-file ingestion exists in this repository for any provider today |
-| Sandbox/production endpoints | **DOCUMENTED_BY_BAF_GUIDE; CREDENTIALS PENDING** | BAF guide states sandbox `sandbox.bankalfalah.com` and production `payments.bankalfalah.com` for its APG `/HS/` and `/SSO/` paths. These endpoints are not authorization to use another store's credentials |
+| Sandbox/production endpoints | **DOCUMENTED; SANDBOX ENABLEMENT PENDING** | BAF guide states sandbox `sandbox.bankalfalah.com` and production `payments.bankalfalah.com`; production remains fail-closed |
 | Allowlisting | **Mechanism defined, values pending** | `BANK_ALFALAH_APG_ALLOWED_CALLBACK_HOSTS` env var exists (empty by default, fail-closed); real host(s) are `AWAITING_BANK_CONFIRMATION` |
 | Fees/FED/security deposit | `AWAITING_BANK_CONFIRMATION` | Commercial terms, not addressed by any technical document in this repository |
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
-| Payment mutation | **Explicitly deferred** | No code path from either route reaches `applyVerifiedPaymentEvidence` — by design, until every row above is resolved |
+| Payment mutation | **SERVER-VERIFIED PATH; IPN DEFERRED** | APG OrderStatus verification can emit P4A evidence only after exact matching; browser Return and IPN remain non-authoritative while Bank callback auth/ack rules are unresolved |
 
 ## Change log
 
@@ -47,3 +48,7 @@ explicitly resolved by a URL-foundation packet remains
   emit P4A evidence only after exact status/identity/amount/currency matching.
   The request-hash algorithm and inbound IPN authentication remain
   `BANK_CONFIRMATION_REQUIRED`; no sandbox call was made.
+- 2026-08-25 (R9.2-APG-SANDBOX-WIRING): customer FixedOrder checkout now selects
+  the fixture-tested APG adapter only when `BANK_ALFALAH_PROVIDER=apg` and
+  `BANK_ALFALAH_APG_ENABLED=true`; defaults remain fail-closed, MPGS remains
+  frozen, and browser Return/IPN mutation remains deferred.

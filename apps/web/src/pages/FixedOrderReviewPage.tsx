@@ -89,7 +89,21 @@ export function FixedOrderReviewPage() {
       const guestToken = getGuestOwnershipToken(orderNo);
       const result = await customerApi.createCustomerCheckout(token || undefined, orderNo, guestToken || undefined);
       setPaymentStatus(result.status);
-      if (result.sessionId) {
+      if (result.redirectUrl && result.redirectFields) {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = result.redirectUrl;
+        form.style.display = "none";
+        for (const [name, value] of Object.entries(result.redirectFields)) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+      } else if (result.sessionId) {
         window.location.assign(`https://test-bankalfalah.gateway.mastercard.com/checkout/pay/${encodeURIComponent(result.sessionId)}`);
       }
     } catch (err) {

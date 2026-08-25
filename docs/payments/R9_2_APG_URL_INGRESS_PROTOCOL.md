@@ -1,8 +1,8 @@
 # R9.2 APG URL Ingress Protocol
 
-Status: **URL foundation only. No status inquiry, acknowledgement,
-authentication, or payment mutation exists.** MPGS remains commercially
-frozen (`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`). No live bank request, APG
+Status: **URL foundation plus fixture-backed APG checkout/status adapter. Live
+hosted-page enablement and IPN authentication/acknowledgement remain blocked.**
+MPGS remains commercially frozen (`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`). No live bank request, APG
 activation, production deployment, or payment success simulation was made
 by this packet.
 
@@ -16,8 +16,8 @@ to `/SSO/SSO/SSO`, merchant/store credentials (`MerchantId`, `StoreId`,
 `MerchantHash`, `MerchantUsername`, `MerchantPassword`), and status inquiry at
 `/HS/api/IPN/OrderStatus/{MerchantId}/{StoreId}/{OrderId}`. It also documents a
 POST IPN listener receiving a `url` parameter and requiring a subsequent GET
-status inquiry. These facts are recorded only; no APG handshake, status fetch,
-IPN acknowledgement, or payment mutation has been implemented.
+  status inquiry. These facts are recorded as the evidence-backed protocol;
+  live hosted-page enablement and IPN mutation remain blocked.
 
 This differs from the current ThanNow MPGS adapter, which uses the Mastercard
 gateway REST v100 Hosted Checkout flow and `Retrieve Order`. The APG
@@ -42,7 +42,8 @@ provider is `none`. MPGS remains selected only by
 `BANK_ALFALAH_PROVIDER=mpgs` and its existing adapter is not replaced or used
 as a fallback.
 
-The APG adapter implements fixture-tested, server-owned API-channel 1002
+The APG adapter and customer FixedOrder checkout implement fixture-tested,
+server-owned API-channel 1002
 payloads and endpoints from `BAF/API/API.txt`:
 
 - Handshake: `POST /HS/api/HSAPI/HSAPI`
@@ -59,17 +60,17 @@ non-authoritative and the IPN route remains fail-closed because the supplied
 guide does not define inbound IPN authentication/signature or acknowledgement
 requirements. The supplied guide also refers to request-hash sample code that
 is not present, so the adapter refuses real handshake generation with
-`BANK_CONFIRMATION_REQUIRED` until Bank confirms that algorithm.
+  `BANK_CONFIRMATION_REQUIRED` until Bank confirms the live contract.
 
 ## R9.5-P6C sandbox result
 
-ThanNow APG credentials were absent from the process environment. The
+ThanNow APG credentials are injected only by secure sandbox workflow
+environment references. The
 credential-shaped values in `BAF/API/API.txt` were not copied, printed, or
 used because the file does not establish ThanNow ownership or its Return URL.
-Classification: `THANNOW_APG_SANDBOX_CREDENTIALS_REQUIRED`. No Bank request or
-charge was made. The zero-charge path remains fixture tests plus
-`npm run commerce:dryrun` until Bank supplies/authorizes ThanNow sandbox
-credentials and confirms request-hash/encryption and IPN authentication.
+Classification: `BANK_DIRECT_HOSTED_PAGE_ENABLEMENT_PENDING`. Fixture tests and
+`npm run commerce:dryrun` remain zero-charge paths until Bank enables direct
+ThanNow sandbox hosted-page access and confirms IPN authentication.
 
 ## 1. Exact URLs
 

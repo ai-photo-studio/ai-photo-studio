@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma";
 import type { AppConfig } from "../config/env";
 import { computeOrderPaymentReasons } from "../domain/payment/paymentReadiness";
 import { BankAlfalahMpgsGateway, handleMpgsBrowserReturn } from "./p4c-bank-alfalah-mpgs-gateway.service";
+import { BankAlfalahApgGateway } from "./bank-alfalah-apg-gateway.service";
 import { AppError } from "../utils/errors";
 import { assertOwnership, type RequestActor } from "../utils/ownership";
 
@@ -17,6 +18,8 @@ export interface CustomerCheckoutResult {
   currency: "PKR" | "USD";
   sessionId: string | null;
   successIndicator: string | null;
+  redirectUrl?: string | null;
+  redirectFields?: Record<string, string>;
 }
 
 function isUniqueConstraintViolation(error: unknown): boolean {
@@ -25,9 +28,11 @@ function isUniqueConstraintViolation(error: unknown): boolean {
 
 export class CustomerCheckoutService {
   private readonly gateway: BankAlfalahMpgsGateway;
+  private readonly apgGateway: BankAlfalahApgGateway;
 
   constructor(private readonly config: AppConfig, gateway?: BankAlfalahMpgsGateway) {
     this.gateway = gateway ?? new BankAlfalahMpgsGateway(config.bankAlfalahMpgs);
+    this.apgGateway = new BankAlfalahApgGateway(config.bankAlfalahApg);
   }
 
   async createCheckout(input: CustomerCheckoutInput, actor: RequestActor): Promise<CustomerCheckoutResult> {
@@ -42,7 +47,9 @@ export class CustomerCheckoutService {
     const owned = assertOwnership(order, actor);
 
     // Provider readiness is checked before any PaymentAttempt mutation or network request.
-    if (this.config.bankAlfalahProvider !== "mpgs" || !this.config.bankAlfalahMpgs.enabled) {
+    const apgSelected = this.config.bankAlfalahProvider === "apg" && this.config.bankAlfalahApg.enabled;
+    const mpgsSelected = this.config.bankAlfalahProvider === "mpgs" && this.config.bankAlfalahMpgs.enabled;
+    if (!apgSelected && !mpgsSelected) {
       throw new AppError("Payment provider is unavailable", 503, "PAYMENT_PROVIDER_UNAVAILABLE");
     }
 
@@ -82,6 +89,22 @@ export class CustomerCheckoutService {
 
     if (attempt.amountMinor !== owned.totalAmountMinor || attempt.currency !== owned.currency) {
       throw new AppError("Payment attempt does not match the immutable order", 409, "PAYMENT_ATTEMPT_MISMATCH");
+    }
+
+    if (apgSelected) {
+      const handshake = await this.apgGateway.initiateHandshake({ orderId: owned.orderNo });
+      const redirect = this.apgGateway.buildSsoRedirect(handshake.authToken, owned.orderNo, "3", attempt.amountMinor, attempt.currency);
+      const updated = await prisma.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "REDIRECT_READY" } });
+      return {
+        paymentAttemptId: updated.id,
+        status: updated.status,
+        amountMinor: updated.amountMinor.toString(),
+        currency: updated.currency,
+        sessionId: null,
+        successIndicator: null,
+        redirectUrl: redirect.url,
+        redirectFields: redirect.fields
+      };
     }
 
     const checkout = await this.gateway.initiateHostedCheckout({
@@ -150,7 +173,17 @@ export class CustomerCheckoutService {
     // above for why `providerRef` is never a reliable "checkout was
     // initiated" signal.
     const VERIFIABLE_STATES: readonly string[] = ["REDIRECT_READY", "CUSTOMER_RETURNED", "CALLBACK_PENDING", "AUTHORIZED"];
-    if (VERIFIABLE_STATES.includes(attempt.status)) {
+    const apgSelected = this.config.bankAlfalahProvider === "apg" && this.config.bankAlfalahApg.enabled;
+    if (VERIFIABLE_STATES.includes(attempt.status) && apgSelected) {
+      await this.apgGateway.verifyAndApplyOrderStatus({
+        orderId: owned.orderNo,
+        fixedOrderId: owned.id,
+        paymentAttemptId: attempt.id,
+        amountMinor: attempt.amountMinor,
+        currency: attempt.currency
+      });
+      attempt = await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    } else if (VERIFIABLE_STATES.includes(attempt.status)) {
       const { outcome } = await handleMpgsBrowserReturn(this.gateway, this.config.bankAlfalahMpgs.merchantId, {
         fixedOrderId: owned.id,
         paymentAttemptId: attempt.id,

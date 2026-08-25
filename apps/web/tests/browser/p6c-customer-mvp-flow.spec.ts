@@ -109,13 +109,13 @@ test.describe("P6C Pakistan PKR flow end to end", () => {
      await page.getByRole("radio", { name: /Digital Download/i }).click();
      await expect(page.getByText("Choose image quality")).toHaveCount(0);
      await page.getByRole("button", { name: "Continue" }).click();
-     await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Continue to Payment" })).toBeDisabled();
      await expect(page.getByText("PKR 500")).toBeVisible();
     await page.getByText("Restored Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Continue to Review" }).click();
+     await page.getByRole("button", { name: "Continue to Payment" }).click();
 
-    await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
-     await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
+     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/payment$`));
+      await expect(page.getByRole("heading", { name: "Advance Payment" })).toBeVisible();
      await expect(page.locator(".order-summary dd").last()).toHaveText("PKR 500.00");
      await expect(page.getByText("Subtotal", { exact: true })).toBeVisible();
     await expect(page.getByText(/Online payment is temporarily unavailable/i)).toBeVisible();
@@ -141,17 +141,18 @@ test.describe("P6C International USD flow", () => {
     await blockExternalNetwork(page);
     const order = orderFixture({ market: "INTERNATIONAL", currency: "USD", tier: "HD_4X", amount: "499" });
     await mockGetOrder(page, ORDER_NO, order);
-    await page.goto(`/orders/${ORDER_NO}/review`);
-     await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
+     await page.goto(`/orders/${ORDER_NO}/payment`);
+      await expect(page.getByRole("heading", { name: "Advance Payment" })).toBeVisible();
      await expect(page.locator(".order-summary dd").last()).toHaveText("USD 4.99");
   });
 });
 
 test.describe("P6C product choice truthfulness", () => {
-  test("digital and Print + Digital are visible while print checkout remains blocked", async ({ page }) => {
-    await blockExternalNetwork(page);
-     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
+   test("digital and Print + Digital are visible with an empty Print configuration", async ({ page }) => {
+      await blockExternalNetwork(page);
+      await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
+      await page.route("**/api/single-print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "4x6", unitAmountMinor: 10000, currency: "PKR", minimumQuantity: 1, deliveryAmountMinor: 25000 }] }) }));
+      await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
      await expect(page.getByRole("radio", { name: /Digital Download/i })).toBeVisible();
      await expect(page.getByText("Restored Original", { exact: true })).toHaveCount(0);
      await page.getByRole("radio", { name: /Digital Download/i }).click();
@@ -163,9 +164,9 @@ test.describe("P6C product choice truthfulness", () => {
        await page.getByRole("button", { name: /Back to Product/i }).click();
        await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
        await page.getByRole("button", { name: "Continue" }).click();
-      await expect(page.locator("select")).toBeVisible();
-     await expect(page.locator("input[type=number]")).toHaveAttribute("max", "10");
-    await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
+        await expect(page.getByRole("radiogroup", { name: "Print size" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Continue to Delivery" })).toBeDisabled();
+     await expect(page.getByText("Estimated subtotal", { exact: true })).toHaveCount(0);
   });
 
   test("print size with a mismatched aspect ratio is blocked before order creation", async ({ page }) => {
@@ -173,39 +174,37 @@ test.describe("P6C product choice truthfulness", () => {
     const draft = { ...draftFixture(), originalWidth: 1000, originalHeight: 1000, previewUrl: "http://127.0.0.1/mock-preview.png" };
     await mockGetDraft(page, DRAFT_ID, draft);
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
-    await page.route("**/api/print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "5x7", unitAmountMinor: 15000, currency: "PKR", minimumQuantity: 5, deliveryAmountMinor: 25000 }] }) }));
+     await page.route("**/api/single-print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "5x7", unitAmountMinor: 15000, currency: "PKR", minimumQuantity: 1, deliveryAmountMinor: 25000 }] }) }));
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
     await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("radio", { name: /4x Ultra HD/i }).click();
-    await page.getByLabel("Recipient name").fill("Launch Test");
-    await page.getByLabel("Phone").fill("03001234567");
-    await page.getByLabel("Address").fill("1 Test Street");
-    await page.getByLabel("City").fill("Lahore");
-    await expect(page.getByText(/does not match the selected print aspect ratio/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue to Review" })).toBeDisabled();
+     await page.getByRole("radio", { name: /5x7/i }).click();
+     await expect(page.getByText(/does not match your photo shape/i)).toBeVisible();
+     await expect(page.getByRole("button", { name: "Continue to Delivery" })).toBeDisabled();
   });
 
-  test("ratio-compatible PKR print selection reaches review", async ({ page }) => {
+   test("ratio-compatible PKR print selection reaches delivery", async ({ page }) => {
     await blockExternalNetwork(page);
     const draft = { ...draftFixture(), originalWidth: 1200, originalHeight: 800, previewUrl: "http://127.0.0.1/mock-preview.png" };
     await mockGetDraft(page, DRAFT_ID, draft);
     await mockOffers(page, DRAFT_ID, offersFixture("PKR"));
     await mockCreateOrder(page, orderFixture({ amount: "225000" }));
-    await page.route("**/api/print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "4x6", unitAmountMinor: 10000, currency: "PKR", minimumQuantity: 10, deliveryAmountMinor: 25000 }] }) }));
+     await page.route("**/api/single-print-catalog", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [{ catalogVersion: "PRINT-TEST", size: "4x6", unitAmountMinor: 10000, currency: "PKR", minimumQuantity: 1, deliveryAmountMinor: 25000 }] }) }));
 
     await page.goto(`/restore-mvp/${DRAFT_ID}/tiers`);
     await page.getByRole("radio", { name: /Print \+ Digital/i }).click();
     await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("radio", { name: /Restored Original/i }).click();
-    await page.getByLabel("Recipient name").fill("Launch Test");
-    await page.getByLabel("Phone").fill("03001234567");
-    await page.getByLabel("Address").fill("1 Test Street");
-    await page.getByLabel("City").fill("Lahore");
-    await expect(page.getByText(/does not match the selected print aspect ratio/i)).toHaveCount(0);
-    await page.getByRole("button", { name: "Continue to Review" }).click();
-    await expect(page).toHaveURL(/\/orders\/FO-P6C-TEST-0001\/review$/);
+     await page.getByRole("radio", { name: /4x6/i }).click();
+     await expect(page.getByText(/does not match your photo shape/i)).toHaveCount(0);
+     await page.getByRole("button", { name: "Continue to Delivery" }).click();
+     await page.getByLabel(/Full recipient name/).fill("Launch Test");
+     await page.getByLabel(/Mobile number/).fill("03001234567");
+     await page.getByLabel(/Address line/).fill("1 Test Street");
+     await page.getByLabel("City").fill("Lahore");
+     await page.getByLabel(/Province \/ Region/).fill("Punjab");
+     await page.getByRole("button", { name: "Continue to Payment" }).click();
+     await expect(page).toHaveURL(/\/orders\/FO-P6C-TEST-0001\/payment$/);
   });
 });
 
@@ -228,7 +227,7 @@ test.describe("P6C ownership: forged/wrong guest token is rejected", () => {
   test("wrong guest token on the review page renders a not-found state, not the order", async ({ page }) => {
     await blockExternalNetwork(page);
     await mockGetOrder(page, ORDER_NO, null);
-    await page.goto(`/orders/${ORDER_NO}/review`);
+     await page.goto(`/orders/${ORDER_NO}/payment`);
     await expect(page.getByText(/not found/i)).toBeVisible();
   });
 
@@ -245,7 +244,7 @@ test.describe("P6C forged query parameters cannot fabricate payment success", ()
     await blockExternalNetwork(page);
     const order = orderFixture();
     await mockGetOrder(page, ORDER_NO, order);
-    await page.goto(`/orders/${ORDER_NO}/review?status=success&paid=true&forced=true`);
+     await page.goto(`/orders/${ORDER_NO}/payment?status=success&paid=true&forced=true`);
     // The page ignores query parameters entirely and always renders the
     // truthful, server-reported payment-blocked state -- never a fabricated
     // "paid"/"success" state derived from the URL.
@@ -272,7 +271,7 @@ test.describe("P6C refresh issues GET requests only, never a duplicate draft/ord
     expect(getCount).toBeGreaterThanOrEqual(2);
   });
 
-  test("refreshing the review page issues GET only and never creates a processing/payment call", async ({ page }) => {
+   test("refreshing Advance Payment issues GET only and never creates a processing/payment call", async ({ page }) => {
     await blockExternalNetwork(page);
     const order = orderFixture();
     let getCount = 0;
@@ -286,7 +285,7 @@ test.describe("P6C refresh issues GET requests only, never a duplicate draft/ord
       otherCalls.push("POST-order-create");
       await route.continue();
     });
-    await page.goto(`/orders/${ORDER_NO}/review`);
+     await page.goto(`/orders/${ORDER_NO}/payment`);
     await page.getByRole("button", { name: "Refresh" }).click();
     await page.reload();
     await page.waitForTimeout(200);
@@ -297,13 +296,13 @@ test.describe("P6C refresh issues GET requests only, never a duplicate draft/ord
 
 test.describe("P6C mobile usability", () => {
   for (const width of [360, 390, 430]) {
-    test(`review page renders correctly at ${width}px width`, async ({ page }) => {
+     test(`Advance Payment renders correctly at ${width}px width`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await blockExternalNetwork(page);
       const order = orderFixture();
       await mockGetOrder(page, ORDER_NO, order);
-      await page.goto(`/orders/${ORDER_NO}/review`);
-       await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
+       await page.goto(`/orders/${ORDER_NO}/payment`);
+        await expect(page.getByRole("heading", { name: "Advance Payment" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
     });
@@ -324,7 +323,7 @@ test.describe("P6C mobile usability", () => {
 });
 
 test.describe("P6C zero external network calls across the full flow", () => {
-  test("full upload->preview->tiers->order->review flow makes zero external network calls", async ({ page }) => {
+   test("full upload->preview->tiers->order->payment flow makes zero external network calls", async ({ page }) => {
     const externalCompleted: string[] = [];
     const isExternal = (url: string) => {
       const hostname = new URL(url).hostname;
@@ -349,8 +348,8 @@ test.describe("P6C zero external network calls across the full flow", () => {
      await page.getByRole("radio", { name: /Digital Download/i }).click();
      await page.getByRole("button", { name: "Continue" }).click();
     await page.getByText("Restored Original", { exact: true }).click();
-    await page.getByRole("button", { name: "Continue to Review" }).click();
-    await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/review$`));
+     await page.getByRole("button", { name: "Continue to Payment" }).click();
+     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER_NO}/payment$`));
 
     expect(externalCompleted).toEqual([]);
   });

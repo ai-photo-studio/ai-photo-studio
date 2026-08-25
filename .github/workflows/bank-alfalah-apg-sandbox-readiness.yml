@@ -8,9 +8,9 @@ jobs:
     name: APG runtime mapping presence audit
     runs-on: ubuntu-latest
     env:
-      # Manual sandbox-readiness mapping only. APG stays explicitly disabled.
-      BANK_ALFALAH_PROVIDER: none
-      BANK_ALFALAH_APG_ENABLED: "false"
+      # Manual sandbox-readiness mapping only. Production remains fail-closed.
+      BANK_ALFALAH_PROVIDER: apg
+      BANK_ALFALAH_APG_ENABLED: "true"
       BANK_ALFALAH_APG_BASE_URL: https://sandbox.bankalfalah.com
       BANK_ALFALAH_APG_RETURN_URL: https://api.thannow.com/api/payments/bank-alfalah/return
       BANK_ALFALAH_APG_SSO_CURRENCY: PKR
@@ -75,4 +75,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          npm run verify:apg-sandbox-ready
           npx --no-install tsx scripts/bank-alfalah-apg-sandbox-readiness.ts

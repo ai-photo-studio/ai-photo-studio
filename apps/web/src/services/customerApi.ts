@@ -280,6 +280,8 @@ export const customerApi = {
       currency: "PKR" | "USD";
       sessionId: string | null;
       successIndicator: string | null;
+      redirectUrl?: string | null;
+      redirectFields?: Record<string, string>;
     }>(
       `/api/fixed-orders/${encodeURIComponent(orderNo)}/checkout`,
       { method: "POST", body: JSON.stringify({ orderNo }) },

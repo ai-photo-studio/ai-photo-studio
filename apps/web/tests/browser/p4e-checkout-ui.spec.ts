@@ -29,7 +29,7 @@ async function setup(page: Parameters<typeof test>[0]["page"], checkoutStatus = 
     calls.push(route.request().method() + " checkout");
     return route.fulfill({ status: checkoutStatus, contentType: "application/json", body: JSON.stringify(checkoutStatus === 503 ? { success: false, code: "PAYMENT_PROVIDER_UNAVAILABLE", message: "Payment provider is unavailable" } : { success: true, data: { paymentAttemptId: "p4e-attempt", status: "REDIRECT_READY", amountMinor: "250000", currency: "PKR", sessionId: "mock-session", successIndicator: "mock-success" } }) });
   });
-  await page.goto("/orders/FO-P4E-0001/review?success=true&status=PAID");
+  await page.goto("/orders/FO-P4E-0001/payment?success=true&status=PAID");
   await expect(page.getByText("FO-P4E-0001")).toBeVisible();
   return calls;
 }
@@ -63,7 +63,7 @@ test("hard refresh recovers persisted PAID processing and completed download", a
     statusReads++;
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { orderNo: order.orderNo, entitlementStatus: "GRANTED", masterStatus: "VALIDATED", executionStatus: "SUCCEEDED", failureReason: null, downloadAvailable: true, downloadUrl: "http://127.0.0.1/download.jpg" } }) });
   });
-  await page.goto("/orders/FO-P4E-0001/review");
+  await page.goto("/orders/FO-P4E-0001/payment");
   await expect(page.getByText("Completed")).toBeVisible();
   await expect(page.getByRole("link", { name: "Download" })).toBeVisible();
   await page.reload();
@@ -71,11 +71,14 @@ test("hard refresh recovers persisted PAID processing and completed download", a
   expect(statusReads).toBeGreaterThanOrEqual(2);
 });
 
-for (const width of [360, 390, 430]) {
-  test(`review remains usable at ${width}px`, async ({ page }) => {
+for (const width of [390, 430, 768, 1024, 1440]) {
+  test(`Advance Payment remains usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await setup(page);
     await expect(page.locator(".order-summary dd").last()).toHaveText("PKR 2500.00");
+    await expect(page.getByRole("heading", { name: "Advance Payment" })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
     await expect(page.getByRole("button", { name: "Pay 100% & Restore Photo" })).toBeVisible();
   });
 }

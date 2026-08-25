@@ -7,10 +7,11 @@ test.describe("product and quality are separate customer decisions", () => {
     await page.goto("/restore-mvp/draft-product-test/tiers");
     await expect(page.getByRole("heading", { name: "Choose your product" })).toBeVisible();
     await expect(page.getByRole("img", { name: /mobile phone, tablet and laptop/i })).toBeVisible();
-    await expect(page.getByRole("img", { name: /photo printer/i })).toBeVisible();
-    await expect(page.getByText("Choose your product and image quality", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Where would you like to use this photo?", { exact: true })).toHaveCount(0);
-    await page.locator(".tn-product-card--digital").click();
+     await expect(page.getByRole("img", { name: /printer, frames and home delivery/i })).toBeVisible();
+     await expect(page.getByText("Choose your product and image quality", { exact: true })).toHaveCount(0);
+     await expect(page.getByText("Where would you like to use this photo?", { exact: true })).toHaveCount(0);
+     await page.locator(".tn-product-card--digital").click();
+     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "Choose image quality" })).toBeVisible();
     await expect(page.getByText("Where would you like to use this photo?", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Restored Original", { exact: true })).toBeVisible();
