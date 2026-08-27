@@ -29,6 +29,37 @@ implementation remains
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
 | Payment mutation | **SERVER-VERIFIED PATH; IPN SUPPLEMENTARY** | APG OrderStatus verification can emit P4A evidence only after exact merchant/store/order/amount/explicit currency/Paid matching; browser Return is non-authoritative. The official guide presents configured IPN as an alternative to direct OrderStatus, so IPN may remain supplementary and inert while callback auth/ack rules are unresolved |
 
+## 2026-08-27 correction: Bank DOES publish sandbox sample data (supersedes prior "no published values" finding)
+
+The 2026-08-27 entry below stating "no sandbox test Wallet/Account/Card
+instrument values exist in any official source" is **corrected**. The
+Merchant Portal Dashboard (`/MerchantPortal/Sandbox/Dashboard`), not the
+Documentation/API Testing/Page Redirection pages previously checked, has a
+"Sample Data For Testing" section with a Testing Data Type selector. With
+Store fixed to `ThanNow`, it publishes exactly: Alfa Wallet
+`930003009542301`, Alfalah Account `00141004533666`, Credit Card
+`5440123456789012` / Expiry `01/30` / CVV `119`, SMS OTP `1234`, Email OTP
+`1234`, SMS OTAC `12341234` — verified directly from the live portal DOM
+this session, an exact match to the values already attempted.
+
+**Corrected classification:**
+`BANK_PUBLISHED_TEST_DATA_REJECTED_FOR_CURRENT_STORE_PROFILE` (was
+incorrectly recorded as an absence of published data). The already-proven
+browser-automated attempts using this exact data (runs `33066771977`
+Wallet, `33067108363` Account — real transaction IDs created, Bank
+responded `Invalid Account`, authoritative OrderStatus `Failed`; runs
+`33068198382`, `33068348275` Card — rejected by the hosted page's own
+PAN/expiry validator before transaction creation) already constitute the
+"one controlled retry with Bank-published data" this correction calls for;
+repeating them again would add no new evidence, so none was repeated. The
+Dashboard's own text notes credit-card **API** access is unavailable
+("API's for credit cards are not available") and recommends Page
+Redirection for cards specifically — consistent with ThanNow's existing
+implementation. No explicit per-store payment-mode enablement indicator
+(enabled/disabled per Wallet/Account/Card) is shown anywhere in the portal
+UI for `ThanNow` — this is itself now an explicit question for the Bank
+escalation email below, since it cannot be self-diagnosed from the portal.
+
 ## 2026-08-27 merchant portal + official PDF review (instrument profile blocker confirmed)
 
 Read the previously-unread `BAF/APG Merchant Integration Guide v1.1.pdf` in

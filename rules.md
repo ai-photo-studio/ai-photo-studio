@@ -4175,3 +4175,33 @@ remains in force verbatim.
   enablement confirmation (still DRAFT — DO NOT SEND).
 - No merchant credential value observed in the portal UI or PDF was
   recorded, copied, printed, or committed.
+
+### R9.3-APG-PUBLISHED-SAMPLE-RECONCILIATION (2026-08-27) — correction: Bank does publish sandbox sample data
+
+- **Supersedes the prior R9.3-APG-SANDBOX-INSTRUMENT-RESOLUTION claim**
+  that "no sandbox test Wallet/Account/Card instrument values exist in any
+  official source." They do: the Merchant Portal Dashboard
+  (`/MerchantPortal/Sandbox/Dashboard`, not the pages previously checked)
+  has a "Sample Data For Testing" selector. With Store fixed to `ThanNow`,
+  it published exactly the values already attempted: Alfa Wallet
+  `930003009542301`, Alfalah Account `00141004533666`, Card
+  `5440123456789012` / `01/30` / `119`, OTP `1234`/`1234`/`12341234` —
+  verified directly from the live portal DOM.
+- Corrected classification:
+  `BANK_PUBLISHED_TEST_DATA_REJECTED_FOR_CURRENT_STORE_PROFILE`. The
+  already-proven browser-automated attempts (Wallet `33066771977`, Account
+  `33067108363` — real transaction IDs, Bank `Invalid Account`, OrderStatus
+  `Failed`; Card `33068198382`/`33068348275` — rejected by the hosted
+  page's own validator pre-transaction) already used this exact published
+  data with correct session/CSRF handling, so this counts as the
+  controlled retry with Bank-published data; it was not repeated a third
+  time since no new portal evidence suggested a different result would
+  occur.
+- No per-store payment-mode enablement indicator (enabled/disabled per
+  Wallet/Account/Card) exists anywhere in the portal UI for `ThanNow`. This
+  is now an explicit question in the rewritten Bank escalation email
+  (`docs/payments/R9_2_APG_BANK_ENABLEMENT_EMAIL_DRAFT.md`, status
+  `READY_TO_SEND`, not yet sent).
+- No code change: no evidence of an application defect exists — the
+  rejection is Bank-side (either store-profile data mismatch or mode not
+  enabled). No merchant credential value was recorded or committed.

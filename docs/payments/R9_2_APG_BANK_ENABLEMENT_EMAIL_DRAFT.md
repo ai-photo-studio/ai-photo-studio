@@ -1,37 +1,49 @@
 # Bank Alfalah APG Sandbox Enablement Email
 
-Status: **DRAFT — DO NOT SEND**
+Status: **READY_TO_SEND — awaiting owner authorization to send**
 
-**Subject:** ThanNow APG sandbox — valid test instruments needed to complete UAT
+**Subject:** ThanNow (Store 567249) — Bank-published sandbox test data rejected
 
 Hello Bank Alfalah Support,
 
-ThanNow's direct HS1001 Page Redirection integration is now working end to
-end for our merchant/store profile: Handshake returns a valid `AuthToken`,
-and the SSO redirect correctly lands on the hosted checkout page
-(`PaymentTypeId` 1/2/3/empty all reach the page).
+ThanNow's direct HS1001 Page Redirection integration is working end to end
+for our merchant/store profile:
 
-We are unable to complete a successful sandbox payment because we don't have
-valid sandbox test instruments. Please provide:
+- Handshake (`HS_ChannelId=1001`, `HS_IsRedirectionRequest=0`) returns a
+  valid `AuthToken`.
+- SSO correctly redirects to the hosted checkout page for all four
+  `TransactionTypeId` configurations (1=Alfa Wallet, 2=Alfalah Bank
+  Account, 3=Credit/Debit Card, empty=All Modes selector).
 
-- A valid sandbox **Alfa Wallet** number for our merchant/store, with any
-  required test mobile number/OTP.
-- A valid sandbox **Alfalah Bank Account** number for our merchant/store,
-  with any required test mobile number/OTP.
-- A valid sandbox **Credit/Debit/Prepaid Card** test PAN, with the exact
-  expected expiry format and CVV, and which `CardTypeId` it corresponds to.
-- Confirmation of which payment modes (Wallet / Account / Card / others)
-  are currently enabled for our merchant/store in sandbox.
-- Confirmation that a successful sandbox `OrderStatus` response includes an
-  explicit `Currency` field (our verification logic requires an exact
-  currency match before treating anything as paid, and we want to confirm
-  this against a real successful response rather than assume it).
+We used the exact sandbox sample data published in our own Merchant Portal
+Dashboard ("Sample Data For Testing" section, Store `ThanNow`) — not
+placeholder or invented values — and every payment mode was rejected:
 
-The values we attempted (from general integration testing conventions, not
-Bank-confirmed) were rejected: Wallet and Account as "Invalid Account", and
-the Card PAN/expiry were rejected by the hosted page's own validator before
-a transaction was created. No transaction was created, no OTP was
-requested, and no charge occurred at any point.
+- **Alfa Wallet** (published sample number): a transaction was created and
+  Bank responded `Invalid Account`. Authoritative `OrderStatus` confirmed
+  `Failed`.
+- **Alfalah Account** (published sample number): same outcome — transaction
+  created, Bank responded `Invalid Account`, `OrderStatus` confirmed
+  `Failed`.
+- **Credit/Debit Card** (published sample PAN/expiry/CVV): rejected by the
+  hosted checkout page's own validator before a transaction was even
+  created.
+
+Could you please confirm:
+
+1. Whether Alfa Wallet, Alfalah Account, and Credit/Debit Card payment
+   modes are currently **enabled** for Store `567249` (ThanNow) — we could
+   not find a per-mode enablement indicator in the Merchant Portal.
+2. If the published sample data should work for our store, why it is
+   being rejected — or, if it is generic/shared data not valid for our
+   specific store profile, the correct merchant/store-compatible sandbox
+   instruments.
+3. The exact expected input format for the Card fields (expiry as
+   separate month/year vs. combined, any other formatting requirement) if
+   different from what is shown in the Sample Data section.
+4. That a successful sandbox `OrderStatus` response includes an explicit
+   `Currency` field — our verification logic requires an exact currency
+   match before treating any transaction as paid.
 
 Our Return URL is `https://api.thannow.com/api/payments/bank-alfalah/return`,
 our frontend return landing page is `https://thannow.com/payment/return`,
@@ -45,19 +57,13 @@ ThanNow Engineering
 
 ---
 
-## Superseded prior draft (kept for history, do not send)
+## Superseded prior drafts (kept for history, do not send)
 
-The original draft below asked for HS1001 direct-access enablement — this
-is now resolved (proven live, `HS_ChannelId=1001`,
-`HS_IsRedirectionRequest=0` per the official Merchant Integration Guide
-v1.1 p.7) and is no longer the blocker.
-
-- Direct HS1001 hosted-payment-page access — **RESOLVED**, live-proven.
-- Return/Listener URL registration — already defined and reachable.
-- RequestHash order/encoding — still open in principle but not blocking
-  (HS1001/SSO already succeed with the current implementation).
-- IPN authentication/acknowledgement — still open; IPN remains
-  supplementary to direct OrderStatus per the official guide, which
-  presents OrderStatus polling as the primary, complete mechanism.
-- `DoTran`/`ProcessTran` API-1002 fields — not applicable; ThanNow uses
-  Page Redirection (Channel 1001) only, per this project's protected scope.
+- Original draft asking for HS1001 direct-access enablement — **RESOLVED**,
+  live-proven (`HS_ChannelId=1001`, `HS_IsRedirectionRequest=0` per the
+  official Merchant Integration Guide v1.1 p.7).
+- Intermediate draft asking "please provide valid sandbox test
+  instruments" as if none were published — **CORRECTED**: the Bank does
+  publish sample data in the Merchant Portal Dashboard for Store `ThanNow`;
+  it was located, used exactly as published, and rejected. The current
+  draft above reflects this corrected understanding.
