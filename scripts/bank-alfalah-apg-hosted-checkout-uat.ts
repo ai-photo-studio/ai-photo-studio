@@ -342,6 +342,7 @@ async function main(): Promise<void> {
       console.log(`PAYMENT_STAGE_${stage}_VISIBLE_CONTROLS=${contract || "ABSENT"}`);
       const invalidFields = await invalidFieldNames(page);
       console.log(`PAYMENT_STAGE_${stage}_INVALID_FIELDS=${invalidFields || "ABSENT"}`);
+      if (!contract) break;
       const signature = `${page.url()}|${contract}`;
       if (signature === previousSignature) break;
       previousSignature = signature;
@@ -350,8 +351,10 @@ async function main(): Promise<void> {
       await page.waitForTimeout(3_000);
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
       console.log(`PAYMENT_STAGE_${stage}_BANK_POSTS=${bankPosts.join(",") || "ABSENT"}`);
-      console.log(`PAYMENT_STAGE_${stage}_ERROR_TEXT=${await visibleErrorText(page) || "ABSENT"}`);
+      const errorText = await visibleErrorText(page);
+      console.log(`PAYMENT_STAGE_${stage}_ERROR_TEXT=${errorText || "ABSENT"}`);
       console.log(`PAYMENT_STAGE_${stage}_PAGE_MARKER=${await paymentPageMarker(page) || "ABSENT"}`);
+      if (/transaction (?:failed|successful)|payment (?:failed|successful)/i.test(errorText)) break;
     }
 
     const finalUrl = new URL(page.url());
@@ -381,7 +384,10 @@ async function main(): Promise<void> {
     console.log(`ORDERSTATUS_ORDER_MATCH=${findValue(parsed, "TransactionReferenceNumber") === orderId}`);
     console.log(`ORDERSTATUS_AMOUNT=${statusAmount || "ABSENT"}`);
     console.log(`ORDERSTATUS_CURRENCY=${statusCurrency || "ABSENT"}`);
-    console.log(`ORDERSTATUS_PAID=${responseCode === "00" && transactionStatus.toUpperCase() === "PAID"}`);
+    const paid = responseCode === "00" && transactionStatus.toUpperCase() === "PAID";
+    console.log(`ORDERSTATUS_PAID=${paid}`);
+    console.log(`UAT_FINAL_STATUS=${paid ? "PAID" : "FAILED"}`);
+    if (!paid) process.exitCode = 2;
   } finally {
     await browser.close();
   }
