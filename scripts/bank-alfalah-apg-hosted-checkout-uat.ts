@@ -195,6 +195,17 @@ async function invalidFieldNames(page: Page): Promise<string> {
     .join(","));
 }
 
+async function fieldPresence(page: Page): Promise<string> {
+  const names = ["CardNumber", "CVV", "ExpiryMonth", "ExpiryYear", "CustomerName", "AlfaWalletNumber", "AccountNumber"];
+  const states: string[] = [];
+  for (const name of names) {
+    const field = page.locator(`[name="${name}"]`);
+    if (await field.count() === 0 || !await field.first().isVisible()) continue;
+    states.push(`${name}=${await field.first().inputValue() ? "set" : "empty"}`);
+  }
+  return states.join(",");
+}
+
 async function visibleErrorText(page: Page): Promise<string> {
   const raw = await page.locator('.validation-summary-errors,.field-validation-error,.alert,.toast,.swal2-html-container,[class*="error" i],[class*="validation" i]').evaluateAll((elements) => elements
     .filter((element) => {
@@ -346,6 +357,7 @@ async function main(): Promise<void> {
       console.log(`PAYMENT_STAGE_${stage}_VISIBLE_CONTROLS=${contract || "ABSENT"}`);
       const invalidFields = await invalidFieldNames(page);
       console.log(`PAYMENT_STAGE_${stage}_INVALID_FIELDS=${invalidFields || "ABSENT"}`);
+      console.log(`PAYMENT_STAGE_${stage}_FIELD_PRESENCE=${await fieldPresence(page) || "ABSENT"}`);
       if (!contract) break;
       const signature = `${page.url()}|${contract}`;
       if (signature === previousSignature) break;
