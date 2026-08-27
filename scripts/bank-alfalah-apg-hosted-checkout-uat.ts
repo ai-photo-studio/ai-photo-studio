@@ -136,13 +136,13 @@ async function fillPaymentStage(page: Page, env: NodeJS.ProcessEnv, paymentMode:
     await fillVisible(page.locator('[name="alfalahEmailAddress"]'), "sandbox-uat@thannow.com");
   } else {
     const [expiryMonth, expiryYear] = env.APG_SANDBOX_CARD_EXPIRY!.split("/");
+    await selectVisible(page.locator('[name="CardTypeId"]'), "2");
+    await selectVisible(page.locator('[name="cardCountry"]'), "164");
     await fillVisible(page.locator('[name="CardNumber"]'), env.APG_SANDBOX_CARD_NUMBER!);
     await fillVisible(page.locator('[name="CVV"]'), env.APG_SANDBOX_CARD_CVV!);
     await fillVisible(page.locator('[name="ExpiryMonth"]'), expiryMonth);
     await fillVisible(page.locator('[name="ExpiryYear"]'), expiryYear.length === 2 ? `20${expiryYear}` : expiryYear);
     await fillVisible(page.locator('[name="CustomerName"]'), "ThanNow Sandbox UAT");
-    await selectVisible(page.locator('[name="CardTypeId"]'), "2");
-    await selectVisible(page.locator('[name="cardCountry"]'), "164");
     await fillVisible(page.locator('[name="cardMobileNumber"]'), sandboxMobile);
     await fillVisible(page.locator('[name="cardEmailAddress"]'), "sandbox-uat@thannow.com");
   }
