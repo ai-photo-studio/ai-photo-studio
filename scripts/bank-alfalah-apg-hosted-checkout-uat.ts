@@ -12,10 +12,49 @@ type UatMode = "wallet" | "account" | "card" | "all";
 const MODE = (process.env.APG_UAT_MODE || "wallet") as UatMode;
 const PAYMENT_TYPE: Record<UatMode, string> = { wallet: "1", account: "2", card: "3", all: "" };
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-  })[character]!);
+function setCookies(response: Response): string[] {
+  const getSetCookie = (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie;
+  if (typeof getSetCookie === "function") return getSetCookie.call(response.headers);
+  const single = response.headers.get("set-cookie");
+  return single ? [single] : [];
+}
+
+function mergeCookieJar(jar: Map<string, string>, response: Response): void {
+  for (const raw of setCookies(response)) {
+    const pair = raw.split(";", 1)[0];
+    const separator = pair.indexOf("=");
+    if (separator > 0) jar.set(pair.slice(0, separator).trim(), pair.slice(separator + 1).trim());
+  }
+}
+
+function cookieHeader(jar: Map<string, string>): string {
+  return [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
+}
+
+function browserCookies(responses: Array<{ response: Response; url: string }>): Array<{
+  name: string; value: string; domain: string; path: string; secure: boolean;
+}> {
+  const cookies = new Map<string, { name: string; value: string; domain: string; path: string; secure: boolean }>();
+  for (const { response, url } of responses) {
+    for (const raw of setCookies(response)) {
+      const parts = raw.split(";").map((part) => part.trim());
+      const separator = parts[0].indexOf("=");
+      if (separator <= 0) continue;
+      const attributes = new Map(parts.slice(1).map((part) => {
+        const index = part.indexOf("=");
+        return index < 0 ? [part.toLowerCase(), ""] : [part.slice(0, index).toLowerCase(), part.slice(index + 1)];
+      }));
+      const cookie = {
+        name: parts[0].slice(0, separator),
+        value: parts[0].slice(separator + 1),
+        domain: attributes.get("domain") || new URL(url).hostname,
+        path: attributes.get("path") || "/",
+        secure: attributes.has("secure") || new URL(url).protocol === "https:"
+      };
+      cookies.set(`${cookie.domain}|${cookie.path}|${cookie.name}`, cookie);
+    }
+  }
+  return [...cookies.values()];
 }
 
 function text(value: unknown): string {
@@ -148,12 +187,17 @@ async function main(): Promise<void> {
       ["HS_IsBIN", "0"], ["HS_TransactionReferenceNumber", orderId], ["handshake", ""]
     ] as const;
     const hsHash = encryptApgRequestHash(hsFields, key, iv);
-    const hsResponse = await context.request.post(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/HS/HS`, {
-      form: Object.fromEntries(hsFields.filter(([name]) => name !== "handshake").map(([name, value]) => [name, name === "HS_RequestHash" ? hsHash : value]))
+    const cookieJar = new Map<string, string>();
+    const hsUrl = `${env.BANK_ALFALAH_APG_BASE_URL}/HS/HS/HS`;
+    const hsResponse = await fetch(hsUrl, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json,text/html" },
+      body: new URLSearchParams(hsFields.filter(([name]) => name !== "handshake").map(([name, value]) => [name, name === "HS_RequestHash" ? hsHash : value]))
     });
+    mergeCookieJar(cookieJar, hsResponse);
     const { body: hsBody } = parseApgResponse(await hsResponse.text());
     const authToken = hsBody.AuthToken ?? hsBody.authToken;
-    console.log(`HS1001_HTTP_STATUS=${hsResponse.status()}`);
+    console.log(`HS1001_HTTP_STATUS=${hsResponse.status}`);
     console.log(`HS1001_AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
     if (typeof authToken !== "string" || !authToken) throw new Error("UAT_STOPPED:NO_AUTH_TOKEN");
 
@@ -167,10 +211,24 @@ async function main(): Promise<void> {
     };
     ssoValues.RequestHash = encryptApgRequestHash(ssoFieldOrder.map((name) => [name, ssoValues[name] ?? ""] as const), key, iv);
 
+    const ssoUrl = `${env.BANK_ALFALAH_APG_BASE_URL}/SSO/SSO/SSO`;
+    const ssoResponse = await fetch(ssoUrl, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html,application/xhtml+xml", cookie: cookieHeader(cookieJar) },
+      body: new URLSearchParams(Object.entries(ssoValues).filter(([name]) => name !== "run"))
+    });
+    mergeCookieJar(cookieJar, ssoResponse);
+    const hostedLocation = ssoResponse.headers.get("location");
+    console.log(`SSO_HTTP_STATUS=${ssoResponse.status}`);
+    if (!hostedLocation) throw new Error("UAT_STOPPED:NO_SSO_REDIRECT");
+    await context.addCookies(browserCookies([
+      { response: hsResponse, url: hsUrl },
+      { response: ssoResponse, url: ssoUrl }
+    ]));
+
     const page = await context.newPage();
-    const ssoInputs = Object.entries(ssoValues).filter(([name]) => name !== "run")
-      .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`).join("");
-    await page.setContent(`<form method="post" action="${escapeHtml(env.BANK_ALFALAH_APG_BASE_URL!)}/SSO/SSO/SSO">${ssoInputs}</form><script>document.forms[0].submit()</script>`);
+    await page.goto(new URL(hostedLocation, ssoUrl).toString(), { waitUntil: "domcontentloaded" });
     await page.waitForURL(/bankalfalah\.com\/Payments\/Payments\/Create/i, { timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
     console.log(`SSO_HOSTED_PAGE_REACHED=${/merchants\.bankalfalah\.com$/i.test(new URL(page.url()).hostname)}`);
