@@ -29,6 +29,21 @@ implementation remains
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
 | Payment mutation | **SERVER-VERIFIED PATH; IPN DEFERRED** | APG OrderStatus verification can emit P4A evidence only after exact matching; browser Return and IPN remain non-authoritative while Bank callback auth/ack rules are unresolved |
 
+## 2026-08-27 live sandbox proof (run `33062332340`)
+
+With the corrected `HS_IsRedirectionRequest=0`, GitHub Actions run
+`33062332340` proved: `HS1001` (`POST /HS/HS/HS`) → `HTTP 200`,
+`success=true`, **AuthToken present** → `SSO` (`POST /SSO/SSO/SSO`) →
+`HTTP 302` redirect to `merchants.bankalfalah.com/Payments/Payments/Create`
+(a real Bank-hosted checkout page). "Session/checkout API shape" and
+"Sandbox/production endpoints" rows above move from
+`FIXTURE_IMPLEMENTED; LIVE_BLOCKED` to **LIVE-PROVEN for handshake + SSO
+reachability**; direct HS1001 hosted-page access is no longer blocked. No
+secret/AuthToken value was logged. The run did not submit the hosted
+checkout page itself — no Bank-supplied sandbox test card/wallet/account/
+OTP data exists in this repository to do so safely; that is the new
+blocker (see `R9_2_APG_SANDBOX_UAT_CHECKLIST.md`).
+
 ## 2026-08-27 bank-confirmed HS1001/SSO field correction
 
 Bank Alfalah responded to the sandbox enablement request asking for our

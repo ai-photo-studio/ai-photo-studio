@@ -4083,3 +4083,25 @@ remains in force verbatim.
   the corrected value. Production remains
   `BANK_ALFALAH_PROVIDER=none` / `BANK_ALFALAH_APG_ENABLED=false` /
   `BANK_ALFALAH_MPGS_ENABLED=false`.
+- **Secure sandbox run `33062332340` (2026-08-27) proved the fix**: with
+  `HS_IsRedirectionRequest=0`, `POST /HS/HS/HS` returned `HTTP 200`,
+  `success=true`, top-level keys `AuthToken,ReturnURL,success`, and
+  `HS1001_AUTH_TOKEN_PRESENT=true` — the first time this direct merchant
+  integration has ever returned an AuthToken (contrast run `32822967010`
+  above: same form, `IsRedirectionRequest=1`, `PAYMENT_UNAVAILABLE`, no
+  AuthToken). The AuthToken was then used, same run, to submit
+  `POST /SSO/SSO/SSO`, which returned `HTTP 302` redirecting to
+  `merchants.bankalfalah.com/Payments/Payments/Create` (a real Bank-hosted
+  checkout page, `SSO_CHECKOUT_MARKER_PRESENT=true`). This supersedes
+  `BANK_DIRECT_HS1001_ENABLEMENT_REQUIRED` above:
+  **`BANK_DIRECT_HS1001_ENABLEMENT_PROVEN`** for handshake + SSO reachability.
+  No AuthToken value, RequestHash, or other secret was logged (only
+  presence/shape). No form submission was made to the hosted checkout page
+  itself — this run stopped at the SSO redirect target.
+- Completing an actual sandbox payment (Alfa Wallet / Alfalah Account /
+  Card / All Modes) requires Bank-supplied sandbox test payment-instrument
+  data (test card number, test wallet/account number, test OTP). No such
+  data exists anywhere in this repository (`BAF/API/API.txt` and the
+  Merchant Integration Guide document the API shape only, not sandbox test
+  values) and none may be invented. This is the next real blocker:
+  `BANK_SANDBOX_TEST_INSTRUMENT_DATA_REQUIRED`.
