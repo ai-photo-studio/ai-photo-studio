@@ -3283,3 +3283,39 @@ restoration path. No deployment, no merge of this packet's own PR.
   API deployment change. `PAYMENT_EXTERNAL_BLOCKER` remains open and
   `PRINT_CHECKOUT_PENDING` remains truthful until authoritative print
   checkout/catalog capability exists.
+
+### R9.3 APG full sandbox UAT (2026-08-27)
+
+- Started from prompt checkpoint `1458f16`; active `main` already contained
+  later recon evidence at `b7b80e8`. Final implementation adds headed-Chrome
+  hosted-checkout automation with runtime-only instrument data and sanitized
+  evidence. No instrument, merchant credential, AES value, RequestHash, or
+  AuthToken was committed or retained in evidence.
+- Final Bank runs: Wallet `33066771977` -> Invalid Account, failed transaction
+  `443330289493`; Account `33067108363` -> Invalid Account, failed transaction
+  `446691489639`; Card `33068198382` -> PAN/expiry validator rejection before
+  transaction; All Modes `33068348275` -> selector proven, selected Card
+  reproduced validator rejection. Every final run reached HS1001/AuthToken/SSO
+  and hosted checkout. No OTP, successful Return, Paid status, real charge, or
+  processing dispatch occurred.
+- Security repair: `getOrderStatus` no longer substitutes expected currency
+  when Bank omits `Currency`; missing currency now fails closed. The APG scope
+  scanner was narrowly reconciled with the authorized Channel 1001 files and
+  continues to reject APG identifiers everywhere else.
+- Trust proof: disposable PostgreSQL 17 on loopback port 56533, all 25
+  migrations, P4A `14/14` (single PAID attempt, replay/concurrency idempotency,
+  amount/currency/provider/order mismatch rejection, terminal-state rejection,
+  no external calls). Cluster stopped, port closed, temp directory deleted.
+- Release proof: `verify:launch-candidate` `212/212` node tests + `14/14`
+  vitest; full browser `124/124`; focused APG/Return/hash/parser `29/29`; APG
+  URL contract `12/12`; sandbox structural guard `10/10`; build, API typecheck,
+  Prisma validate, changed-file lint, and Git whitespace checks pass. Zero
+  regression.
+- Official Bank guide presents direct OrderStatus and configured Listener/IPN
+  as alternatives, so IPN is supplementary. It remains fail-closed because the
+  guide does not prove callback authentication/acknowledgement.
+- Production remained off throughout:
+  `BANK_ALFALAH_PROVIDER=none`, `BANK_ALFALAH_APG_ENABLED=false`,
+  `BANK_ALFALAH_MPGS_ENABLED=false`. Production Bank calls 0, real charges 0,
+  Replicate/RunPod calls 0. Actual Bank action is test-instrument/profile
+  correction plus explicit successful OrderStatus PKR currency evidence.

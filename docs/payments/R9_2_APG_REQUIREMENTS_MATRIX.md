@@ -23,11 +23,25 @@ implementation remains
 | Authentication/signature | `AWAITING_BANK_CONFIRMATION` | How the bank authenticates to this listener, and how this server would authenticate outbound once status inquiry is implemented |
 | Refund/void | `AWAITING_BANK_CONFIRMATION` | No refund mechanism exists for MPGS either — a genuine gap for both providers |
 | Settlement/reconciliation | `AWAITING_BANK_CONFIRMATION` | No settlement-file ingestion exists in this repository for any provider today |
-| Sandbox/production endpoints | **DOCUMENTED; SANDBOX ENABLEMENT PENDING** | BAF guide states sandbox `sandbox.bankalfalah.com` and production `payments.bankalfalah.com`; production remains fail-closed |
+| Sandbox/production endpoints | **SANDBOX HS1001/SSO/HOSTED PAGE LIVE-PROVEN; PRODUCTION OFF** | BAF guide states sandbox `sandbox.bankalfalah.com` and production `payments.bankalfalah.com`; final 2026-08-27 UAT reached hosted checkout in all four mode configurations, but Bank rejected the supplied instruments |
 | Allowlisting | **Mechanism defined, values pending** | `BANK_ALFALAH_APG_ALLOWED_CALLBACK_HOSTS` env var exists (empty by default, fail-closed); real host(s) are `AWAITING_BANK_CONFIRMATION` |
 | Fees/FED/security deposit | `AWAITING_BANK_CONFIRMATION` | Commercial terms, not addressed by any technical document in this repository |
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
-| Payment mutation | **SERVER-VERIFIED PATH; IPN DEFERRED** | APG OrderStatus verification can emit P4A evidence only after exact matching; browser Return and IPN remain non-authoritative while Bank callback auth/ack rules are unresolved |
+| Payment mutation | **SERVER-VERIFIED PATH; IPN SUPPLEMENTARY** | APG OrderStatus verification can emit P4A evidence only after exact merchant/store/order/amount/explicit currency/Paid matching; browser Return is non-authoritative. The official guide presents configured IPN as an alternative to direct OrderStatus, so IPN may remain supplementary and inert while callback auth/ack rules are unresolved |
+
+## 2026-08-27 full hosted checkout UAT final result
+
+The prior missing-instrument and direct-HS blockers are superseded. Final
+isolated runs reached the real hosted page for Wallet, Account, Card, and empty
+All Modes. Wallet (`33066771977`, transaction `443330289493`) and Account
+(`33067108363`, transaction `446691489639`) were rejected by Bank as
+`Invalid Account`; authoritative OrderStatus was `Failed`. Card
+(`33068198382`) and All Modes selecting Card (`33068348275`) were rejected by
+the Bank page's PAN/expiry validators before transaction creation. No OTP or
+successful Return occurred, no PAID evidence was applied, and no processing
+started. Actual blocker: Bank must activate/correct test instruments for this
+merchant/store and provide successful OrderStatus with explicit PKR currency.
+API 1002, `DoTran`, and `ProcessTran` are not ThanNow fallbacks.
 
 ## 2026-08-27 hosted checkout page form contract + submission attempt
 

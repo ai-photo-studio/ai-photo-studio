@@ -1,9 +1,11 @@
 # R9.2 Bank Alfalah APG Sandbox UAT Checklist
 
-Status: **PREPARED — NOT EXECUTED.** No case below may be run against a live
-bank sandbox until the Bank confirms HS1001 direct access, the RequestHash
-contract, and IPN authentication/acknowledgement (see
-`R9_2_APG_REQUIREMENTS_MATRIX.md` and `R9_2_APG_BANK_ENABLEMENT_EMAIL_DRAFT.md`).
+Status: **EXECUTED — BANK INSTRUMENT/PROFILE ACTION REQUIRED (2026-08-27).**
+HS1001, AuthToken, SSO, hosted checkout, Wallet/Account submission, Card
+validation, All Modes selection, and OrderStatus were exercised in sandbox.
+No successful payment occurred: Bank rejected Wallet/Account as Invalid Account
+and rejected Card PAN/expiry before transaction creation. See
+`R9_2_APG_REQUIREMENTS_MATRIX.md` for final run IDs and sanitized results.
 `BANK_ALFALAH_PROVIDER` must stay `none` and `BANK_ALFALAH_APG_ENABLED` must
 stay `false` in production until every case below has passed in sandbox and
 the owner has approved go-live.
@@ -30,19 +32,15 @@ real until the Bank enables sandbox access.
 | 13 | Unknown transaction (bank has no record / 404) | `postJson`/`getOrderStatus` throws on non-2xx or malformed body | PASS (fixture-tested) |
 | 14 | No false PAID state under any of the above | No code path outside `verifyAndApplyOrderStatus`'s exact-match success branch calls `applyVerifiedPaymentEvidence`; enforced structurally and by `verify:apg-sandbox-ready` (10/10) and `verify:apg-url-contract` (12/12) | PASS |
 
-## Preconditions before any case can be executed for real
+## Preconditions before successful-payment UAT can resume
 
-1. Bank confirms HS1001 direct hosted-page sandbox access for the ThanNow
-   merchant/store identifiers (see enablement email draft).
-2. Bank confirms the exact RequestHash field order/encoding/delimiter
-   contract (currently `AWAITING_BANK_CONFIRMATION`).
-3. Bank confirms IPN authentication and acknowledgement format.
-4. Bank confirms whether `AccountNumber`/`Country`/`EmailAddress` are
-   required on `DoTran` (see the 2026-08-25 forensic table in
-   `R9_2_APG_REQUIREMENTS_MATRIX.md`).
-5. Owner approves running a real sandbox transaction (this checklist alone
-   is not that approval).
+1. Bank activates/corrects Wallet, Account, and Card test instruments for the
+   active ThanNow sandbox merchant/store profile.
+2. Bank successful OrderStatus includes explicit `Currency=PKR`, or Bank
+   supplies an authoritative revised status contract that preserves exact
+   currency verification.
+3. Rerun Wallet, Account, Card, and empty All Modes independently.
 
-Until all five are satisfied, cases 4, 6, 8, 9, and 13 can only be exercised
-against fixtures, not a live bank sandbox. Zero bank calls were made in the
-preparation of this checklist.
+IPN authentication/acknowledgement remains unresolved, but official Bank
+evidence makes IPN supplementary to direct authoritative OrderStatus. API 1002,
+`DoTran`, and `ProcessTran` are not prerequisites for this Page Redirection UAT.

@@ -4105,3 +4105,46 @@ remains in force verbatim.
   Merchant Integration Guide document the API shape only, not sandbox test
   values) and none may be invented. This is the next real blocker:
   `BANK_SANDBOX_TEST_INSTRUMENT_DATA_REQUIRED`.
+
+### R9.3-APG-FULL-UAT-20260827 — Hosted checkout exercised; Bank instrument/profile action required
+
+- This section supersedes `BANK_SANDBOX_TEST_INSTRUMENT_DATA_REQUIRED`,
+  `BANK_DIRECT_HS1001_ENABLEMENT_REQUIRED`, and every suggestion that API
+  Channel 1002, `DoTran`, or `ProcessTran` is required for ThanNow Page
+  Redirection. Owner-supplied authenticated sandbox instruments were securely
+  mapped as runtime-only GitHub secrets and exercised through Channel 1001.
+- A real headed-Chrome harness now preserves the HS1001/SSO session, executes
+  the Bank page's JavaScript forms, and emits sanitized evidence only. Final
+  isolated runs all proved HS1001 HTTP 200, AuthToken present, SSO HTTP 302,
+  and the genuine Bank-hosted checkout page with no browser challenge.
+- Alfa Wallet run `33066771977`: the Bank accepted the hosted form, then
+  rejected payment as `Invalid Account`; OrderStatus returned `ResponseCode=00`,
+  exact merchant/store/order/1.00 amount, `TransactionStatus=Failed`, absent
+  Currency, and transaction ID `443330289493`. OTP and Return were not reached.
+- Alfalah Account run `33067108363`: the Bank accepted the hosted form, then
+  rejected payment as `Invalid Account`; OrderStatus returned `ResponseCode=00`,
+  exact merchant/store/order/1.00 amount, `TransactionStatus=Failed`, absent
+  Currency, and transaction ID `446691489639`. OTP and Return were not reached.
+- Card run `33068198382`: the Bank's own hosted-page validators rejected the
+  supplied PAN (`CheckLuhnsAlgo=false`) and expiry (`CheckExpiryYear=0`) and
+  cleared those fields before `SavePaymentData`; no transaction, OTP, Return,
+  or identity-bearing OrderStatus record was created.
+- All Modes run `33068348275`: empty SSO `TransactionTypeId` displayed the
+  Bank selector (`ALL_MODES_SELECTOR_PRESENT=true`); selecting Card reproduced
+  the same Bank validator rejection. No transaction was created.
+- No successful transaction exists, so no live PAID transition was attempted.
+  The fixture/disposable-PostgreSQL trust chain remains green: exact
+  merchant/store/order/amount/explicit currency/Paid is required, duplicate and
+  concurrent evidence is idempotent, mismatches fail closed, and failed or
+  cancelled attempts cannot enqueue processing. Missing OrderStatus Currency
+  now fails closed; it is never inferred from the expected request currency.
+- Official Merchant Integration Guide v1.1 makes direct OrderStatus inquiry and
+  configured Listener/IPN alternatives ("Or you can"). IPN is supplementary,
+  not mandatory for authoritative payment verification. It remains inert until
+  Bank authentication/acknowledgement is proven; no authentication was invented.
+- Actual remaining Bank action: activate/correct merchant-profile-compatible
+  sandbox Wallet, Account, and Card instruments and ensure successful
+  OrderStatus includes explicit `Currency=PKR` (or provide an authoritative
+  revised status contract). Then rerun the same four workflows. Production
+  stays `BANK_ALFALAH_PROVIDER=none`, `BANK_ALFALAH_APG_ENABLED=false`, and
+  `BANK_ALFALAH_MPGS_ENABLED=false`.
