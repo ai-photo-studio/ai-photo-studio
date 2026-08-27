@@ -313,7 +313,7 @@ export class BankAlfalahApgGateway {
       transactionReferenceNumber: String(body.TransactionReferenceNumber ?? ""),
       transactionId: String(body.TransactionId ?? ""),
       transactionAmountMinor: amountMinor(body.TransactionAmount),
-      currency: String(body.Currency ?? expectedCurrency) as FixedOrderCurrency,
+      currency: String(body.Currency ?? "") as FixedOrderCurrency,
       transactionStatus: String(body.TransactionStatus ?? "")
     };
     if (result.responseCode !== "00" || result.transactionStatus.toUpperCase() !== "PAID") throw new BankAlfalahApgProtocolError("APG OrderStatus is not a successful PAID result");

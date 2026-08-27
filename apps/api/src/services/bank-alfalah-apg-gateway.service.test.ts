@@ -126,6 +126,24 @@ test("documented PAID OrderStatus is verified before evidence is emitted", async
   assert.equal(applied?.dedupeHash, "1e23a41bde19c175cba490e91bf3699e42aec0fc5c9b5ff9a7a04eabdb42f9c5");
 });
 
+test("PAID OrderStatus without an explicit currency fails closed", async () => {
+  const gateway = new BankAlfalahApgGateway(baseConfig, async () => response({
+    ResponseCode: "00",
+    Description: "Success",
+    MerchantId: "TEST-MERCHANT",
+    StoreId: "TEST-STORE",
+    TransactionReferenceNumber: "FO-1",
+    TransactionId: "TX-1",
+    TransactionAmount: "1250.00",
+    TransactionStatus: "Paid"
+  }), hash);
+
+  await assert.rejects(
+    () => gateway.getOrderStatus("FO-1", 125000n, "PKR"),
+    /amount or currency mismatch/
+  );
+});
+
 test("SSO redirect contains no client-controlled merchant or amount fields", () => {
   const gateway = new BankAlfalahApgGateway(baseConfig, undefined, hash);
   const redirect = gateway.buildSsoRedirect("fixture-auth", "FO-1", "3", 125000n, "PKR");
