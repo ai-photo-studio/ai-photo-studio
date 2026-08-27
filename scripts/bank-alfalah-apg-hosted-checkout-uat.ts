@@ -87,11 +87,31 @@ async function selectVisible(locator: Locator, value: string): Promise<boolean> 
   return true;
 }
 
+async function fetchWithNetworkRetry(url: string, init: RequestInit, attempts = 3): Promise<{ response: Response; calls: number }> {
+  let lastError: unknown;
+  for (let call = 1; call <= attempts; call += 1) {
+    try {
+      return { response: await fetch(url, init), calls: call };
+    } catch (error) {
+      lastError = error;
+      if (call < attempts) await new Promise((resolve) => setTimeout(resolve, 1_000 * call));
+    }
+  }
+  throw lastError;
+}
+
 async function fillPaymentStage(page: Page, env: NodeJS.ProcessEnv, paymentMode: Exclude<UatMode, "all">): Promise<void> {
+  const sandboxMobile = env.APG_SANDBOX_ALFA_WALLET!.slice(-11);
   if (paymentMode === "wallet") {
     await fillVisible(page.locator('[name="AlfaWalletNumber"]'), env.APG_SANDBOX_ALFA_WALLET!);
+    await selectVisible(page.locator('[name="alfaCountry"]'), "164");
+    await fillVisible(page.locator('[name="alfaMobileNumber"]'), sandboxMobile);
+    await fillVisible(page.locator('[name="alfaEmailAddress"]'), "sandbox-uat@thannow.com");
   } else if (paymentMode === "account") {
     await fillVisible(page.locator('[name="AccountNumber"]'), env.APG_SANDBOX_ALFALAH_ACCOUNT!);
+    await selectVisible(page.locator('[name="alfalahCountry"]'), "164");
+    await fillVisible(page.locator('[name="alfalahMobileNumber"]'), sandboxMobile);
+    await fillVisible(page.locator('[name="alfalahEmailAddress"]'), "sandbox-uat@thannow.com");
   } else {
     const [expiryMonth, expiryYear] = env.APG_SANDBOX_CARD_EXPIRY!.split("/");
     await fillVisible(page.locator('[name="CardNumber"]'), env.APG_SANDBOX_CARD_NUMBER!);
@@ -99,6 +119,9 @@ async function fillPaymentStage(page: Page, env: NodeJS.ProcessEnv, paymentMode:
     await fillVisible(page.locator('[name="ExpiryMonth"]'), expiryMonth);
     await fillVisible(page.locator('[name="ExpiryYear"]'), expiryYear);
     await selectVisible(page.locator('[name="CardTypeId"]'), "2");
+    await selectVisible(page.locator('[name="cardCountry"]'), "164");
+    await fillVisible(page.locator('[name="cardMobileNumber"]'), sandboxMobile);
+    await fillVisible(page.locator('[name="cardEmailAddress"]'), "sandbox-uat@thannow.com");
   }
 
   await fillVisible(page.locator('[name="alfaSMSOTP"]'), env.APG_SANDBOX_SMS_OTP!);
@@ -273,9 +296,10 @@ async function main(): Promise<void> {
     console.log(`RETURN_QUERY_PRESENT=${finalUrl.search.length > 0}`);
     console.log(`PAYMENT_FINAL_TITLE=${(await page.title()).replace(/[^\x20-\x7e]/g, "").slice(0, 100) || "ABSENT"}`);
 
-    const statusResponse = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/IPN/OrderStatus/${encodeURIComponent(env.BANK_ALFALAH_APG_MERCHANT_ID!)}/${encodeURIComponent(env.BANK_ALFALAH_APG_STORE_ID!)}/${encodeURIComponent(orderId)}`, {
+    const statusResult = await fetchWithNetworkRetry(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/IPN/OrderStatus/${encodeURIComponent(env.BANK_ALFALAH_APG_MERCHANT_ID!)}/${encodeURIComponent(env.BANK_ALFALAH_APG_STORE_ID!)}/${encodeURIComponent(orderId)}`, {
       headers: { accept: "application/json" }
     });
+    const statusResponse = statusResult.response;
     const parsed = parseApgResponse(await statusResponse.text()).body;
     const responseCode = findValue(parsed, "ResponseCode");
     const transactionStatus = findValue(parsed, "TransactionStatus");
@@ -283,6 +307,7 @@ async function main(): Promise<void> {
     const statusAmount = findValue(parsed, "TransactionAmount");
     const statusCurrency = findValue(parsed, "Currency");
     console.log(`ORDERSTATUS_HTTP_STATUS=${statusResponse.status}`);
+    console.log(`ORDERSTATUS_NETWORK_CALLS=${statusResult.calls}`);
     console.log(`ORDERSTATUS_RESPONSE_CODE=${responseCode || "ABSENT"}`);
     console.log(`ORDERSTATUS_TRANSACTION_STATUS=${transactionStatus || "ABSENT"}`);
     console.log(`ORDERSTATUS_TRANSACTION_ID=${transactionId || "ABSENT"}`);
