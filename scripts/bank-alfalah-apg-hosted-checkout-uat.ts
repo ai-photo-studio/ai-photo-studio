@@ -120,7 +120,7 @@ async function fetchWithNetworkRetry(url: string, init: RequestInit, attempts = 
 }
 
 async function fillPaymentStage(page: Page, env: NodeJS.ProcessEnv, paymentMode: Exclude<UatMode, "all">): Promise<void> {
-  const sandboxMobile = env.APG_SANDBOX_ALFA_WALLET!.slice(-11);
+  const sandboxMobile = `+92${env.APG_SANDBOX_ALFA_WALLET!.slice(-10)}`;
   if (paymentMode === "wallet") {
     await fillVisible(page.locator('[name="AlfaWalletNumber"]'), env.APG_SANDBOX_ALFA_WALLET!);
     await selectVisible(page.locator('[name="alfaCountry"]'), "164");
