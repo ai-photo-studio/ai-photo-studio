@@ -61,6 +61,14 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
 
+function sanitizeRuntimeText(input: string): string {
+  let output = input;
+  for (const value of Object.values(process.env)) {
+    if (value && value.length >= 4) output = output.split(value).join("[REDACTED]");
+  }
+  return output.replace(/https?:\/\/\S+/gi, "[URL]").replace(/[\r\n]+/g, " ");
+}
+
 function findValue(body: Record<string, unknown>, name: string): string {
   const wanted = name.toLowerCase();
   const queue: unknown[] = [body];
@@ -174,6 +182,19 @@ async function invalidFieldNames(page: Page): Promise<string> {
     .join(","));
 }
 
+async function visibleErrorText(page: Page): Promise<string> {
+  const raw = await page.locator('.validation-summary-errors,.field-validation-error,.alert,.toast,.swal2-html-container').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+    })
+    .map((element) => (element.textContent || "").trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .join(" | "));
+  return sanitizeRuntimeText(raw).replace(/[^\x20-\x7e]/g, "").slice(0, 200);
+}
+
 async function advancePayment(page: Page): Promise<boolean> {
   const candidates = page.locator('button:visible,input[type="submit"]:visible,input[type="button"]:visible');
   const preferred = /pay|proceed|submit|verify|confirm|next|generate|send/i;
@@ -270,6 +291,13 @@ async function main(): Promise<void> {
     ]));
 
     const page = await context.newPage();
+    const bankPosts: string[] = [];
+    page.on("response", (response) => {
+      if (response.request().method() !== "POST") return;
+      const responseUrl = new URL(response.url());
+      if (!responseUrl.hostname.endsWith("bankalfalah.com")) return;
+      bankPosts.push(`${response.status()}:${responseUrl.pathname}`);
+    });
     await page.goto(new URL(hostedLocation, ssoUrl).toString(), { waitUntil: "domcontentloaded" });
     await page.waitForURL(/bankalfalah\.com\/Payments\/Payments\/Create/i, { timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
@@ -302,6 +330,8 @@ async function main(): Promise<void> {
       if (!advanced) break;
       await page.waitForTimeout(3_000);
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+      console.log(`PAYMENT_STAGE_${stage}_BANK_POSTS=${bankPosts.join(",") || "ABSENT"}`);
+      console.log(`PAYMENT_STAGE_${stage}_ERROR_TEXT=${await visibleErrorText(page) || "ABSENT"}`);
     }
 
     const finalUrl = new URL(page.url());
@@ -338,11 +368,7 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error: unknown) => {
-  let message = error instanceof Error ? error.message : String(error);
-  for (const value of Object.values(process.env)) {
-    if (value && value.length >= 4) message = message.split(value).join("[REDACTED]");
-  }
-  message = message.replace(/https?:\/\/\S+/gi, "[URL]").replace(/[\r\n]+/g, " ").slice(0, 160);
+  const message = sanitizeRuntimeText(error instanceof Error ? error.message : String(error)).slice(0, 160);
   console.error(`UAT_ERROR=${message}`);
   process.exitCode = 1;
 });
