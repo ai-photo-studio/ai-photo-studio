@@ -83,7 +83,11 @@ async function fillVisible(locator: Locator, value: string): Promise<boolean> {
 
 async function selectVisible(locator: Locator, value: string): Promise<boolean> {
   if (await locator.count() === 0 || !await locator.first().isVisible()) return false;
-  await locator.first().selectOption(value);
+  await locator.first().evaluate((element: HTMLSelectElement, selectedValue: string) => {
+    element.value = selectedValue;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
   return true;
 }
 
