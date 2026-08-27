@@ -89,7 +89,10 @@ function findValue(body: Record<string, unknown>, name: string): string {
 
 async function fillVisible(locator: Locator, value: string): Promise<boolean> {
   if (!value || await locator.count() === 0 || !await locator.first().isVisible()) return false;
-  await locator.first().fill(value);
+  const input = locator.first();
+  await input.fill(value);
+  await input.dispatchEvent("change");
+  await input.evaluate((element: HTMLInputElement) => element.blur());
   return true;
 }
 
