@@ -21,6 +21,11 @@ the merchant and store identifiers already supplied through our secure channel:
 - Allowed sandbox OrderStatus host/path and required authentication fields.
 - Sandbox refund/void procedure.
 - Settlement/reconciliation and sandbox-to-production go-live procedure.
+- Whether `AccountNumber`, `Country`, and `EmailAddress` are required fields
+  on the `DoTran` transaction request, and if so their exact format.
+- Whether the documented `ProcessTran`/OTP step (SMS/Email OTAC, OTP,
+  `HashKey`) is required for our transaction type, and if so its exact
+  field order/hash contract.
 
 Our website is `https://thannow.com` and the frontend return landing page is
 `https://thannow.com/payment/return`.

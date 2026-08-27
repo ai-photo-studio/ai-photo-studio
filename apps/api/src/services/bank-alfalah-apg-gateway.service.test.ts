@@ -62,7 +62,7 @@ test("redirection handshake follows the portal channel 1001 form contract", () =
   const payload = gateway.buildRedirectionHandshakePayload({ orderId: "FO-REDIRECT-1" });
   assert.deepEqual(Object.keys(payload), ["HS_MerchantId", "HS_StoreId", "HS_ChannelId", "HS_MerchantHash", "HS_MerchantUsername", "HS_MerchantPassword", "HS_IsRedirectionRequest", "HS_ReturnURL", "HS_RequestHash", "HS_IsBIN", "HS_TransactionReferenceNumber", "handshake"]);
   assert.equal(payload.HS_ChannelId, "1001");
-  assert.equal(payload.HS_IsRedirectionRequest, "1");
+  assert.equal(payload.HS_IsRedirectionRequest, "0");
   assert.equal(payload.HS_IsBIN, "0");
   assert.equal(payload.HS_RequestHash, "fixture-redirection");
   assert.equal(calls[0]?.endpoint, "redirection-handshake");
@@ -102,7 +102,7 @@ test("HS1001 customer handshake is form-encoded, recursively extracts AuthToken,
   const result = await gateway.initiateRedirectionHandshake({ orderId: "FO-1001-1" });
   assert.equal(requestUrl, "https://sandbox.bankalfalah.com/HS/HS/HS");
   assert.match(requestBody, /HS_ChannelId=1001/);
-  assert.match(requestBody, /HS_IsRedirectionRequest=1/);
+  assert.match(requestBody, /HS_IsRedirectionRequest=0/);
   assert.match(requestBody, /HS_IsBIN=0/);
   assert.match(requestBody, /HS_RequestHash=fixture-redirection-handshake/);
   assert.equal(result.authToken, "fixture-auth");

@@ -197,7 +197,7 @@ export class BankAlfalahApgGateway {
       HS_MerchantHash: this.config.merchantHash,
       HS_MerchantUsername: this.config.username,
       HS_MerchantPassword: this.config.password,
-      HS_IsRedirectionRequest: "1",
+      HS_IsRedirectionRequest: "0",
       HS_ReturnURL: this.config.returnUrl,
       HS_RequestHash: "",
       HS_IsBIN: "0",

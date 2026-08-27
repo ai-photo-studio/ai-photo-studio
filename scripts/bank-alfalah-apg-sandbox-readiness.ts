@@ -37,7 +37,7 @@ const fields = [
   ["HS_MerchantHash", env.BANK_ALFALAH_APG_MERCHANT_HASH],
   ["HS_MerchantUsername", env.BANK_ALFALAH_APG_USERNAME],
   ["HS_MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD],
-  ["HS_IsRedirectionRequest", "1"],
+  ["HS_IsRedirectionRequest", "0"],
   ["HS_ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL],
   ["HS_RequestHash", ""],
   ["HS_IsBIN", "0"],

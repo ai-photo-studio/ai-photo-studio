@@ -4056,3 +4056,30 @@ remains in force verbatim.
   This is `BANK_DIRECT_HS1001_ENABLEMENT_REQUIRED`; do not retry until Bank
   enables direct hosted-page access for the ThanNow merchant/store or supplies
   a changed hosted-checkout contract.
+
+### R9.3-HS1001-REDIRECTION-0-UAT (2026-08-27) — Bank-confirmed field correction supersedes `IsRedirectionRequest=1`
+
+- Bank Alfalah directly instructed, in response to a shared HS/SSO code
+  review: `HS_ChannelId=1001` (unchanged, already correct) and
+  **`HS_IsRedirectionRequest=0`** for the Channel 1001 Page Redirection
+  handshake (`POST /HS/HS/HS`). This **supersedes every prior
+  `HS_IsRedirectionRequest=1` statement in this file** (R9.5-P7P above and
+  the R9.3-THANNOW-APG-1001-UAT section above), which reflected the
+  implementation's own best-effort guess, not a Bank confirmation. Do not
+  revert to `1` without new, dated Bank evidence overriding this entry.
+- Applied to `buildRedirectionHandshakePayload`
+  (`apps/api/src/services/bank-alfalah-apg-gateway.service.ts`) and to the
+  GitHub Actions sandbox-readiness script
+  (`scripts/bank-alfalah-apg-sandbox-readiness.ts`, invoked by
+  `.github/workflows/bank-alfalah-apg-sandbox-readiness.yml`). Both were
+  previously out of sync with each other (source already used the corrected
+  intent path via `buildRedirectionHandshakePayload`; the CI script still
+  hardcoded `"1"`). ChannelId `1001` was already correct in both and is
+  unchanged. RequestHash field order/encoding remain
+  `AWAITING_BANK_CONFIRMATION` — only this one field's value is now
+  Bank-confirmed.
+- Zero-regression check: affected unit tests, `verify:apg-url-contract`
+  (12/12), `verify:apg-sandbox-ready` (10/10), and `typecheck` all pass with
+  the corrected value. Production remains
+  `BANK_ALFALAH_PROVIDER=none` / `BANK_ALFALAH_APG_ENABLED=false` /
+  `BANK_ALFALAH_MPGS_ENABLED=false`.

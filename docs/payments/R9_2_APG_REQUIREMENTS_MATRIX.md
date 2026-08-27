@@ -29,8 +29,53 @@ implementation remains
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
 | Payment mutation | **SERVER-VERIFIED PATH; IPN DEFERRED** | APG OrderStatus verification can emit P4A evidence only after exact matching; browser Return and IPN remain non-authoritative while Bank callback auth/ack rules are unresolved |
 
+## 2026-08-27 bank-confirmed HS1001/SSO field correction
+
+Bank Alfalah responded to the sandbox enablement request asking for our
+HS and SSO code, then confirmed: **`HS_ChannelId: "1001"`** (unchanged —
+already correct) and **`HS_IsRedirectionRequest: "0"`** (correction — the
+implementation previously sent `"1"`) for the `HS1001` Page Redirection
+handshake (`POST /HS/HS/HS`, `initiateRedirectionHandshake` /
+`buildRedirectionHandshakePayload`). Applied to
+`bank-alfalah-apg-gateway.service.ts` and its unit tests; the API-channel
+1002 handshake (`buildHandshakePayload`, `ChannelId: "1002"`, no
+`IsRedirectionRequest` field) is unaffected. Verified: affected test file
+9/9 pass, `verify:apg-url-contract` 12/12, `verify:apg-sandbox-ready`
+10/10, `typecheck` clean. `HS_IsRedirectionRequest` moves from an
+internal best-effort guess to **CONFIRMED** for this endpoint; the
+RequestHash field order/encoding itself remains
+`AWAITING_BANK_CONFIRMATION`.
+
+## 2026-08-25 contract forensic (owner-supplied `BAF/API/API.txt`)
+
+Field-by-field classification against the owner-supplied API-channel 1002
+sample payloads (`BAF/API/API.txt`, untracked reference material) and the
+current implementation (`bank-alfalah-apg-gateway.service.ts`,
+`bank-alfalah-request-hash.ts`, `bank-alfalah-apg.controller.ts`):
+
+| Item | Status | Notes |
+|---|---|---|
+| Handshake field set (`HS1001`/`HSAPI`) | **PROVEN** | Implementation's field names/keys for the handshake payload match `API.txt` exactly (`HS_ChannelId`…`HS_TransactionReferenceNumber`, `HS_RequestHash`) |
+| Transaction (`DoTran`) field set | **MISSING** | `buildTransactionPayload` omits three fields present in the bank's own `DoTran` sample body: `AccountNumber`, `Country`, `EmailAddress`. Not added here because whether they must be present (even empty) for a valid `RequestHash` is itself part of the unconfirmed hash contract — adding them would mean guessing hash input composition, which this repository does not do |
+| RequestHash field order/encoding | `AWAITING_BANK_CONFIRMATION` (unchanged) | `API.txt`'s JSON key order (`ChannelId` first) differs from the implementation's ordered-field arrays (`MerchantId` first for the transaction/SSO cases); JSON key order in a documentation sample is not proof of a required concatenation order, so this remains correctly unresolved rather than silently "fixed" either direction |
+| AES-128-CBC + base64 encryption shape | **PROVEN (structurally)** | `encryptApgRequestHash` implements the algorithm family the Merchant Integration Guide names; exact key/IV provisioning and whether this is the correct cipher mode remain `NEEDS_BANK_CONFIRMATION` since no bank-signed sample ciphertext exists to validate against |
+| Third flow step: `ProcessTran`/OTP (`/HS/api/ProcessTran/ProTran`) | **MISSING** | `API.txt` documents a third step (SMS/Email OTAC + OTP + `HashKey`) after `DoTran` that has no corresponding adapter method, endpoint, or test anywhere in this codebase. Not built in this packet — building a full OTP step is a genuine feature addition, not a same-shape gap repair, and the OTP flow's own hash/field contract is equally unconfirmed |
+| Return URL / IPN URL / frontend landing page | **Defined** (unchanged from below) | |
+| Status inquiry (`OrderStatus`) field set | **PROVEN** | `getOrderStatus` request path and response field parsing match `API.txt`/guide `OrderStatus` shape; exact-match verification (merchant/store/reference/amount/currency/`ResponseCode=00`/`TransactionStatus=Paid`) already implemented and covered by existing tests |
+
+No source file was changed by this forensic pass: every finding above is
+either already correctly `AWAITING_BANK_CONFIRMATION`/disabled-by-default,
+or is a scope gap (`ProcessTran`, three `DoTran` fields) whose correct fix
+depends on the same unconfirmed bank contract, so guessing it would violate
+the "no invented bank behavior" rule. These rows are surfaced so the bank
+email/UAT plan account for them explicitly.
+
 ## Change log
 
+- 2026-08-25 (R9.2-APG-UAT-READY forensic pass): added the contract
+  forensic table above; no implementation change; two real scope gaps
+  (`ProcessTran`/OTP step, three `DoTran` fields) identified and classified
+  rather than guessed.
 - 2026-08-06 (R9.2-FREEZE-MPGS-AND-REACTIVATE-LOCAL-APG): matrix created,
   all 13 original rows `AWAITING_BANK_CONFIRMATION`.
 - 2026-08-06 (R9.2-MERGE-P148-P149-AND-APG-URL-FOUNDATION): promoted to a
