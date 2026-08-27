@@ -162,6 +162,18 @@ async function visibleContract(page: Page): Promise<string> {
     .join(","));
 }
 
+async function invalidFieldNames(page: Page): Promise<string> {
+  return page.locator('input:invalid[name],select:invalid[name]').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+    })
+    .map((element) => (element as HTMLInputElement).name)
+    .sort()
+    .join(","));
+}
+
 async function advancePayment(page: Page): Promise<boolean> {
   const candidates = page.locator('button:visible,input[type="submit"]:visible,input[type="button"]:visible');
   const preferred = /pay|proceed|submit|verify|confirm|next|generate|send/i;
@@ -281,15 +293,14 @@ async function main(): Promise<void> {
       await fillPaymentStage(page, env, effectivePaymentMode);
       const contract = await visibleContract(page);
       console.log(`PAYMENT_STAGE_${stage}_VISIBLE_CONTROLS=${contract || "ABSENT"}`);
+      const invalidFields = await invalidFieldNames(page);
+      console.log(`PAYMENT_STAGE_${stage}_INVALID_FIELDS=${invalidFields || "ABSENT"}`);
       const signature = `${page.url()}|${contract}`;
       if (signature === previousSignature) break;
       previousSignature = signature;
       const advanced = await advancePayment(page);
       if (!advanced) break;
-      await Promise.race([
-        page.waitForLoadState("domcontentloaded", { timeout: 15_000 }),
-        page.waitForTimeout(3_000)
-      ]).catch(() => undefined);
+      await page.waitForTimeout(3_000);
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
     }
 
