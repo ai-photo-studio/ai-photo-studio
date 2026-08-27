@@ -29,6 +29,35 @@ implementation remains
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
 | Payment mutation | **SERVER-VERIFIED PATH; IPN DEFERRED** | APG OrderStatus verification can emit P4A evidence only after exact matching; browser Return and IPN remain non-authoritative while Bank callback auth/ack rules are unresolved |
 
+## 2026-08-27 hosted checkout page form contract + submission attempt
+
+Read-only recon (run `33063400318`) reached the real hosted page
+(`merchants.bankalfalah.com/Payments/Payments/Create`) and proved its form
+contract: `PaymentTypeId` select (`1`=Alfa Wallet, `2`=Alfalah Bank
+Account, `3`=Credit/Debit/Prepaid Card, `6`=Card on Delivery, `11`=JazzCash,
+`12`=RAAST QR — confirms the packet's 1/2/3/empty mapping for the first
+three), `CardTypeId` select (`1`=Visa, `2`=Master Card, `3`=Amex,
+`4`=Paypak), and named fields `AlfaWalletNumber`, `AccountNumber`,
+`CardNumber`/`CVV`/`ExpiryMonth`/`ExpiryYear`, OTP fields `alfaSMSOTP`/
+`alfaEmailOTP`/`alfalahOTP`, and two hidden tokens
+(`__RequestVerificationToken`, `base64`).
+
+A same-session submission attempt for Alfa Wallet (run `33063607266`)
+returned **`HTTP 500`** on the base page's hidden-token values. Root cause:
+the mode-specific sub-form (and its own antiforgery token) is loaded by the
+hosted page's own client-side JS/AJAX **after** `PaymentTypeId` is
+selected in a real browser — it is not present in the initial server HTML a
+plain HTTP client fetches. Completing a real submission therefore requires
+either (a) genuine browser-session automation with the exact cookies
+established by the HS1001/SSO POSTs carried into a rendered browser, or (b)
+the bank's documented AJAX/partial-view contract for the mode-specific
+sub-form. Neither exists yet; further blind field-guessing against the live
+sandbox endpoint was deliberately stopped rather than repeated across
+modes. Classification: `HOSTED_PAGE_JS_SUBFORM_AUTOMATION_REQUIRED` — a
+genuine technical gap, not a Bank-side blocker and not a ThanNow app defect
+(the ThanNow customer-checkout flow itself does not depend on this recon
+tooling).
+
 ## 2026-08-27 live sandbox proof (run `33062332340`)
 
 With the corrected `HS_IsRedirectionRequest=0`, GitHub Actions run
