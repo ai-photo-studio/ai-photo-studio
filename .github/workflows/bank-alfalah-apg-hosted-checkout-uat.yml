@@ -54,6 +54,7 @@ jobs:
       APG_SANDBOX_EMAIL_OTP: ${{ secrets.APG_SANDBOX_EMAIL_OTP }}
       APG_SANDBOX_SMS_OTAC: ${{ secrets.APG_SANDBOX_SMS_OTAC }}
       APG_UAT_MODE: ${{ inputs.mode }}
+      APG_UAT_HEADED: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,8 +68,5 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Install sandbox browser
-        run: npx --no-install playwright install --with-deps chromium
-
       - name: Run sandbox UAT for selected mode
-        run: npx --no-install tsx scripts/bank-alfalah-apg-hosted-checkout-uat.ts
+        run: xvfb-run -a npx --no-install tsx scripts/bank-alfalah-apg-hosted-checkout-uat.ts

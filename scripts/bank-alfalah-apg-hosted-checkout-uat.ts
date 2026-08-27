@@ -174,7 +174,10 @@ async function main(): Promise<void> {
   console.log(`UAT_ORDER_ID=${orderId}`);
   console.log(`UAT_AMOUNT=${amount} ${currency}`);
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: env.APG_UAT_HEADED !== "true",
+    channel: env.APG_UAT_HEADED === "true" ? "chrome" : undefined
+  });
   try {
     const context = await browser.newContext({ acceptDownloads: false });
     const key = env.BANK_ALFALAH_APG_AES_KEY!;
@@ -233,6 +236,9 @@ async function main(): Promise<void> {
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
     console.log(`SSO_HOSTED_PAGE_REACHED=${/merchants\.bankalfalah\.com$/i.test(new URL(page.url()).hostname)}`);
     console.log(`HOSTED_PAGE_HTTP_TITLE=${(await page.title()).replace(/[^\x20-\x7e]/g, "").slice(0, 80)}`);
+    const challengePresent = await page.locator('[name="answer"]').count() > 0;
+    console.log(`HOSTED_PAGE_CHALLENGE_PRESENT=${challengePresent}`);
+    if (challengePresent) throw new Error("BANK_HOSTED_PAGE_BROWSER_CHALLENGE");
 
     const paymentType = page.locator('[name="PaymentTypeId"]');
     if (MODE === "all") console.log(`ALL_MODES_SELECTOR_PRESENT=${await paymentType.count() > 0 && await paymentType.first().isVisible()}`);
@@ -264,17 +270,19 @@ async function main(): Promise<void> {
     console.log(`RETURN_REACHED=${finalUrl.hostname === new URL(env.BANK_ALFALAH_APG_RETURN_URL!).hostname}`);
     console.log(`RETURN_HOST=${finalUrl.host}`);
     console.log(`RETURN_PATH=${finalUrl.pathname}`);
-    console.log(`RETURN_QUERY_KEYS=${[...finalUrl.searchParams.keys()].join(",") || "ABSENT"}`);
+    console.log(`RETURN_QUERY_PRESENT=${finalUrl.search.length > 0}`);
     console.log(`PAYMENT_FINAL_TITLE=${(await page.title()).replace(/[^\x20-\x7e]/g, "").slice(0, 100) || "ABSENT"}`);
 
-    const statusResponse = await context.request.get(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/IPN/OrderStatus/${encodeURIComponent(env.BANK_ALFALAH_APG_MERCHANT_ID!)}/${encodeURIComponent(env.BANK_ALFALAH_APG_STORE_ID!)}/${encodeURIComponent(orderId)}`);
+    const statusResponse = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/IPN/OrderStatus/${encodeURIComponent(env.BANK_ALFALAH_APG_MERCHANT_ID!)}/${encodeURIComponent(env.BANK_ALFALAH_APG_STORE_ID!)}/${encodeURIComponent(orderId)}`, {
+      headers: { accept: "application/json" }
+    });
     const parsed = parseApgResponse(await statusResponse.text()).body;
     const responseCode = findValue(parsed, "ResponseCode");
     const transactionStatus = findValue(parsed, "TransactionStatus");
     const transactionId = findValue(parsed, "TransactionId");
     const statusAmount = findValue(parsed, "TransactionAmount");
     const statusCurrency = findValue(parsed, "Currency");
-    console.log(`ORDERSTATUS_HTTP_STATUS=${statusResponse.status()}`);
+    console.log(`ORDERSTATUS_HTTP_STATUS=${statusResponse.status}`);
     console.log(`ORDERSTATUS_RESPONSE_CODE=${responseCode || "ABSENT"}`);
     console.log(`ORDERSTATUS_TRANSACTION_STATUS=${transactionStatus || "ABSENT"}`);
     console.log(`ORDERSTATUS_TRANSACTION_ID=${transactionId || "ABSENT"}`);
@@ -290,7 +298,11 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`UAT_ERROR=${message.replace(/[\r\n]+/g, " ").slice(0, 240)}`);
+  let message = error instanceof Error ? error.message : String(error);
+  for (const value of Object.values(process.env)) {
+    if (value && value.length >= 4) message = message.split(value).join("[REDACTED]");
+  }
+  message = message.replace(/https?:\/\/\S+/gi, "[URL]").replace(/[\r\n]+/g, " ").slice(0, 160);
+  console.error(`UAT_ERROR=${message}`);
   process.exitCode = 1;
 });
