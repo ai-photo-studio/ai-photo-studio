@@ -91,11 +91,14 @@ async function fillVisible(locator: Locator, value: string): Promise<boolean> {
 
 async function selectVisible(locator: Locator, value: string): Promise<boolean> {
   if (await locator.count() === 0 || !await locator.first().isVisible()) return false;
-  await locator.first().evaluate((element: HTMLSelectElement, selectedValue: string) => {
+  const select = locator.first();
+  if (await select.inputValue() === value) return true;
+  await select.evaluate((element: HTMLSelectElement, selectedValue: string) => {
     element.value = selectedValue;
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
   }, value);
+  await select.page().waitForTimeout(1_000);
   return true;
 }
 
@@ -161,8 +164,8 @@ async function visibleContract(page: Page): Promise<string> {
     .map((element) => {
       const field = element as HTMLInputElement;
       const name = field.name || "unnamed";
-      const label = element.tagName === "BUTTON" || field.type === "submit"
-        ? (field.value || element.textContent || "button").trim().replace(/\s+/g, " ").slice(0, 40)
+      const label = element.tagName === "BUTTON" || field.type === "submit" || field.type === "button"
+        ? `${element.tagName.toLowerCase()}-${field.type || "button"}:${(field.value || element.textContent || "button").trim().replace(/\s+/g, " ").slice(0, 40)}`
         : element.tagName.toLowerCase();
       return `${name}:${label}`;
     })
@@ -183,7 +186,7 @@ async function invalidFieldNames(page: Page): Promise<string> {
 }
 
 async function visibleErrorText(page: Page): Promise<string> {
-  const raw = await page.locator('.validation-summary-errors,.field-validation-error,.alert,.toast,.swal2-html-container').evaluateAll((elements) => elements
+  const raw = await page.locator('.validation-summary-errors,.field-validation-error,.alert,.toast,.swal2-html-container,[class*="error" i],[class*="validation" i]').evaluateAll((elements) => elements
     .filter((element) => {
       const style = window.getComputedStyle(element);
       const box = element.getBoundingClientRect();
