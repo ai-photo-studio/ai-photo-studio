@@ -1,0 +1,55 @@
+name: Bank Alfalah APG hosted checkout recon
+
+# R9.3-APG-FULL-UAT-20260827
+#
+# Manually-triggered, read-only reconnaissance: HS1001 -> AuthToken -> SSO
+# redirect -> GET the Bank-hosted checkout page reached at the end of that
+# redirect. Reports the page's sanitized FORM CONTRACT (field names/types
+# only) so a real payment-mode submission can be built against a proven
+# contract instead of a guess. Never submits payment-mode selection,
+# wallet/account/card data, or OTP. Never logs merchant credentials, AES
+# keys, RequestHash, AuthToken, or any Bank sandbox test instrument value.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: bank-alfalah-apg-hosted-checkout-recon
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-checkout-recon:
+    name: HS1001 -> SSO -> hosted page form contract (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BANK_ALFALAH_APG_BASE_URL: https://sandbox.bankalfalah.com
+      BANK_ALFALAH_APG_RETURN_URL: https://api.thannow.com/api/payments/bank-alfalah/return
+      BANK_ALFALAH_APG_SSO_CURRENCY: PKR
+      BANK_ALFALAH_APG_SSO_TRANSACTION_TYPE_ID: "3"
+      BANK_ALFALAH_APG_SSO_AMOUNT: "1"
+      BANK_ALFALAH_APG_MERCHANT_ID: ${{ secrets.APG_MERCHANT_ID }}
+      BANK_ALFALAH_APG_STORE_ID: ${{ secrets.STORE_ID }}
+      BANK_ALFALAH_APG_MERCHANT_HASH: ${{ secrets.MERCHANT_HASH_KEY }}
+      BANK_ALFALAH_APG_USERNAME: ${{ secrets.MERCHANT_USERNAME }}
+      BANK_ALFALAH_APG_PASSWORD: ${{ secrets.MERCHANT_PASSWORD }}
+      BANK_ALFALAH_APG_AES_KEY: ${{ secrets.BANK_ALFALAH_APG_AES_KEY }}
+      BANK_ALFALAH_APG_AES_IV: ${{ secrets.BANK_ALFALAH_APG_AES_IV }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run hosted checkout recon (read-only, no submission)
+        run: npx --no-install tsx scripts/bank-alfalah-apg-hosted-checkout-recon.ts
