@@ -1,0 +1,69 @@
+name: Bank Alfalah APG hosted checkout UAT
+
+# R9.3-APG-FULL-UAT-20260827
+#
+# Manually-triggered sandbox UAT: HS1001 -> AuthToken -> SSO -> submits ONE
+# payment mode on the Bank-hosted checkout page using owner-supplied Bank
+# sandbox test instruments (stored as GitHub Actions secrets, never
+# committed to source), then checks Bank's own OrderStatus. Sandbox only.
+# Production Bank Alfalah flags are untouched by this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Payment mode to test"
+        required: true
+        default: wallet
+        type: choice
+        options: [wallet, account, card, all]
+
+concurrency:
+  group: bank-alfalah-apg-hosted-checkout-uat
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-checkout-uat:
+    name: HS1001 -> SSO -> sandbox payment -> OrderStatus
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BANK_ALFALAH_APG_BASE_URL: https://sandbox.bankalfalah.com
+      BANK_ALFALAH_APG_RETURN_URL: https://api.thannow.com/api/payments/bank-alfalah/return
+      BANK_ALFALAH_APG_SSO_CURRENCY: PKR
+      BANK_ALFALAH_APG_SSO_TRANSACTION_TYPE_ID: "3"
+      BANK_ALFALAH_APG_SSO_AMOUNT: "1"
+      BANK_ALFALAH_APG_MERCHANT_ID: ${{ secrets.APG_MERCHANT_ID }}
+      BANK_ALFALAH_APG_STORE_ID: ${{ secrets.STORE_ID }}
+      BANK_ALFALAH_APG_MERCHANT_HASH: ${{ secrets.MERCHANT_HASH_KEY }}
+      BANK_ALFALAH_APG_USERNAME: ${{ secrets.MERCHANT_USERNAME }}
+      BANK_ALFALAH_APG_PASSWORD: ${{ secrets.MERCHANT_PASSWORD }}
+      BANK_ALFALAH_APG_AES_KEY: ${{ secrets.BANK_ALFALAH_APG_AES_KEY }}
+      BANK_ALFALAH_APG_AES_IV: ${{ secrets.BANK_ALFALAH_APG_AES_IV }}
+      APG_SANDBOX_ALFA_WALLET: ${{ secrets.APG_SANDBOX_ALFA_WALLET }}
+      APG_SANDBOX_ALFALAH_ACCOUNT: ${{ secrets.APG_SANDBOX_ALFALAH_ACCOUNT }}
+      APG_SANDBOX_CARD_NUMBER: ${{ secrets.APG_SANDBOX_CARD_NUMBER }}
+      APG_SANDBOX_CARD_EXPIRY: ${{ secrets.APG_SANDBOX_CARD_EXPIRY }}
+      APG_SANDBOX_CARD_CVV: ${{ secrets.APG_SANDBOX_CARD_CVV }}
+      APG_SANDBOX_SMS_OTP: ${{ secrets.APG_SANDBOX_SMS_OTP }}
+      APG_SANDBOX_EMAIL_OTP: ${{ secrets.APG_SANDBOX_EMAIL_OTP }}
+      APG_SANDBOX_SMS_OTAC: ${{ secrets.APG_SANDBOX_SMS_OTAC }}
+      APG_UAT_MODE: ${{ inputs.mode }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run sandbox UAT for selected mode
+        run: npx --no-install tsx scripts/bank-alfalah-apg-hosted-checkout-uat.ts
