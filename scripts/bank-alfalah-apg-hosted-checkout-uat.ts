@@ -1,183 +1,238 @@
 // R9.3-APG-FULL-UAT-20260827
 //
-// Submits ONE sandbox payment through the Bank-hosted checkout page reached
-// via HS1001 -> AuthToken -> SSO redirect, using the form contract proven
-// by bank-alfalah-apg-hosted-checkout-recon.ts (PaymentTypeId 1/2/3, field
-// names AlfaWalletNumber/AccountNumber/CardNumber/CVV/ExpiryMonth/
-// ExpiryYear/CardTypeId, OTP fields alfaSMSOTP/alfaEmailOTP/alfalahOTP).
-// Mode is selected by APG_UAT_MODE=wallet|account|card|all.
-//
-// Sanitized output only: HTTP status/redirect target/response markers and
-// any Bank-issued transaction reference. NEVER logs merchant credentials,
-// AES keys, RequestHash, AuthToken, the CSRF/base64 hidden tokens, or any
-// Bank sandbox test instrument value (wallet/account/card/CVV/OTP).
+// Runs ONE Bank Alfalah sandbox Page Redirection journey in a real Chromium
+// session. Sensitive values are read only from the process environment and
+// are never printed, persisted, screenshotted, traced, or attached.
+import { chromium, type Locator, type Page } from "playwright";
 import { encryptApgRequestHash } from "../apps/api/src/services/bank-alfalah-request-hash";
 import { parseApgResponse } from "../apps/api/src/services/bank-alfalah-response-parser";
 
-function extractSetCookies(response: Response): string[] {
-  const getSetCookie = (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie;
-  if (typeof getSetCookie === "function") return getSetCookie.call(response.headers);
-  const single = response.headers.get("set-cookie");
-  return single ? [single] : [];
+type UatMode = "wallet" | "account" | "card" | "all";
+
+const MODE = (process.env.APG_UAT_MODE || "wallet") as UatMode;
+const PAYMENT_TYPE: Record<UatMode, string> = { wallet: "1", account: "2", card: "3", all: "" };
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  })[character]!);
 }
-function cookieHeader(jar: Map<string, string>): string {
-  return Array.from(jar.entries()).map(([n, v]) => `${n}=${v}`).join("; ");
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
 }
-function mergeCookies(jar: Map<string, string>, setCookies: string[]): void {
-  for (const raw of setCookies) {
-    const pair = raw.split(";")[0];
-    const eq = pair.indexOf("=");
-    if (eq <= 0) continue;
-    jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+
+function findValue(body: Record<string, unknown>, name: string): string {
+  const wanted = name.toLowerCase();
+  const queue: unknown[] = [body];
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object") continue;
+    for (const [key, value] of Object.entries(current as Record<string, unknown>)) {
+      if (key.toLowerCase() === wanted) return text(value);
+      if (value && typeof value === "object") queue.push(value);
+    }
+  }
+  return "";
+}
+
+async function fillVisible(locator: Locator, value: string): Promise<boolean> {
+  if (!value || await locator.count() === 0 || !await locator.first().isVisible()) return false;
+  await locator.first().fill(value);
+  return true;
+}
+
+async function selectVisible(locator: Locator, value: string): Promise<boolean> {
+  if (await locator.count() === 0 || !await locator.first().isVisible()) return false;
+  await locator.first().selectOption(value);
+  return true;
+}
+
+async function fillPaymentStage(page: Page, env: NodeJS.ProcessEnv, paymentMode: Exclude<UatMode, "all">): Promise<void> {
+  if (paymentMode === "wallet") {
+    await fillVisible(page.locator('[name="AlfaWalletNumber"]'), env.APG_SANDBOX_ALFA_WALLET!);
+  } else if (paymentMode === "account") {
+    await fillVisible(page.locator('[name="AccountNumber"]'), env.APG_SANDBOX_ALFALAH_ACCOUNT!);
+  } else {
+    const [expiryMonth, expiryYear] = env.APG_SANDBOX_CARD_EXPIRY!.split("/");
+    await fillVisible(page.locator('[name="CardNumber"]'), env.APG_SANDBOX_CARD_NUMBER!);
+    await fillVisible(page.locator('[name="CVV"]'), env.APG_SANDBOX_CARD_CVV!);
+    await fillVisible(page.locator('[name="ExpiryMonth"]'), expiryMonth);
+    await fillVisible(page.locator('[name="ExpiryYear"]'), expiryYear);
+    await selectVisible(page.locator('[name="CardTypeId"]'), "2");
+  }
+
+  await fillVisible(page.locator('[name="alfaSMSOTP"]'), env.APG_SANDBOX_SMS_OTP!);
+  await fillVisible(page.locator('[name="alfaEmailOTP"]'), env.APG_SANDBOX_EMAIL_OTP!);
+  await fillVisible(page.locator('[name="alfalahOTP"]'), env.APG_SANDBOX_SMS_OTP!);
+
+  const otpInputs = page.locator('input[name]');
+  for (let index = 0; index < await otpInputs.count(); index += 1) {
+    const input = otpInputs.nth(index);
+    if (!await input.isVisible()) continue;
+    const name = (await input.getAttribute("name") || "").toLowerCase();
+    if (name.includes("otac")) await input.fill(env.APG_SANDBOX_SMS_OTAC!);
+    else if (name.includes("email") && name.includes("otp")) await input.fill(env.APG_SANDBOX_EMAIL_OTP!);
+    else if (name.includes("otp")) await input.fill(env.APG_SANDBOX_SMS_OTP!);
   }
 }
-function hiddenValue(html: string, name: string): string {
-  const m = html.match(new RegExp(`<input[^>]*name=["']${name}["'][^>]*value=["']([^"']*)["']`, "i"))
-    || html.match(new RegExp(`<input[^>]*value=["']([^"']*)["'][^>]*name=["']${name}["']`, "i"));
-  return m?.[1] ?? "";
+
+async function visibleContract(page: Page): Promise<string> {
+  return page.locator('input[name],select[name],button,input[type="submit"]').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+    })
+    .map((element) => {
+      const field = element as HTMLInputElement;
+      const name = field.name || "unnamed";
+      const label = element.tagName === "BUTTON" || field.type === "submit"
+        ? (field.value || element.textContent || "button").trim().replace(/\s+/g, " ").slice(0, 40)
+        : element.tagName.toLowerCase();
+      return `${name}:${label}`;
+    })
+    .sort()
+    .join(","));
 }
 
-const MODE = (process.env.APG_UAT_MODE || "wallet") as "wallet" | "account" | "card" | "all";
+async function advancePayment(page: Page): Promise<boolean> {
+  const candidates = page.locator('button:visible,input[type="submit"]:visible,input[type="button"]:visible');
+  const preferred = /pay|proceed|submit|verify|confirm|next|generate|send/i;
+  for (let index = 0; index < await candidates.count(); index += 1) {
+    const candidate = candidates.nth(index);
+    const label = `${await candidate.textContent() || ""} ${await candidate.getAttribute("value") || ""}`;
+    if (!preferred.test(label)) continue;
+    await candidate.click();
+    return true;
+  }
+  const form = page.locator("form").first();
+  if (await form.count() === 0) return false;
+  await form.evaluate((element: HTMLFormElement) => element.requestSubmit());
+  return true;
+}
 
 async function main(): Promise<void> {
+  if (!Object.hasOwn(PAYMENT_TYPE, MODE)) throw new Error(`INVALID_APG_UAT_MODE:${MODE}`);
   const env = process.env;
   const required = [
     "BANK_ALFALAH_APG_MERCHANT_ID", "BANK_ALFALAH_APG_STORE_ID", "BANK_ALFALAH_APG_MERCHANT_HASH",
     "BANK_ALFALAH_APG_USERNAME", "BANK_ALFALAH_APG_PASSWORD", "BANK_ALFALAH_APG_AES_KEY", "BANK_ALFALAH_APG_AES_IV",
-    "BANK_ALFALAH_APG_BASE_URL", "BANK_ALFALAH_APG_RETURN_URL"
+    "BANK_ALFALAH_APG_BASE_URL", "BANK_ALFALAH_APG_RETURN_URL", "APG_SANDBOX_ALFA_WALLET",
+    "APG_SANDBOX_ALFALAH_ACCOUNT", "APG_SANDBOX_CARD_NUMBER", "APG_SANDBOX_CARD_EXPIRY",
+    "APG_SANDBOX_CARD_CVV", "APG_SANDBOX_SMS_OTP", "APG_SANDBOX_EMAIL_OTP", "APG_SANDBOX_SMS_OTAC"
   ] as const;
   for (const name of required) if (!env[name]) throw new Error(`BANK_APG_SECRET_MISSING:${name}`);
-  const key = env.BANK_ALFALAH_APG_AES_KEY!;
-  const iv = env.BANK_ALFALAH_APG_AES_IV!;
-  const cookieJar = new Map<string, string>();
+  if (new URL(env.BANK_ALFALAH_APG_BASE_URL!).hostname !== "sandbox.bankalfalah.com") throw new Error("SANDBOX_HOST_REQUIRED");
+  if (env.BANK_ALFALAH_PROVIDER && env.BANK_ALFALAH_PROVIDER !== "none") throw new Error("PRODUCTION_PROVIDER_MUST_REMAIN_NONE");
+  if (env.BANK_ALFALAH_APG_ENABLED === "true" || env.BANK_ALFALAH_MPGS_ENABLED === "true") throw new Error("PRODUCTION_PAYMENT_FLAGS_MUST_REMAIN_OFF");
+
   const orderId = `THN-SBX-UAT-${MODE.toUpperCase()}-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
+  const amount = env.BANK_ALFALAH_APG_SSO_AMOUNT || "1";
+  const currency = env.BANK_ALFALAH_APG_SSO_CURRENCY || "PKR";
+  const effectivePaymentMode: Exclude<UatMode, "all"> = MODE === "all" ? "card" : MODE;
   console.log(`UAT_MODE=${MODE}`);
   console.log(`UAT_ORDER_ID=${orderId}`);
+  console.log(`UAT_AMOUNT=${amount} ${currency}`);
 
-  // 1. HS1001 (Channel 1001, IsRedirectionRequest=0 -- Bank-confirmed).
-  const hsFields = [
-    ["HS_MerchantId", env.BANK_ALFALAH_APG_MERCHANT_ID!], ["HS_StoreId", env.BANK_ALFALAH_APG_STORE_ID!],
-    ["HS_ChannelId", "1001"], ["HS_MerchantHash", env.BANK_ALFALAH_APG_MERCHANT_HASH!],
-    ["HS_MerchantUsername", env.BANK_ALFALAH_APG_USERNAME!], ["HS_MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD!],
-    ["HS_IsRedirectionRequest", "0"], ["HS_ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL!], ["HS_RequestHash", ""],
-    ["HS_IsBIN", "0"], ["HS_TransactionReferenceNumber", orderId], ["handshake", ""]
-  ] as const;
-  const hsHash = encryptApgRequestHash(hsFields, key, iv);
-  const hsForm = new URLSearchParams(hsFields.filter(([n]) => n !== "handshake").map(([n, v]) => [n, n === "HS_RequestHash" ? hsHash : v]));
-  const hsResponse = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/HS/HS`, {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json,text/html" }, body: hsForm
-  });
-  mergeCookies(cookieJar, extractSetCookies(hsResponse));
-  const { body: hsBody } = parseApgResponse(await hsResponse.text());
-  const authToken = hsBody.AuthToken ?? hsBody.authToken;
-  console.log(`HS1001_HTTP_STATUS=${hsResponse.status}`);
-  console.log(`HS1001_AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
-  if (typeof authToken !== "string" || !authToken) { console.log("UAT_STOPPED=NO_AUTH_TOKEN"); process.exitCode = 1; return; }
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({ acceptDownloads: false });
+    const key = env.BANK_ALFALAH_APG_AES_KEY!;
+    const iv = env.BANK_ALFALAH_APG_AES_IV!;
+    const hsFields = [
+      ["HS_MerchantId", env.BANK_ALFALAH_APG_MERCHANT_ID!], ["HS_StoreId", env.BANK_ALFALAH_APG_STORE_ID!],
+      ["HS_ChannelId", "1001"], ["HS_MerchantHash", env.BANK_ALFALAH_APG_MERCHANT_HASH!],
+      ["HS_MerchantUsername", env.BANK_ALFALAH_APG_USERNAME!], ["HS_MerchantPassword", env.BANK_ALFALAH_APG_PASSWORD!],
+      ["HS_IsRedirectionRequest", "0"], ["HS_ReturnURL", env.BANK_ALFALAH_APG_RETURN_URL!], ["HS_RequestHash", ""],
+      ["HS_IsBIN", "0"], ["HS_TransactionReferenceNumber", orderId], ["handshake", ""]
+    ] as const;
+    const hsHash = encryptApgRequestHash(hsFields, key, iv);
+    const hsResponse = await context.request.post(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/HS/HS`, {
+      form: Object.fromEntries(hsFields.filter(([name]) => name !== "handshake").map(([name, value]) => [name, name === "HS_RequestHash" ? hsHash : value]))
+    });
+    const { body: hsBody } = parseApgResponse(await hsResponse.text());
+    const authToken = hsBody.AuthToken ?? hsBody.authToken;
+    console.log(`HS1001_HTTP_STATUS=${hsResponse.status()}`);
+    console.log(`HS1001_AUTH_TOKEN_PRESENT=${Boolean(authToken)}`);
+    if (typeof authToken !== "string" || !authToken) throw new Error("UAT_STOPPED:NO_AUTH_TOKEN");
 
-  // 2. SSO redirect.
-  const ssoFieldOrder = ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "IsBIN", "RequestHash", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "run"];
-  const ssoValues: Record<string, string> = {
-    AuthToken: String(authToken), RequestHash: "", ChannelId: "1001", Currency: env.BANK_ALFALAH_APG_SSO_CURRENCY || "PKR",
-    IsBIN: "0", ReturnURL: env.BANK_ALFALAH_APG_RETURN_URL!, MerchantId: env.BANK_ALFALAH_APG_MERCHANT_ID!,
-    StoreId: env.BANK_ALFALAH_APG_STORE_ID!, MerchantHash: env.BANK_ALFALAH_APG_MERCHANT_HASH!,
-    MerchantUsername: env.BANK_ALFALAH_APG_USERNAME!, MerchantPassword: env.BANK_ALFALAH_APG_PASSWORD!,
-    TransactionTypeId: env.BANK_ALFALAH_APG_SSO_TRANSACTION_TYPE_ID || "3", TransactionReferenceNumber: orderId,
-    TransactionAmount: env.BANK_ALFALAH_APG_SSO_AMOUNT || "1", run: ""
-  };
-  const ssoRequestHash = encryptApgRequestHash(ssoFieldOrder.map((n) => [n, ssoValues[n] ?? ""] as const), key, iv);
-  ssoValues.RequestHash = ssoRequestHash;
-  const ssoForm = new URLSearchParams(Object.entries(ssoValues).filter(([n]) => n !== "run"));
-  const ssoResponse = await fetch(`${env.BANK_ALFALAH_APG_BASE_URL}/SSO/SSO/SSO`, {
-    method: "POST", redirect: "manual",
-    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html,application/xhtml+xml", cookie: cookieHeader(cookieJar) },
-    body: ssoForm
-  });
-  mergeCookies(cookieJar, extractSetCookies(ssoResponse));
-  const location = ssoResponse.headers.get("location");
-  console.log(`SSO_HTTP_STATUS=${ssoResponse.status}`);
-  if (!location) { console.log("UAT_STOPPED=NO_SSO_REDIRECT"); process.exitCode = 1; return; }
+    const ssoFieldOrder = ["MerchantId", "StoreId", "ChannelId", "MerchantHash", "MerchantUsername", "MerchantPassword", "ReturnURL", "Currency", "IsBIN", "RequestHash", "AuthToken", "TransactionTypeId", "TransactionReferenceNumber", "TransactionAmount", "run"];
+    const ssoValues: Record<string, string> = {
+      AuthToken: authToken, RequestHash: "", ChannelId: "1001", Currency: currency, IsBIN: "0",
+      ReturnURL: env.BANK_ALFALAH_APG_RETURN_URL!, MerchantId: env.BANK_ALFALAH_APG_MERCHANT_ID!,
+      StoreId: env.BANK_ALFALAH_APG_STORE_ID!, MerchantHash: env.BANK_ALFALAH_APG_MERCHANT_HASH!,
+      MerchantUsername: env.BANK_ALFALAH_APG_USERNAME!, MerchantPassword: env.BANK_ALFALAH_APG_PASSWORD!,
+      TransactionTypeId: PAYMENT_TYPE[MODE], TransactionReferenceNumber: orderId, TransactionAmount: amount, run: ""
+    };
+    ssoValues.RequestHash = encryptApgRequestHash(ssoFieldOrder.map((name) => [name, ssoValues[name] ?? ""] as const), key, iv);
 
-  // 3. GET hosted page, extract CSRF/base64 hidden tokens (never logged).
-  const hostedUrl = new URL(location, env.BANK_ALFALAH_APG_BASE_URL);
-  const hostedGet = await fetch(hostedUrl, { method: "GET", headers: { accept: "text/html", cookie: cookieHeader(cookieJar) } });
-  mergeCookies(cookieJar, extractSetCookies(hostedGet));
-  const hostedHtml = await hostedGet.text();
-  const verificationToken = hiddenValue(hostedHtml, "__RequestVerificationToken");
-  const base64Token = hiddenValue(hostedHtml, "base64");
-  console.log(`HOSTED_PAGE_HTTP_STATUS=${hostedGet.status}`);
-  console.log(`HOSTED_PAGE_TOKENS_CAPTURED=${Boolean(verificationToken) && Boolean(base64Token)}`);
-  if (!verificationToken) { console.log("UAT_STOPPED=NO_CSRF_TOKEN"); process.exitCode = 1; return; }
+    const page = await context.newPage();
+    const ssoInputs = Object.entries(ssoValues).filter(([name]) => name !== "run")
+      .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`).join("");
+    await page.setContent(`<form method="post" action="${escapeHtml(env.BANK_ALFALAH_APG_BASE_URL!)}/SSO/SSO/SSO">${ssoInputs}</form><script>document.forms[0].submit()</script>`);
+    await page.waitForURL(/bankalfalah\.com\/Payments\/Payments\/Create/i, { timeout: 30_000 });
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+    console.log(`SSO_HOSTED_PAGE_REACHED=${/merchants\.bankalfalah\.com$/i.test(new URL(page.url()).hostname)}`);
+    console.log(`HOSTED_PAGE_HTTP_TITLE=${(await page.title()).replace(/[^\x20-\x7e]/g, "").slice(0, 80)}`);
 
-  // 4. Build mode-specific payment payload from GitHub-secret sandbox instruments only.
-  const paymentTypeId = MODE === "wallet" ? "1" : MODE === "account" ? "2" : MODE === "card" ? "3" : "";
-  const payload: Record<string, string> = {
-    __RequestVerificationToken: verificationToken,
-    base64: base64Token,
-    PaymentTypeId: paymentTypeId,
-    CustomerName: "ThanNow Sandbox UAT"
-  };
-  if (MODE === "wallet" || MODE === "all") {
-    payload.AlfaWalletNumber = env.APG_SANDBOX_ALFA_WALLET || "";
-    payload.alfaCountry = "164";
-    payload.alfaMobileNumber = env.APG_SANDBOX_ALFA_WALLET || "";
-    payload.alfaEmailAddress = "sandbox-uat@thannow.com";
-    payload.alfaSMSOTP = env.APG_SANDBOX_SMS_OTP || "";
-    payload.alfaEmailOTP = env.APG_SANDBOX_EMAIL_OTP || "";
+    const paymentType = page.locator('[name="PaymentTypeId"]');
+    if (MODE === "all") console.log(`ALL_MODES_SELECTOR_PRESENT=${await paymentType.count() > 0 && await paymentType.first().isVisible()}`);
+    if (await paymentType.count() > 0 && await paymentType.first().isVisible()) {
+      await paymentType.first().selectOption(PAYMENT_TYPE[effectivePaymentMode]);
+      await page.waitForTimeout(1_500);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+    }
+
+    let previousSignature = "";
+    for (let stage = 1; stage <= 4; stage += 1) {
+      if (new URL(page.url()).hostname === new URL(env.BANK_ALFALAH_APG_RETURN_URL!).hostname) break;
+      await fillPaymentStage(page, env, effectivePaymentMode);
+      const contract = await visibleContract(page);
+      console.log(`PAYMENT_STAGE_${stage}_VISIBLE_CONTROLS=${contract || "ABSENT"}`);
+      const signature = `${page.url()}|${contract}`;
+      if (signature === previousSignature) break;
+      previousSignature = signature;
+      const advanced = await advancePayment(page);
+      if (!advanced) break;
+      await Promise.race([
+        page.waitForLoadState("domcontentloaded", { timeout: 15_000 }),
+        page.waitForTimeout(3_000)
+      ]).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+    }
+
+    const finalUrl = new URL(page.url());
+    console.log(`RETURN_REACHED=${finalUrl.hostname === new URL(env.BANK_ALFALAH_APG_RETURN_URL!).hostname}`);
+    console.log(`RETURN_HOST=${finalUrl.host}`);
+    console.log(`RETURN_PATH=${finalUrl.pathname}`);
+    console.log(`RETURN_QUERY_KEYS=${[...finalUrl.searchParams.keys()].join(",") || "ABSENT"}`);
+    console.log(`PAYMENT_FINAL_TITLE=${(await page.title()).replace(/[^\x20-\x7e]/g, "").slice(0, 100) || "ABSENT"}`);
+
+    const statusResponse = await context.request.get(`${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/IPN/OrderStatus/${encodeURIComponent(env.BANK_ALFALAH_APG_MERCHANT_ID!)}/${encodeURIComponent(env.BANK_ALFALAH_APG_STORE_ID!)}/${encodeURIComponent(orderId)}`);
+    const parsed = parseApgResponse(await statusResponse.text()).body;
+    const responseCode = findValue(parsed, "ResponseCode");
+    const transactionStatus = findValue(parsed, "TransactionStatus");
+    const transactionId = findValue(parsed, "TransactionId");
+    const statusAmount = findValue(parsed, "TransactionAmount");
+    const statusCurrency = findValue(parsed, "Currency");
+    console.log(`ORDERSTATUS_HTTP_STATUS=${statusResponse.status()}`);
+    console.log(`ORDERSTATUS_RESPONSE_CODE=${responseCode || "ABSENT"}`);
+    console.log(`ORDERSTATUS_TRANSACTION_STATUS=${transactionStatus || "ABSENT"}`);
+    console.log(`ORDERSTATUS_TRANSACTION_ID=${transactionId || "ABSENT"}`);
+    console.log(`ORDERSTATUS_MERCHANT_MATCH=${findValue(parsed, "MerchantId") === env.BANK_ALFALAH_APG_MERCHANT_ID}`);
+    console.log(`ORDERSTATUS_STORE_MATCH=${findValue(parsed, "StoreId") === env.BANK_ALFALAH_APG_STORE_ID}`);
+    console.log(`ORDERSTATUS_ORDER_MATCH=${findValue(parsed, "TransactionReferenceNumber") === orderId}`);
+    console.log(`ORDERSTATUS_AMOUNT=${statusAmount || "ABSENT"}`);
+    console.log(`ORDERSTATUS_CURRENCY=${statusCurrency || "ABSENT"}`);
+    console.log(`ORDERSTATUS_PAID=${responseCode === "00" && transactionStatus.toUpperCase() === "PAID"}`);
+  } finally {
+    await browser.close();
   }
-  if (MODE === "account" || MODE === "all") {
-    payload.AccountNumber = env.APG_SANDBOX_ALFALAH_ACCOUNT || "";
-    payload.alfalahCountry = "164";
-    payload.alfalahMobileNumber = env.APG_SANDBOX_ALFALAH_ACCOUNT || "";
-    payload.alfalahEmailAddress = "sandbox-uat@thannow.com";
-    payload.alfalahOTP = env.APG_SANDBOX_SMS_OTP || "";
-  }
-  if (MODE === "card" || MODE === "all") {
-    payload.CardNumber = env.APG_SANDBOX_CARD_NUMBER || "";
-    payload.CVV = env.APG_SANDBOX_CARD_CVV || "";
-    const [expMonth, expYear] = (env.APG_SANDBOX_CARD_EXPIRY || "").split("/");
-    payload.ExpiryMonth = expMonth || "";
-    payload.ExpiryYear = expYear || "";
-    payload.CardTypeId = "2"; // Mastercard -- test PAN 5440... is a Mastercard BIN per SELECT_OPTIONS[CardTypeId]
-    payload.cardCountry = "164";
-    payload.cardMobileNumber = env.APG_SANDBOX_ALFA_WALLET || "";
-    payload.cardEmailAddress = "sandbox-uat@thannow.com";
-  }
-
-  const submitResponse = await fetch(hostedUrl, {
-    method: "POST", redirect: "manual",
-    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html,application/xhtml+xml", cookie: cookieHeader(cookieJar) },
-    body: new URLSearchParams(payload)
-  });
-  mergeCookies(cookieJar, extractSetCookies(submitResponse));
-  const submitLocation = submitResponse.headers.get("location");
-  const submitHtml = submitLocation ? "" : await submitResponse.text();
-  console.log(`SUBMIT_HTTP_STATUS=${submitResponse.status}`);
-  console.log(`SUBMIT_REDIRECT_PRESENT=${Boolean(submitLocation)}`);
-  if (submitLocation) {
-    const target = new URL(submitLocation, hostedUrl);
-    console.log(`SUBMIT_REDIRECT_HOST=${target.host}`);
-    console.log(`SUBMIT_REDIRECT_PATH=${target.pathname}`);
-    console.log(`SUBMIT_REDIRECT_QUERY_KEYS=${[...target.searchParams.keys()].join(",") || "ABSENT"}`);
-  } else {
-    const titleMatch = submitHtml.match(/<title>([^<]*)<\/title>/i);
-    console.log(`SUBMIT_RESPONSE_TITLE=${(titleMatch?.[1] ?? "ABSENT").replace(/[^\x20-\x7e]/g, "").slice(0, 120)}`);
-    console.log(`SUBMIT_RESPONSE_LENGTH=${Buffer.byteLength(submitHtml, "utf8")}`);
-    const errorMatch = submitHtml.match(/(?:error|invalid|declin\w*|fail\w*)[^<]{0,160}/i);
-    console.log(`SUBMIT_ERROR_MARKER=${errorMatch ? errorMatch[0].replace(/[^\x20-\x7e]/g, "").trim() : "ABSENT"}`);
-    const txnMatch = submitHtml.match(/(?:TransactionId|TxnId|Transaction Reference)[^0-9A-Za-z]{0,5}([A-Za-z0-9-]{4,40})/i);
-    console.log(`SUBMIT_TRANSACTION_ID=${txnMatch ? txnMatch[1] : "ABSENT"}`);
-  }
-
-  // 5. Bank-side OrderStatus (authoritative check -- never trust the redirect alone).
-  const statusResponse = await fetch(
-    `${env.BANK_ALFALAH_APG_BASE_URL}/HS/api/IPN/OrderStatus/${encodeURIComponent(env.BANK_ALFALAH_APG_MERCHANT_ID!)}/${encodeURIComponent(env.BANK_ALFALAH_APG_STORE_ID!)}/${encodeURIComponent(orderId)}`,
-    { method: "GET", headers: { accept: "application/json" } }
-  );
-  const statusBody = await statusResponse.json().catch(() => null) as Record<string, unknown> | null;
-  console.log(`ORDERSTATUS_HTTP_STATUS=${statusResponse.status}`);
-  console.log(`ORDERSTATUS_RESPONSE_CODE=${String(statusBody?.ResponseCode ?? "ABSENT")}`);
-  console.log(`ORDERSTATUS_TRANSACTION_STATUS=${String(statusBody?.TransactionStatus ?? "ABSENT")}`);
-  console.log(`ORDERSTATUS_TRANSACTION_ID=${String(statusBody?.TransactionId ?? "ABSENT")}`);
 }
 
-void main();
+void main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`UAT_ERROR=${message.replace(/[\r\n]+/g, " ").slice(0, 240)}`);
+  process.exitCode = 1;
+});

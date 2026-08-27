@@ -31,10 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      BANK_ALFALAH_PROVIDER: none
+      BANK_ALFALAH_APG_ENABLED: "false"
+      BANK_ALFALAH_MPGS_ENABLED: "false"
       BANK_ALFALAH_APG_BASE_URL: https://sandbox.bankalfalah.com
       BANK_ALFALAH_APG_RETURN_URL: https://api.thannow.com/api/payments/bank-alfalah/return
       BANK_ALFALAH_APG_SSO_CURRENCY: PKR
-      BANK_ALFALAH_APG_SSO_TRANSACTION_TYPE_ID: "3"
       BANK_ALFALAH_APG_SSO_AMOUNT: "1"
       BANK_ALFALAH_APG_MERCHANT_ID: ${{ secrets.APG_MERCHANT_ID }}
       BANK_ALFALAH_APG_STORE_ID: ${{ secrets.STORE_ID }}
@@ -64,6 +66,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
+
+      - name: Install sandbox browser
+        run: npx --no-install playwright install --with-deps chromium
 
       - name: Run sandbox UAT for selected mode
         run: npx --no-install tsx scripts/bank-alfalah-apg-hosted-checkout-uat.ts
