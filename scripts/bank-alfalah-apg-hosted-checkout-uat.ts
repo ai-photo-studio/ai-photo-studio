@@ -326,11 +326,17 @@ async function main(): Promise<void> {
 
     const page = await context.newPage();
     const bankPosts: string[] = [];
-    page.on("response", (response) => {
+    const bankValidationResults: string[] = [];
+    page.on("response", async (response) => {
       if (response.request().method() !== "POST") return;
       const responseUrl = new URL(response.url());
       if (!responseUrl.hostname.endsWith("bankalfalah.com")) return;
       bankPosts.push(`${response.status()}:${responseUrl.pathname}`);
+      if (!/CheckLuhnsAlgo|CheckExpiryYear/.test(responseUrl.pathname)) return;
+      const result = sanitizeRuntimeText(await response.text().catch(() => "UNREADABLE"))
+        .replace(/[^\x20-\x7e]/g, "")
+        .slice(0, 100);
+      bankValidationResults.push(`${responseUrl.pathname.split("/").pop()}:${response.status()}:${result || "EMPTY"}`);
     });
     await page.goto(new URL(hostedLocation, ssoUrl).toString(), { waitUntil: "domcontentloaded" });
     await page.waitForURL(/bankalfalah\.com\/Payments\/Payments\/Create/i, { timeout: 30_000 });
@@ -367,6 +373,7 @@ async function main(): Promise<void> {
       await page.waitForTimeout(3_000);
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
       console.log(`PAYMENT_STAGE_${stage}_BANK_POSTS=${bankPosts.join(",") || "ABSENT"}`);
+      console.log(`PAYMENT_STAGE_${stage}_BANK_VALIDATORS=${bankValidationResults.join(",") || "ABSENT"}`);
       const errorText = await visibleErrorText(page);
       console.log(`PAYMENT_STAGE_${stage}_ERROR_TEXT=${errorText || "ABSENT"}`);
       console.log(`PAYMENT_STAGE_${stage}_PAGE_MARKER=${await paymentPageMarker(page) || "ABSENT"}`);
