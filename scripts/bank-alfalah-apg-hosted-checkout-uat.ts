@@ -66,7 +66,11 @@ function sanitizeRuntimeText(input: string): string {
   for (const value of Object.values(process.env)) {
     if (value && value.length >= 4) output = output.split(value).join("[REDACTED]");
   }
-  return output.replace(/https?:\/\/\S+/gi, "[URL]").replace(/[\r\n]+/g, " ");
+  return output
+    .replace(/https?:\/\/\S+/gi, "[URL]")
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[EMAIL]")
+    .replace(/\b\d{7,}\b/g, "[NUMBER]")
+    .replace(/[\r\n]+/g, " ");
 }
 
 function findValue(body: Record<string, unknown>, name: string): string {
@@ -164,8 +168,10 @@ async function visibleContract(page: Page): Promise<string> {
     .map((element) => {
       const field = element as HTMLInputElement;
       const name = field.name || "unnamed";
+      const onclick = element.getAttribute("onclick") || "";
+      const handler = onclick.match(/[A-Za-z_$][\w$]*(?=\s*\()/)?.[0] || (onclick ? "inline" : "bound");
       const label = element.tagName === "BUTTON" || field.type === "submit" || field.type === "button"
-        ? `${element.tagName.toLowerCase()}-${field.type || "button"}:${(field.value || element.textContent || "button").trim().replace(/\s+/g, " ").slice(0, 40)}`
+        ? `${element.tagName.toLowerCase()}-${field.type || "button"}#${element.id || "unnamed"}@${handler}:${(field.value || element.textContent || "button").trim().replace(/\s+/g, " ").slice(0, 40)}`
         : element.tagName.toLowerCase();
       return `${name}:${label}`;
     })
@@ -196,6 +202,16 @@ async function visibleErrorText(page: Page): Promise<string> {
     .filter(Boolean)
     .join(" | "));
   return sanitizeRuntimeText(raw).replace(/[^\x20-\x7e]/g, "").slice(0, 200);
+}
+
+async function paymentPageMarker(page: Page): Promise<string> {
+  const bodyText = await page.locator("body").innerText();
+  const marker = bodyText.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /invalid|required|error|fail|please|mobile|email|wallet|account|card/i.test(line))
+    .slice(-8)
+    .join(" | ");
+  return sanitizeRuntimeText(marker).replace(/[^\x20-\x7e]/g, "").slice(0, 300);
 }
 
 async function advancePayment(page: Page): Promise<boolean> {
@@ -335,6 +351,7 @@ async function main(): Promise<void> {
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
       console.log(`PAYMENT_STAGE_${stage}_BANK_POSTS=${bankPosts.join(",") || "ABSENT"}`);
       console.log(`PAYMENT_STAGE_${stage}_ERROR_TEXT=${await visibleErrorText(page) || "ABSENT"}`);
+      console.log(`PAYMENT_STAGE_${stage}_PAGE_MARKER=${await paymentPageMarker(page) || "ABSENT"}`);
     }
 
     const finalUrl = new URL(page.url());
