@@ -1,11 +1,10 @@
 /**
  * R9.2-P4C-LEGACY-APG-RETIREMENT-SCAN
  *
- * Proves the legacy "Alfa APG v1.1" Bank Alfalah protocol (sandbox host,
- * /HS/ endpoints, Store ID/Key1/Key2/HS_* fields) has zero ACTIVE hits
- * anywhere in the repository. Historical evidence docs that carry an
- * explicit "SUPERSEDED_BY_MPGS" banner are allowed to keep the retired
- * identifiers as a historical record; everything else must be clean.
+ * Proves Alfa APG identifiers remain confined to the explicitly approved
+ * ThanNow Channel 1001 integration and historical evidence. MPGS retirement
+ * language was superseded when the Bank-confirmed APG flow was reactivated;
+ * unrelated source still must not introduce a second APG implementation.
  *
  *   npx tsx --test src/services/p4c-bank-alfalah-legacy-apg-retired.test.ts
  */
@@ -39,7 +38,11 @@ const EXCLUDED_FILES = new Set<string>([
   "apps/api/src/config/env.ts",
   "apps/api/src/config/bank-alfalah-apg-env.test.ts",
   "scripts/bank-alfalah-apg-sandbox-readiness.ts",
+  "scripts/bank-alfalah-apg-hosted-checkout-recon.ts",
+  "scripts/bank-alfalah-apg-hosted-checkout-uat.ts",
   ".github/workflows/bank-alfalah-apg-sandbox-readiness.yml",
+  ".github/workflows/bank-alfalah-apg-hosted-checkout-recon.yml",
+  ".github/workflows/bank-alfalah-apg-hosted-checkout-uat.yml",
   "docs/payments/R9_2_APG_REQUIREMENTS_MATRIX.md",
   "docs/payments/R9_2_APG_URL_INGRESS_PROTOCOL.md",
   "rules.md",
@@ -97,7 +100,7 @@ function hasSupersededBanner(content: string): boolean {
 
 const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".md", ".json", ".env", ".yml", ".yaml", ".sql", ".txt", ""]);
 
-test("legacy Alfa APG v1.1 identifiers have zero active hits outside excluded/superseded locations", () => {
+test("Alfa APG identifiers are confined to approved integration and evidence files", () => {
   const hits: Array<{ file: string; label: string }> = [];
 
   for (const file of walk(REPO_ROOT)) {
