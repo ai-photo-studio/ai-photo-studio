@@ -52,6 +52,15 @@ function extractFormContract(html: string): string {
   const selects = [...html.matchAll(/<select\b[^>]*name=["']([^"']*)["'][^>]*>/gi)].map((m) => `${m[1]}:select`);
   const buttons = [...html.matchAll(/<button\b[^>]*name=["']([^"']*)["'][^>]*>/gi)].map((m) => `${m[1]}:button`);
   lines.push(`INPUT_FIELDS=${[...new Set([...inputs, ...selects, ...buttons])].sort().join(",") || "ABSENT"}`);
+
+  // Select-element OPTION values are UI mode codes (e.g. payment-type
+  // 1/2/3), not customer/financial data -- safe to print in full.
+  for (const selectMatch of html.matchAll(/<select\b[^>]*name=["']([^"']*)["'][^>]*>([\s\S]*?)<\/select>/gi)) {
+    const [, name, inner] = selectMatch;
+    const options = [...inner.matchAll(/<option\b[^>]*value=["']([^"']*)["'][^>]*>([^<]*)</gi)]
+      .map(([, value, text]) => `${value}=${text.trim().replace(/[^\x20-\x7e]/g, "").slice(0, 40)}`);
+    lines.push(`SELECT_OPTIONS[${name}]=${options.join("|") || "ABSENT"}`);
+  }
   return lines.join("\n");
 }
 
