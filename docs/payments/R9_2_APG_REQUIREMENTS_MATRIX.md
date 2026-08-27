@@ -29,6 +29,46 @@ implementation remains
 | Go-live procedure | `AWAITING_BANK_CONFIRMATION` | UAT → production activation steps not documented anywhere |
 | Payment mutation | **SERVER-VERIFIED PATH; IPN SUPPLEMENTARY** | APG OrderStatus verification can emit P4A evidence only after exact merchant/store/order/amount/explicit currency/Paid matching; browser Return is non-authoritative. The official guide presents configured IPN as an alternative to direct OrderStatus, so IPN may remain supplementary and inert while callback auth/ack rules are unresolved |
 
+## 2026-08-27 merchant portal + official PDF review (instrument profile blocker confirmed)
+
+Read the previously-unread `BAF/APG Merchant Integration Guide v1.1.pdf` in
+full and inspected the authenticated Merchant Portal (Documentation >
+Getting Started, Integration > API Testing, Integration > Page Redirection
+Testing) for this exact merchant/store profile.
+
+1. **`HS_IsRedirectionRequest` resolved definitively, no remaining doubt.**
+   The PDF's own parameter table (p.7) states explicitly: `0` = "redirect
+   customers on a page where merchants will get authentication token" (a
+   separate handshake step then a separate SSO POST — exactly ThanNow's
+   implemented flow); `1` = "handle the authentication token on the same
+   page" (an AJAX/same-page variant). **`0` is the correct, spec-documented
+   value for ThanNow's Page Redirection flow** — the portal's own
+   `PageRedirectionTesting` demo widget merely *defaults* its sample HTML
+   to `1` because that widget demonstrates the alternate same-page mode;
+   this is not evidence against `0`. This fully corroborates both the
+   Bank's earlier direct chat confirmation and the live `AuthToken`-success
+   proof already on record. No further action needed on this field.
+2. **No sandbox test Wallet/Account/Card instrument values exist in any
+   official source.** The PDF's only account-shaped example is inside a
+   generic *response* sample (`AccountNumber = "930003331234567"` under a
+   fabricated `TransactionId`/`OrderDateTime` from 2019 documentation
+   boilerplate, not a real usable sandbox value) — it documents response
+   *shape*, not usable *input* test data. The Merchant Portal's
+   Documentation and Integration pages likewise contain no "Sample Data
+   For Testing" section for Wallet/Account/Card numbers, OTP, or card test
+   PAN/expiry. Per this task's own instruction, 18 more blind attempts were
+   not made. Classification stands as
+   `BANK_SANDBOX_INSTRUMENT_PROFILE_ACTION_REQUIRED`: the owner-supplied
+   instrument values (Wallet, Account, Card PAN 5440...) were reasonable
+   guesses, not Bank-confirmed sandbox test data, and no document/portal
+   page supplies the real ones. This is a Bank-side gap, not a ThanNow
+   app defect — the earlier proven `HS1001->AuthToken->SSO->hosted page`
+   pipeline is unaffected and remains correct.
+
+Merchant/store/hash/username/password values visible in portal
+textboxes/PDF samples during this review were not recorded, copied, or
+committed anywhere.
+
 ## 2026-08-27 full hosted checkout UAT final result
 
 The prior missing-instrument and direct-HS blockers are superseded. Final

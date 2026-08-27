@@ -2,46 +2,62 @@
 
 Status: **DRAFT — DO NOT SEND**
 
-**Subject:** ThanNow APG sandbox HS1001 enablement and callback registration
+**Subject:** ThanNow APG sandbox — valid test instruments needed to complete UAT
 
 Hello Bank Alfalah Support,
 
-ThanNow has completed its local Alfa Payment Gateway sandbox integration for
-the configured merchant profile. Please enable and confirm the following for
-the merchant and store identifiers already supplied through our secure channel:
+ThanNow's direct HS1001 Page Redirection integration is now working end to
+end for our merchant/store profile: Handshake returns a valid `AuthToken`,
+and the SSO redirect correctly lands on the hosted checkout page
+(`PaymentTypeId` 1/2/3/empty all reach the page).
 
-- Direct HS1001 hosted-payment-page access for the sandbox merchant/store identifiers.
-- Registration/whitelisting of our Return URL:
-  `https://api.thannow.com/api/payments/bank-alfalah/return`
-- Registration/whitelisting of our Listener/IPN URL:
-  `https://api.thannow.com/api/payments/bank-alfalah/ipn`
-- Exact RequestHash input order, encoding, encryption, and delimiter contract.
-- IPN authentication/signature requirements.
-- Required IPN acknowledgement response, status code, and retry/duplicate behavior.
-- Allowed sandbox OrderStatus host/path and required authentication fields.
-- Sandbox refund/void procedure.
-- Settlement/reconciliation and sandbox-to-production go-live procedure.
-- Whether `AccountNumber`, `Country`, and `EmailAddress` are required fields
-  on the `DoTran` transaction request, and if so their exact format.
-- Whether the documented `ProcessTran`/OTP step (SMS/Email OTAC, OTP,
-  `HashKey`) is required for our transaction type, and if so its exact
-  field order/hash contract.
+We are unable to complete a successful sandbox payment because we don't have
+valid sandbox test instruments. Please provide:
 
-Our website is `https://thannow.com` and the frontend return landing page is
-`https://thannow.com/payment/return`.
+- A valid sandbox **Alfa Wallet** number for our merchant/store, with any
+  required test mobile number/OTP.
+- A valid sandbox **Alfalah Bank Account** number for our merchant/store,
+  with any required test mobile number/OTP.
+- A valid sandbox **Credit/Debit/Prepaid Card** test PAN, with the exact
+  expected expiry format and CVV, and which `CardTypeId` it corresponds to.
+- Confirmation of which payment modes (Wallet / Account / Card / others)
+  are currently enabled for our merchant/store in sandbox.
+- Confirmation that a successful sandbox `OrderStatus` response includes an
+  explicit `Currency` field (our verification logic requires an exact
+  currency match before treating anything as paid, and we want to confirm
+  this against a real successful response rather than assume it).
 
-Our single sanitized sandbox test produced:
+The values we attempted (from general integration testing conventions, not
+Bank-confirmed) were rejected: Wallet and Account as "Invalid Account", and
+the Card PAN/expiry were rejected by the hosted page's own validator before
+a transaction was created. No transaction was created, no OTP was
+requested, and no charge occurred at any point.
 
-- HS1001 RequestHash generation: successful
-- HTTP response: `200`
-- Response status: `PAYMENT_UNAVAILABLE`
-- AuthToken: absent
-- Retries: zero
-- Transaction/charge: zero
+Our Return URL is `https://api.thannow.com/api/payments/bank-alfalah/return`,
+our frontend return landing page is `https://thannow.com/payment/return`,
+and our website is `https://thannow.com`.
 
-Please confirm the required enablement or provide the exact server-side
-contract/fields needed for direct HS1001 access. No production payment or
-charge is enabled.
+No production payment or charge is enabled. `BANK_ALFALAH_APG_ENABLED`
+remains `false` in production.
 
 Regards,
 ThanNow Engineering
+
+---
+
+## Superseded prior draft (kept for history, do not send)
+
+The original draft below asked for HS1001 direct-access enablement — this
+is now resolved (proven live, `HS_ChannelId=1001`,
+`HS_IsRedirectionRequest=0` per the official Merchant Integration Guide
+v1.1 p.7) and is no longer the blocker.
+
+- Direct HS1001 hosted-payment-page access — **RESOLVED**, live-proven.
+- Return/Listener URL registration — already defined and reachable.
+- RequestHash order/encoding — still open in principle but not blocking
+  (HS1001/SSO already succeed with the current implementation).
+- IPN authentication/acknowledgement — still open; IPN remains
+  supplementary to direct OrderStatus per the official guide, which
+  presents OrderStatus polling as the primary, complete mechanism.
+- `DoTran`/`ProcessTran` API-1002 fields — not applicable; ThanNow uses
+  Page Redirection (Channel 1001) only, per this project's protected scope.

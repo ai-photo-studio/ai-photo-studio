@@ -4148,3 +4148,30 @@ remains in force verbatim.
   revised status contract). Then rerun the same four workflows. Production
   stays `BANK_ALFALAH_PROVIDER=none`, `BANK_ALFALAH_APG_ENABLED=false`, and
   `BANK_ALFALAH_MPGS_ENABLED=false`.
+
+### R9.3-APG-SANDBOX-INSTRUMENT-RESOLUTION (2026-08-27) — official PDF + portal review, no app defect found
+
+- Read the previously-unread `BAF/APG Merchant Integration Guide v1.1.pdf`
+  in full and inspected the authenticated Merchant Portal (Documentation,
+  API Testing, Page Redirection Testing) for the ThanNow merchant/store
+  profile, using the owner's already-authenticated browser session — no
+  automated/scripted portal login was performed or attempted.
+- `HS_IsRedirectionRequest=0` is **definitively confirmed correct** by the
+  guide's own parameter table (p.7): `0` = separate handshake-then-SSO
+  (ThanNow's exact flow), `1` = same-page AJAX handshake (a different
+  mode). The Page Redirection Testing page's demo widget defaults its
+  sample HTML to `1` only because it demonstrates that alternate mode —
+  this is not counter-evidence. This closes out any doubt raised by that
+  widget; no code or config change resulted.
+- No official source (PDF or portal) publishes usable sandbox test Wallet/
+  Account/Card instrument values — only response-shape examples exist
+  (e.g. a documentation-boilerplate `AccountNumber` inside a sample
+  `OrderStatus` response, not a usable input value). Per this task's own
+  instruction, no further blind submission attempts were made.
+  `BANK_SANDBOX_INSTRUMENT_PROFILE_ACTION_REQUIRED` stands; this is
+  confirmed as a Bank-side data gap, not a ThanNow application defect.
+  `docs/payments/R9_2_APG_BANK_ENABLEMENT_EMAIL_DRAFT.md` was rewritten to
+  ask precisely for valid sandbox Wallet/Account/Card test data and mode
+  enablement confirmation (still DRAFT — DO NOT SEND).
+- No merchant credential value observed in the portal UI or PDF was
+  recorded, copied, printed, or committed.
