@@ -78,6 +78,29 @@ jobs:
           curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
             "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}/logs?limit=200"
 
+      - name: All services in project (status/instances only)
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- services (id/instances/type only) ---"
+          curl --silent -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services" \
+            | jq -c '.data.services[]? | {id, serviceType, instances: .deployment.instances}' 2>/dev/null || echo "(unable to parse)"
+
+      - name: Addons in project (status/instances only)
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- addons ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/addons"
+
       - name: Runtime environment (keys only)
         env:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
