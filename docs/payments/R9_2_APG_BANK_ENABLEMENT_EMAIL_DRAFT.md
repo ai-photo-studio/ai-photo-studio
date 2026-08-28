@@ -2,9 +2,10 @@
 
 Status: **READY_TO_SEND — awaiting owner authorization to send**
 
-Last refreshed with live evidence: 2026-08-28 (R9.5-APG-FINAL-SANDBOX-UAT),
+Last refreshed with live evidence: 2026-08-28 (R9.6-APG-BANK-ESCALATION-FREEZE),
 against fully recovered ThanNow runtime (API/DB/Redis all healthy,
-`api.thannow.com/api/version` build SHA `e411ccd6...`).
+`api.thannow.com/api/version` build SHA `e411ccd6...`). Application
+implementation is now frozen — no further code changes pending Bank response.
 
 **Subject:** ThanNow (Store 567249) — Bank-published sandbox test data rejected
 
@@ -24,12 +25,14 @@ Dashboard ("Sample Data For Testing" section, Store `ThanNow`) — not
 placeholder or invented values — and every payment mode was rejected,
 reconfirmed today with fresh transactions:
 
-- **Alfa Wallet** (published sample number): transaction created
-  (`TransactionId 301954137241`), Bank responded `Invalid Account`.
-  Authoritative `OrderStatus` confirmed `TransactionStatus=Failed`.
-- **Alfalah Account** (published sample number): transaction created
-  (`TransactionId 302795473632`), same outcome —`Invalid Account`,
-  `OrderStatus` confirmed `TransactionStatus=Failed`.
+- **Alfa Wallet** (published sample number): two transactions created
+  on separate dates (`TransactionId 301954137241`, `443330289493`), Bank
+  responded `Invalid Account` both times. Authoritative `OrderStatus`
+  confirmed `TransactionStatus=Failed`.
+- **Alfalah Account** (published sample number): two transactions created
+  on separate dates (`TransactionId 302795473632`, `446691489639`), same
+  outcome — `Invalid Account`, `OrderStatus` confirmed
+  `TransactionStatus=Failed`.
 - **Credit/Debit Card** (published sample PAN/expiry/CVV): the hosted
   page's own client-side validator (`CheckLuhnsAlgo` /
   `CheckExpiryYear`) rejects the published card number before a
@@ -41,23 +44,24 @@ reconfirmed today with fresh transactions:
 
 Could you please confirm:
 
-1. Whether Alfa Wallet, Alfalah Account, and Credit/Debit Card payment
-   modes are currently **enabled** for Store `567249` (ThanNow) — we
-   could not find a per-mode enablement indicator in the Merchant
-   Portal.
-2. If the published sample data should work for our store, why it is
-   being rejected — or, if it is generic/shared data not valid for our
-   specific store profile, the correct store-compatible sandbox Wallet,
+a. Alfa Wallet is enabled for our Merchant/Store `567249`.
+b. Alfalah Account is enabled for our Merchant/Store `567249`.
+c. Credit/Debit Card is enabled for our Merchant/Store `567249`.
+d. Why the Bank portal's published Wallet and Account test data returns
+   `Invalid Account` for our store profile.
+e. Why the Bank portal's published Card test data is rejected by your
+   own hosted-page validator before a transaction is even created.
+f. If the generic published samples are not valid for our specific
+   store, the working Store `567249`-compatible sandbox Wallet,
    Account, and Card values.
-3. The exact expected input format for the Card fields (expiry as
-   separate month/year vs. combined, any other formatting requirement)
-   given that the published sample fails your own hosted page's
-   client-side Luhn/expiry check.
-4. That a successful sandbox `OrderStatus` response includes an
-   explicit `Currency` field — our verification logic requires an exact
-   currency match (`PKR`) before treating any transaction as paid, and
-   every response so far has omitted `Currency` entirely.
-5. The production onboarding steps required once sandbox UAT passes
+g. The exact accepted Card expiry/input format, given that the
+   published sample fails your own hosted page's client-side
+   Luhn/expiry check.
+h. That a successful sandbox `OrderStatus` response contract includes
+   an explicit `Currency` field — our verification logic requires an
+   exact currency match (`PKR`) before treating any transaction as
+   paid, and every response so far has omitted `Currency` entirely.
+i. The production activation steps required once sandbox UAT passes
    (any additional enablement, credentials, or Bank-side sign-off
    needed before we may set `BANK_ALFALAH_APG_ENABLED=true` in
    production).
@@ -87,3 +91,6 @@ ThanNow Engineering
 - 2026-08-27 draft — superseded by the 2026-08-28 refresh above, which adds
   transaction IDs, the Card client-side-validator finding, and the
   production-onboarding question.
+- 2026-08-28 R9.5 refresh — superseded by the R9.6 freeze refresh above,
+  which restructures the questions to the exact a-i list and adds the
+  second Wallet/Account transaction IDs (`443330289493`, `446691489639`).

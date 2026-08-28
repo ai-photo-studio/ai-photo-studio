@@ -1,10 +1,18 @@
 # R9.2 APG URL Ingress Protocol
 
-Status: **URL foundation plus fixture-backed APG checkout/status adapter. Live
-hosted-page enablement and IPN authentication/acknowledgement remain blocked.**
-MPGS remains commercially frozen (`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`). No live bank request, APG
-activation, production deployment, or payment success simulation was made
-by this packet.
+Status: **SUPERSEDED for the "live hosted-page enablement" claim below — see
+`docs/payments/R9_5_APG_FINAL_SANDBOX_UAT_RESULTS.md` and
+`docs/payments/R9_2_APG_SANDBOX_UAT_CHECKLIST.md`. HS1001 -> AuthToken -> SSO
+-> hosted Bank checkout page is live-proven in sandbox (2026-08-27,
+reconfirmed 2026-08-28); the only remaining blocker is the Bank rejecting the
+published sandbox Wallet/Account/Card instruments. IPN
+authentication/acknowledgement remains genuinely unresolved and is
+supplementary to the authoritative server-side OrderStatus verification
+already implemented in `verifyAndApplyOrderStatus`.**
+The rest of this document (URL foundation, SSRF prevention, contract checks)
+is unchanged and still accurate. MPGS remains commercially frozen
+(`MPGS_STATUS = "MPGS_COMMERCIAL_HOLD"`). No live bank charge, MPGS
+activation, or production deployment was made by this packet.
 
 ## R9.5-P6B BAF/APG reconciliation (2026-08-11)
 

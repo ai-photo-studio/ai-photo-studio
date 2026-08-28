@@ -1,11 +1,17 @@
 # R9.2 Bank Alfalah APG Sandbox UAT Checklist
 
-Status: **EXECUTED — BANK INSTRUMENT/PROFILE ACTION REQUIRED (2026-08-27).**
-HS1001, AuthToken, SSO, hosted checkout, Wallet/Account submission, Card
-validation, All Modes selection, and OrderStatus were exercised in sandbox.
-No successful payment occurred: Bank rejected Wallet/Account as Invalid Account
-and rejected Card PAN/expiry before transaction creation. See
-`R9_2_APG_REQUIREMENTS_MATRIX.md` for final run IDs and sanitized results.
+Status: **EXECUTED — BANK INSTRUMENT/PROFILE ACTION REQUIRED (reconfirmed
+2026-08-28, R9.6 freeze).** HS1001, AuthToken, SSO, hosted checkout,
+Wallet/Account submission, Card validation, All Modes selection, and
+OrderStatus were exercised in sandbox on both 2026-08-27 and 2026-08-28.
+No successful payment occurred: Bank rejected Wallet (transactions
+`301954137241`, `443330289493`) and Account (transactions `302795473632`,
+`446691489639`) as `Invalid Account`, and rejected Card PAN/expiry via its
+own hosted-page client-side validator before transaction creation. Classified
+`BANK_PUBLISHED_SAMPLE_REJECTED_FOR_STORE_PROFILE`. Application code is
+frozen — do not rerun the same rejected instruments again without new Bank
+evidence. See `R9_2_APG_REQUIREMENTS_MATRIX.md` and
+`R9_5_APG_FINAL_SANDBOX_UAT_RESULTS.md` for full sanitized results.
 `BANK_ALFALAH_PROVIDER` must stay `none` and `BANK_ALFALAH_APG_ENABLED` must
 stay `false` in production until every case below has passed in sandbox and
 the owner has approved go-live.

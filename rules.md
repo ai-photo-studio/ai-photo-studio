@@ -4205,3 +4205,66 @@ remains in force verbatim.
 - No code change: no evidence of an application defect exists — the
   rejection is Bank-side (either store-profile data mismatch or mode not
   enabled). No merchant credential value was recorded or committed.
+
+### R9.6-APG-BANK-ESCALATION-FREEZE (2026-08-28) — application implementation FROZEN, protected protocol locked
+
+- Northflank runtime recovered same day (`docs/deployment/R9_4_NORTHFLANK_RUNTIME_RECOVERY.md`):
+  API/DB/Redis all green. Final sandbox UAT re-run against the healthy
+  runtime (`docs/payments/R9_5_APG_FINAL_SANDBOX_UAT_RESULTS.md`) reconfirmed
+  HS1001/AuthToken/SSO with fresh transactions and, separately, fixed a
+  test-script typing defect (not application code) that had left the Card
+  form's masked fields unfilled on one run.
+- **Application implementation is now FROZEN.** No further code changes to
+  the APG integration are authorized until the Bank responds with new
+  evidence (a profile fix, corrected sandbox instruments, or new portal
+  guidance). This is a Bank-side blocker only:
+  `BANK_PUBLISHED_SAMPLE_REJECTED_FOR_STORE_PROFILE`.
+- **Protected protocol — do not drift back to any of the following for
+  ThanNow's customer checkout flow, regardless of what future generic
+  portal HTML, examples, or partial memory suggest:**
+  - `HS_ChannelId=1002` / API-channel handshake, `DoTran`, `ProcessTran` —
+    these are the alternate, non-Page-Redirection Bank flow. ThanNow's
+    checkout uses **only** `HS_ChannelId=1001` Page Redirection
+    (`initiateRedirectionHandshake` + `buildSsoRedirect`, both hardcoded to
+    `"1001"` in `bank-alfalah-apg-gateway.service.ts`). `initiateHandshake`/
+    `createTransaction` (the 1002/DoTran path) exist in the same file as
+    reference/alternative code only and are never called from
+    `customer-checkout.service.ts`.
+  - `HS_IsRedirectionRequest=1` — Bank support directly instructed `=0`,
+    and the live sandbox proves `=0` works end to end (HS1001 -> real
+    `AuthToken` -> SSO -> hosted Bank page, every run). Generic Page
+    Redirection Testing demo widget HTML defaulting to `1` is not
+    counter-evidence (see R9.3-APG-SANDBOX-INSTRUMENT-RESOLUTION above) —
+    do not "fix" this back to `1`.
+  - Hoja Apps Script and MPGS — MPGS stays commercially frozen
+    (`BANK_ALFALAH_MPGS_ENABLED=false`); Hoja Apps Script was never part of
+    this integration and must not be introduced.
+- Reconfirmed proven end to end, unchanged since R9.3/R9.5: `HS_ChannelId=1001`,
+  `HS_IsRedirectionRequest=0`, `TransactionTypeId` mapping (`1`=Alfa Wallet,
+  `2`=Alfalah Account, `3`=Credit/Debit Card, empty=All Modes), `PKR`
+  currency, browser Return is non-authoritative (never marks PAID, no query
+  parameter trusted), `GET /api/monitoring/queue`-style server-side
+  `verifyAndApplyOrderStatus` -> `applyVerifiedPaymentEvidence` in
+  `customer-checkout.service.ts` is the **only** path that can mark a
+  `PaymentAttempt` PAID (exact merchant/store/order/amount/currency match,
+  one DB transaction, idempotent), IPN is supplementary and fails closed
+  (`503 APG_DISABLED` while disabled, `400` for any unapproved callback
+  `url`), and production flags stay `BANK_ALFALAH_PROVIDER=none`,
+  `BANK_ALFALAH_APG_ENABLED=false`, `BANK_ALFALAH_MPGS_ENABLED=false`
+  (structurally enforced in `apps/api/src/config/env.ts` — APG cannot be
+  enabled in production even if the flag were flipped).
+- New sandbox transaction evidence this session (all `Invalid Account` /
+  Failed, no PAID transaction exists yet): Wallet `301954137241`,
+  `443330289493`; Account `302795473632`, `446691489639`; Card — no
+  transaction ID issued, rejected by the hosted page's own client-side
+  Luhn/expiry validator before creation. No blind retry of these same
+  instruments was performed this session per the task's own instruction.
+- Bank escalation email finalized with this evidence and kept
+  `READY_TO_SEND` (`docs/payments/R9_2_APG_BANK_ENABLEMENT_EMAIL_DRAFT.md`)
+  — not sent; owner authorization to send is not present in this task.
+- Resume path when the Bank responds: dispatch the existing
+  `bank-alfalah-apg-hosted-checkout-uat.yml` GitHub Actions workflow (mode
+  `wallet`/`account`/`card`/`all`) with the corrected sandbox instruments
+  stored as repo secrets — never hardcoded into source. No new workflow was
+  needed; it already accepts secure secret injection and never logs
+  credentials, AES keys, hashes, or `AuthToken`.
