@@ -1,0 +1,66 @@
+name: Northflank Scale Repair
+
+# R9.4-NORTHFLANK-RUNTIME-RECOVERY: proven root cause is that the
+# ai-photo-studio Northflank service's deployment.instances is stuck
+# at 0 (scaled to zero / paused-equivalent state), so no container is
+# running and the public LB returns 503 for every request. This
+# workflow performs the smallest repair: resume the service to 1
+# instance, falling back to a direct PATCH if it was not in a
+# "paused" state. Never prints a secret value.
+
+on:
+  workflow_dispatch: {}
+
+env:
+  NF_PROJECT_ID: ai-photo-studio
+  NF_SERVICE_ID: ai-photo-studio
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    name: Resume/scale service to 1 instance
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - name: Resume service (scale to 1 instance)
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- resume ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -X POST \
+            -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data '{"instances":1}' \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}/resume"
+
+      - name: Fallback - PATCH service instances directly
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- patch instances ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -X PATCH \
+            -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data '{"deployment":{"instances":1}}' \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}"
+
+      - name: Confirm service detail after repair
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- service detail after repair ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}" \
+            | jq -c '{instances: .data.deployment.instances, deployedSHA: .data.deployment.internal.deployedSHA, buildStatus: .data.status.build.status}' 2>/dev/null || echo "(unable to parse)"
