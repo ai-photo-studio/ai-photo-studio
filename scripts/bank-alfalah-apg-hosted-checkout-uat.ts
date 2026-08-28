@@ -93,6 +93,15 @@ async function fillVisible(locator: Locator, value: string): Promise<boolean> {
   await input.fill(value);
   await input.dispatchEvent("change");
   await input.evaluate((element: HTMLInputElement) => element.blur());
+  if (await input.inputValue() === "") {
+    // Some hosted-page fields run an input-mask that only reacts to real
+    // keystrokes and silently clears a programmatic .fill(). Retry by
+    // typing character-by-character so the mask sees genuine key events.
+    await input.fill("");
+    await input.pressSequentially(value, { delay: 20 });
+    await input.dispatchEvent("change");
+    await input.evaluate((element: HTMLInputElement) => element.blur());
+  }
   return true;
 }
 
