@@ -1,0 +1,91 @@
+name: Northflank Forensic Diagnostic (read-only)
+
+# R9.4-NORTHFLANK-RUNTIME-RECOVERY: read-only inspection of the
+# ai-photo-studio Northflank service (status, deployments, events,
+# runtime logs) to determine the exact cause of a persistent public
+# 503. Never creates, modifies, or deletes anything. Never prints a
+# secret value.
+
+on:
+  workflow_dispatch: {}
+
+env:
+  NF_PROJECT_ID: ai-photo-studio
+  NF_SERVICE_ID: ai-photo-studio
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Inspect Northflank service state
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - name: Service detail
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- service detail ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}"
+
+      - name: Deployments list
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- deployments ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}/deployments"
+
+      - name: Builds list
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- builds ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}/builds"
+
+      - name: Events
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- events ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}/events"
+
+      - name: Runtime logs
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- logs ---"
+          curl --silent -w "\nHTTP_STATUS=%{http_code}\n" -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}/logs?limit=200"
+
+      - name: Runtime environment (keys only)
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "::add-mask::${NORTHFLANK_API_KEY}"
+          echo "--- runtime env (values redacted client-side by jq keys-only) ---"
+          curl --silent -H "Authorization: Bearer ${NORTHFLANK_API_KEY}" \
+            "https://api.northflank.com/v1/projects/${NF_PROJECT_ID}/services/${NF_SERVICE_ID}" \
+            | jq -r '.data.runtimeEnvironment // {} | keys[]?' 2>/dev/null || echo "(unable to parse env keys)"
