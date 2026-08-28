@@ -2,17 +2,18 @@
 
 Status: **READY_TO_SEND — awaiting owner authorization to send**
 
-Last refreshed with live evidence: 2026-08-28 (R9.6-APG-BANK-ESCALATION-FREEZE),
-against fully recovered ThanNow runtime (API/DB/Redis all healthy,
+Last refreshed 2026-08-28 (R9.7-APG-BANK-RESPONSE-WAIT), against fully
+recovered ThanNow runtime (API/DB/Redis all healthy,
 `api.thannow.com/api/version` build SHA `e411ccd6...`). Application
-implementation is now frozen — no further code changes pending Bank response.
+implementation remains frozen — no further code changes pending Bank
+response. No new sandbox calls made this session (no new Bank evidence).
 
-**Subject:** ThanNow (Store 567249) — Bank-published sandbox test data rejected
+**Subject:** ThanNow (Merchant 15248 / Store 567249) — Bank-published sandbox test data rejected
 
 Hello Bank Alfalah Support,
 
 ThanNow's direct HS1001 Page Redirection integration is working end to end
-for our merchant/store profile:
+for our Merchant `15248` / Store `567249` profile:
 
 - Handshake (`HS_ChannelId=1001`, `HS_IsRedirectionRequest=0`) returns a
   valid `AuthToken`.
@@ -65,10 +66,13 @@ i. The production activation steps required once sandbox UAT passes
    (any additional enablement, credentials, or Bank-side sign-off
    needed before we may set `BANK_ALFALAH_APG_ENABLED=true` in
    production).
+j. Whether `www.thannow.com` and `api.thannow.com` need to be explicitly
+   whitelisted on your side for our Return URL and hosted-page redirect
+   to be accepted.
 
 Our Return URL is `https://api.thannow.com/api/payments/bank-alfalah/return`,
 our frontend return landing page is `https://thannow.com/payment/return`,
-and our website is `https://thannow.com`.
+and our website is `https://www.thannow.com`.
 
 No production payment or charge is enabled. `BANK_ALFALAH_APG_ENABLED`
 remains `false` in production.
@@ -94,3 +98,6 @@ ThanNow Engineering
 - 2026-08-28 R9.5 refresh — superseded by the R9.6 freeze refresh above,
   which restructures the questions to the exact a-i list and adds the
   second Wallet/Account transaction IDs (`443330289493`, `446691489639`).
+- 2026-08-28 R9.6 refresh — superseded by the R9.7 refresh above, which
+  adds Merchant `15248` to the subject/opening and question (j) asking
+  whether `www.thannow.com`/`api.thannow.com` need explicit whitelisting.
