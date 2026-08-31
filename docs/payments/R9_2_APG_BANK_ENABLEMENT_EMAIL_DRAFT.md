@@ -2,71 +2,64 @@
 
 Status: **READY_TO_SEND — awaiting owner authorization to send**
 
-Last refreshed 2026-08-28 (R9.7-APG-BANK-RESPONSE-WAIT), against fully
-recovered ThanNow runtime (API/DB/Redis all healthy,
-`api.thannow.com/api/version` build SHA `e411ccd6...`). Application
-implementation remains frozen — no further code changes pending Bank
-response. No new sandbox calls made this session (no new Bank evidence).
+Last refreshed 2026-08-31 (R9.7-APG-BANK-RESPONSE-WAIT, reply from
+Muhammad Taha received), against fully recovered ThanNow runtime
+(API/DB/Redis all healthy). Application implementation remains frozen —
+no further code changes; the Card/Wallet rejections are confirmed
+Bank-side, not app defects.
 
-**Subject:** ThanNow (Merchant 15248 / Store 567249) — Bank-published sandbox test data rejected
+**Subject:** ThanNow (Merchant 15248 / Store 567249) — Wallet still rejected, Card still rejected after your suggested expiry fix
 
-Hello Bank Alfalah Support,
+Hello Bank Alfalah Support (thank you for the reply confirming the Alfalah
+Account is closed for our profile — noted, we've stopped testing that
+mode),
 
 ThanNow's direct HS1001 Page Redirection integration is working end to end
 for our Merchant `15248` / Store `567249` profile:
 
 - Handshake (`HS_ChannelId=1001`, `HS_IsRedirectionRequest=0`) returns a
   valid `AuthToken`.
-- SSO correctly redirects to the hosted checkout page for all four
-  `TransactionTypeId` configurations (1=Alfa Wallet, 2=Alfalah Bank
-  Account, 3=Credit/Debit Card, empty=All Modes selector).
+- SSO correctly redirects to the hosted checkout page for Alfa Wallet,
+  Credit/Debit Card, and All Modes selector.
 
-We used the exact sandbox sample data published in our own Merchant Portal
-Dashboard ("Sample Data For Testing" section, Store `ThanNow`) — not
-placeholder or invented values — and every payment mode was rejected,
-reconfirmed today with fresh transactions:
+Per your instruction we tested only Wallet and Card again:
 
-- **Alfa Wallet** (published sample number): two transactions created
-  on separate dates (`TransactionId 301954137241`, `443330289493`), Bank
-  responded `Invalid Account` both times. Authoritative `OrderStatus`
-  confirmed `TransactionStatus=Failed`.
-- **Alfalah Account** (published sample number): two transactions created
-  on separate dates (`TransactionId 302795473632`, `446691489639`), same
-  outcome — `Invalid Account`, `OrderStatus` confirmed
-  `TransactionStatus=Failed`.
-- **Credit/Debit Card** (published sample PAN/expiry/CVV): the hosted
-  page's own client-side validator (`CheckLuhnsAlgo` /
-  `CheckExpiryYear`) rejects the published card number before a
-  transaction is ever created — the Card Number and Expiry Month
+- **Alfa Wallet** (published sample number): a third transaction was
+  created (`TransactionId 797003508935`, following prior
+  `301954137241`, `443330289493`), Bank again responded `Invalid Account`.
+  Authoritative `OrderStatus` confirmed `TransactionStatus=Failed`.
+- **Credit/Debit Card** (published sample PAN, CVV, expiry updated to
+  `2030` per your instruction): unchanged outcome. The hosted page's own
+  client-side validator (`CheckLuhnsAlgo`) rejects the Card Number before
+  the Expiry field is ever evaluated — the Card Number and Expiry Month
   fields are cleared by the page's own script immediately after
-  validation runs, even when entered via real keystroke events (ruled
-  out a form-fill artifact on our side; reproduced identically twice).
-  No `TransactionId` is issued for this mode.
+  `CheckLuhnsAlgo` runs, even when entered via real keystroke events. The
+  expiry-year fix did not change this because the rejection happens at
+  the card-number step, before expiry is checked. No `TransactionId` is
+  issued for this mode.
 
 Could you please confirm:
 
-a. Alfa Wallet is enabled for our Merchant/Store `567249`.
-b. Alfalah Account is enabled for our Merchant/Store `567249`.
-c. Credit/Debit Card is enabled for our Merchant/Store `567249`.
-d. Why the Bank portal's published Wallet and Account test data returns
-   `Invalid Account` for our store profile.
-e. Why the Bank portal's published Card test data is rejected by your
-   own hosted-page validator before a transaction is even created.
-f. If the generic published samples are not valid for our specific
-   store, the working Store `567249`-compatible sandbox Wallet,
-   Account, and Card values.
-g. The exact accepted Card expiry/input format, given that the
-   published sample fails your own hosted page's client-side
-   Luhn/expiry check.
-h. That a successful sandbox `OrderStatus` response contract includes
+a. Alfa Wallet is enabled for our Merchant/Store `567249` — if so, is
+   the published sample Wallet number itself invalid for our store, and
+   if so, what is the correct Store `567249`-compatible sandbox Wallet
+   number?
+b. Credit/Debit Card is enabled for our Merchant/Store `567249` — if so,
+   why the published sample card number fails your own hosted page's
+   Luhn check (`CheckLuhnsAlgo`) before any transaction is created, and
+   the correct Store `567249`-compatible sandbox card number.
+c. The exact accepted Card number/expiry/CVV input format, since neither
+   the originally published sample nor the `2030`-expiry correction has
+   passed your own hosted page's validator.
+d. That a successful sandbox `OrderStatus` response contract includes
    an explicit `Currency` field — our verification logic requires an
    exact currency match (`PKR`) before treating any transaction as
    paid, and every response so far has omitted `Currency` entirely.
-i. The production activation steps required once sandbox UAT passes
+e. The production activation steps required once sandbox UAT passes
    (any additional enablement, credentials, or Bank-side sign-off
    needed before we may set `BANK_ALFALAH_APG_ENABLED=true` in
    production).
-j. Whether `www.thannow.com` and `api.thannow.com` need to be explicitly
+f. Whether `www.thannow.com` and `api.thannow.com` need to be explicitly
    whitelisted on your side for our Return URL and hosted-page redirect
    to be accepted.
 
@@ -98,6 +91,10 @@ ThanNow Engineering
 - 2026-08-28 R9.5 refresh — superseded by the R9.6 freeze refresh above,
   which restructures the questions to the exact a-i list and adds the
   second Wallet/Account transaction IDs (`443330289493`, `446691489639`).
-- 2026-08-28 R9.6 refresh — superseded by the R9.7 refresh above, which
-  adds Merchant `15248` to the subject/opening and question (j) asking
-  whether `www.thannow.com`/`api.thannow.com` need explicit whitelisting.
+- 2026-08-28 R9.6 refresh — superseded by the 2026-08-31 refresh above,
+  which adds Merchant `15248`, the whitelist question, and then
+  incorporates the Bank's own reply (Muhammad Taha, 2026-08-31): Alfalah
+  Account is permanently closed for this profile (question dropped,
+  mode retired from testing), and the suggested `2030` Card expiry fix
+  was tested and did not change the outcome (rejection happens at the
+  card-number Luhn-check step, before expiry is evaluated).

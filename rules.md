@@ -4268,3 +4268,32 @@ remains in force verbatim.
   stored as repo secrets — never hardcoded into source. No new workflow was
   needed; it already accepts secure secret injection and never logs
   credentials, AES keys, hashes, or `AuthToken`.
+
+### R9.7-APG-BANK-RESPONSE-WAIT (2026-08-31) — Bank reply received, Wallet/Card retested, Account retired
+
+- Bank reply (Muhammad Taha, 2026-08-31): "Alfalah account is closed. Only
+  use credit/debit and wallets for testing. If there is expiry issue than
+  just use 2030 for cards." This is new Bank evidence, so only the
+  affected modes were retested (Wallet, Card) — Account was **not**
+  retested; the Bank has confirmed it is permanently closed for this
+  profile, so `Invalid Account` on that mode was expected and is
+  retired from future UAT.
+- **Wallet retest** (run `33372973675`): same published sample number,
+  new transaction `797003508935`. Bank again responded `Invalid Account`,
+  `OrderStatus` confirmed `Failed`. The Bank's assurance that Wallet is
+  testable did not change the outcome for the published sample number
+  itself — still a Bank-side data issue, not an app defect.
+- **Card retest** (run `33373108832`): same published PAN/CVV, expiry
+  applied per the Bank's `2030` instruction. Unchanged outcome —
+  `CheckLuhnsAlgo` rejects the Card Number and the page clears
+  Card Number + Expiry Month before Expiry is ever evaluated. The `2030`
+  fix could not apply because the rejection happens one step earlier
+  (Luhn check on the card number), never reaching the expiry check. No
+  application code change — the UAT script's own real-keystroke retype
+  (from R9.5) was already exercised and behaves identically.
+- No application defect found in either retest. Classification unchanged:
+  `BANK_PUBLISHED_SAMPLE_REJECTED_FOR_STORE_PROFILE` for Wallet and Card.
+  Bank escalation email updated with the third Wallet transaction ID, the
+  Card expiry-fix-tested-no-effect finding, and Account dropped from the
+  question list (`docs/payments/R9_2_APG_BANK_ENABLEMENT_EMAIL_DRAFT.md`,
+  still `READY_TO_SEND`, not sent).
